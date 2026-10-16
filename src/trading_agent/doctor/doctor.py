@@ -15,6 +15,7 @@ from trading_agent.doctor.checks import gateway_token_check
 from trading_agent.doctor.checks import ollama_backend_check
 from trading_agent.doctor.checks import openai_compatible_backend_check
 from trading_agent.doctor.checks import python_version_check
+from trading_agent.doctor.checks import searxng_check
 from trading_agent.doctor.checks import unified_broker_interface_check
 
 _STATUS_LABELS = {
@@ -102,6 +103,9 @@ class Doctor:
                         self._secrets,
                     )
                 )
+        checks.append(
+            searxng_check.SearxngCheck(self._configuration.web.searxng_base_url)
+        )
         checks.append(bubblewrap_check.BubblewrapCheck())
         checks.append(chrome_check.ChromeCheck())
         return checks

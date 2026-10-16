@@ -1,0 +1,13 @@
+name: trading_agent
+
+services:
+  searxng:
+    image: searxng/searxng:2026.10.2-19ffbcd30
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:4001:8080
+    environment:
+      SEARXNG_BASE_URL: http://127.0.0.1:4001/
+      SEARXNG_SECRET: ${TRADING_AGENT_SEARXNG_SECRET:?set TRADING_AGENT_SEARXNG_SECRET in .env}
+    volumes:
+      - ./deploy/searxng/settings.yml:/etc/searxng/settings.yml:ro
