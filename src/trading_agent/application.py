@@ -5,6 +5,7 @@ Typical usage example:
   Application().run()
 """
 
+import asyncio
 import logging
 import sys
 from collections.abc import Sequence
@@ -13,6 +14,8 @@ import uvicorn
 
 from trading_agent import command_line
 from trading_agent import desk_builder
+from trading_agent.client import message_client
+from trading_agent.client import proposal_commands
 from trading_agent.configuration import agent_configuration
 from trading_agent.configuration import configuration_loader
 from trading_agent.configuration import secrets as secrets_module
@@ -21,6 +24,8 @@ from trading_agent.gateway import access_guard
 from trading_agent.gateway import gateway_application
 from trading_agent.gateway import token_redacting_filter
 from trading_agent.runtime import event_bus as event_bus_module
+from trading_agent.workspace import proposal_store
+from trading_agent.workspace import workspace_layout
 
 _LOG_FORMAT = '%(asctime)s %(levelname)s %(name)s: %(message)s'
 
@@ -39,10 +44,13 @@ class Application:
     def run(self) -> None:
         """Reads the configuration and runs the chosen command until it ends.
 
-        The process exits with status 2 when the configuration is invalid, and with the doctor's status after `doctor`.
+        The process exits with status 2 when the configuration is invalid, and with the command's own status after `doctor`, `send` and `proposals`.
         """
-        logging.basicConfig(level=logging.INFO, format=_LOG_FORMAT)
         arguments = command_line.CommandLine().parse(self._argument_list)
+        log_level = logging.INFO
+        if arguments.command != 'serve':
+            log_level = logging.WARNING
+        logging.basicConfig(level=log_level, format=_LOG_FORMAT)
         loader = configuration_loader.ConfigurationLoader(
             arguments.configuration
         )
@@ -52,8 +60,32 @@ class Application:
             print(error, file=sys.stderr)
             sys.exit(2)
         secrets = secrets_module.Secrets()
+        layout = workspace_layout.WorkspaceLayout(
+            configuration.workspace_directory
+        )
+        desk_names = [desk.name for desk in configuration.desks]
+        for created in layout.create_missing(desk_names):
+            logging.getLogger(__name__).info(
+                'Created %s from its template', created
+            )
         if arguments.command == 'doctor':
             sys.exit(doctor.Doctor(configuration, secrets).run())
+        if arguments.command == 'send':
+            client = message_client.MessageClient(
+                f'http://{configuration.gateway.host}:{configuration.gateway.port}',
+                secrets.gateway_access_token,
+            )
+            sys.exit(asyncio.run(client.send(arguments.desk, arguments.text)))
+        if arguments.command == 'proposals':
+            commands = proposal_commands.ProposalCommands(
+                proposal_store.ProposalStore(layout)
+            )
+            sys.exit(
+                commands.run(
+                    arguments.proposal_action,
+                    vars(arguments).get('proposal_id'),
+                )
+            )
         self._serve(configuration, secrets)
 
     def _serve(

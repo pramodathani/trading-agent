@@ -41,6 +41,42 @@ class CommandLine:
             'doctor',
             help='Check that everything the agent needs is in place.',
         )
+        send_parser = subparsers.add_parser(
+            'send',
+            help='Send a message to a desk of the running gateway and print the reply.',
+        )
+        send_parser.add_argument(
+            'text',
+            help='The message, or a /command such as /status.',
+        )
+        send_parser.add_argument(
+            '--desk',
+            default='main',
+            help='The desk to send it to (default: main).',
+        )
+        proposals_parser = subparsers.add_parser(
+            'proposals',
+            help='Review the changes desks propose to your files.',
+        )
+        proposal_actions = proposals_parser.add_subparsers(
+            dest='proposal_action',
+            required=True,
+        )
+        proposal_actions.add_parser('list', help='List every proposal.')
+        for action, action_help in [
+            ('show', 'Show what a proposal would change.'),
+            (
+                'accept',
+                'Apply a proposal to its file, keeping a copy of the old file.',
+            ),
+            ('reject', 'Reject a proposal without changing any file.'),
+        ]:
+            action_parser = proposal_actions.add_parser(
+                action, help=action_help
+            )
+            action_parser.add_argument(
+                'proposal_id', help='The proposal id from the list.'
+            )
         arguments = parser.parse_args(argument_list)
         if arguments.command is None:
             arguments.command = 'serve'
