@@ -85,7 +85,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         self._event_bus = event_bus
         self._settings = settings
         self._client = None
-        self._client_prompt_fingerprint = None
+        self._session_prompt_fingerprint = None
         self.session_id: str | None = None
 
     async def run_turn(
@@ -109,7 +109,8 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         prompt = self._settings.prompt_builder.build()
         try:
             client = await self._connected_client(prompt)
-            await client.query(trigger.text)
+            await client.query(self._query_text(prompt, trigger))
+            self._session_prompt_fingerprint = prompt.fingerprint
             return await self._read_response(client, trigger)
         except backend_module.BackendUnavailableError:
             await self._disconnect()
@@ -141,27 +142,51 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
     ) -> claude_agent_sdk.ClaudeSDKClient:
         """Returns the session's client, starting Claude Code if it is not running.
 
-        Claude Code takes its system prompt when it starts, so when the workspace files have changed the process is restarted with the new prompt. A restarted process resumes the previous session, so Claude keeps its memory of earlier turns.
+        A process started after a failure resumes the previous session, so Claude keeps its memory of earlier turns. A brand-new session starts with the current prompt.
 
         Args:
-            prompt (prompt_builder_module.SystemPrompt): The prompt this turn must run with.
+            prompt (prompt_builder_module.SystemPrompt): The current prompt, used when a new session starts.
 
         Returns:
             claude_agent_sdk.ClaudeSDKClient: A connected client.
         """
-        if (
-            self._client is not None
-            and self._client_prompt_fingerprint != prompt.fingerprint
-        ):
-            await self._disconnect()
         if self._client is None:
+            if self.session_id is None:
+                self._session_prompt_fingerprint = prompt.fingerprint
             client = claude_agent_sdk.ClaudeSDKClient(
                 options=self._options(prompt.text)
             )
             await client.connect()
             self._client = client
-            self._client_prompt_fingerprint = prompt.fingerprint
         return self._client
+
+    def _query_text(
+        self,
+        prompt: prompt_builder_module.SystemPrompt,
+        trigger: trigger_module.Trigger,
+    ) -> str:
+        """The text to send for a turn, with updated instructions in front when the files changed.
+
+        A resumed Claude Code session keeps the system prompt it started with and ignores a new one, so changed workspace files are delivered inside the message instead. Once sent, they are part of the session and survive a later resume.
+
+        Args:
+            prompt (prompt_builder_module.SystemPrompt): The current prompt.
+            trigger (trigger_module.Trigger): The turn's trigger.
+
+        Returns:
+            str: The trigger's text, preceded by the updated instructions when they changed since the session last saw them.
+        """
+        if prompt.fingerprint == self._session_prompt_fingerprint:
+            return trigger.text
+        return '\n'.join(
+            [
+                '[Your instruction files have changed since this session started. The complete current versions follow. They replace the versions in your system prompt and in any earlier update; follow these from now on.]',
+                prompt.text,
+                '[End of the updated instructions. The trigger follows.]',
+                '',
+                trigger.text,
+            ]
+        )
 
     def _options(self, prompt_text: str) -> claude_agent_sdk.ClaudeAgentOptions:
         """Builds the options that keep Claude Code on the subscription and away from prompts.
@@ -352,6 +377,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         """Stops Claude Code and forgets the session, so the next turn starts afresh."""
         await self._disconnect()
         self.session_id = None
+        self._session_prompt_fingerprint = None
 
     async def close(self) -> None:
         """Stops the desk's Claude Code process when the desk stops."""

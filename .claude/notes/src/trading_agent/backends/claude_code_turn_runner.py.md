@@ -2,6 +2,12 @@
 
 Claude Code runs its own agent loop, so Claude is a turn runner rather than a `ModelBackend`. It keeps one `ClaudeSDKClient`, and therefore one Claude Code process and session, per desk; Claude remembers earlier turns because the session continues. After a failure the client is dropped and the next turn starts a new process with `resume=<session_id>`, so the memory survives a crash of Claude Code.
 
+## Changed workspace files reach Claude inside the message
+
+A resumed Claude Code session keeps the system prompt it started with and ignores the one passed when it is resumed. This was found on 2026-10-17 with Claude Code 2.1.301: after `TradingRules.md` changed, the restarted process's command line held the new prompt (`capital_percent` present, the old rupee keys absent), yet the model quoted the old keys word for word. The milestone 5 design of restarting Claude Code with the new prompt was therefore removed.
+
+Instead, when the prompt's fingerprint differs from the one the session last saw, the next message starts with a marked block holding the complete current prompt, which the model is told replaces the earlier versions. Because the block is part of the conversation, it survives a later crash and resume. The cost is the prompt's length once per change, which Claude Code's own compaction absorbs over time.
+
 ## Never stopping for a human
 
 - `permission_mode='bypassPermissions'` with `setting_sources=[]`: no settings file is read, so there are no "ask" rules, and the user's global `~/.claude/CLAUDE.md` is not loaded either (the probe confirmed Claude saw no mention of the Google style guide).

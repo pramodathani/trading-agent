@@ -1,6 +1,7 @@
 """Tests for the Claude Code backend, with a fake client in place of Claude Code."""
 
 import asyncio
+import dataclasses
 from pathlib import Path
 
 import claude_agent_sdk
@@ -378,3 +379,52 @@ class TestClaudeCodeTurnRunner:
             backend.BackendUnavailableError, match='turn failed'
         ):
             asyncio.run(runner._read_response(client, _trigger()))
+
+
+class _ChangingPromptBuilder:
+    """Stands in for PromptBuilder, with a prompt the test can change.
+
+    Attributes:
+        text: The current prompt text.
+    """
+
+    def __init__(self):
+        """Starts with version one."""
+        self.text = 'rules version one'
+
+    def build(self) -> prompt_builder.SystemPrompt:
+        """Returns the current prompt.
+
+        Returns:
+            prompt_builder.SystemPrompt: The prompt, fingerprinted by its text.
+        """
+        return prompt_builder.SystemPrompt(
+            text=self.text, fingerprint=self.text
+        )
+
+
+class TestClaudePromptUpdates:
+    """Tests for delivering changed instructions into a running session."""
+
+    def test_changed_files_are_sent_once_inside_the_message(self) -> None:
+        """Unchanged files send the trigger alone; changed files are delivered once, then not again."""
+        runner = _runner(event_bus_module.EventBus())
+        builder = _ChangingPromptBuilder()
+        runner._settings = dataclasses.replace(
+            runner._settings,
+            prompt_builder=builder,
+        )
+        runner._session_prompt_fingerprint = builder.build().fingerprint
+        trigger = _trigger()
+
+        unchanged = runner._query_text(builder.build(), trigger)
+        builder.text = 'rules version two'
+        changed = runner._query_text(builder.build(), trigger)
+        runner._session_prompt_fingerprint = builder.build().fingerprint
+        after_delivery = runner._query_text(builder.build(), trigger)
+
+        assert unchanged == trigger.text
+        assert changed.startswith('[Your instruction files have changed')
+        assert 'rules version two' in changed
+        assert changed.endswith(trigger.text)
+        assert after_delivery == trigger.text
