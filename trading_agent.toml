@@ -1,0 +1,26 @@
+mode = "dry_run"
+tradingmachine_environment_file = "/home/pramod/Projects/tradingmachine/.env"
+
+[gateway]
+host = "127.0.0.1"
+port = 8120
+
+[[desks]]
+name = "main"
+
+[backends.gemma]
+kind = "ollama"
+base_url = "http://127.0.0.1:11434"
+model = "gemma4:31b"
+context_window = 32768
+
+[backends.qwen]
+kind = "openai_compatible"
+base_url = "http://127.0.0.1:18434/v1"
+model = "Qwen3.8-27B-UD-Q4_K_M"
+context_window = 65536
+
+[backends.claude]
+kind = "claude_code"
+model = "opus"
+context_window = 1000000

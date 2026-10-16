@@ -1,0 +1,23 @@
+target-version = "py314"
+line-length = 80
+
+[lint]
+ignore = [
+    "FLY002",
+    "TRY004",
+    "UP040",
+]
+
+[lint.isort]
+force-single-line = true
+single-line-exclusions = [
+    "collections.abc",
+    "typing",
+]
+known-first-party = [
+    "trading_agent",
+    "tests",
+]
+
+[format]
+quote-style = "single"
