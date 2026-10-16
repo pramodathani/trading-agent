@@ -63,6 +63,11 @@ class WorkspaceLayout:
         """The risk engine's SQLite ledger, shared by every desk."""
         return self.shared_directory / 'risk_ledger.db'
 
+    @property
+    def desk_orders_file(self) -> Path:
+        """The SQLite record of which desk placed which order."""
+        return self.shared_directory / 'desk_orders.db'
+
     def desk_directory(self, desk_name: str) -> Path:
         """The folder that belongs to one desk.
 

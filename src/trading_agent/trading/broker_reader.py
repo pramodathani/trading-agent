@@ -30,7 +30,7 @@ _Result = TypeVar('_Result')
 
 
 class BrokerReader:
-    """Reads instruments, prices, the portfolio and the order book from UBI."""
+    """Reads instruments, prices, the portfolio and the order book from UBI, and hands out the instruments the order tools trade."""
 
     def __init__(self, environment_file: Path):
         """Remembers where tradingmachine's settings are, without connecting.
@@ -96,6 +96,38 @@ class BrokerReader:
                 unified_broker_interface=shared_client,
             )
         return instruments.Instrument(
+            exchange=arguments.exchange,
+            segment=arguments.segment,
+            symbol=arguments.symbol,
+            underlying_symbol=arguments.underlying_symbol,
+            expiry_date=arguments.expiry_date,
+            strike_price=arguments.strike_price,
+            option_type=arguments.option_type,
+            unified_broker_interface=shared_client,
+        )
+
+    def tradeable_instrument(
+        self,
+        arguments: instrument_arguments_module.InstrumentArguments,
+    ) -> instruments.TradeableInstrument:
+        """Looks an instrument up as a TradeableInstrument, which has the order methods. Call it inside call().
+
+        Args:
+            arguments (instrument_arguments_module.InstrumentArguments): How the model named the instrument.
+
+        Returns:
+            instruments.TradeableInstrument: The instrument.
+
+        Raises:
+            tradingmachine.assets.exceptions.TradeableInstrumentError: The instrument is an index, which cannot be traded.
+        """
+        shared_client = self._shared_client()
+        if arguments.instrument_id is not None:
+            return instruments.TradeableInstrument(
+                instrument_id=arguments.instrument_id,
+                unified_broker_interface=shared_client,
+            )
+        return instruments.TradeableInstrument(
             exchange=arguments.exchange,
             segment=arguments.segment,
             symbol=arguments.symbol,

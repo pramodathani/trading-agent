@@ -27,6 +27,7 @@ class EventKind(enum.StrEnum):
     BACKEND_SWITCH = 'backend_switch'
     RISK_DECISION = 'risk_decision'
     KILL_SWITCH = 'kill_switch'
+    ORDER = 'order'
     TEXT = 'text'
     TURN_FINISHED = 'turn_finished'
     ERROR = 'error'
