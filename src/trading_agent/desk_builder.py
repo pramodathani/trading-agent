@@ -25,10 +25,22 @@ from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import no_model_turn_runner
 from trading_agent.runtime import turn_runner
+from trading_agent.tools import bash_background_tool
+from trading_agent.tools import bash_check_tool
+from trading_agent.tools import bash_restart_tool
+from trading_agent.tools import bash_run_tool
+from trading_agent.tools import bash_sandbox
+from trading_agent.tools import bash_session
+from trading_agent.tools import edit_file_tool
 from trading_agent.tools import get_time_tool
+from trading_agent.tools import path_policy
 from trading_agent.tools import propose_file_change_tool
+from trading_agent.tools import read_file_tool
 from trading_agent.tools import tool_call_executor
 from trading_agent.tools import tool_registry
+from trading_agent.tools import web_fetch_tool
+from trading_agent.tools import web_search_tool
+from trading_agent.tools import write_file_tool
 from trading_agent.workspace import proposal_store
 from trading_agent.workspace import workspace_layout
 
@@ -71,26 +83,29 @@ class DeskBuilder:
         Returns:
             desk_runtime.DeskRuntime: The desk, not yet running.
         """
+        executor = self._executor(desk_configuration)
         return desk_runtime.DeskRuntime(
             desk_configuration,
             self._event_bus,
-            self._turn_runner(desk_configuration),
+            self._turn_runner(desk_configuration, executor),
             self._configuration.mode,
+            executor.tool_registry,
         )
 
     def _turn_runner(
         self,
         desk_configuration: agent_configuration.DeskConfiguration,
+        executor: tool_call_executor.ToolCallExecutor,
     ) -> turn_runner.TurnRunner:
         """Builds a model router over every backend in the desk's order.
 
         Args:
             desk_configuration (agent_configuration.DeskConfiguration): The desk's settings.
+            executor (tool_call_executor.ToolCallExecutor): The desk's tool executor, shared by every backend.
 
         Returns:
             turn_runner.TurnRunner: The router, or a no-model runner when the desk names no backend.
         """
-        executor = self._executor(desk_configuration)
         routes = []
         for backend_name in desk_configuration.backend_order:
             backend_configuration = self._configuration.backends[backend_name]
@@ -168,12 +183,42 @@ class DeskBuilder:
             tool_call_executor.ToolCallExecutor: The executor.
         """
         agent_settings = self._configuration.agent
+        sandbox_settings = self._configuration.sandbox
+        web_settings = self._configuration.web
+        sandbox = bash_sandbox.BashSandbox(
+            self._layout.scratch_directory(desk_configuration.name),
+            sandbox_settings.hidden_paths,
+        )
+        session = bash_session.BashSession(
+            sandbox,
+            sandbox_settings.command_timeout_seconds,
+            sandbox_settings.maximum_output_characters,
+        )
+        policy = path_policy.PathPolicy(
+            self._layout.desk_directory(desk_configuration.name),
+            sandbox.hidden_paths(),
+        )
         registry = tool_registry.ToolRegistry(
             [
                 get_time_tool.GetTimeTool(),
                 propose_file_change_tool.ProposeFileChangeTool(
                     self._proposal_store,
                     desk_configuration.name,
+                ),
+                bash_run_tool.BashRunTool(session),
+                bash_restart_tool.BashRestartTool(session),
+                bash_background_tool.BashBackgroundTool(session),
+                bash_check_tool.BashCheckTool(session),
+                read_file_tool.ReadFileTool(policy),
+                write_file_tool.WriteFileTool(policy),
+                edit_file_tool.EditFileTool(policy),
+                web_search_tool.WebSearchTool(
+                    web_settings.searxng_base_url,
+                    web_settings.search_result_limit,
+                ),
+                web_fetch_tool.WebFetchTool(
+                    web_settings.fetch_timeout_seconds,
+                    web_settings.maximum_page_characters,
                 ),
             ],
             timeout_seconds=agent_settings.tool_timeout_seconds,

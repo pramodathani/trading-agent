@@ -17,3 +17,5 @@ frontend/dist/
 workspace/desks/*/scratch/
 workspace/desks/*/proposals/
 workspace/desks/*/Memory.md
+workspace/desks/*/notes/
+workspace/desks/*/memory/

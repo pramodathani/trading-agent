@@ -13,3 +13,5 @@ The short built-in system prompt is a stand-in until milestone 5 builds the prom
 Since milestone 4 every backend in the desk's order becomes a route of the desk's `ModelRouter`, built by kind: `claude_code` as a Claude Code turn runner, `ollama` and `openai_compatible` as an agent loop with its own conversation.
 
 From milestone 5 each desk gets a `PromptBuilder` instead of a fixed prompt, and the `propose_file_change` tool.
+
+From milestone 6 each desk gets its own bash sandbox and terminal, rooted in its scratch folder, and the file, bash and web tools. The desk runtime is given the tool registry so that stopping the desk stops its terminal.
