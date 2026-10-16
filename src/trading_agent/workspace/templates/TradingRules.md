@@ -12,7 +12,7 @@ The limits block below is read by the risk engine, which is plain code, not an A
 - `weekly_loss_limit_percent` stops every desk until the next Monday once the week's losses reach it.
 - `maximum_order_value_percent` caps the value of any single order.
 - `maximum_open_positions` caps the number of open positions. Leave it out for no cap.
-- `trading_window` is the part of the day, in India time, when new orders are allowed.
+- `trading_window` is when new orders are allowed. `"exchange_hours"` means each exchange's own opening and closing times (NSE and BSE, MCX, currency), taken from the market calendar, which also follows MCX's change of closing time with US daylight saving. A range such as `"09:20-15:15"`, in India time, applies the same window to every exchange instead.
 - `allow_option_writing` lets desks sell options to open or enlarge a short position. While it is false, only buying options, and selling options already held, is allowed.
 - A desk's optional `maximum_orders_per_minute` caps how fast it may send orders. Leave it out for no cap.
 - A desk's `allowed_products` and `allowed_instruments` restrict what it may trade. An empty list means everything is allowed.
@@ -24,7 +24,7 @@ capital_percent = 0
 daily_loss_limit_percent = 0
 weekly_loss_limit_percent = 0
 maximum_order_value_percent = 0
-trading_window = "09:20-15:15"
+trading_window = "exchange_hours"
 allow_option_writing = false
 
 [desks.main]
