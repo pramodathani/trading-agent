@@ -428,3 +428,24 @@ class TestClaudePromptUpdates:
         assert 'rules version two' in changed
         assert changed.endswith(trigger.text)
         assert after_delivery == trigger.text
+
+
+class TestClaudeEnvironment:
+    """Tests for the environment Claude Code is started with."""
+
+    def test_tradingmachine_settings_are_blanked(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Every TRADINGMACHINE_ variable reaches Claude Code empty, and the token is set.
+
+        Args:
+            monkeypatch (pytest.MonkeyPatch): Sets the variable for this test only.
+        """
+        monkeypatch.setenv('TRADINGMACHINE_MONGODB_PASSWORD', 'very-secret')
+        runner = _runner(event_bus_module.EventBus())
+
+        environment = runner._environment()
+
+        assert environment['TRADINGMACHINE_MONGODB_PASSWORD'] == ''
+        assert environment['CLAUDE_CODE_OAUTH_TOKEN'] == 'sk-ant-oat-test'

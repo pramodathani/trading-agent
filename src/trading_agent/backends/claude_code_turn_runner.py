@@ -33,6 +33,7 @@ from trading_agent.runtime import turn_runner
 _LOGGER = logging.getLogger(__name__)
 _API_KEY_VARIABLE = 'ANTHROPIC_API_KEY'
 _REJECTED = 'rejected'
+_TRADINGMACHINE_PREFIX = 'TRADINGMACHINE_'
 
 
 @dataclasses.dataclass(frozen=True)
@@ -224,12 +225,26 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
             include_partial_messages=True,
             max_turns=self._settings.maximum_rounds,
             cwd=self._settings.working_directory,
-            env={
-                'CLAUDE_CODE_OAUTH_TOKEN': self._settings.oauth_token,
-            },
+            env=self._environment(),
             resume=self.session_id,
             stderr=self._log_stderr,
         )
+
+    def _environment(self) -> dict[str, str]:
+        """The environment variables Claude Code gets on top of the gateway's.
+
+        The SDK copies the gateway's whole environment into Claude Code and can only add or replace variables. tradingmachine copies its settings, including the MongoDB password, into the gateway's environment when it loads its .env file, so every TRADINGMACHINE_ variable is replaced with an empty value.
+
+        Returns:
+            dict[str, str]: The subscription token, and an empty value for each tradingmachine setting.
+        """
+        environment = {
+            'CLAUDE_CODE_OAUTH_TOKEN': self._settings.oauth_token,
+        }
+        for name in os.environ:
+            if name.startswith(_TRADINGMACHINE_PREFIX):
+                environment[name] = ''
+        return environment
 
     async def _read_response(
         self,

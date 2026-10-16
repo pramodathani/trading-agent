@@ -32,3 +32,7 @@ A `RateLimitEvent` with status `rejected` (the 5-hour or weekly limit) raises `B
 Three turns through the gateway took 3.4 s (with a `get_time` call), 2.0 s and 1.2 s. About 1,100 to 1,300 prompt tokens per turn were read from Anthropic's prompt cache, with only 2 to 4 new ones, because the system prompt and history stay the same between turns.
 
 Verified live on 2026-10-17: after `TradingRules.md` changed mid-interview, the next reply began "Yes, I received updated instructions in this message" and quoted the new `allow_option_writing` key, without a restart.
+
+## tradingmachine's settings are blanked
+
+From milestone 8 the gateway loads tradingmachine's `.env`, which copies its settings, including database passwords, into the gateway's environment, and the SDK copies that whole environment into Claude Code. `_environment` therefore passes every `TRADINGMACHINE_` variable as an empty value. Claude Code has no tool that could read its environment, so this is defence in depth. Verified on 2026-10-17 by reading `/proc/<pid>/environ` of a Claude Code process started after the settings were loaded: all 16 were empty.
