@@ -16,7 +16,9 @@ from trading_agent.doctor.checks import ollama_backend_check
 from trading_agent.doctor.checks import openai_compatible_backend_check
 from trading_agent.doctor.checks import python_version_check
 from trading_agent.doctor.checks import searxng_check
+from trading_agent.doctor.checks import trading_limits_check
 from trading_agent.doctor.checks import unified_broker_interface_check
+from trading_agent.workspace import workspace_layout
 
 _STATUS_LABELS = {
     doctor_check.CheckStatus.OK: '[ ok ]',
@@ -105,6 +107,13 @@ class Doctor:
                 )
         checks.append(
             searxng_check.SearxngCheck(self._configuration.web.searxng_base_url)
+        )
+        checks.append(
+            trading_limits_check.TradingLimitsCheck(
+                workspace_layout.WorkspaceLayout(
+                    self._configuration.workspace_directory
+                ).trading_rules_file
+            )
         )
         checks.append(bubblewrap_check.BubblewrapCheck())
         checks.append(chrome_check.ChromeCheck())
