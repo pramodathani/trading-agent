@@ -69,11 +69,13 @@ class Tool:
         name: The name the model calls the tool by.
         description: What the tool does, written for the model.
         arguments_model: The pydantic model that describes and checks the arguments.
+        timeout_seconds: How long one call may run, or None for the registry's default.
     """
 
     name = ''
     description = ''
     arguments_model: type[pydantic.BaseModel] = NoArguments
+    timeout_seconds: float | None = None
 
     def input_schema(self) -> dict[str, Any]:
         """The JSON schema of the tool's arguments, as the model sees it.
@@ -100,3 +102,9 @@ class Tool:
             NotImplementedError: Always, because subclasses must override this method.
         """
         raise NotImplementedError
+
+    async def close(self) -> None:
+        """Releases anything the tool started, such as a bash process.
+
+        Tools that start nothing keep this empty default.
+        """

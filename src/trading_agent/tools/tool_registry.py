@@ -95,11 +95,11 @@ class ToolRegistry:
         try:
             result = await asyncio.wait_for(
                 tool.run(arguments),
-                timeout=self._timeout_seconds,
+                timeout=self._timeout_for(tool),
             )
         except TimeoutError:
             return tool_module.ToolResult.error(
-                f'{call.name} did not finish within {self._timeout_seconds:g} seconds and was stopped.'
+                f'{call.name} did not finish within {self._timeout_for(tool):g} seconds and was stopped.'
             )
         except Exception as error:
             _LOGGER.exception('Tool %s failed', call.name)
@@ -107,6 +107,24 @@ class ToolRegistry:
                 f'{call.name} failed: {error!r}'
             )
         return self._capped(result)
+
+    async def close(self) -> None:
+        """Closes every tool, for example stopping the bash terminal."""
+        for tool in self._tools.values():
+            await tool.close()
+
+    def _timeout_for(self, tool: tool_module.Tool) -> float:
+        """The time limit for one tool's calls.
+
+        Args:
+            tool (tool_module.Tool): The tool.
+
+        Returns:
+            float: The tool's own limit when it sets one, otherwise the registry's default.
+        """
+        if tool.timeout_seconds is not None:
+            return tool.timeout_seconds
+        return self._timeout_seconds
 
     def _capped(
         self,

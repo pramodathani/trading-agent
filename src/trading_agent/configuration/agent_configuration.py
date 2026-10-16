@@ -60,6 +60,59 @@ class AgentLoopConfiguration(pydantic.BaseModel):
     tool_timeout_seconds: float = pydantic.Field(default=60.0, gt=0)
 
 
+_DEFAULT_HIDDEN_PATHS = [
+    '~/.claude',
+    '~/.claude.json',
+    '~/.config/anthropic',
+    '~/.config/gh',
+    '~/.git-credentials',
+    '~/.ssh',
+    '~/.gnupg',
+    '~/.docker',
+    '~/.hermes',
+    '~/.ollama',
+    '~/Projects/*/.env',
+    '~/Projects/unified_broker_interface',
+    '/var/run/docker.sock',
+    '/run/docker.sock',
+    '/run/user',
+]
+
+
+class SandboxConfiguration(pydantic.BaseModel):
+    """How the bash terminal's sandbox is built.
+
+    Attributes:
+        command_timeout_seconds: How long one bash command may run before the session is restarted.
+        maximum_output_characters: How much of a command's output is returned to the model.
+        hidden_paths: Files and folders replaced by empty ones inside the sandbox, so their contents cannot be read. "~" and "*" are expanded.
+    """
+
+    model_config = pydantic.ConfigDict(extra='forbid')
+
+    command_timeout_seconds: float = pydantic.Field(default=120.0, gt=0)
+    maximum_output_characters: int = pydantic.Field(default=20000, gt=0)
+    hidden_paths: list[str] = _DEFAULT_HIDDEN_PATHS
+
+
+class WebConfiguration(pydantic.BaseModel):
+    """Where web search goes and how pages are fetched.
+
+    Attributes:
+        searxng_base_url: The local SearXNG server started by docker-compose.yml.
+        search_result_limit: The most results one search returns.
+        fetch_timeout_seconds: How long fetching one page may take.
+        maximum_page_characters: How much of a page's text is returned to the model.
+    """
+
+    model_config = pydantic.ConfigDict(extra='forbid')
+
+    searxng_base_url: str = 'http://127.0.0.1:4001'
+    search_result_limit: int = pydantic.Field(default=8, gt=0, le=30)
+    fetch_timeout_seconds: float = pydantic.Field(default=20.0, gt=0)
+    maximum_page_characters: int = pydantic.Field(default=15000, gt=0)
+
+
 class BackendConfiguration(pydantic.BaseModel):
     """One model backend that a desk can use.
 
@@ -105,6 +158,8 @@ class AgentConfiguration(pydantic.BaseModel):
         desks: The desks to run.
         backends: The model backends, keyed by the name desks refer to them by.
         agent: The limits of the agent loop.
+        sandbox: How the bash terminal's sandbox is built.
+        web: Where web search goes and how pages are fetched.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -116,6 +171,8 @@ class AgentConfiguration(pydantic.BaseModel):
     desks: list[DeskConfiguration] = pydantic.Field(min_length=1)
     backends: dict[str, BackendConfiguration] = {}
     agent: AgentLoopConfiguration = AgentLoopConfiguration()
+    sandbox: SandboxConfiguration = SandboxConfiguration()
+    web: WebConfiguration = WebConfiguration()
 
     @pydantic.model_validator(mode='after')
     def _require_known_backends(self) -> AgentConfiguration:

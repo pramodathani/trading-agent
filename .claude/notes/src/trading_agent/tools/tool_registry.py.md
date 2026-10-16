@@ -9,3 +9,5 @@ The registry is the single point where a model's request meets real code, so eve
 - output longer than 20,000 characters is cut with a note, so one tool cannot fill Gemma's 32,768-token context.
 
 `run` never raises, which keeps the agent loop simple.
+
+Since milestone 6 a tool may set its own `timeout_seconds`, which the registry uses instead of the default; `bash_run` does so because a command may legitimately run for two minutes. The registry also closes every tool when the desk stops.

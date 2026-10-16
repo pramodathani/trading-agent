@@ -23,6 +23,7 @@ from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import slash_commands
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.runtime import turn_runner as turn_runner_module
+from trading_agent.tools import tool_registry as tool_registry_module
 
 _LOGGER = logging.getLogger(__name__)
 _INDIA = zoneinfo.ZoneInfo('Asia/Kolkata')
@@ -53,6 +54,7 @@ class DeskRuntime:
         event_bus: event_bus_module.EventBus,
         turn_runner: turn_runner_module.TurnRunner,
         mode: str = 'dry_run',
+        tool_registry: tool_registry_module.ToolRegistry | None = None,
     ):
         """Creates the desk without starting its loop.
 
@@ -61,6 +63,7 @@ class DeskRuntime:
             event_bus (event_bus_module.EventBus): The bus to publish the desk's events on.
             turn_runner (turn_runner_module.TurnRunner): What runs each turn.
             mode (str): "dry_run" or "live", reported by /status.
+            tool_registry (tool_registry_module.ToolRegistry | None): The desk's tools, closed when the desk stops, or None.
         """
         self.name = desk_configuration.name
         self.state = DeskState.STOPPED
@@ -69,6 +72,7 @@ class DeskRuntime:
         self._event_bus = event_bus
         self._trigger_queue = asyncio.Queue()
         self._commands = slash_commands.SlashCommands(self, mode)
+        self._tool_registry = tool_registry
 
     def submit(self, trigger: trigger_module.Trigger) -> None:
         """Adds a trigger to the end of the desk's queue.
@@ -104,6 +108,8 @@ class DeskRuntime:
                 await self._handle(trigger)
         finally:
             await self.turn_runner.close()
+            if self._tool_registry is not None:
+                await self._tool_registry.close()
             self.state = DeskState.STOPPED
             self._publish(event_module.EventKind.DESK_STOPPED, {})
 
