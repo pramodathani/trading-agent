@@ -9,3 +9,9 @@ A turn that raises is caught at this level and published as an `error` event, an
 `turn_finished` is published in a `finally` block so that listeners such as the web interface always see a turn end, whether it succeeded or failed.
 
 The desk closes its turn runner in the same `finally` block that marks it stopped, so a cancelled desk always releases its Claude Code process.
+
+## Commands, pause and the context line (milestone 5)
+
+A message that starts with `/` is answered by `SlashCommands`. Every other message is sent to the turn runner with a first line such as `[India time: Friday 2026-10-16 23:50:12 IST · woken by: user_message]`. Those facts change every turn, so they belong in the message rather than in the system prompt, where they would defeat the prompt cache. The time is taken from when the trigger was created, not when the turn starts, so a trigger that waited in the queue still reports when it happened.
+
+While `paused` is true the desk answers ordinary messages with a fixed reply and asks no model.

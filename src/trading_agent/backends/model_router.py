@@ -128,6 +128,7 @@ class ModelRouter(turn_runner.TurnRunner):
         self._clock = clock
         self._exchanges = []
         self._last_backend_name = None
+        self._preferred_backend_name = None
 
     async def run_turn(
         self,
@@ -145,7 +146,7 @@ class ModelRouter(turn_runner.TurnRunner):
             backend_module.BackendUnavailableError: Every backend failed or is waiting.
         """
         reasons = []
-        for route in self._routes:
+        for route in self._ordered_routes():
             now = self._clock()
             if now < route.available_at:
                 waiting = route.available_at - now
@@ -170,10 +171,81 @@ class ModelRouter(turn_runner.TurnRunner):
             'Every backend is unavailable: ' + '; '.join(reasons)
         )
 
+    async def reset(self) -> None:
+        """Forgets every backend's conversation and the hand-over history, for /new."""
+        for route in self._routes:
+            await route.turn_runner.reset()
+            route.exchanges_seen = 0
+        self._exchanges = []
+        self._last_backend_name = None
+
     async def close(self) -> None:
         """Closes every backend's turn runner."""
         for route in self._routes:
             await route.turn_runner.close()
+
+    @property
+    def backend_names(self) -> list[str]:
+        """The desk's backends in their configured order."""
+        return [route.name for route in self._routes]
+
+    @property
+    def preferred_backend_name(self) -> str | None:
+        """The backend tried first because of /model, or None for the configured order."""
+        return self._preferred_backend_name
+
+    def prefer(self, backend_name: str | None) -> None:
+        """Tries one backend first from now on, or returns to the configured order.
+
+        The other backends keep their order behind it, so they still take over when it fails.
+
+        Args:
+            backend_name (str | None): The backend to try first, or None for the configured order.
+
+        Raises:
+            ValueError: No backend of the desk has that name.
+        """
+        if backend_name is not None and backend_name not in self.backend_names:
+            raise ValueError(
+                f'No backend named {backend_name!r}; this desk has: {", ".join(self.backend_names)}'
+            )
+        self._preferred_backend_name = backend_name
+
+    def status_lines(self) -> list[str]:
+        """Describes each backend's state for /status.
+
+        Returns:
+            list[str]: One line per backend, in the order they will be tried.
+        """
+        now = self._clock()
+        lines = []
+        for position, route in enumerate(self._ordered_routes(), start=1):
+            if now < route.available_at:
+                state = f'waiting {route.available_at - now:.0f} s after {route.consecutive_failures} failure(s)'
+            else:
+                state = 'ready'
+            marker = ''
+            if route.name == self._last_backend_name:
+                marker = ' (answered last)'
+            lines.append(f'{position}. {route.name}: {state}{marker}')
+        return lines
+
+    def _ordered_routes(self) -> list[BackendRoute]:
+        """The routes in the order they will be tried.
+
+        Returns:
+            list[BackendRoute]: The preferred backend first, if one is set, then the rest in the configured order.
+        """
+        if self._preferred_backend_name is None:
+            return list(self._routes)
+        ordered = []
+        for route in self._routes:
+            if route.name == self._preferred_backend_name:
+                ordered.append(route)
+        for route in self._routes:
+            if route.name != self._preferred_backend_name:
+                ordered.append(route)
+        return ordered
 
     def _with_handover(
         self,

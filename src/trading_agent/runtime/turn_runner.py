@@ -43,6 +43,12 @@ class TurnRunner:
         """
         raise NotImplementedError
 
+    async def reset(self) -> None:
+        """Forgets the conversation so far, for the /new command.
+
+        Runners that remember nothing keep this empty default.
+        """
+
     async def close(self) -> None:
         """Releases anything the runner started, such as a Claude Code process.
 
