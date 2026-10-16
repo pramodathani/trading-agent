@@ -22,6 +22,7 @@ class EventKind(enum.StrEnum):
     TOOL_CALL = 'tool_call'
     TOOL_RESULT = 'tool_result'
     MODEL_USAGE = 'model_usage'
+    RATE_LIMIT = 'rate_limit'
     TEXT = 'text'
     TURN_FINISHED = 'turn_finished'
     ERROR = 'error'

@@ -68,7 +68,7 @@ class Application:
             secrets (secrets_module.Secrets): The secrets read from the environment and .env.
         """
         event_bus = event_bus_module.EventBus()
-        builder = desk_builder.DeskBuilder(configuration, event_bus)
+        builder = desk_builder.DeskBuilder(configuration, secrets, event_bus)
         desks = {}
         for desk_configuration in configuration.desks:
             if not desk_configuration.enabled:

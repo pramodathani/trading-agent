@@ -10,6 +10,7 @@ from trading_agent.agent import messages
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import trigger as trigger_module
+from trading_agent.tools import tool_call_executor
 from trading_agent.tools import tool_registry
 
 
@@ -33,9 +34,8 @@ class _Harness:
         self.conversation = conversation_module.Conversation('test prompt')
         self.events = []
         self._event_bus = event_bus_module.EventBus()
-        self._loop = agent_loop.AgentLoop(
+        executor = tool_call_executor.ToolCallExecutor(
             'main',
-            self.backend,
             tool_registry.ToolRegistry(
                 [
                     fakes.EchoTool(),
@@ -44,6 +44,12 @@ class _Harness:
             ),
             self._event_bus,
             loop_guard.LoopGuard(maximum_identical_calls=2),
+        )
+        self._loop = agent_loop.AgentLoop(
+            'main',
+            self.backend,
+            executor,
+            self._event_bus,
             maximum_rounds,
         )
 

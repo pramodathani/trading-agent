@@ -8,3 +8,5 @@ This file holds everything that is not secret, so it can be committed. Secrets l
 - `qwen` points at the llama.cpp server that the Hermes install already runs on port 18434. That server asks for an API key, which is added in milestone 4.
 - `claude` has no address because it runs through Claude Code, not over HTTP. The model name `opus` is Claude Code's alias for the current Opus model.
 - The single desk `main` is a stand-in until milestone 16 introduces the intraday, scalper and positional desks.
+
+Since milestone 3 the `main` desk's `backend_order` is Claude first, then Gemma.
