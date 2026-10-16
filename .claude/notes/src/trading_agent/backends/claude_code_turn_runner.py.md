@@ -30,3 +30,5 @@ A `RateLimitEvent` with status `rejected` (the 5-hour or weekly limit) raises `B
 ## Measured on 2026-10-16
 
 Three turns through the gateway took 3.4 s (with a `get_time` call), 2.0 s and 1.2 s. About 1,100 to 1,300 prompt tokens per turn were read from Anthropic's prompt cache, with only 2 to 4 new ones, because the system prompt and history stay the same between turns.
+
+Verified live on 2026-10-17: after `TradingRules.md` changed mid-interview, the next reply began "Yes, I received updated instructions in this message" and quoted the new `allow_option_writing` key, without a restart.
