@@ -113,6 +113,24 @@ class WebConfiguration(pydantic.BaseModel):
     maximum_page_characters: int = pydantic.Field(default=15000, gt=0)
 
 
+class BrowserConfiguration(pydantic.BaseModel):
+    """How each desk's Chrome browser runs.
+
+    Attributes:
+        headless: Whether Chrome runs without a window. Turn it off to watch a desk browse.
+        navigation_timeout_seconds: How long opening or changing a page may take.
+        maximum_elements: The most clickable elements one snapshot lists.
+        maximum_text_characters: How much of a page's visible text one snapshot returns.
+    """
+
+    model_config = pydantic.ConfigDict(extra='forbid')
+
+    headless: bool = True
+    navigation_timeout_seconds: float = pydantic.Field(default=30.0, gt=0)
+    maximum_elements: int = pydantic.Field(default=150, gt=0)
+    maximum_text_characters: int = pydantic.Field(default=8000, gt=0)
+
+
 class BackendConfiguration(pydantic.BaseModel):
     """One model backend that a desk can use.
 
@@ -160,6 +178,7 @@ class AgentConfiguration(pydantic.BaseModel):
         agent: The limits of the agent loop.
         sandbox: How the bash terminal's sandbox is built.
         web: Where web search goes and how pages are fetched.
+        browser: How each desk's Chrome browser runs.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -173,6 +192,7 @@ class AgentConfiguration(pydantic.BaseModel):
     agent: AgentLoopConfiguration = AgentLoopConfiguration()
     sandbox: SandboxConfiguration = SandboxConfiguration()
     web: WebConfiguration = WebConfiguration()
+    browser: BrowserConfiguration = BrowserConfiguration()
 
     @pydantic.model_validator(mode='after')
     def _require_known_backends(self) -> AgentConfiguration:
