@@ -10,6 +10,9 @@ Typical usage example:
 import os
 import shutil
 import subprocess
+from pathlib import Path
+
+import claude_agent_sdk
 
 from trading_agent.configuration import secrets as secrets_module
 from trading_agent.doctor import doctor_check
@@ -41,11 +44,11 @@ class ClaudeCodeBackendCheck(doctor_check.DoctorCheck):
                 doctor_check.CheckStatus.FAILED,
                 'ANTHROPIC_API_KEY is set, so Claude Code would bill the API instead of your Max subscription; unset it.',
             )
-        claude_path = shutil.which('claude')
+        claude_path = self._claude_path()
         if claude_path is None:
             return doctor_check.CheckResult(
                 doctor_check.CheckStatus.FAILED,
-                'The claude command is not on PATH.',
+                'Neither the Agent SDK bundled claude nor a claude command on PATH was found.',
             )
         completed = subprocess.run(
             [
@@ -61,9 +64,24 @@ class ClaudeCodeBackendCheck(doctor_check.DoctorCheck):
         if not self._secrets.claude_code_oauth_token:
             return doctor_check.CheckResult(
                 doctor_check.CheckStatus.WARNING,
-                f'{version} is installed, but no subscription token yet (created with claude setup-token in milestone 3).',
+                f'{version} at {claude_path}, but TRADING_AGENT_CLAUDE_CODE_OAUTH_TOKEN is not set (create it with claude setup-token).',
             )
         return doctor_check.CheckResult(
             doctor_check.CheckStatus.OK,
-            f'{version} is installed and the subscription token is set.',
+            f'{version} at {claude_path}; the subscription token is set.',
         )
+
+    def _claude_path(self) -> str | None:
+        """Finds the Claude Code program the Agent SDK will actually run.
+
+        The SDK prefers the copy bundled inside the package over the one on PATH, so the bundled copy is checked first.
+
+        Returns:
+            str | None: The program's path, or None when neither exists.
+        """
+        bundled_path = (
+            Path(claude_agent_sdk.__file__).parent / '_bundled' / 'claude'
+        )
+        if bundled_path.is_file():
+            return str(bundled_path)
+        return shutil.which('claude')
