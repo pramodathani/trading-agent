@@ -22,3 +22,4 @@ workspace/desks/*/memory/
 workspace/desks/*/browser_profile/
 workspace/desks/*/journal/
 workspace/journal/
+workspace/shared/risk_ledger.db

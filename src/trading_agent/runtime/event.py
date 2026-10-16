@@ -25,6 +25,8 @@ class EventKind(enum.StrEnum):
     RATE_LIMIT = 'rate_limit'
     BACKEND_UNAVAILABLE = 'backend_unavailable'
     BACKEND_SWITCH = 'backend_switch'
+    RISK_DECISION = 'risk_decision'
+    KILL_SWITCH = 'kill_switch'
     TEXT = 'text'
     TURN_FINISHED = 'turn_finished'
     ERROR = 'error'

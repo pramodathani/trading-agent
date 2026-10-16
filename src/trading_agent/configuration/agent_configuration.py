@@ -113,6 +113,42 @@ class WebConfiguration(pydantic.BaseModel):
     maximum_page_characters: int = pydantic.Field(default=15000, gt=0)
 
 
+class MarginRatesConfiguration(pydantic.BaseModel):
+    """The rates used to estimate the margin an order blocks.
+
+    The defaults are the deliberately high segment-wide rates UBI's broker selector uses.
+
+    Attributes:
+        intraday_rate: The share of an intraday (mis) cash order's value blocked as margin.
+        index_derivative_rate: The share of an index future's value, or of a sold index option's, blocked as margin.
+        stock_derivative_rate: The same for stock futures and options.
+        commodity_derivative_rate: The same for commodity futures and options.
+        currency_derivative_rate: The same for currency futures and options.
+    """
+
+    model_config = pydantic.ConfigDict(extra='forbid')
+
+    intraday_rate: float = pydantic.Field(default=0.20, gt=0, le=1)
+    index_derivative_rate: float = pydantic.Field(default=0.15, gt=0, le=1)
+    stock_derivative_rate: float = pydantic.Field(default=0.40, gt=0, le=1)
+    commodity_derivative_rate: float = pydantic.Field(default=0.47, gt=0, le=1)
+    currency_derivative_rate: float = pydantic.Field(default=0.10, gt=0, le=1)
+
+
+class RiskConfiguration(pydantic.BaseModel):
+    """How the risk engine works, apart from the limits in TradingRules.md.
+
+    Attributes:
+        ownership_grace_minutes: How long a desk keeps its claim on an instrument it ordered but does not yet hold, before the claim lapses.
+        margin_rates: The rates used to estimate an order's margin.
+    """
+
+    model_config = pydantic.ConfigDict(extra='forbid')
+
+    ownership_grace_minutes: float = pydantic.Field(default=30.0, gt=0)
+    margin_rates: MarginRatesConfiguration = MarginRatesConfiguration()
+
+
 class BrowserConfiguration(pydantic.BaseModel):
     """How each desk's Chrome browser runs.
 
@@ -179,6 +215,7 @@ class AgentConfiguration(pydantic.BaseModel):
         sandbox: How the bash terminal's sandbox is built.
         web: Where web search goes and how pages are fetched.
         browser: How each desk's Chrome browser runs.
+        risk: How the risk engine works, apart from the limits in TradingRules.md.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -193,6 +230,7 @@ class AgentConfiguration(pydantic.BaseModel):
     sandbox: SandboxConfiguration = SandboxConfiguration()
     web: WebConfiguration = WebConfiguration()
     browser: BrowserConfiguration = BrowserConfiguration()
+    risk: RiskConfiguration = RiskConfiguration()
 
     @pydantic.model_validator(mode='after')
     def _require_known_backends(self) -> AgentConfiguration:

@@ -69,6 +69,14 @@ class BrokerReader:
         """
         return self._shared_client().get(path, params=parameters)
 
+    def client(self) -> ubi_client.UnifiedBrokerInterface:
+        """The shared UBI client, for tradingmachine objects that need one, such as Account. Call it inside call().
+
+        Returns:
+            ubi_client.UnifiedBrokerInterface: The client.
+        """
+        return self._shared_client()
+
     def instrument(
         self,
         arguments: instrument_arguments_module.InstrumentArguments,

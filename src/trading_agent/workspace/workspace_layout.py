@@ -58,6 +58,11 @@ class WorkspaceLayout:
         self.user_file = self.shared_directory / 'User.md'
         self.trading_rules_file = self.shared_directory / 'TradingRules.md'
 
+    @property
+    def risk_ledger_file(self) -> Path:
+        """The risk engine's SQLite ledger, shared by every desk."""
+        return self.shared_directory / 'risk_ledger.db'
+
     def desk_directory(self, desk_name: str) -> Path:
         """The folder that belongs to one desk.
 
