@@ -16,3 +16,4 @@ frontend/dist/
 # Agent workspace: the desks' working files stay out of git, the user's files are tracked
 workspace/desks/*/scratch/
 workspace/desks/*/proposals/
+workspace/desks/*/Memory.md
