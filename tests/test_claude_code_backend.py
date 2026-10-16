@@ -8,6 +8,7 @@ import pytest
 
 from tests import fakes
 from trading_agent.agent import loop_guard
+from trading_agent.agent import prompt_builder
 from trading_agent.backends import backend
 from trading_agent.backends import claude_code_turn_runner
 from trading_agent.backends import claude_tool_allowlist_hook
@@ -55,6 +56,18 @@ class _FakeClient:
 
     async def disconnect(self) -> None:
         """Does nothing."""
+
+
+class _FixedPromptBuilder:
+    """Stands in for PromptBuilder with a prompt that never changes."""
+
+    def build(self) -> prompt_builder.SystemPrompt:
+        """Returns the fixed prompt.
+
+        Returns:
+            prompt_builder.SystemPrompt: The prompt.
+        """
+        return prompt_builder.SystemPrompt(text='test', fingerprint='fixed')
 
 
 def _trigger() -> trigger_module.Trigger:
@@ -116,7 +129,7 @@ def _runner(
         claude_tool_bridge.ClaudeToolBridge(_executor(event_bus)),
         event_bus,
         claude_code_turn_runner.ClaudeCodeSettings(
-            system_prompt='test',
+            prompt_builder=_FixedPromptBuilder(),
             oauth_token=oauth_token,
             working_directory=Path('/tmp/trading-agent-test-scratch'),
             maximum_rounds=5,

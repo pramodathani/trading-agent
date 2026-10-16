@@ -12,6 +12,7 @@ import logging
 from trading_agent.agent import agent_loop
 from trading_agent.agent import agent_turn_runner
 from trading_agent.agent import loop_guard
+from trading_agent.agent import prompt_builder
 from trading_agent.backends import backend as backend_module
 from trading_agent.backends import claude_code_turn_runner
 from trading_agent.backends import claude_tool_bridge
@@ -25,18 +26,13 @@ from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import no_model_turn_runner
 from trading_agent.runtime import turn_runner
 from trading_agent.tools import get_time_tool
+from trading_agent.tools import propose_file_change_tool
 from trading_agent.tools import tool_call_executor
 from trading_agent.tools import tool_registry
+from trading_agent.workspace import proposal_store
+from trading_agent.workspace import workspace_layout
 
 _LOGGER = logging.getLogger(__name__)
-
-_BASIC_SYSTEM_PROMPT = '\n'.join(
-    [
-        'You are a trading desk inside trading-agent, an AI agent that trades Indian markets through the tradingmachine library.',
-        'Use your tools whenever they can give you a fact you would otherwise have to guess, such as the current time.',
-        'Answer briefly and plainly.',
-    ]
-)
 
 
 class DeskBuilder:
@@ -58,6 +54,10 @@ class DeskBuilder:
         self._configuration = configuration
         self._secrets = secrets
         self._event_bus = event_bus
+        self._layout = workspace_layout.WorkspaceLayout(
+            configuration.workspace_directory
+        )
+        self._proposal_store = proposal_store.ProposalStore(self._layout)
 
     def build(
         self,
@@ -75,6 +75,7 @@ class DeskBuilder:
             desk_configuration,
             self._event_bus,
             self._turn_runner(desk_configuration),
+            self._configuration.mode,
         )
 
     def _turn_runner(
@@ -170,6 +171,10 @@ class DeskBuilder:
         registry = tool_registry.ToolRegistry(
             [
                 get_time_tool.GetTimeTool(),
+                propose_file_change_tool.ProposeFileChangeTool(
+                    self._proposal_store,
+                    desk_configuration.name,
+                ),
             ],
             timeout_seconds=agent_settings.tool_timeout_seconds,
         )
@@ -198,14 +203,11 @@ class DeskBuilder:
         Returns:
             claude_code_turn_runner.ClaudeCodeTurnRunner: The runner.
         """
-        working_directory = (
-            self._configuration.workspace_directory
-            / 'desks'
-            / desk_configuration.name
-            / 'scratch'
+        working_directory = self._layout.scratch_directory(
+            desk_configuration.name
         )
         settings = claude_code_turn_runner.ClaudeCodeSettings(
-            system_prompt=_BASIC_SYSTEM_PROMPT,
+            prompt_builder=self._prompt_builder(desk_configuration),
             oauth_token=self._secrets.claude_code_oauth_token,
             working_directory=working_directory.resolve(),
             maximum_rounds=self._configuration.agent.maximum_rounds,
@@ -242,4 +244,25 @@ class DeskBuilder:
             self._event_bus,
             self._configuration.agent.maximum_rounds,
         )
-        return agent_turn_runner.AgentTurnRunner(loop, _BASIC_SYSTEM_PROMPT)
+        return agent_turn_runner.AgentTurnRunner(
+            loop,
+            self._prompt_builder(desk_configuration),
+        )
+
+    def _prompt_builder(
+        self,
+        desk_configuration: agent_configuration.DeskConfiguration,
+    ) -> prompt_builder.PromptBuilder:
+        """Builds the prompt builder for a desk.
+
+        Args:
+            desk_configuration (agent_configuration.DeskConfiguration): The desk's settings.
+
+        Returns:
+            prompt_builder.PromptBuilder: The builder.
+        """
+        return prompt_builder.PromptBuilder(
+            self._layout,
+            desk_configuration.name,
+            self._configuration.mode,
+        )

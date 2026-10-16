@@ -20,6 +20,7 @@ from typing import Any
 
 import claude_agent_sdk
 
+from trading_agent.agent import prompt_builder as prompt_builder_module
 from trading_agent.backends import backend as backend_module
 from trading_agent.backends import claude_tool_allowlist_hook
 from trading_agent.backends import claude_tool_bridge
@@ -39,13 +40,13 @@ class ClaudeCodeSettings:
     """The settings of one Claude Code session that do not come from the backend's table.
 
     Attributes:
-        system_prompt: The desk's instructions.
+        prompt_builder: Builds the desk's instructions before every turn.
         oauth_token: The subscription token from `claude setup-token`.
         working_directory: The folder Claude Code runs in.
         maximum_rounds: The most model calls one turn may make.
     """
 
-    system_prompt: str
+    prompt_builder: prompt_builder_module.PromptBuilder
     oauth_token: str
     working_directory: Path
     maximum_rounds: int
@@ -84,6 +85,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         self._event_bus = event_bus
         self._settings = settings
         self._client = None
+        self._client_prompt_fingerprint = None
         self.session_id: str | None = None
 
     async def run_turn(
@@ -104,8 +106,9 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         self._check_preconditions()
         self._bridge.executor.start_turn()
         self._bridge.current_trigger = trigger
+        prompt = self._settings.prompt_builder.build()
         try:
-            client = await self._connected_client()
+            client = await self._connected_client(prompt)
             await client.query(trigger.text)
             return await self._read_response(client, trigger)
         except backend_module.BackendUnavailableError:
@@ -132,22 +135,39 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
                 'TRADING_AGENT_CLAUDE_CODE_OAUTH_TOKEN is not set in .env.'
             )
 
-    async def _connected_client(self) -> claude_agent_sdk.ClaudeSDKClient:
+    async def _connected_client(
+        self,
+        prompt: prompt_builder_module.SystemPrompt,
+    ) -> claude_agent_sdk.ClaudeSDKClient:
         """Returns the session's client, starting Claude Code if it is not running.
 
-        After a failure the new process resumes the previous session, so Claude keeps its memory of earlier turns.
+        Claude Code takes its system prompt when it starts, so when the workspace files have changed the process is restarted with the new prompt. A restarted process resumes the previous session, so Claude keeps its memory of earlier turns.
+
+        Args:
+            prompt (prompt_builder_module.SystemPrompt): The prompt this turn must run with.
 
         Returns:
             claude_agent_sdk.ClaudeSDKClient: A connected client.
         """
+        if (
+            self._client is not None
+            and self._client_prompt_fingerprint != prompt.fingerprint
+        ):
+            await self._disconnect()
         if self._client is None:
-            client = claude_agent_sdk.ClaudeSDKClient(options=self._options())
+            client = claude_agent_sdk.ClaudeSDKClient(
+                options=self._options(prompt.text)
+            )
             await client.connect()
             self._client = client
+            self._client_prompt_fingerprint = prompt.fingerprint
         return self._client
 
-    def _options(self) -> claude_agent_sdk.ClaudeAgentOptions:
+    def _options(self, prompt_text: str) -> claude_agent_sdk.ClaudeAgentOptions:
         """Builds the options that keep Claude Code on the subscription and away from prompts.
+
+        Args:
+            prompt_text (str): The system prompt.
 
         Returns:
             claude_agent_sdk.ClaudeAgentOptions: The session's options.
@@ -158,7 +178,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
             allowed_tool_names
         )
         return claude_agent_sdk.ClaudeAgentOptions(
-            system_prompt=self._settings.system_prompt,
+            system_prompt=prompt_text,
             model=self._model,
             tools=[],
             mcp_servers={
@@ -327,6 +347,11 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
             if isinstance(block, claude_agent_sdk.TextBlock):
                 parts.append(block.text)
         return ''.join(parts)
+
+    async def reset(self) -> None:
+        """Stops Claude Code and forgets the session, so the next turn starts afresh."""
+        await self._disconnect()
+        self.session_id = None
 
     async def close(self) -> None:
         """Stops the desk's Claude Code process when the desk stops."""
