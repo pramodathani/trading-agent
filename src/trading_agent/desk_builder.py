@@ -41,15 +41,22 @@ from trading_agent.tools import browser_snapshot_tool
 from trading_agent.tools import browser_tabs_tool
 from trading_agent.tools import browser_type_tool
 from trading_agent.tools import edit_file_tool
+from trading_agent.tools import get_candles_tool
+from trading_agent.tools import get_orders_tool
+from trading_agent.tools import get_portfolio_tool
+from trading_agent.tools import get_quote_tool
 from trading_agent.tools import get_time_tool
 from trading_agent.tools import path_policy
 from trading_agent.tools import propose_file_change_tool
 from trading_agent.tools import read_file_tool
+from trading_agent.tools import search_instruments_tool
 from trading_agent.tools import tool_call_executor
 from trading_agent.tools import tool_registry
 from trading_agent.tools import web_fetch_tool
 from trading_agent.tools import web_search_tool
 from trading_agent.tools import write_file_tool
+from trading_agent.trading import broker_reader
+from trading_agent.trading import result_formatter
 from trading_agent.workspace import proposal_store
 from trading_agent.workspace import workspace_layout
 
@@ -79,6 +86,10 @@ class DeskBuilder:
             configuration.workspace_directory
         )
         self._proposal_store = proposal_store.ProposalStore(self._layout)
+        self._broker_reader = broker_reader.BrokerReader(
+            configuration.tradingmachine_environment_file
+        )
+        self._result_formatter = result_formatter.ResultFormatter()
 
     def build(
         self,
@@ -247,6 +258,26 @@ class DeskBuilder:
                 ),
                 browser_back_tool.BrowserBackTool(browser),
                 browser_tabs_tool.BrowserTabsTool(browser),
+                search_instruments_tool.SearchInstrumentsTool(
+                    self._broker_reader,
+                    self._result_formatter,
+                ),
+                get_quote_tool.GetQuoteTool(
+                    self._broker_reader,
+                    self._result_formatter,
+                ),
+                get_candles_tool.GetCandlesTool(
+                    self._broker_reader,
+                    self._result_formatter,
+                ),
+                get_portfolio_tool.GetPortfolioTool(
+                    self._broker_reader,
+                    self._result_formatter,
+                ),
+                get_orders_tool.GetOrdersTool(
+                    self._broker_reader,
+                    self._result_formatter,
+                ),
             ],
             timeout_seconds=agent_settings.tool_timeout_seconds,
         )

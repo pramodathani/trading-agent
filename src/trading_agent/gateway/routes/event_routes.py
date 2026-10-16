@@ -12,6 +12,7 @@ import asyncio
 import fastapi
 
 from trading_agent.gateway import access_guard
+from trading_agent.journal import secret_redactor
 from trading_agent.runtime import event_bus as event_bus_module
 
 _POLICY_VIOLATION = 1008
@@ -25,15 +26,18 @@ class EventRoutes:
         self,
         event_bus: event_bus_module.EventBus,
         guard: access_guard.AccessGuard,
+        redactor: secret_redactor.SecretRedactor | None = None,
     ):
         """Creates the route for one event bus.
 
         Args:
             event_bus (event_bus_module.EventBus): The bus whose events are streamed.
             guard (access_guard.AccessGuard): The guard that checks the access token.
+            redactor (secret_redactor.SecretRedactor | None): Masks secrets before an event is sent, or None to send it unchanged.
         """
         self._event_bus = event_bus
         self._guard = guard
+        self._redactor = redactor
 
     def router(self) -> fastapi.APIRouter:
         """Builds the router holding the WebSocket route.
@@ -95,7 +99,10 @@ class EventRoutes:
             if disconnect_task in done:
                 event_task.cancel()
                 return
-            await websocket.send_json(event_task.result().to_json_dictionary())
+            dictionary = event_task.result().to_json_dictionary()
+            if self._redactor is not None:
+                dictionary = self._redactor.redact(dictionary)
+            await websocket.send_json(dictionary)
 
     async def _wait_for_disconnect(self, websocket: fastapi.WebSocket) -> None:
         """Reads from the client until it sends its disconnect message.

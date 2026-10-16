@@ -5,3 +5,5 @@
 The server is started with `uvicorn.Config` and `uvicorn.Server` rather than `uvicorn.run`, so that the token-redacting log filter can be installed after uvicorn configures its logging. `uvicorn.run` swallows the `KeyboardInterrupt` that Ctrl+C causes after a graceful shutdown, so `_serve` does the same; under systemd the server is stopped with SIGTERM, which does not raise it.
 
 From milestone 5 the application creates any missing workspace files before every command, so the doctor, `send` and `proposals` all see a complete workspace. Commands other than `serve` log warnings only, to keep their output readable.
+
+From milestone 8 the application builds the secret redactor and the trade journal and hands them to the gateway.

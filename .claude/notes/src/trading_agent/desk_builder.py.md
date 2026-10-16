@@ -17,3 +17,5 @@ From milestone 5 each desk gets a `PromptBuilder` instead of a fixed prompt, and
 From milestone 6 each desk gets its own bash sandbox and terminal, rooted in its scratch folder, and the file, bash and web tools. The desk runtime is given the tool registry so that stopping the desk stops its terminal.
 
 From milestone 7 each desk gets its own browser session, with its profile in `browser_profile/` and screenshots in `scratch/screenshots/`, and the seven browser tools.
+
+From milestone 8 every desk shares one BrokerReader, so the UBI lock covers all desks, and gets the five read-only trading tools.

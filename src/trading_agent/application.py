@@ -23,6 +23,8 @@ from trading_agent.doctor import doctor
 from trading_agent.gateway import access_guard
 from trading_agent.gateway import gateway_application
 from trading_agent.gateway import token_redacting_filter
+from trading_agent.journal import secret_redactor
+from trading_agent.journal import trade_journal
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.workspace import proposal_store
 from trading_agent.workspace import workspace_layout
@@ -107,10 +109,23 @@ class Application:
                 continue
             desks[desk_configuration.name] = builder.build(desk_configuration)
         guard = access_guard.AccessGuard(secrets.gateway_access_token)
+        redactor = secret_redactor.SecretRedactor.from_files(
+            secrets,
+            configuration.tradingmachine_environment_file,
+        )
+        journal = trade_journal.TradeJournal(
+            event_bus,
+            workspace_layout.WorkspaceLayout(configuration.workspace_directory),
+            redactor,
+        )
         gateway = gateway_application.GatewayApplication(
             event_bus,
             desks,
             guard,
+            [
+                journal,
+            ],
+            redactor,
         )
         server_configuration = uvicorn.Config(
             gateway.build(),

@@ -10,7 +10,8 @@ Typical usage example:
 
 import asyncio
 import contextlib
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Mapping, Sequence
+from typing import Protocol
 
 import fastapi
 
@@ -18,8 +19,16 @@ from trading_agent.gateway import access_guard
 from trading_agent.gateway.routes import desk_routes
 from trading_agent.gateway.routes import event_routes
 from trading_agent.gateway.routes import health_routes
+from trading_agent.journal import secret_redactor
 from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event_bus as event_bus_module
+
+
+class BackgroundWorker(Protocol):
+    """Anything with a run coroutine that loops until it is cancelled."""
+
+    async def run(self) -> None:
+        """Runs until cancelled."""
 
 
 class GatewayApplication:
@@ -30,6 +39,8 @@ class GatewayApplication:
         event_bus: event_bus_module.EventBus,
         desks: Mapping[str, desk_runtime.DeskRuntime],
         guard: access_guard.AccessGuard,
+        background_workers: Sequence[BackgroundWorker] = (),
+        redactor: secret_redactor.SecretRedactor | None = None,
     ):
         """Creates the gateway without starting anything.
 
@@ -37,10 +48,14 @@ class GatewayApplication:
             event_bus (event_bus_module.EventBus): The bus every component publishes on.
             desks (Mapping[str, desk_runtime.DeskRuntime]): The desks to run, keyed by name.
             guard (access_guard.AccessGuard): The guard that checks the access token.
+            background_workers (Sequence[BackgroundWorker]): Other loops to run beside the desks, such as the trade journal.
+            redactor (secret_redactor.SecretRedactor | None): Masks secrets in the live event stream, or None to send events unchanged.
         """
         self._event_bus = event_bus
         self._desks = desks
         self._guard = guard
+        self._background_workers = list(background_workers)
+        self._redactor = redactor
 
     def build(self) -> fastapi.FastAPI:
         """Builds the FastAPI application with every route.
@@ -59,7 +74,11 @@ class GatewayApplication:
             desk_routes.DeskRoutes(self._desks, self._guard).router()
         )
         application.include_router(
-            event_routes.EventRoutes(self._event_bus, self._guard).router()
+            event_routes.EventRoutes(
+                self._event_bus,
+                self._guard,
+                self._redactor,
+            ).router()
         )
         return application
 
@@ -78,6 +97,8 @@ class GatewayApplication:
         """
         del application
         desk_tasks = []
+        for worker in self._background_workers:
+            desk_tasks.append(asyncio.create_task(worker.run()))
         for desk in self._desks.values():
             desk_tasks.append(
                 asyncio.create_task(desk.run(), name=f'desk-{desk.name}')
