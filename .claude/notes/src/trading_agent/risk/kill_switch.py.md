@@ -1,0 +1,3 @@
+# kill_switch.py
+
+It calls tradingmachine's `Account.flatten(confirm="FLATTEN")`, which halts UBI's engine, cancels every order and closes every position in the account, including positions the user opened outside the agent, as TradingRules.md says. Delivery holdings are not positions and are not sold. tradingmachine's documentation warns that a flatten that times out may have happened anyway and that a second call can close positions twice, so the halt is written to the ledger before UBI is called and the switch refuses to fire again while that halt lasts; a test proves the halt is visible at the moment of the call. In `dry_run` mode the flatten is a dry run that sends nothing.
