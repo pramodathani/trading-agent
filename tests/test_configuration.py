@@ -1,0 +1,132 @@
+"""Tests for reading and checking trading_agent.toml."""
+
+from pathlib import Path
+
+import pytest
+
+from trading_agent.configuration import configuration_loader
+
+_VALID_CONFIGURATION = '\n'.join(
+    [
+        'tradingmachine_environment_file = "/tmp/tradingmachine.env"',
+        '',
+        '[[desks]]',
+        'name = "main"',
+        '',
+        '[backends.gemma]',
+        'kind = "ollama"',
+        'base_url = "http://127.0.0.1:11434"',
+        'model = "gemma4:31b"',
+        'context_window = 32768',
+    ]
+)
+
+
+class TestConfigurationLoader:
+    """Tests for ConfigurationLoader."""
+
+    def _write(self, directory: Path, text: str) -> Path:
+        """Writes a configuration file into a temporary directory.
+
+        Args:
+            directory (Path): The temporary directory.
+            text (str): The file's contents.
+
+        Returns:
+            Path: The written file.
+        """
+        path = directory / 'trading_agent.toml'
+        path.write_text(text, encoding='utf-8')
+        return path
+
+    def test_load_valid_file_fills_defaults(self, tmp_path: Path) -> None:
+        """A valid file loads, and unset values take their defaults.
+
+        Args:
+            tmp_path (Path): A temporary directory from pytest.
+        """
+        path = self._write(tmp_path, _VALID_CONFIGURATION)
+
+        configuration = configuration_loader.ConfigurationLoader(path).load()
+
+        assert configuration.mode == 'dry_run'
+        assert configuration.gateway.host == '127.0.0.1'
+        assert configuration.desks[0].name == 'main'
+        assert configuration.backends['gemma'].context_window == 32768
+
+    def test_load_missing_file_raises(self, tmp_path: Path) -> None:
+        """A missing file raises ConfigurationError naming the file.
+
+        Args:
+            tmp_path (Path): A temporary directory from pytest.
+        """
+        loader = configuration_loader.ConfigurationLoader(
+            tmp_path / 'absent.toml'
+        )
+
+        with pytest.raises(
+            configuration_loader.ConfigurationError, match='not found'
+        ):
+            loader.load()
+
+    def test_load_bad_toml_raises(self, tmp_path: Path) -> None:
+        """A file that is not TOML raises ConfigurationError.
+
+        Args:
+            tmp_path (Path): A temporary directory from pytest.
+        """
+        path = self._write(tmp_path, 'this is = = not toml')
+
+        with pytest.raises(
+            configuration_loader.ConfigurationError, match='not valid TOML'
+        ):
+            configuration_loader.ConfigurationLoader(path).load()
+
+    def test_load_duplicate_desk_names_raises(self, tmp_path: Path) -> None:
+        """Two desks with the same name are rejected.
+
+        Args:
+            tmp_path (Path): A temporary directory from pytest.
+        """
+        text = _VALID_CONFIGURATION + '\n\n[[desks]]\nname = "main"\n'
+        path = self._write(tmp_path, text)
+
+        with pytest.raises(
+            configuration_loader.ConfigurationError, match='Duplicate desk name'
+        ):
+            configuration_loader.ConfigurationLoader(path).load()
+
+    def test_load_server_backend_without_base_url_raises(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """An Ollama backend without base_url is rejected.
+
+        Args:
+            tmp_path (Path): A temporary directory from pytest.
+        """
+        text = _VALID_CONFIGURATION.replace(
+            'base_url = "http://127.0.0.1:11434"\n',
+            '',
+        )
+        path = self._write(tmp_path, text)
+
+        with pytest.raises(
+            configuration_loader.ConfigurationError,
+            match='base_url is required',
+        ):
+            configuration_loader.ConfigurationLoader(path).load()
+
+    def test_load_unknown_key_raises(self, tmp_path: Path) -> None:
+        """A misspelt key is rejected rather than silently ignored.
+
+        Args:
+            tmp_path (Path): A temporary directory from pytest.
+        """
+        text = 'modde = "live"\n' + _VALID_CONFIGURATION
+        path = self._write(tmp_path, text)
+
+        with pytest.raises(
+            configuration_loader.ConfigurationError, match='modde'
+        ):
+            configuration_loader.ConfigurationLoader(path).load()
