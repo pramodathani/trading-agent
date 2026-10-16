@@ -34,12 +34,30 @@ class DeskConfiguration(pydantic.BaseModel):
     Attributes:
         name: The desk's name, used in folder names, order tags and the web interface.
         enabled: Whether the desk starts with the gateway.
+        backend_order: The backends the desk may use, most preferred first, by their names in [backends].
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
 
     name: str = pydantic.Field(pattern=r'^[a-z][a-z0-9_]*$')
     enabled: bool = True
+    backend_order: list[str] = []
+
+
+class AgentLoopConfiguration(pydantic.BaseModel):
+    """Limits that keep one turn of the agent loop under control.
+
+    Attributes:
+        maximum_rounds: The most model calls one turn may make before it is stopped.
+        maximum_identical_tool_calls: How many times one tool may be called with the same arguments in a turn.
+        tool_timeout_seconds: How long one tool call may run before it is stopped.
+    """
+
+    model_config = pydantic.ConfigDict(extra='forbid')
+
+    maximum_rounds: int = pydantic.Field(default=20, gt=0)
+    maximum_identical_tool_calls: int = pydantic.Field(default=3, gt=0)
+    tool_timeout_seconds: float = pydantic.Field(default=60.0, gt=0)
 
 
 class BackendConfiguration(pydantic.BaseModel):
@@ -50,6 +68,7 @@ class BackendConfiguration(pydantic.BaseModel):
         base_url: The server address, needed by the ollama and openai_compatible kinds.
         model: The model name the server knows the model by.
         context_window: How many tokens of context the model is given.
+        thinking: Whether the model reasons before answering, for models that support it.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -58,6 +77,7 @@ class BackendConfiguration(pydantic.BaseModel):
     base_url: str | None = None
     model: str
     context_window: int = pydantic.Field(gt=0)
+    thinking: bool = True
 
     @pydantic.model_validator(mode='after')
     def _require_base_url_for_servers(self) -> BackendConfiguration:
@@ -84,6 +104,7 @@ class AgentConfiguration(pydantic.BaseModel):
         gateway: Where the web server listens.
         desks: The desks to run.
         backends: The model backends, keyed by the name desks refer to them by.
+        agent: The limits of the agent loop.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -94,6 +115,25 @@ class AgentConfiguration(pydantic.BaseModel):
     gateway: GatewayConfiguration = GatewayConfiguration()
     desks: list[DeskConfiguration] = pydantic.Field(min_length=1)
     backends: dict[str, BackendConfiguration] = {}
+    agent: AgentLoopConfiguration = AgentLoopConfiguration()
+
+    @pydantic.model_validator(mode='after')
+    def _require_known_backends(self) -> AgentConfiguration:
+        """Checks that every backend a desk names is defined in [backends].
+
+        Returns:
+            AgentConfiguration: This configuration, unchanged.
+
+        Raises:
+            ValueError: A desk names a backend that does not exist.
+        """
+        for desk in self.desks:
+            for backend_name in desk.backend_order:
+                if backend_name not in self.backends:
+                    raise ValueError(
+                        f'Desk {desk.name!r} names unknown backend {backend_name!r}'
+                    )
+        return self
 
     @pydantic.model_validator(mode='after')
     def _require_unique_desk_names(self) -> AgentConfiguration:

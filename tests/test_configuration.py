@@ -130,3 +130,23 @@ class TestConfigurationLoader:
             configuration_loader.ConfigurationError, match='modde'
         ):
             configuration_loader.ConfigurationLoader(path).load()
+
+    def test_load_desk_with_unknown_backend_raises(
+        self, tmp_path: Path
+    ) -> None:
+        """A desk that names a backend missing from [backends] is rejected.
+
+        Args:
+            tmp_path (Path): A temporary directory from pytest.
+        """
+        text = _VALID_CONFIGURATION.replace(
+            'name = "main"',
+            'name = "main"\nbackend_order = ["missing"]',
+        )
+        path = self._write(tmp_path, text)
+
+        with pytest.raises(
+            configuration_loader.ConfigurationError,
+            match='unknown backend',
+        ):
+            configuration_loader.ConfigurationLoader(path).load()
