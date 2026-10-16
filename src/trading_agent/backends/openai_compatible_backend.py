@@ -187,11 +187,14 @@ class OpenAICompatibleBackend(backend.ModelBackend):
         ]
         for message in conversation.messages:
             if message.role == messages.Role.TOOL:
+                content = message.text
+                if message.image_png is not None:
+                    content += '\n[A picture was returned, but it cannot be shown to this model. Use the text instead.]'
                 wire_messages.append(
                     {
                         'role': 'tool',
                         'tool_call_id': message.tool_call_id,
-                        'content': message.text,
+                        'content': content,
                     }
                 )
                 continue

@@ -8,6 +8,7 @@ Typical usage example:
   reply = await backend.complete(conversation, tool_definitions, on_text)
 """
 
+import base64
 from collections.abc import Callable
 from typing import Any
 
@@ -123,13 +124,16 @@ class OllamaBackend(backend.ModelBackend):
         ]
         for message in conversation.messages:
             if message.role == messages.Role.TOOL:
-                wire_messages.append(
-                    {
-                        'role': 'tool',
-                        'content': message.text,
-                        'tool_name': message.tool_name,
-                    }
-                )
+                wire_message = {
+                    'role': 'tool',
+                    'content': message.text,
+                    'tool_name': message.tool_name,
+                }
+                if message.image_png is not None:
+                    wire_message['images'] = [
+                        base64.b64encode(message.image_png).decode('ascii'),
+                    ]
+                wire_messages.append(wire_message)
                 continue
             wire_message = {
                 'role': str(message.role),

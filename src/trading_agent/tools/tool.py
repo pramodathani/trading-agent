@@ -26,10 +26,12 @@ class ToolResult:
     Attributes:
         text: The output the model reads.
         is_error: Whether the tool failed, so the model knows to change course.
+        image_png: A picture for the model to look at, such as a screenshot, or None.
     """
 
     text: str
     is_error: bool = False
+    image_png: bytes | None = None
 
     @classmethod
     def success(cls, text: str) -> Self:

@@ -61,6 +61,7 @@ class ConversationMessage:
         tool_call_id: For a tool message, the identifier of the call it answers.
         tool_name: For a tool message, the name of the tool that ran.
         is_error: For a tool message, whether the tool failed.
+        image_png: For a tool message, a picture the tool returned, or None.
     """
 
     role: Role
@@ -69,6 +70,7 @@ class ConversationMessage:
     tool_call_id: str | None = None
     tool_name: str | None = None
     is_error: bool = False
+    image_png: bytes | None = None
 
     @classmethod
     def user(cls, text: str) -> Self:
@@ -101,6 +103,7 @@ class ConversationMessage:
         call: ToolCall,
         text: str,
         is_error: bool,
+        image_png: bytes | None = None,
     ) -> Self:
         """Creates the message that carries a tool's result back to the model.
 
@@ -108,6 +111,7 @@ class ConversationMessage:
             call (ToolCall): The call being answered.
             text (str): The tool's output.
             is_error (bool): Whether the tool failed.
+            image_png (bytes | None): A picture the tool returned, or None.
 
         Returns:
             ConversationMessage: The message.
@@ -118,4 +122,5 @@ class ConversationMessage:
             tool_call_id=call.call_id,
             tool_name=call.name,
             is_error=is_error,
+            image_png=image_png,
         )

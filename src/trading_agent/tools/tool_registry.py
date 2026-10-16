@@ -145,4 +145,8 @@ class ToolRegistry:
             result.text[:_MAXIMUM_OUTPUT_CHARACTERS]
             + f'\n[output cut: {removed} more characters were left out]'
         )
-        return tool_module.ToolResult(text=text, is_error=result.is_error)
+        return tool_module.ToolResult(
+            text=text,
+            is_error=result.is_error,
+            image_png=result.image_png,
+        )

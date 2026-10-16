@@ -106,6 +106,7 @@ class AgentLoop:
                         call,
                         result.text,
                         result.is_error,
+                        result.image_png,
                     )
                 )
         return turn_runner.TurnResult(
