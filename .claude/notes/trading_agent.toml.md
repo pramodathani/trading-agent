@@ -10,3 +10,7 @@ This file holds everything that is not secret, so it can be committed. Secrets l
 - The single desk `main` is a stand-in until milestone 16 introduces the intraday, scalper and positional desks.
 
 Since milestone 3 the `main` desk's `backend_order` is Claude first, then Gemma.
+
+Since milestone 4 Qwen runs on Ollama (`qwen3.8:27b`, the official library build, 17.74 GB downloaded on 2026-10-16) rather than on the llama.cpp server Hermes runs on port 18434, which needs an API key the user does not have. The official build was preferred over importing Hermes's own GGUF file into Ollama because it ships with Ollama's chat template and tool-call parsing for Qwen. The main desk's order is Claude, then Qwen, then Gemma.
+
+Gemma 4 31b (20 GB) and Qwen3.8 27b (17 GB) cannot both stay in the 4090's 24 GB, so Ollama unloads one to load the other. A switch between them therefore costs a model load, roughly 10 to 40 seconds.

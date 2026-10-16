@@ -1,6 +1,6 @@
 """Builds one desk with its tools, model backend and turn runner.
 
-Each milestone adds parts to a desk, so this one class is where they are put together. A desk uses the first backend in its backend_order that has been built so far; the model router (milestone 4) will try the others in turn.
+Each milestone adds parts to a desk, so this one class is where they are put together. Every backend in the desk's backend_order becomes a route of the desk's model router, most preferred first.
 
 Typical usage example:
 
@@ -12,9 +12,12 @@ import logging
 from trading_agent.agent import agent_loop
 from trading_agent.agent import agent_turn_runner
 from trading_agent.agent import loop_guard
+from trading_agent.backends import backend as backend_module
 from trading_agent.backends import claude_code_turn_runner
 from trading_agent.backends import claude_tool_bridge
+from trading_agent.backends import model_router
 from trading_agent.backends import ollama_backend
+from trading_agent.backends import openai_compatible_backend
 from trading_agent.configuration import agent_configuration
 from trading_agent.configuration import secrets as secrets_module
 from trading_agent.runtime import desk_runtime
@@ -78,36 +81,78 @@ class DeskBuilder:
         self,
         desk_configuration: agent_configuration.DeskConfiguration,
     ) -> turn_runner.TurnRunner:
-        """Builds the turn runner for the desk's first usable backend.
+        """Builds a model router over every backend in the desk's order.
 
         Args:
             desk_configuration (agent_configuration.DeskConfiguration): The desk's settings.
 
         Returns:
-            turn_runner.TurnRunner: The runner for the desk's turns, or a no-model runner when no backend is usable.
+            turn_runner.TurnRunner: The router, or a no-model runner when the desk names no backend.
         """
         executor = self._executor(desk_configuration)
+        routes = []
         for backend_name in desk_configuration.backend_order:
             backend_configuration = self._configuration.backends[backend_name]
-            if backend_configuration.kind == 'claude_code':
-                return self._claude_code_runner(
-                    desk_configuration,
-                    backend_name,
-                    backend_configuration,
-                    executor,
-                )
-            if backend_configuration.kind == 'ollama':
-                return self._ollama_runner(
-                    desk_configuration,
-                    backend_name,
-                    backend_configuration,
-                    executor,
-                )
-        _LOGGER.warning(
-            'Desk %s has no usable backend; it will answer without a model',
+            runner = self._backend_runner(
+                desk_configuration,
+                backend_name,
+                backend_configuration,
+                executor,
+            )
+            routes.append(model_router.BackendRoute(backend_name, runner))
+        if not routes:
+            _LOGGER.warning(
+                'Desk %s has no backend; it will answer without a model',
+                desk_configuration.name,
+            )
+            return no_model_turn_runner.NoModelTurnRunner()
+        return model_router.ModelRouter(
             desk_configuration.name,
+            routes,
+            self._event_bus,
         )
-        return no_model_turn_runner.NoModelTurnRunner()
+
+    def _backend_runner(
+        self,
+        desk_configuration: agent_configuration.DeskConfiguration,
+        backend_name: str,
+        backend_configuration: agent_configuration.BackendConfiguration,
+        executor: tool_call_executor.ToolCallExecutor,
+    ) -> turn_runner.TurnRunner:
+        """Builds the turn runner for one backend, according to its kind.
+
+        Args:
+            desk_configuration (agent_configuration.DeskConfiguration): The desk's settings.
+            backend_name (str): The backend's name in trading_agent.toml.
+            backend_configuration (agent_configuration.BackendConfiguration): Its settings.
+            executor (tool_call_executor.ToolCallExecutor): The desk's tool executor.
+
+        Returns:
+            turn_runner.TurnRunner: The runner.
+        """
+        if backend_configuration.kind == 'claude_code':
+            return self._claude_code_runner(
+                desk_configuration,
+                backend_name,
+                backend_configuration,
+                executor,
+            )
+        if backend_configuration.kind == 'openai_compatible':
+            model_backend = openai_compatible_backend.OpenAICompatibleBackend(
+                backend_name,
+                backend_configuration,
+                self._secrets.openai_api_key,
+            )
+        else:
+            model_backend = ollama_backend.OllamaBackend(
+                backend_name,
+                backend_configuration,
+            )
+        return self._agent_loop_runner(
+            desk_configuration,
+            model_backend,
+            executor,
+        )
 
     def _executor(
         self,
@@ -174,19 +219,17 @@ class DeskBuilder:
             settings,
         )
 
-    def _ollama_runner(
+    def _agent_loop_runner(
         self,
         desk_configuration: agent_configuration.DeskConfiguration,
-        backend_name: str,
-        backend_configuration: agent_configuration.BackendConfiguration,
+        model_backend: backend_module.ModelBackend,
         executor: tool_call_executor.ToolCallExecutor,
     ) -> agent_turn_runner.AgentTurnRunner:
-        """Builds an agent loop on an Ollama model.
+        """Builds an agent loop, with its own conversation, on a model backend.
 
         Args:
             desk_configuration (agent_configuration.DeskConfiguration): The desk's settings.
-            backend_name (str): The backend's name in trading_agent.toml.
-            backend_configuration (agent_configuration.BackendConfiguration): Its settings.
+            model_backend (backend_module.ModelBackend): The model the loop asks.
             executor (tool_call_executor.ToolCallExecutor): The desk's tool executor.
 
         Returns:
@@ -194,7 +237,7 @@ class DeskBuilder:
         """
         loop = agent_loop.AgentLoop(
             desk_configuration.name,
-            ollama_backend.OllamaBackend(backend_name, backend_configuration),
+            model_backend,
             executor,
             self._event_bus,
             self._configuration.agent.maximum_rounds,

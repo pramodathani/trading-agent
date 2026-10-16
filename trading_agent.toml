@@ -9,6 +9,7 @@ port = 8120
 name = "main"
 backend_order = [
     "claude",
+    "qwen",
     "gemma",
 ]
 
@@ -19,10 +20,10 @@ model = "gemma4:31b"
 context_window = 32768
 
 [backends.qwen]
-kind = "openai_compatible"
-base_url = "http://127.0.0.1:18434/v1"
-model = "Qwen3.8-27B-UD-Q4_K_M"
-context_window = 65536
+kind = "ollama"
+base_url = "http://127.0.0.1:11434"
+model = "qwen3.8:27b"
+context_window = 32768
 
 [backends.claude]
 kind = "claude_code"

@@ -9,3 +9,5 @@ Until the model router (milestone 4) exists, a desk uses the first backend in it
 Claude Code runs in `workspace/desks/<desk>/scratch`, a folder with no `CLAUDE.md` above it inside the project, which is ignored by git.
 
 The short built-in system prompt is a stand-in until milestone 5 builds the prompt from `Agents.md`, `User.md`, `TradingRules.md` and the desk's `Persona.md`.
+
+Since milestone 4 every backend in the desk's order becomes a route of the desk's `ModelRouter`, built by kind: `claude_code` as a Claude Code turn runner, `ollama` and `openai_compatible` as an agent loop with its own conversation.
