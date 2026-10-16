@@ -19,3 +19,7 @@ From milestone 6 each desk gets its own bash sandbox and terminal, rooted in its
 From milestone 7 each desk gets its own browser session, with its profile in `browser_profile/` and screenshots in `scratch/screenshots/`, and the seven browser tools.
 
 From milestone 8 every desk shares one BrokerReader, so the UBI lock covers all desks, and gets the five read-only trading tools.
+
+## The order tools and the shared risk engine (milestone 10)
+
+`_build_order_services` runs once, in the builder's constructor, so every desk built by one builder shares a single risk engine, risk ledger, kill switch and desk order book. The application builds one builder per gateway, which makes the engine account-wide, as the plan requires.

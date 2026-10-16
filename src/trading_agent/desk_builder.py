@@ -7,6 +7,7 @@ Typical usage example:
   desk = DeskBuilder(configuration, secrets, event_bus).build(desk_configuration)
 """
 
+import datetime
 import logging
 
 from trading_agent.agent import agent_loop
@@ -21,6 +22,13 @@ from trading_agent.backends import ollama_backend
 from trading_agent.backends import openai_compatible_backend
 from trading_agent.configuration import agent_configuration
 from trading_agent.configuration import secrets as secrets_module
+from trading_agent.risk import account_snapshot
+from trading_agent.risk import exchange_hours
+from trading_agent.risk import kill_switch
+from trading_agent.risk import margin_estimator
+from trading_agent.risk import risk_engine
+from trading_agent.risk import risk_ledger
+from trading_agent.risk import trading_limits
 from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import no_model_turn_runner
@@ -40,13 +48,19 @@ from trading_agent.tools import browser_session
 from trading_agent.tools import browser_snapshot_tool
 from trading_agent.tools import browser_tabs_tool
 from trading_agent.tools import browser_type_tool
+from trading_agent.tools import cancel_order_tool
 from trading_agent.tools import edit_file_tool
+from trading_agent.tools import flatten_desk_tool
 from trading_agent.tools import get_candles_tool
 from trading_agent.tools import get_orders_tool
 from trading_agent.tools import get_portfolio_tool
 from trading_agent.tools import get_quote_tool
 from trading_agent.tools import get_time_tool
+from trading_agent.tools import modify_order_tool
+from trading_agent.tools import order_tool
 from trading_agent.tools import path_policy
+from trading_agent.tools import place_bracket_order_tool
+from trading_agent.tools import place_order_tool
 from trading_agent.tools import propose_file_change_tool
 from trading_agent.tools import read_file_tool
 from trading_agent.tools import search_instruments_tool
@@ -56,6 +70,7 @@ from trading_agent.tools import web_fetch_tool
 from trading_agent.tools import web_search_tool
 from trading_agent.tools import write_file_tool
 from trading_agent.trading import broker_reader
+from trading_agent.trading import desk_order_book
 from trading_agent.trading import result_formatter
 from trading_agent.workspace import proposal_store
 from trading_agent.workspace import workspace_layout
@@ -90,6 +105,52 @@ class DeskBuilder:
             configuration.tradingmachine_environment_file
         )
         self._result_formatter = result_formatter.ResultFormatter()
+        self._order_services = self._build_order_services()
+
+    def _build_order_services(self) -> order_tool.OrderServices:
+        """Builds the one risk engine and order book that every desk shares.
+
+        Returns:
+            order_tool.OrderServices: What the order tools use.
+        """
+        ledger = risk_ledger.RiskLedger(self._layout.risk_ledger_file)
+        snapshot_reader = account_snapshot.AccountSnapshotReader(
+            self._broker_reader
+        )
+        risk_settings = self._configuration.risk
+        services = risk_engine.RiskServices(
+            limits_reader=trading_limits.TradingLimitsReader(
+                self._layout.trading_rules_file
+            ),
+            snapshot_reader=snapshot_reader,
+            ledger=ledger,
+            kill_switch=kill_switch.KillSwitch(
+                self._broker_reader,
+                ledger,
+                self._event_bus,
+                self._configuration.mode,
+            ),
+            margin_estimator=margin_estimator.MarginEstimator(
+                risk_settings.margin_rates
+            ),
+            exchange_hours=exchange_hours.ExchangeHours(),
+        )
+        engine = risk_engine.RiskEngine(
+            services,
+            self._event_bus,
+            datetime.timedelta(minutes=risk_settings.ownership_grace_minutes),
+        )
+        return order_tool.OrderServices(
+            reader=self._broker_reader,
+            risk_engine=engine,
+            order_book=desk_order_book.DeskOrderBook(
+                self._layout.desk_orders_file
+            ),
+            snapshot_reader=snapshot_reader,
+            ledger=ledger,
+            event_bus=self._event_bus,
+            formatter=self._result_formatter,
+        )
 
     def build(
         self,
@@ -277,6 +338,31 @@ class DeskBuilder:
                 get_orders_tool.GetOrdersTool(
                     self._broker_reader,
                     self._result_formatter,
+                ),
+                place_order_tool.PlaceOrderTool(
+                    self._order_services,
+                    desk_configuration.name,
+                    self._configuration.mode,
+                ),
+                place_bracket_order_tool.PlaceBracketOrderTool(
+                    self._order_services,
+                    desk_configuration.name,
+                    self._configuration.mode,
+                ),
+                modify_order_tool.ModifyOrderTool(
+                    self._order_services,
+                    desk_configuration.name,
+                    self._configuration.mode,
+                ),
+                cancel_order_tool.CancelOrderTool(
+                    self._order_services,
+                    desk_configuration.name,
+                    self._configuration.mode,
+                ),
+                flatten_desk_tool.FlattenDeskTool(
+                    self._order_services,
+                    desk_configuration.name,
+                    self._configuration.mode,
                 ),
             ],
             timeout_seconds=agent_settings.tool_timeout_seconds,
