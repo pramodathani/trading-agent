@@ -90,6 +90,7 @@ class DeskRuntime:
                 trigger = await self._trigger_queue.get()
                 await self._handle(trigger)
         finally:
+            await self._turn_runner.close()
             self.state = DeskState.STOPPED
             self._publish(event_module.EventKind.DESK_STOPPED, {})
 

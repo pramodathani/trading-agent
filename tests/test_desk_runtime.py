@@ -176,3 +176,39 @@ class TestDeskRuntime:
 
         with pytest.raises(ValueError, match='was sent to desk'):
             desk.submit(_trigger('hello', desk='scalper'))
+
+
+class _ClosingTurnRunner(turn_runner.TurnRunner):
+    """A turn runner that records whether it was closed."""
+
+    def __init__(self):
+        """Creates the runner, not yet closed."""
+        self.closed = False
+
+    async def close(self) -> None:
+        """Records the close."""
+        self.closed = True
+
+
+class TestDeskRuntimeShutdown:
+    """Tests for stopping a desk."""
+
+    def test_stopping_the_desk_closes_its_turn_runner(self) -> None:
+        """Cancelling the desk loop calls the runner's close, so Claude Code is stopped."""
+        runner = _ClosingTurnRunner()
+
+        async def scenario() -> None:
+            """Starts the desk loop and cancels it."""
+            desk = desk_runtime.DeskRuntime(
+                agent_configuration.DeskConfiguration(name='main'),
+                event_bus_module.EventBus(),
+                runner,
+            )
+            task = asyncio.create_task(desk.run())
+            await asyncio.sleep(0.01)
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+        asyncio.run(scenario())
+
+        assert runner.closed

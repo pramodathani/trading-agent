@@ -42,3 +42,9 @@ class TurnRunner:
             NotImplementedError: Always, because subclasses must override this method.
         """
         raise NotImplementedError
+
+    async def close(self) -> None:
+        """Releases anything the runner started, such as a Claude Code process.
+
+        The desk calls this when it stops. Runners that start nothing keep this empty default.
+        """

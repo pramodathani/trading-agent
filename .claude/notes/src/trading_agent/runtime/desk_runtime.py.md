@@ -7,3 +7,5 @@ A turn that raises is caught at this level and published as an `error` event, an
 `submit` refuses a trigger addressed to another desk. Routing mistakes would otherwise make one persona act on another persona's instructions.
 
 `turn_finished` is published in a `finally` block so that listeners such as the web interface always see a turn end, whether it succeeded or failed.
+
+The desk closes its turn runner in the same `finally` block that marks it stopped, so a cancelled desk always releases its Claude Code process.
