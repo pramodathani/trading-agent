@@ -25,12 +25,21 @@ from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import no_model_turn_runner
 from trading_agent.runtime import turn_runner
+from trading_agent.tools import address_guard
 from trading_agent.tools import bash_background_tool
 from trading_agent.tools import bash_check_tool
 from trading_agent.tools import bash_restart_tool
 from trading_agent.tools import bash_run_tool
 from trading_agent.tools import bash_sandbox
 from trading_agent.tools import bash_session
+from trading_agent.tools import browser_back_tool
+from trading_agent.tools import browser_click_tool
+from trading_agent.tools import browser_open_tool
+from trading_agent.tools import browser_screenshot_tool
+from trading_agent.tools import browser_session
+from trading_agent.tools import browser_snapshot_tool
+from trading_agent.tools import browser_tabs_tool
+from trading_agent.tools import browser_type_tool
 from trading_agent.tools import edit_file_tool
 from trading_agent.tools import get_time_tool
 from trading_agent.tools import path_policy
@@ -194,9 +203,17 @@ class DeskBuilder:
             sandbox_settings.command_timeout_seconds,
             sandbox_settings.maximum_output_characters,
         )
+        desk_directory = self._layout.desk_directory(desk_configuration.name)
         policy = path_policy.PathPolicy(
-            self._layout.desk_directory(desk_configuration.name),
+            desk_directory,
             sandbox.hidden_paths(),
+        )
+        browser = browser_session.BrowserSession(
+            desk_directory / 'browser_profile',
+            self._layout.scratch_directory(desk_configuration.name)
+            / 'screenshots',
+            address_guard.AddressGuard(),
+            self._configuration.browser,
         )
         registry = tool_registry.ToolRegistry(
             [
@@ -220,6 +237,16 @@ class DeskBuilder:
                     web_settings.fetch_timeout_seconds,
                     web_settings.maximum_page_characters,
                 ),
+                browser_open_tool.BrowserOpenTool(browser),
+                browser_snapshot_tool.BrowserSnapshotTool(browser),
+                browser_click_tool.BrowserClickTool(browser),
+                browser_type_tool.BrowserTypeTool(browser),
+                browser_screenshot_tool.BrowserScreenshotTool(
+                    browser,
+                    desk_directory,
+                ),
+                browser_back_tool.BrowserBackTool(browser),
+                browser_tabs_tool.BrowserTabsTool(browser),
             ],
             timeout_seconds=agent_settings.tool_timeout_seconds,
         )

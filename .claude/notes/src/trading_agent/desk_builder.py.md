@@ -15,3 +15,5 @@ Since milestone 4 every backend in the desk's order becomes a route of the desk'
 From milestone 5 each desk gets a `PromptBuilder` instead of a fixed prompt, and the `propose_file_change` tool.
 
 From milestone 6 each desk gets its own bash sandbox and terminal, rooted in its scratch folder, and the file, bash and web tools. The desk runtime is given the tool registry so that stopping the desk stops its terminal.
+
+From milestone 7 each desk gets its own browser session, with its profile in `browser_profile/` and screenshots in `scratch/screenshots/`, and the seven browser tools.
