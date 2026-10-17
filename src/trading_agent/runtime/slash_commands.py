@@ -8,6 +8,7 @@ Typical usage example:
 
 import dataclasses
 import datetime
+import json
 import zoneinfo
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
@@ -20,6 +21,7 @@ from trading_agent.runtime import trigger as trigger_module
 from trading_agent.runtime import turn_runner as turn_runner_module
 from trading_agent.skills import skill_library as skill_library_module
 from trading_agent.subagents import subagent_library as subagent_library_module
+from trading_agent.subagents import subagent_runner as subagent_runner_module
 from trading_agent.tools import tool_registry as tool_registry_module
 
 if TYPE_CHECKING:
@@ -34,7 +36,12 @@ _INSTANT_COMMANDS = (
     '/skills',
     '/subagents',
 )
-_BACKGROUND_COMMANDS = ('/btw',)
+_BACKGROUND_COMMANDS = (
+    '/btw',
+    '/review',
+)
+_REVIEWER = 'trade_reviewer'
+_MOST_REVIEWED_EVENTS = 200
 _INDIA = zoneinfo.ZoneInfo('Asia/Kolkata')
 _FULL = 'full'
 _DEFAULT = 'default'
@@ -47,12 +54,14 @@ class CommandParts:
     Attributes:
         tool_registry: The desk's tools, listed by /tools, or None.
         subagent_library: The subagents the desk can delegate to, listed by /subagents, or None.
-        journal_reader: The desk's journal, read by /subagents, or None.
+        journal_reader: The desk's journal, read by /subagents and /review, or None.
+        subagent_runner: Runs the trade reviewer for /review, or None.
     """
 
     tool_registry: tool_registry_module.ToolRegistry | None = None
     subagent_library: subagent_library_module.SubagentLibrary | None = None
     journal_reader: journal_reader_module.JournalReader | None = None
+    subagent_runner: subagent_runner_module.SubagentRunner | None = None
 
 
 class SlashCommands:
@@ -90,6 +99,7 @@ class SlashCommands:
             '/resume': self._resume,
             '/think': self._think,
             '/btw': self._btw,
+            '/review': self._review,
             '/context': self._context,
             '/tools': self._tools,
             '/skills': self._skills,
@@ -139,7 +149,7 @@ class SlashCommands:
             text (str): The message.
 
         Returns:
-            bool: True for /btw.
+            bool: True for /btw and /review.
         """
         return self.command_name(text) in _BACKGROUND_COMMANDS
 
@@ -227,6 +237,7 @@ class SlashCommands:
                 '/skills              the skills the desk can follow',
                 "/subagents           the desk's subagents and today's runs",
                 "/btw <question>      ask a side question; it is not kept in the desk's conversation",
+                "/review [notes]      have the trade reviewer judge today's orders and fills",
                 '/stop                stop the running turn at once (it skips the queue)',
                 '/pause               stop answering until /resume (commands still work)',
                 '/resume              start answering again',
@@ -234,7 +245,7 @@ class SlashCommands:
                 '/help                this list',
                 '',
                 '/help, /status, /usage, /context, /tools, /skills and /subagents answer at once, even while the desk is working.',
-                '/btw runs beside the desk, without waiting for or interrupting its turn.',
+                '/btw and /review run beside the desk, without waiting for or interrupting its turn.',
             ]
         )
 
@@ -399,16 +410,142 @@ class SlashCommands:
             return (
                 'The desk is paused, so no model was asked. Send /resume first.'
             )
-        if self._background_command is not None:
-            return f'{self._background_command} is still running. Wait for its answer, then ask again.'
-        self._background_command = '/btw'
+        return await self._one_at_a_time(
+            '/btw', self._ask_side_question, argument
+        )
+
+    async def _ask_side_question(self, question: str) -> str:
+        """Asks the desk's models the side question.
+
+        Args:
+            question (str): The question.
+
+        Returns:
+            str: The answer and the backend that gave it, or why no model could answer.
+        """
+        router = self._router()
+        if router is None:
+            return 'This desk has no models connected.'
         try:
-            backend_name, answer = await router.side_question(argument)
+            backend_name, answer = await router.side_question(question)
         except backend_module.BackendUnavailableError as error:
             return f'No model could answer: {error}'
+        return f"Side answer from {backend_name}, not kept in the desk's conversation:\n{answer}"
+
+    async def _review(self, argument: str) -> str:
+        """Has the trade reviewer subagent review the desk's orders and fills of today.
+
+        Args:
+            argument (str): Extra instructions for the reviewer, or empty.
+
+        Returns:
+            str: The reviewer's report, or why there is none.
+        """
+        runner = self._parts.subagent_runner
+        reader = self._parts.journal_reader
+        if runner is None or reader is None:
+            return 'This desk cannot run the trade reviewer.'
+        if self._desk.paused:
+            return (
+                'The desk is paused, so no model was asked. Send /resume first.'
+            )
+        if not self._trading_events():
+            return 'The desk has placed no orders today, so there is nothing to review.'
+        return await self._one_at_a_time('/review', self._run_review, argument)
+
+    async def _run_review(self, argument: str) -> str:
+        """Runs the trade reviewer on today's orders and fills.
+
+        Args:
+            argument (str): Extra instructions for the reviewer, or empty.
+
+        Returns:
+            str: The reviewer's report, with its outcome, backend and duration.
+        """
+        report = await self._parts.subagent_runner.run_one(
+            subagent_runner_module.SubagentTask(
+                subagent=_REVIEWER,
+                task=self._review_task(argument),
+            )
+        )
+        backend_name = report.backend_name or 'no backend'
+        heading = f'Trade review by {_REVIEWER} ({report.outcome}, {backend_name}, {report.seconds:.0f} s):'
+        return f'{heading}\n{report.text}'
+
+    def _review_task(self, argument: str) -> str:
+        """Writes the reviewer's task: today's orders and fills from the journal, and the user's extra instructions.
+
+        Args:
+            argument (str): Extra instructions for the reviewer, or empty.
+
+        Returns:
+            str: The task.
+        """
+        events = self._trading_events()
+        lines = [
+            f"Review the {self._desk.name} desk's trading today, {self._parts.journal_reader.today()}.",
+            'These are its order actions and fills from the journal, oldest first, with India times. An order with "dry_run": true was checked by UBI and never reached a broker.',
+        ]
+        if len(events) > _MOST_REVIEWED_EVENTS:
+            lines.append(
+                f'Only the latest {_MOST_REVIEWED_EVENTS} of {len(events)} events are listed; use get_orders for the rest.'
+            )
+            events = events[-_MOST_REVIEWED_EVENTS:]
+        for event in events:
+            created = datetime.datetime.fromisoformat(event['created_at'])
+            details = json.dumps(
+                event['payload'], ensure_ascii=False, default=str
+            )
+            lines.append(
+                f'- {created.astimezone(_INDIA):%H:%M} {event["kind"]}: {details}'
+            )
+        lines.append(
+            'Judge the day as a whole: which trades fit the rules, which did not, and what the desk should do differently tomorrow.'
+        )
+        if argument:
+            lines.append(f'The user adds: {argument}')
+        return '\n'.join(lines)
+
+    def _trading_events(self) -> list[dict]:
+        """Today's order and fill events from the desk's journal, oldest first.
+
+        Returns:
+            list[dict]: The events, or an empty list when the desk has no journal.
+        """
+        reader = self._parts.journal_reader
+        if reader is None:
+            return []
+        return reader.events(
+            reader.today(),
+            (
+                event_module.EventKind.ORDER,
+                event_module.EventKind.FILL,
+            ),
+        )
+
+    async def _one_at_a_time(
+        self,
+        name: str,
+        work: Callable[[str], Awaitable[str]],
+        argument: str,
+    ) -> str:
+        """Runs a background command unless another is still running on this desk.
+
+        Args:
+            name (str): The command, such as "/btw", named in the reply to a second request.
+            work (Callable[[str], Awaitable[str]]): Does the command's work and returns its reply.
+            argument (str): Passed to work.
+
+        Returns:
+            str: The work's reply, or a request to wait for the command still running.
+        """
+        if self._background_command is not None:
+            return f'{self._background_command} is still running. Wait for its answer, then ask again.'
+        self._background_command = name
+        try:
+            return await work(argument)
         finally:
             self._background_command = None
-        return f"Side answer from {backend_name}, not kept in the desk's conversation:\n{answer}"
 
     async def _pause(self, argument: str) -> str:
         """Pauses the desk.

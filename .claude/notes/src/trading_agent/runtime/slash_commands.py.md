@@ -64,3 +64,11 @@ It is a background command (`is_background`): the desk answers it in its own tas
 A paused desk asks no model, so `/btw` respects `/pause` like a model turn does.
 
 The answer names the backend that gave it, because a fallback model may lack the latest exchanges (see the note on `model_router.py`).
+
+## /review, since 2026-10-18
+
+`/review` borrows Hermes's `/review`, which spawns a reviewer subagent for recent work, and points it at the desk's trading. It runs the existing `trade_reviewer` subagent through the desk's `SubagentRunner.run_one`, the same call the cron scheduler uses for subagent jobs, so it gets the reviewer's own tools, model order and five-minute limit.
+
+The task lists today's `order` and `fill` events from the desk's journal, because the journal is the only record that ties each order to the desk, dry runs included. UBI's order book is shared by every desk. The reviewer can still call `get_orders` and `get_portfolio` for live prices and positions, so the task does not repeat the profit and loss. At most 200 events are listed, the latest ones, so a busy scalper day cannot overflow the reviewer's context.
+
+With no orders today it answers at once and starts no subagent, because a review of nothing would only spend the subscription. It is a background command, sharing the one-at-a-time guard with `/btw` through `_one_at_a_time`, because a review can take minutes.

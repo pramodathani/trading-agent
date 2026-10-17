@@ -20,6 +20,7 @@ from trading_agent.runtime import trigger as trigger_module
 from trading_agent.runtime import turn_runner
 from trading_agent.skills import skill_library
 from trading_agent.subagents import subagent_library
+from trading_agent.subagents import subagent_runner
 from trading_agent.tools import tool_registry
 
 _INDIA = zoneinfo.ZoneInfo('Asia/Kolkata')
@@ -535,3 +536,124 @@ class TestSideQuestions:
         assert 'Write the question after /btw' in empty
         assert 'paused' in paused
         assert setup.claude.side_questions == []
+
+
+class _StandInSubagentRunner:
+    """Stands in for a desk's subagent runner, recording each task and answering with a fixed report.
+
+    Attributes:
+        tasks: Every task it was given.
+    """
+
+    def __init__(self):
+        """Creates the runner with no tasks."""
+        self.tasks: list[subagent_runner.SubagentTask] = []
+
+    async def run_one(
+        self, task: subagent_runner.SubagentTask
+    ) -> subagent_runner.SubagentReport:
+        """Records the task and reports.
+
+        Args:
+            task (subagent_runner.SubagentTask): The task.
+
+        Returns:
+            subagent_runner.SubagentReport: A fixed report that the trades fit the rules.
+        """
+        self.tasks.append(task)
+        return subagent_runner.SubagentReport(
+            subagent=task.subagent,
+            outcome='answered',
+            text='Fits the rules.',
+            backend_name='claude',
+            seconds=12.0,
+            notes=(),
+        )
+
+
+def _review_parts(
+    directory: Path, reviewer: _StandInSubagentRunner, with_orders: bool
+) -> slash_commands.CommandParts:
+    """Builds the parts /review needs, with or without orders in today's journal.
+
+    Args:
+        directory (Path): A scratch folder for the journal.
+        reviewer (_StandInSubagentRunner): The stand-in subagent runner.
+        with_orders (bool): True to write an order and a fill into today's journal.
+
+    Returns:
+        slash_commands.CommandParts: The journal reader and the subagent runner.
+    """
+    lines = [
+        _journal_line(
+            'text',
+            {
+                'text': 'thinking',
+            },
+            _MORNING,
+        ),
+    ]
+    if with_orders:
+        lines.append(
+            _journal_line(
+                'order',
+                {
+                    'dry_run': True,
+                    'symbol': 'INFY',
+                },
+                _MORNING.replace(hour=9, minute=30),
+            )
+        )
+        lines.append(
+            _journal_line(
+                'fill',
+                {
+                    'symbol': 'INFY',
+                    'status': 'COMPLETE',
+                },
+                _MORNING.replace(hour=9, minute=31),
+            )
+        )
+    _write_file(directory / 'journal' / '2026-10-19.jsonl', '\n'.join(lines))
+    return slash_commands.CommandParts(
+        journal_reader=journal_reader.JournalReader(
+            directory / 'journal', lambda: _MORNING
+        ),
+        subagent_runner=reviewer,
+    )
+
+
+class TestReview:
+    """Tests for /review."""
+
+    def test_review_sends_todays_orders_and_fills(self, tmp_path: Path) -> None:
+        """/review gives the trade reviewer today's orders and fills and the user's notes, and replies with its report."""
+        reviewer = _StandInSubagentRunner()
+        parts = _review_parts(tmp_path, reviewer, True)
+
+        reply = _Desk(parts=parts).send(['/review focus on stops'])[0]
+
+        task = reviewer.tasks[0]
+        assert reply == (
+            'Trade review by trade_reviewer (answered, claude, 12 s):\n'
+            'Fits the rules.'
+        )
+        assert task.subagent == 'trade_reviewer'
+        assert '- 09:30 order: {"dry_run": true, "symbol": "INFY"}' in task.task
+        assert '- 09:31 fill:' in task.task
+        assert 'thinking' not in task.task
+        assert task.task.endswith('The user adds: focus on stops')
+
+    def test_review_without_orders_runs_no_subagent(
+        self, tmp_path: Path
+    ) -> None:
+        """/review on a day without orders says so and starts no subagent; a desk without a runner says it cannot review."""
+        reviewer = _StandInSubagentRunner()
+        parts = _review_parts(tmp_path, reviewer, False)
+
+        empty = _Desk(parts=parts).send(['/review'])[0]
+        bare = _Desk().send(['/review'])[0]
+
+        assert 'placed no orders today' in empty
+        assert reviewer.tasks == []
+        assert bare == 'This desk cannot run the trade reviewer.'

@@ -344,6 +344,7 @@ class DeskBuilder:
                 self._event_bus,
                 curator,
             )
+        _, _, _, subagents = self._schedule_parts[desk_name]
         return desk_runtime.DeskRuntime(
             desk_configuration,
             self._event_bus,
@@ -360,6 +361,7 @@ class DeskBuilder:
                 journal_reader=journal_reader.JournalReader(
                     self._layout.desk_directory(desk_name) / 'journal'
                 ),
+                subagent_runner=subagents,
             ),
         )
 

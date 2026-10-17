@@ -63,6 +63,10 @@ _MENU = (
         "Ask a side question, not kept in the desk's conversation",
     ),
     (
+        'review',
+        "Have the trade reviewer judge today's trades",
+    ),
+    (
         'context',
         "How full the desk's context window is",
     ),
@@ -226,6 +230,7 @@ class TelegramCommands:
                 'These go to your desk:',
                 "/stop - stop the desk's running turn",
                 "/btw <question> - a side question, answered beside the desk's work and not kept",
+                "/review [notes] - the trade reviewer judges today's orders and fills",
                 "/usage - today's model calls, tokens and costs",
                 "/context - how full the desk's context window is",
                 '/tools, /skills, /subagents - what the desk can use',
