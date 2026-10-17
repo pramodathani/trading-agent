@@ -9,3 +9,5 @@ On 2026-10-17 the journal of a live turn was checked against five real secret va
 ## Webhook token (milestone 15)
 
 The webhook token is masked like the other secrets.
+
+The Telegram bot token was added to the masked values in milestone 19.

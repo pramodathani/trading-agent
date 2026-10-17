@@ -81,6 +81,7 @@ class TestSecretRedactor:
             claude_code_oauth_token = ''
             openai_api_key = ''
             webhook_token = 'webhook-token-12345678'
+            telegram_bot_token = '123456789:telegram-bot-token'
 
         redactor = secret_redactor.SecretRedactor.from_files(
             _Secrets(), environment_file
@@ -88,6 +89,7 @@ class TestSecretRedactor:
 
         assert redactor.redact('very-secret-password') == '[redacted]'
         assert redactor.redact('gateway-token-abcdefgh') == '[redacted]'
+        assert redactor.redact('123456789:telegram-bot-token') == '[redacted]'
         assert (
             redactor.redact('http://127.0.0.1:8080') == 'http://127.0.0.1:8080'
         )

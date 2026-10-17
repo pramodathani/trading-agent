@@ -51,3 +51,46 @@ class TestTokenRedactingFilter:
         token_redacting_filter.TokenRedactingFilter().filter(record)
 
         assert record.getMessage() == 'GET /x?token=***&desk=main'
+
+
+def test_bot_token_in_a_telegram_address_is_masked() -> None:
+    """A bot token inside a Telegram address, as httpx logs it, is replaced."""
+    record = logging.LogRecord(
+        'httpx',
+        logging.INFO,
+        __file__,
+        1,
+        'HTTP Request: %s %s',
+        (
+            'POST',
+            _Address(
+                'https://api.telegram.org/bot123456789:AAH-secret_PART/getUpdates'
+            ),
+        ),
+        None,
+    )
+
+    token_redacting_filter.TokenRedactingFilter().filter(record)
+
+    assert 'AAH-secret_PART' not in record.getMessage()
+    assert '/bot***/getUpdates' in record.getMessage()
+
+
+class _Address:
+    """An object that is not a string but prints as an address, like httpx.URL."""
+
+    def __init__(self, text: str):
+        """Creates the address.
+
+        Args:
+            text (str): The address.
+        """
+        self._text = text
+
+    def __str__(self) -> str:
+        """The address as text.
+
+        Returns:
+            str: The address.
+        """
+        return self._text

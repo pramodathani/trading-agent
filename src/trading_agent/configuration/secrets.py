@@ -19,6 +19,7 @@ class Secrets(pydantic_settings.BaseSettings):
         claude_code_oauth_token: The Max subscription token made by `claude setup-token`, passed to Claude Code as CLAUDE_CODE_OAUTH_TOKEN.
         openai_api_key: The key for OpenAI-compatible backends, or empty for local servers that need none.
         webhook_token: The token incoming webhooks must present, kept apart from the gateway token so it can be pasted into services such as TradingView; empty switches webhooks off.
+        telegram_bot_token: The token BotFather gave for the trading-agent bot, or empty when Telegram is not set up.
     """
 
     model_config = pydantic_settings.SettingsConfigDict(
@@ -31,3 +32,4 @@ class Secrets(pydantic_settings.BaseSettings):
     claude_code_oauth_token: str = ''
     openai_api_key: str = ''
     webhook_token: str = ''
+    telegram_bot_token: str = ''

@@ -9,3 +9,5 @@ Secrets are read with pydantic-settings, the same way sridhara reads `SRIDHARA_*
 ## webhook_token (milestone 15)
 
 `TRADING_AGENT_WEBHOOK_TOKEN` in .env, for incoming webhooks; empty switches them off.
+
+`telegram_bot_token` (milestone 19) comes from TRADING_AGENT_TELEGRAM_BOT_TOKEN. Like every secret, an environment variable of the same name takes precedence over .env.
