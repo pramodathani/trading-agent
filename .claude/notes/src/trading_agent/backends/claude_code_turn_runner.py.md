@@ -36,3 +36,11 @@ Verified live on 2026-10-17: after `TradingRules.md` changed mid-interview, the 
 ## tradingmachine's settings are blanked
 
 From milestone 8 the gateway loads tradingmachine's `.env`, which copies its settings, including database passwords, into the gateway's environment, and the SDK copies that whole environment into Claude Code. `_environment` therefore passes every `TRADINGMACHINE_` variable as an empty value. Claude Code has no tool that could read its environment, so this is defence in depth. Verified on 2026-10-17 by reading `/proc/<pid>/environ` of a Claude Code process started after the settings were loaded: all 16 were empty.
+
+## Resuming after a restart (milestone 11)
+
+`saved_state` returns the Claude Code session id and the fingerprint of the prompt that session last saw. `restore_state` sets them back so the next connect passes `resume=`; with the fingerprint restored, `_query_text` still delivers changed instruction files inside the next message.
+
+Before resuming, the runner checks that Claude Code still has the session's file (`<sessions_directory>/*/<session_id>.jsonl`; the folder name encodes the working directory, so every folder is searched). Without that check, a deleted session would make every Claude turn fail with "no conversation found", the router would put Claude into its waiting periods, and Claude would never recover because the bad id would be retried each time. With the check, a missing session simply means a new one, and the router's hand-over fills it in.
+
+`sessions_directory` is `$CLAUDE_CONFIG_DIR/projects`, or `~/.claude/projects` when that variable is not set (`desk_builder.py`).

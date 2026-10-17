@@ -15,3 +15,13 @@ Only the trigger and the final answer are handed over, not the tool calls in bet
 ## Verified on 2026-10-16
 
 With a deliberately wrong Claude token, the first turn published `backend_unavailable` for Claude (`authentication_failed`, waiting 30 s), Qwen answered the same turn with a `get_time` call in 12.5 s (most of it Ollama loading the model), and the second turn went straight to Qwen in 0.6 s without trying Claude.
+
+## Sessions on disk (milestone 11)
+
+With a `SessionStore`, `_finish` appends every exchange to the session log and rewrites `state.json` with each route's `exchanges_seen` and its runner's `saved_state()`. `restore_session` reads them back at start-up: a route whose runner's `restore_state` succeeds (Claude, when Claude Code still has the session file) keeps its `exchanges_seen`, capped at the number of exchanges actually in the log; every other route starts at 0, so its next turn begins with the normal hand-over. `reset` (for `/new` and the daily rollover) now also begins a new session in the store.
+
+The hand-over paragraph above said milestone 11 would replace it with a session summary. It did not: the hand-over turned out to be exactly the right mechanism for crash recovery too, so it stays, and the daily summary covers the different job of carrying one day into the next.
+
+`/model` preferences are not saved; after a restart the configured order applies again.
+
+Verified on 2026-10-17: after a restart Claude resumed its saved session and recalled a codeword without any tool, and Qwen, asked first, received the session's exchanges as a hand-over and recalled it too.

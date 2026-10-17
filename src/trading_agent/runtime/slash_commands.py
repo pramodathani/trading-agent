@@ -114,6 +114,10 @@ class SlashCommands:
         if router is None:
             lines.append('Models: none connected')
         else:
+            if router.session_id is not None:
+                lines.append(
+                    f'Session: {router.session_id}, {len(router.exchanges)} exchange(s) so far'
+                )
             lines.append('Models, in the order they will be tried:')
             lines.extend(router.status_lines())
         return '\n'.join(lines)
@@ -129,6 +133,9 @@ class SlashCommands:
         """
         del argument
         await self._desk.turn_runner.reset()
+        router = self._router()
+        if router is not None and router.session_id is not None:
+            return f'Started a fresh conversation, session {router.session_id}. The workspace files and Memory.md still apply.'
         return 'Started a fresh conversation. The workspace files still apply.'
 
     async def _model(self, argument: str) -> str:

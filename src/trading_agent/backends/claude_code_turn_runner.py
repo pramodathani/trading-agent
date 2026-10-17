@@ -45,12 +45,14 @@ class ClaudeCodeSettings:
         oauth_token: The subscription token from `claude setup-token`.
         working_directory: The folder Claude Code runs in.
         maximum_rounds: The most model calls one turn may make.
+        sessions_directory: Where Claude Code keeps its sessions, normally ~/.claude/projects, checked before a saved session is resumed.
     """
 
     prompt_builder: prompt_builder_module.PromptBuilder
     oauth_token: str
     working_directory: Path
     maximum_rounds: int
+    sessions_directory: Path
 
 
 class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
@@ -387,6 +389,63 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
             if isinstance(block, claude_agent_sdk.TextBlock):
                 parts.append(block.text)
         return ''.join(parts)
+
+    def saved_state(self) -> dict[str, Any] | None:
+        """Claude Code's session id and the prompt it last saw, so a restart can resume the session.
+
+        Returns:
+            dict[str, Any] | None: The session id and prompt fingerprint, or None before the first turn.
+        """
+        if self.session_id is None:
+            return None
+        return {
+            'session_id': self.session_id,
+            'prompt_fingerprint': self._session_prompt_fingerprint,
+        }
+
+    async def restore_state(self, state: dict[str, Any]) -> bool:
+        """Resumes a session saved before a restart, if Claude Code still has it.
+
+        Claude Code keeps each session as a file named after its id. When that file is gone, resuming would fail, so the runner starts a new session instead and the router tells it what it missed.
+
+        Args:
+            state (dict[str, Any]): What saved_state returned before the restart.
+
+        Returns:
+            bool: True when the next turn will resume the saved session.
+        """
+        session_id = state.get('session_id')
+        if not isinstance(session_id, str) or not session_id:
+            return False
+        if not self._session_file_exists(session_id):
+            _LOGGER.warning(
+                'Claude Code no longer has session %s; desk %s starts a new one',
+                session_id,
+                self._desk_name,
+            )
+            return False
+        await self._disconnect()
+        self.session_id = session_id
+        self._session_prompt_fingerprint = state.get('prompt_fingerprint')
+        return True
+
+    def _session_file_exists(self, session_id: str) -> bool:
+        """Says whether Claude Code still has a session's file.
+
+        Claude Code files sessions under a folder named after the working directory, so every such folder is searched.
+
+        Args:
+            session_id (str): The session id.
+
+        Returns:
+            bool: True when the file exists.
+        """
+        directory = self._settings.sessions_directory
+        if not directory.is_dir():
+            return False
+        for _ in directory.glob(f'*/{session_id}.jsonl'):
+            return True
+        return False
 
     async def reset(self) -> None:
         """Stops Claude Code and forgets the session, so the next turn starts afresh."""

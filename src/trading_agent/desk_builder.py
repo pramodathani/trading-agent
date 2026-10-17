@@ -9,6 +9,8 @@ Typical usage example:
 
 import datetime
 import logging
+import os
+from pathlib import Path
 
 from trading_agent.agent import agent_loop
 from trading_agent.agent import agent_turn_runner
@@ -22,6 +24,10 @@ from trading_agent.backends import ollama_backend
 from trading_agent.backends import openai_compatible_backend
 from trading_agent.configuration import agent_configuration
 from trading_agent.configuration import secrets as secrets_module
+from trading_agent.memory import checkpoints as checkpoints_module
+from trading_agent.memory import session_keeper
+from trading_agent.memory import session_search
+from trading_agent.memory import session_store
 from trading_agent.risk import account_snapshot
 from trading_agent.risk import exchange_hours
 from trading_agent.risk import kill_switch
@@ -33,6 +39,7 @@ from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import no_model_turn_runner
 from trading_agent.runtime import turn_runner
+from trading_agent.tools import add_note_tool
 from trading_agent.tools import address_guard
 from trading_agent.tools import bash_background_tool
 from trading_agent.tools import bash_check_tool
@@ -64,6 +71,7 @@ from trading_agent.tools import place_order_tool
 from trading_agent.tools import propose_file_change_tool
 from trading_agent.tools import read_file_tool
 from trading_agent.tools import search_instruments_tool
+from trading_agent.tools import search_sessions_tool
 from trading_agent.tools import tool_call_executor
 from trading_agent.tools import tool_registry
 from trading_agent.tools import web_fetch_tool
@@ -164,25 +172,45 @@ class DeskBuilder:
         Returns:
             desk_runtime.DeskRuntime: The desk, not yet running.
         """
-        executor = self._executor(desk_configuration)
+        desk_name = desk_configuration.name
+        checkpoints = checkpoints_module.Checkpoints(
+            self._layout.checkpoint_repository(desk_name),
+            self._layout.desk_directory(desk_name),
+        )
+        store = session_store.SessionStore(
+            self._layout.sessions_directory(desk_name)
+        )
+        executor = self._executor(desk_configuration, checkpoints)
+        runner = self._turn_runner(desk_configuration, executor, store)
+        keeper = None
+        if isinstance(runner, model_router.ModelRouter):
+            keeper = session_keeper.SessionKeeper(
+                desk_name,
+                runner,
+                store,
+                self._event_bus,
+            )
         return desk_runtime.DeskRuntime(
             desk_configuration,
             self._event_bus,
-            self._turn_runner(desk_configuration, executor),
+            runner,
             self._configuration.mode,
             executor.tool_registry,
+            keeper,
         )
 
     def _turn_runner(
         self,
         desk_configuration: agent_configuration.DeskConfiguration,
         executor: tool_call_executor.ToolCallExecutor,
+        store: session_store.SessionStore,
     ) -> turn_runner.TurnRunner:
         """Builds a model router over every backend in the desk's order.
 
         Args:
             desk_configuration (agent_configuration.DeskConfiguration): The desk's settings.
             executor (tool_call_executor.ToolCallExecutor): The desk's tool executor, shared by every backend.
+            store (session_store.SessionStore): Where the router keeps the desk's sessions.
 
         Returns:
             turn_runner.TurnRunner: The router, or a no-model runner when the desk names no backend.
@@ -207,6 +235,7 @@ class DeskBuilder:
             desk_configuration.name,
             routes,
             self._event_bus,
+            session_store=store,
         )
 
     def _backend_runner(
@@ -254,11 +283,13 @@ class DeskBuilder:
     def _executor(
         self,
         desk_configuration: agent_configuration.DeskConfiguration,
+        checkpoints: checkpoints_module.Checkpoints,
     ) -> tool_call_executor.ToolCallExecutor:
         """Builds the desk's tools and the executor that runs them.
 
         Args:
             desk_configuration (agent_configuration.DeskConfiguration): The desk's settings.
+            checkpoints (checkpoints_module.Checkpoints): Snapshots the desk's files before the file tools change them.
 
         Returns:
             tool_call_executor.ToolCallExecutor: The executor.
@@ -299,8 +330,15 @@ class DeskBuilder:
                 bash_background_tool.BashBackgroundTool(session),
                 bash_check_tool.BashCheckTool(session),
                 read_file_tool.ReadFileTool(policy),
-                write_file_tool.WriteFileTool(policy),
-                edit_file_tool.EditFileTool(policy),
+                write_file_tool.WriteFileTool(policy, checkpoints),
+                edit_file_tool.EditFileTool(policy, checkpoints),
+                add_note_tool.AddNoteTool(
+                    self._layout.notes_directory(desk_configuration.name),
+                    checkpoints,
+                ),
+                search_sessions_tool.SearchSessionsTool(
+                    session_search.SessionSearch(desk_directory)
+                ),
                 web_search_tool.WebSearchTool(
                     web_settings.searxng_base_url,
                     web_settings.search_result_limit,
@@ -400,6 +438,7 @@ class DeskBuilder:
             oauth_token=self._secrets.claude_code_oauth_token,
             working_directory=working_directory.resolve(),
             maximum_rounds=self._configuration.agent.maximum_rounds,
+            sessions_directory=self._claude_sessions_directory(),
         )
         return claude_code_turn_runner.ClaudeCodeTurnRunner(
             desk_configuration.name,
@@ -409,6 +448,17 @@ class DeskBuilder:
             self._event_bus,
             settings,
         )
+
+    def _claude_sessions_directory(self) -> Path:
+        """Where Claude Code keeps its session files.
+
+        Returns:
+            Path: The projects folder inside CLAUDE_CONFIG_DIR, or inside ~/.claude when that is not set.
+        """
+        configuration_directory = os.environ.get('CLAUDE_CONFIG_DIR')
+        if configuration_directory:
+            return Path(configuration_directory) / 'projects'
+        return Path.home() / '.claude' / 'projects'
 
     def _agent_loop_runner(
         self,

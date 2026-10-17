@@ -17,3 +17,7 @@ A message that starts with `/` is answered by `SlashCommands`. Every other messa
 While `paused` is true the desk answers ordinary messages with a fixed reply and asks no model.
 
 Since milestone 6 the desk also closes its tool registry when it stops, which ends its bash sandbox.
+
+## Session keeper (milestone 11)
+
+When the desk has a session keeper, `run` calls `keeper.start()` before the first trigger, so `/status` shows the resumed session straight away, and `_answer` calls `keeper.prepare(trigger)` before each model turn. `prepare` runs before `_with_context`, so the India-time line stays the first line of the message even when a summary is put in front of the trigger. Commands and paused desks skip `prepare`, so `/status` never triggers a rollover.

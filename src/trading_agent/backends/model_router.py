@@ -2,6 +2,8 @@
 
 A backend that fails is not tried again until its waiting period ends: 30 seconds after the first failure in a row, then 1 minute, then 5 minutes. A success resets it. Each backend keeps its own conversation, so when a backend takes over it is first told what was asked and answered on the turns it missed.
 
+With a session store, every finished exchange is also written to disk, with what each backend needs to resume. After a restart, restore_session reads them back: a backend that can resume its own conversation, such as Claude, carries on, and the others are told what they missed exactly as after a switch.
+
 Typical usage example:
 
   router = ModelRouter('main', [claude_route, qwen_route, gemma_route], event_bus)
@@ -9,10 +11,12 @@ Typical usage example:
 """
 
 import dataclasses
+import datetime
 import time
 from collections.abc import Callable, Sequence
 
 from trading_agent.backends import backend as backend_module
+from trading_agent.memory import session_store as session_store_module
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import trigger as trigger_module
@@ -24,21 +28,6 @@ DEFAULT_WAITING_PERIODS_SECONDS = (
     300.0,
 )
 _HANDOVER_EXCHANGE_LIMIT = 10
-
-
-@dataclasses.dataclass(frozen=True)
-class Exchange:
-    """One finished turn: what the desk was told and what it answered.
-
-    Attributes:
-        trigger_text: The trigger's text.
-        answer: The final answer.
-        backend_name: The backend that answered.
-    """
-
-    trigger_text: str
-    answer: str
-    backend_name: str
 
 
 class BackendRoute:
@@ -95,7 +84,12 @@ class BackendRoute:
 
 
 class ModelRouter(turn_runner.TurnRunner):
-    """Runs each turn on the first backend in the desk's order that is available."""
+    """Runs each turn on the first backend in the desk's order that is available.
+
+    Attributes:
+        session_id: The current session's identifier, or None without a session store or before the session starts.
+        trading_date: The India date of the current session, or None likewise.
+    """
 
     def __init__(
         self,
@@ -106,6 +100,7 @@ class ModelRouter(turn_runner.TurnRunner):
             float
         ] = DEFAULT_WAITING_PERIODS_SECONDS,
         clock: Callable[[], float] = time.monotonic,
+        session_store: session_store_module.SessionStore | None = None,
     ):
         """Creates the router.
 
@@ -115,6 +110,7 @@ class ModelRouter(turn_runner.TurnRunner):
             event_bus (event_bus_module.EventBus): Where failures and switches are published.
             waiting_periods_seconds (Sequence[float]): The waits after the first, second and later failures in a row.
             clock (Callable[[], float]): The source of monotonic time, replaceable in tests.
+            session_store (session_store_module.SessionStore | None): Where exchanges are kept across restarts, or None to keep them in memory only.
 
         Raises:
             ValueError: No routes were given.
@@ -129,6 +125,9 @@ class ModelRouter(turn_runner.TurnRunner):
         self._exchanges = []
         self._last_backend_name = None
         self._preferred_backend_name = None
+        self._session_store = session_store
+        self.session_id: str | None = None
+        self.trading_date: datetime.date | None = None
 
     async def run_turn(
         self,
@@ -172,12 +171,50 @@ class ModelRouter(turn_runner.TurnRunner):
         )
 
     async def reset(self) -> None:
-        """Forgets every backend's conversation and the hand-over history, for /new."""
+        """Forgets every backend's conversation and the hand-over history, and starts a new session.
+
+        It serves /new and the daily rollover.
+        """
         for route in self._routes:
             await route.turn_runner.reset()
             route.exchanges_seen = 0
         self._exchanges = []
         self._last_backend_name = None
+        self._begin_session()
+
+    async def restore_session(self) -> bool:
+        """Picks up the session saved before a restart, or starts the first one.
+
+        Returns:
+            bool: True when a saved session was picked up, False when a new one started.
+        """
+        if self._session_store is None:
+            return False
+        state = self._session_store.load_state()
+        if state is None:
+            self._begin_session()
+            return False
+        self.session_id = state.session_id
+        self.trading_date = state.trading_date
+        self._exchanges = self._session_store.exchanges(state.session_id)
+        for route in self._routes:
+            route.exchanges_seen = 0
+            saved = state.routes.get(route.name)
+            if saved is None or saved.runner_state is None:
+                continue
+            if await route.turn_runner.restore_state(saved.runner_state):
+                route.exchanges_seen = min(
+                    saved.exchanges_seen,
+                    len(self._exchanges),
+                )
+        if self._exchanges:
+            self._last_backend_name = self._exchanges[-1].backend_name
+        return True
+
+    @property
+    def exchanges(self) -> tuple[session_store_module.Exchange, ...]:
+        """The current session's finished exchanges, oldest first."""
+        return tuple(self._exchanges)
 
     async def close(self) -> None:
         """Closes every backend's turn runner."""
@@ -300,15 +337,42 @@ class ModelRouter(turn_runner.TurnRunner):
                     'to': route.name,
                 },
             )
-        self._exchanges.append(
-            Exchange(
-                trigger_text=trigger.text,
-                answer=result.text,
-                backend_name=route.name,
-            )
+        exchange = session_store_module.Exchange(
+            trigger_text=trigger.text,
+            answer=result.text,
+            backend_name=route.name,
+            finished_at=datetime.datetime.now(datetime.UTC).isoformat(),
         )
+        self._exchanges.append(exchange)
         route.exchanges_seen = len(self._exchanges)
         self._last_backend_name = route.name
+        if self._session_store is not None and self.session_id is not None:
+            self._session_store.append_exchange(self.session_id, exchange)
+            self._save_state()
+
+    def _begin_session(self) -> None:
+        """Starts a new session for today in the session store, if there is one."""
+        if self._session_store is None:
+            return
+        self.trading_date = self._session_store.today()
+        self.session_id = self._session_store.new_session_id(self.trading_date)
+        self._save_state()
+
+    def _save_state(self) -> None:
+        """Writes which session is current and what each backend needs to resume it."""
+        routes = {}
+        for route in self._routes:
+            routes[route.name] = session_store_module.RouteState(
+                exchanges_seen=route.exchanges_seen,
+                runner_state=route.turn_runner.saved_state(),
+            )
+        self._session_store.save_state(
+            session_store_module.SessionState(
+                session_id=self.session_id,
+                trading_date=self.trading_date,
+                routes=routes,
+            )
+        )
 
     def _publish_unavailable(
         self,

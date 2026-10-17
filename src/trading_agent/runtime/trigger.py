@@ -20,6 +20,7 @@ class TriggerSource(enum.StrEnum):
     HEARTBEAT = 'heartbeat'
     MARKET_WATCHER = 'market_watcher'
     WEBHOOK = 'webhook'
+    ROLLOVER = 'rollover'
 
 
 @dataclasses.dataclass(frozen=True)

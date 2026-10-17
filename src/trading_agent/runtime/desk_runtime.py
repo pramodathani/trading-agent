@@ -2,7 +2,7 @@
 
 A desk handles one trigger at a time, so it never runs two turns at once. Different desks each have their own runtime and run side by side.
 
-A message that starts with a slash is a command and is answered by code. Anything else goes to the desk's turn runner, prefixed with a line stating the India time and what woke the desk; those facts change every turn, so they belong in the message rather than in the system prompt.
+A message that starts with a slash is a command and is answered by code. Anything else goes to the desk's turn runner, prefixed with a line stating the India time and what woke the desk; those facts change every turn, so they belong in the message rather than in the system prompt. A desk with a session keeper lets it resume the saved session when the desk starts, and roll over to a new session before the first turn of a new day.
 
 Typical usage example:
 
@@ -18,6 +18,7 @@ import logging
 import zoneinfo
 
 from trading_agent.configuration import agent_configuration
+from trading_agent.memory import session_keeper as session_keeper_module
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import slash_commands
@@ -55,6 +56,7 @@ class DeskRuntime:
         turn_runner: turn_runner_module.TurnRunner,
         mode: str = 'dry_run',
         tool_registry: tool_registry_module.ToolRegistry | None = None,
+        session_keeper: session_keeper_module.SessionKeeper | None = None,
     ):
         """Creates the desk without starting its loop.
 
@@ -64,6 +66,7 @@ class DeskRuntime:
             turn_runner (turn_runner_module.TurnRunner): What runs each turn.
             mode (str): "dry_run" or "live", reported by /status.
             tool_registry (tool_registry_module.ToolRegistry | None): The desk's tools, closed when the desk stops, or None.
+            session_keeper (session_keeper_module.SessionKeeper | None): Keeps the desk's sessions across restarts and days, or None to keep nothing.
         """
         self.name = desk_configuration.name
         self.state = DeskState.STOPPED
@@ -73,6 +76,7 @@ class DeskRuntime:
         self._trigger_queue = asyncio.Queue()
         self._commands = slash_commands.SlashCommands(self, mode)
         self._tool_registry = tool_registry
+        self._session_keeper = session_keeper
 
     def submit(self, trigger: trigger_module.Trigger) -> None:
         """Adds a trigger to the end of the desk's queue.
@@ -103,6 +107,8 @@ class DeskRuntime:
         self.state = DeskState.IDLE
         self._publish(event_module.EventKind.DESK_STARTED, {})
         try:
+            if self._session_keeper is not None:
+                await self._session_keeper.start()
             while True:
                 trigger = await self._trigger_queue.get()
                 await self._handle(trigger)
@@ -169,6 +175,8 @@ class DeskRuntime:
             return await self._commands.handle(trigger.text)
         if self.paused:
             return _PAUSED_REPLY
+        if self._session_keeper is not None:
+            trigger = await self._session_keeper.prepare(trigger)
         result = await self.turn_runner.run_turn(self._with_context(trigger))
         return result.text
 

@@ -23,3 +23,7 @@ From milestone 8 every desk shares one BrokerReader, so the UBI lock covers all 
 ## The order tools and the shared risk engine (milestone 10)
 
 `_build_order_services` runs once, in the builder's constructor, so every desk built by one builder shares a single risk engine, risk ledger, kill switch and desk order book. The application builds one builder per gateway, which makes the engine account-wide, as the plan requires.
+
+## Milestone 11: memory
+
+`build` now creates, per desk, a `Checkpoints` repository and a `SessionStore`. The store goes to the model router, the checkpoints to `write_file`, `edit_file` and the new `add_note`, and `search_sessions` gets a `SessionSearch` over the desk folder. When the turn runner is a `ModelRouter`, a `SessionKeeper` is built and handed to the desk runtime; a desk without models gets none, because it has no sessions to keep.

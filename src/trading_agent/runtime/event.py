@@ -28,6 +28,7 @@ class EventKind(enum.StrEnum):
     RISK_DECISION = 'risk_decision'
     KILL_SWITCH = 'kill_switch'
     ORDER = 'order'
+    SESSION_STARTED = 'session_started'
     TEXT = 'text'
     TURN_FINISHED = 'turn_finished'
     ERROR = 'error'

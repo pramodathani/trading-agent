@@ -8,6 +8,7 @@ Typical usage example:
 """
 
 import dataclasses
+from typing import Any
 
 from trading_agent.runtime import trigger as trigger_module
 
@@ -48,6 +49,28 @@ class TurnRunner:
 
         Runners that remember nothing keep this empty default.
         """
+
+    def saved_state(self) -> dict[str, Any] | None:
+        """What the runner needs to continue its conversation after a restart.
+
+        Runners whose conversation lives only in memory keep this default; after a restart the model router tells them what they missed instead.
+
+        Returns:
+            dict[str, Any] | None: A JSON-serialisable dictionary, or None when nothing can be saved.
+        """
+        return None
+
+    async def restore_state(self, state: dict[str, Any]) -> bool:
+        """Continues the conversation described by saved_state, after a restart.
+
+        Args:
+            state (dict[str, Any]): What saved_state returned before the restart.
+
+        Returns:
+            bool: True when the runner remembers the conversation again, False when it starts afresh.
+        """
+        del state
+        return False
 
     async def close(self) -> None:
         """Releases anything the runner started, such as a Claude Code process.

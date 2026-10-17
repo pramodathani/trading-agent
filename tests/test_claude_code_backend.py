@@ -109,12 +109,14 @@ def _executor(event_bus: event_bus_module.EventBus):
 def _runner(
     event_bus: event_bus_module.EventBus,
     oauth_token: str = 'sk-ant-oat-test',
+    sessions_directory: Path = Path('/tmp/trading-agent-test-claude-sessions'),
 ) -> claude_code_turn_runner.ClaudeCodeTurnRunner:
     """Builds a runner whose settings point at a scratch folder.
 
     Args:
         event_bus (event_bus_module.EventBus): The bus to publish on.
         oauth_token (str): The subscription token to configure.
+        sessions_directory (Path): Where the runner looks for Claude Code's session files.
 
     Returns:
         claude_code_turn_runner.ClaudeCodeTurnRunner: The runner, never connected.
@@ -134,6 +136,7 @@ def _runner(
             oauth_token=oauth_token,
             working_directory=Path('/tmp/trading-agent-test-scratch'),
             maximum_rounds=5,
+            sessions_directory=sessions_directory,
         ),
     )
 
@@ -449,3 +452,57 @@ class TestClaudeEnvironment:
 
         assert environment['TRADINGMACHINE_MONGODB_PASSWORD'] == ''
         assert environment['CLAUDE_CODE_OAUTH_TOKEN'] == 'sk-ant-oat-test'
+
+
+class TestClaudeSessionRestore:
+    """Tests for resuming Claude's session after a restart."""
+
+    def test_saved_session_is_resumed_when_claude_code_still_has_it(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """A session whose file exists is resumed, and saved again unchanged.
+
+        Args:
+            tmp_path (Path): Stands in for ~/.claude/projects.
+        """
+        project_folder = tmp_path / '-home-pramod-desk-scratch'
+        project_folder.mkdir()
+        (project_folder / 'abc-123.jsonl').write_text('{}', encoding='utf-8')
+        runner = _runner(
+            event_bus_module.EventBus(),
+            sessions_directory=tmp_path,
+        )
+        state = {
+            'session_id': 'abc-123',
+            'prompt_fingerprint': 'f1',
+        }
+
+        resumed = asyncio.run(runner.restore_state(state))
+
+        assert resumed
+        assert runner.session_id == 'abc-123'
+        assert runner.saved_state() == state
+
+    def test_missing_session_file_starts_afresh(self, tmp_path: Path) -> None:
+        """A session Claude Code no longer has is not resumed.
+
+        Args:
+            tmp_path (Path): Stands in for ~/.claude/projects.
+        """
+        runner = _runner(
+            event_bus_module.EventBus(),
+            sessions_directory=tmp_path,
+        )
+
+        resumed = asyncio.run(
+            runner.restore_state(
+                {
+                    'session_id': 'gone',
+                }
+            )
+        )
+
+        assert not resumed
+        assert runner.session_id is None
+        assert runner.saved_state() is None
