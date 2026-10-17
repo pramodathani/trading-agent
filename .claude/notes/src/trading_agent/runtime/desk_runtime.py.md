@@ -37,3 +37,16 @@ The desk holds the gateway's usage tracker so /usage can read it.
 ## Market line (milestone 16)
 
 With a `MarketStatus`, the context line ends with " · market: ..." (see scheduling/market_status.py.md).
+
+## Steering and /stop (milestone 18)
+
+`submit` handles two cases before queueing:
+
+1. `/stop` is answered at once and never queued, because a stop that waited for the running turn to end would be useless. If a model turn is running, it is cancelled. The /stop gets its own small turn in the events (started, text, finished), so the web page shows it like any other message.
+2. A user message, not a command, that arrives during a model turn goes to the steering inbox, with `steering_into` in its trigger_received event.
+
+The model turn runs as its own asyncio task so it can be cancelled without cancelling the desk's loop. A `_stop_requested` flag tells a cancellation from /stop apart from the gateway shutting down: only the first is turned into the "Stopped by the user" answer and a `stopped` event; a shutdown's cancellation is passed on.
+
+Stopping does not undo tools that already ran, such as an order already placed; the reply says so.
+
+After every model turn, messages the turn never picked up are queued as their own turns.

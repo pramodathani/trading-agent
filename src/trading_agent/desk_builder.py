@@ -46,6 +46,7 @@ from trading_agent.risk import trading_limits
 from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import no_model_turn_runner
+from trading_agent.runtime import steering_inbox as steering_inbox_module
 from trading_agent.runtime import turn_runner
 from trading_agent.scheduling import built_in_jobs
 from trading_agent.scheduling import command_job_runner
@@ -152,6 +153,9 @@ class DeskBuilder:
         self._usage_tracker = usage_tracker
         self._alert_stores: dict[str, price_alert_store.PriceAlertStore] = {}
         self._desk_parts: dict[str, gateway_parts.DeskParts] = {}
+        self._steering_inboxes: dict[
+            str, steering_inbox_module.SteeringInbox
+        ] = {}
         self._layout = workspace_layout.WorkspaceLayout(
             configuration.workspace_directory
         )
@@ -238,6 +242,10 @@ class DeskBuilder:
             desk_runtime.DeskRuntime: The desk, not yet running.
         """
         desk_name = desk_configuration.name
+        self._steering_inboxes[desk_name] = steering_inbox_module.SteeringInbox(
+            self._event_bus,
+            desk_name,
+        )
         checkpoints = checkpoints_module.Checkpoints(
             self._layout.checkpoint_repository(desk_name),
             self._layout.desk_directory(desk_name),
@@ -321,6 +329,7 @@ class DeskBuilder:
             library,
             self._usage_tracker,
             market_status.MarketStatus(self.calendar, self.hours),
+            self._steering_inboxes[desk_name],
         )
 
     def desk_parts(self) -> dict[str, gateway_parts.DeskParts]:
@@ -424,6 +433,7 @@ class DeskBuilder:
                 executor,
                 self._prompt_builder(desk_configuration),
                 self._configuration.agent.maximum_rounds,
+                self._steering_inboxes[desk_configuration.name],
             )
             routes.append(model_router.BackendRoute(backend_name, runner))
         if not routes:
@@ -447,6 +457,7 @@ class DeskBuilder:
         executor: tool_call_executor.ToolCallExecutor,
         prompt: prompt_builder.PromptBuilder,
         maximum_rounds: int,
+        steering_inbox: steering_inbox_module.SteeringInbox | None = None,
     ) -> turn_runner.TurnRunner:
         """Builds the turn runner for one backend, according to its kind.
 
@@ -459,6 +470,7 @@ class DeskBuilder:
             executor (tool_call_executor.ToolCallExecutor): The tool executor the runner calls tools through.
             prompt (prompt_builder.PromptBuilder): Builds the instructions; anything with a build() method returning a SystemPrompt.
             maximum_rounds (int): The most model calls one turn may make.
+            steering_inbox (steering_inbox_module.SteeringInbox | None): The desk's mid-turn messages, for the desk's own runners; None for a subagent's.
 
         Returns:
             turn_runner.TurnRunner: The runner.
@@ -471,6 +483,7 @@ class DeskBuilder:
                 executor,
                 prompt,
                 maximum_rounds,
+                steering_inbox,
             )
         if backend_configuration.kind == 'openai_compatible':
             model_backend = openai_compatible_backend.OpenAICompatibleBackend(
@@ -490,6 +503,7 @@ class DeskBuilder:
             executor,
             prompt,
             maximum_rounds,
+            steering_inbox,
         )
 
     def _executor(
@@ -712,6 +726,7 @@ class DeskBuilder:
         executor: tool_call_executor.ToolCallExecutor,
         prompt: prompt_builder.PromptBuilder,
         maximum_rounds: int,
+        steering_inbox: steering_inbox_module.SteeringInbox | None = None,
     ) -> claude_code_turn_runner.ClaudeCodeTurnRunner:
         """Builds a Claude Code session for a desk or one of its subagents.
 
@@ -722,6 +737,7 @@ class DeskBuilder:
             executor (tool_call_executor.ToolCallExecutor): The tool executor.
             prompt (prompt_builder.PromptBuilder): Builds the instructions.
             maximum_rounds (int): The most model calls one turn may make.
+            steering_inbox (steering_inbox_module.SteeringInbox | None): The desk's mid-turn messages, for the desk's own runners; None for a subagent's.
 
         Returns:
             claude_code_turn_runner.ClaudeCodeTurnRunner: The runner.
@@ -745,6 +761,7 @@ class DeskBuilder:
             claude_tool_bridge.ClaudeToolBridge(executor),
             self._event_bus,
             settings,
+            steering_inbox,
         )
 
     def _claude_sessions_directory(self) -> Path:
@@ -766,6 +783,7 @@ class DeskBuilder:
         executor: tool_call_executor.ToolCallExecutor,
         prompt: prompt_builder.PromptBuilder,
         maximum_rounds: int,
+        steering_inbox: steering_inbox_module.SteeringInbox | None = None,
     ) -> agent_turn_runner.AgentTurnRunner:
         """Builds an agent loop, with its own conversation and compressor, on a model backend.
 
@@ -776,6 +794,7 @@ class DeskBuilder:
             executor (tool_call_executor.ToolCallExecutor): The tool executor.
             prompt (prompt_builder.PromptBuilder): Builds the instructions.
             maximum_rounds (int): The most model calls one turn may make.
+            steering_inbox (steering_inbox_module.SteeringInbox | None): The desk's mid-turn messages, for the desk's own runners; None for a subagent's.
 
         Returns:
             agent_turn_runner.AgentTurnRunner: The runner.
@@ -795,6 +814,7 @@ class DeskBuilder:
             self._event_bus,
             maximum_rounds,
             compressor,
+            steering_inbox,
         )
         return agent_turn_runner.AgentTurnRunner(loop, prompt)
 

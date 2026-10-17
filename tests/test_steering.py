@@ -1,0 +1,386 @@
+"""Tests for steering a running turn with a mid-turn message, and for /stop."""
+
+import asyncio
+
+from tests import fakes
+from trading_agent.agent import agent_loop
+from trading_agent.agent import conversation as conversation_module
+from trading_agent.agent import loop_guard
+from trading_agent.agent import messages
+from trading_agent.backends import claude_steering_hook
+from trading_agent.configuration import agent_configuration
+from trading_agent.runtime import desk_runtime
+from trading_agent.runtime import event as event_module
+from trading_agent.runtime import event_bus as event_bus_module
+from trading_agent.runtime import steering_inbox as steering_inbox_module
+from trading_agent.runtime import trigger as trigger_module
+from trading_agent.runtime import turn_runner
+from trading_agent.tools import tool
+from trading_agent.tools import tool_call_executor
+from trading_agent.tools import tool_registry
+
+_STEERING_TEXT = 'Actually, only look at INFY.'
+
+
+def _message(text: str) -> trigger_module.Trigger:
+    """Builds a user message for the main desk.
+
+    Args:
+        text (str): The message.
+
+    Returns:
+        trigger_module.Trigger: The trigger.
+    """
+    return trigger_module.Trigger.now(
+        trigger_module.TriggerSource.USER_MESSAGE,
+        'main',
+        text,
+    )
+
+
+class _MessageArrivesTool(tool.Tool):
+    """A tool during which the user sends a message, as if typed while the tool ran."""
+
+    name = 'scan'
+    description = 'Scans the market.'
+
+    def __init__(self, inbox: steering_inbox_module.SteeringInbox):
+        """Creates the tool.
+
+        Args:
+            inbox (steering_inbox_module.SteeringInbox): The desk's steering inbox.
+        """
+        self._inbox = inbox
+
+    async def run(self, arguments: tool.NoArguments) -> tool.ToolResult:
+        """Puts the user's message in the inbox and finishes.
+
+        Args:
+            arguments (tool.NoArguments): No arguments.
+
+        Returns:
+            tool.ToolResult: A scan result.
+        """
+        del arguments
+        self._inbox.add(_message(_STEERING_TEXT), 'running-turn')
+        return tool.ToolResult.success('scanned 50 stocks')
+
+
+class _WaitingTurnRunner(turn_runner.TurnRunner):
+    """A turn runner whose first turn waits until it is released or cancelled.
+
+    Attributes:
+        started: Set when the first turn has started.
+        release: Set by the test to let the first turn finish.
+        texts: The text of every turn run, in order.
+    """
+
+    def __init__(self):
+        """Creates the runner."""
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+        self.texts: list[str] = []
+
+    async def run_turn(
+        self, trigger: trigger_module.Trigger
+    ) -> turn_runner.TurnResult:
+        """Waits on the first turn, and answers later turns at once.
+
+        Args:
+            trigger (trigger_module.Trigger): The reason for the turn.
+
+        Returns:
+            turn_runner.TurnResult: An echo of the message.
+        """
+        self.texts.append(trigger.text)
+        if len(self.texts) == 1:
+            self.started.set()
+            await self.release.wait()
+        return turn_runner.TurnResult(text='done')
+
+
+class _DeskScenario:
+    """A desk with a waiting turn runner, and every event it published."""
+
+    def __init__(self):
+        """Builds the desk."""
+        self.event_bus = event_bus_module.EventBus()
+        self.runner = _WaitingTurnRunner()
+        self.desk = desk_runtime.DeskRuntime(
+            agent_configuration.DeskConfiguration(name='main'),
+            self.event_bus,
+            self.runner,
+        )
+        self.events: list[event_module.Event] = []
+        self.queued_while_busy = -1
+        self.state_after = desk_runtime.DeskState.STOPPED
+
+    async def collect(
+        self,
+        subscription: event_bus_module.EventSubscription,
+        finished_turns: int,
+    ) -> None:
+        """Reads events until a number of turns have finished.
+
+        Args:
+            subscription (event_bus_module.EventSubscription): Where events arrive.
+            finished_turns (int): How many turn_finished events to wait for.
+        """
+        seen = 0
+        while seen < finished_turns:
+            received = await asyncio.wait_for(
+                subscription.next_event(), timeout=3
+            )
+            self.events.append(received)
+            if received.kind == event_module.EventKind.TURN_FINISHED:
+                seen += 1
+
+    async def steer_then_finish(self) -> None:
+        """Starts a turn, sends a message during it, then lets the turn end without a tool round."""
+        with self.event_bus.subscribe() as subscription:
+            task = asyncio.create_task(self.desk.run())
+            self.desk.submit(_message('scan the market'))
+            await self.runner.started.wait()
+            self.desk.submit(_message(_STEERING_TEXT))
+            self.queued_while_busy = self.desk.queued_count
+            self.runner.release.set()
+            await self.collect(subscription, 2)
+            task.cancel()
+
+    async def stop_running_turn(self) -> None:
+        """Starts a turn that never ends by itself, and stops it with /stop."""
+        with self.event_bus.subscribe() as subscription:
+            task = asyncio.create_task(self.desk.run())
+            self.desk.submit(_message('think for a long time'))
+            await self.runner.started.wait()
+            self.desk.submit(_message('/stop'))
+            await self.collect(subscription, 2)
+            self.state_after = self.desk.state
+            task.cancel()
+
+    def kinds(self) -> list[event_module.EventKind]:
+        """The kinds of the collected events, in order.
+
+        Returns:
+            list[event_module.EventKind]: The kinds.
+        """
+        return [published.kind for published in self.events]
+
+    def texts(self) -> list[str]:
+        """The answers the desk published, in order.
+
+        Returns:
+            list[str]: The texts of the text events.
+        """
+        answers = []
+        for published in self.events:
+            if published.kind == event_module.EventKind.TEXT:
+                answers.append(published.payload['text'])
+        return answers
+
+
+class _LoopHarness:
+    """An agent loop with a steering inbox and a tool during which the user writes."""
+
+    def __init__(self, replies: list):
+        """Builds the loop.
+
+        Args:
+            replies (list): The scripted model's replies.
+        """
+        self.event_bus = event_bus_module.EventBus()
+        self.inbox = steering_inbox_module.SteeringInbox(self.event_bus, 'main')
+        self.backend = fakes.ScriptedBackend(replies)
+        self.conversation = conversation_module.Conversation('test prompt')
+        executor = tool_call_executor.ToolCallExecutor(
+            'main',
+            tool_registry.ToolRegistry(
+                [
+                    _MessageArrivesTool(self.inbox),
+                    fakes.SlowTool(),
+                ],
+                timeout_seconds=30,
+            ),
+            self.event_bus,
+            loop_guard.LoopGuard(maximum_identical_calls=3),
+        )
+        self.loop = agent_loop.AgentLoop(
+            'main',
+            self.backend,
+            executor,
+            self.event_bus,
+            5,
+            steering_inbox=self.inbox,
+        )
+        self.events: list[event_module.Event] = []
+
+    async def run_turn(self) -> str:
+        """Runs one turn and keeps its events.
+
+        Returns:
+            str: The final text.
+        """
+        with self.event_bus.subscribe() as subscription:
+            result = await self.loop.run_turn(
+                self.conversation, _message('scan the market')
+            )
+            while True:
+                try:
+                    self.events.append(subscription._queue.get_nowait())
+                except asyncio.QueueEmpty:
+                    break
+        return result.text
+
+    async def cancel_during_tool(self) -> None:
+        """Starts a turn whose tool never finishes, and cancels it while the tool runs."""
+        task = asyncio.create_task(
+            self.loop.run_turn(self.conversation, _message('wait'))
+        )
+        await asyncio.sleep(0.2)
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            return
+
+
+class TestSteering:
+    """Tests for mid-turn messages."""
+
+    def test_agent_loop_adds_the_message_before_the_next_model_call(
+        self,
+    ) -> None:
+        """A message that arrives during a tool call is in the conversation the model sees next."""
+        harness = _LoopHarness(
+            [
+                fakes.tool_reply('scan', {}),
+                fakes.text_reply('Only INFY, then.'),
+            ]
+        )
+
+        answer = asyncio.run(harness.run_turn())
+
+        user_texts = [
+            message.text
+            for message in harness.conversation.messages
+            if message.role == messages.Role.USER
+        ]
+        assert answer == 'Only INFY, then.'
+        assert len(user_texts) == 2
+        assert _STEERING_TEXT in user_texts[1]
+        assert harness.backend.seen_message_counts == [
+            1,
+            4,
+        ]
+        steering = [
+            published
+            for published in harness.events
+            if published.kind == event_module.EventKind.STEERING
+        ]
+        assert steering[0].payload['delivered'] is True
+
+    def test_message_during_a_turn_is_not_queued(self) -> None:
+        """A user message sent while a turn runs goes to the inbox, not the queue."""
+        scenario = _DeskScenario()
+
+        asyncio.run(scenario.steer_then_finish())
+
+        assert scenario.queued_while_busy == 0
+        received = [
+            published
+            for published in scenario.events
+            if published.kind == event_module.EventKind.TRIGGER_RECEIVED
+        ]
+        assert 'steering_into' in received[1].payload
+
+    def test_undelivered_message_becomes_its_own_turn(self) -> None:
+        """A message the turn never picked up is run as the next turn, so it is not lost."""
+        scenario = _DeskScenario()
+
+        asyncio.run(scenario.steer_then_finish())
+
+        assert len(scenario.runner.texts) == 2
+        assert _STEERING_TEXT in scenario.runner.texts[1]
+        steering = [
+            published
+            for published in scenario.events
+            if published.kind == event_module.EventKind.STEERING
+        ]
+        assert steering[0].payload['delivered'] is False
+
+    def test_commands_are_not_steering(self) -> None:
+        """A slash command sent during a turn waits in the queue as before."""
+        scenario = _DeskScenario()
+        scenario.desk._running_trigger_id = 'running-turn'
+
+        scenario.desk.submit(_message('/status'))
+
+        assert scenario.desk.queued_count == 1
+
+    def test_claude_hook_hands_over_waiting_messages(self) -> None:
+        """The Claude hook returns waiting messages as additional context, once."""
+        event_bus = event_bus_module.EventBus()
+        inbox = steering_inbox_module.SteeringInbox(event_bus, 'main')
+        hook = claude_steering_hook.ClaudeSteeringHook(inbox)
+        inbox.add(_message(_STEERING_TEXT), 'running-turn')
+
+        first = asyncio.run(hook({}, None, None))
+        second = asyncio.run(hook({}, None, None))
+
+        assert (
+            _STEERING_TEXT in first['hookSpecificOutput']['additionalContext']
+        )
+        assert first['hookSpecificOutput']['hookEventName'] == 'PostToolUse'
+        assert second == {}
+
+
+class TestStop:
+    """Tests for /stop."""
+
+    def test_stop_cancels_the_running_turn(self) -> None:
+        """/stop ends a turn that would otherwise never finish, and the desk is idle again."""
+        scenario = _DeskScenario()
+
+        asyncio.run(scenario.stop_running_turn())
+
+        assert event_module.EventKind.STOPPED in scenario.kinds()
+        assert 'Stopping the running turn.' in scenario.texts()
+        assert any(
+            text.startswith('Stopped by the user') for text in scenario.texts()
+        )
+        assert scenario.state_after == desk_runtime.DeskState.IDLE
+
+    def test_stop_with_nothing_running(self) -> None:
+        """/stop on an idle desk says there is nothing to stop and queues nothing."""
+        scenario = _DeskScenario()
+
+        scenario.desk.submit(_message('/stop'))
+
+        assert scenario.desk.queued_count == 0
+
+    def test_stopped_tool_call_gets_a_result(self) -> None:
+        """A tool call cut short by /stop gets a result, so the next model call is valid."""
+        harness = _LoopHarness(
+            [
+                fakes.tool_reply('slow', {}),
+            ]
+        )
+
+        asyncio.run(harness.cancel_during_tool())
+
+        last = harness.conversation.messages[-1]
+        assert last.role == messages.Role.TOOL
+        assert last.is_error
+        assert '/stop' in last.text
+
+
+def test_inbox_is_empty_after_taking() -> None:
+    """Taking the waiting messages empties the inbox."""
+    inbox = steering_inbox_module.SteeringInbox(
+        event_bus_module.EventBus(), 'main'
+    )
+    inbox.add(_message('one'), 'running-turn')
+
+    assert inbox.take_text() is not None
+    assert inbox.take_text() is None
+    assert inbox.take_undelivered() == []

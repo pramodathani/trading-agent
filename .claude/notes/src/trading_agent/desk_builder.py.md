@@ -63,3 +63,7 @@ Desks were already built one per `[[desks]]` entry, each with its own queue, rou
 ## Milestone 17: parts for the API
 
 While building each desk, the builder records its stores and tools in a `DeskParts`, and `shared_parts()` returns the shared objects in a `SharedParts`. The gateway's API reads both. The kill switch is kept on the builder for this reason.
+
+## Steering inboxes (milestone 18)
+
+The builder makes one steering inbox per desk and gives it to the desk's runtime and to the desk's own runners, through `backend_runner`'s `steering_inbox` argument. Subagent runners are built through the same method without it, so they cannot be steered.

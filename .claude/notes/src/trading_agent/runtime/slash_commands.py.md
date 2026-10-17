@@ -25,3 +25,7 @@ Summarises the day and starts a fresh session now; the built-in after-close job 
 ## /usage (milestone 15)
 
 Shows the usage tracker's summary for the desk. The test of not-yet-built commands now uses /think.
+
+## /stop (milestone 18)
+
+/stop is no longer a "later" command. It is handled by the desk runtime before the queue, because a command that waits its turn cannot stop the turn in front of it. /help lists it.

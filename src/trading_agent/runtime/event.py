@@ -39,6 +39,8 @@ class EventKind(enum.StrEnum):
     PRICE_ALERT = 'price_alert'
     DESK_HALT = 'desk_halt'
     ACCOUNT_STATUS = 'account_status'
+    STEERING = 'steering'
+    STOPPED = 'stopped'
     TEXT = 'text'
     TURN_FINISHED = 'turn_finished'
     ERROR = 'error'

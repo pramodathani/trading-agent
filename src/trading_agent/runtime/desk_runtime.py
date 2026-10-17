@@ -2,6 +2,8 @@
 
 A desk handles one trigger at a time, so it never runs two turns at once. Different desks each have their own runtime and run side by side.
 
+A message from the user that arrives while a model turn is running is steering: it goes to the desk's steering inbox and the running turn picks it up at its next tool round, instead of waiting for the turn to end. `/stop` skips the queue altogether and cancels the running turn.
+
 A message that starts with a slash is a command and is answered by code. Anything else goes to the desk's turn runner, prefixed with a line stating the India time and what woke the desk; those facts change every turn, so they belong in the message rather than in the system prompt. A desk with a session keeper lets it resume the saved session when the desk starts, and roll over to a new session before the first turn of a new day.
 
 Typical usage example:
@@ -23,6 +25,7 @@ from trading_agent.memory import session_keeper as session_keeper_module
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import slash_commands
+from trading_agent.runtime import steering_inbox as steering_inbox_module
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.runtime import turn_runner as turn_runner_module
 from trading_agent.scheduling import market_status as market_status_module
@@ -33,6 +36,8 @@ _LOGGER = logging.getLogger(__name__)
 _INDIA = zoneinfo.ZoneInfo('Asia/Kolkata')
 _NOTHING_TO_DO = 'NOTHING_TO_DO'
 _PAUSED_REPLY = 'This desk is paused and did not ask any model. Send /resume to start it again.'
+_STOP_COMMAND = '/stop'
+_STOPPED_REPLY = 'Stopped by the user before the turn finished. Tools that had already run are not undone.'
 
 
 class DeskState(enum.StrEnum):
@@ -65,6 +70,7 @@ class DeskRuntime:
         skill_library: skill_library_module.SkillLibrary | None = None,
         usage_tracker: usage_tracker_module.UsageTracker | None = None,
         market_status: market_status_module.MarketStatus | None = None,
+        steering_inbox: steering_inbox_module.SteeringInbox | None = None,
     ):
         """Creates the desk without starting its loop.
 
@@ -78,6 +84,7 @@ class DeskRuntime:
             skill_library (skill_library_module.SkillLibrary | None): The desk's skills, invocable as /<skill-name>, or None.
             usage_tracker (usage_tracker_module.UsageTracker | None): Today's model usage, shown by /usage, or None.
             market_status (market_status_module.MarketStatus | None): Describes the market for the context line, or None to leave it out.
+            steering_inbox (steering_inbox_module.SteeringInbox | None): Where mid-turn messages wait for the running turn, shared with the turn runner; None creates one that only this desk reads.
         """
         self.name = desk_configuration.name
         self.state = DeskState.STOPPED
@@ -94,12 +101,21 @@ class DeskRuntime:
         self._session_keeper = session_keeper
         self.usage_tracker = usage_tracker
         self._market_status = market_status
+        self.steering_inbox = (
+            steering_inbox
+            or steering_inbox_module.SteeringInbox(event_bus, self.name)
+        )
+        self._running_trigger_id: str | None = None
+        self._turn_task: asyncio.Task | None = None
+        self._stop_requested = False
 
     def submit(self, trigger: trigger_module.Trigger) -> None:
         """Adds a trigger to the end of the desk's queue.
 
         Args:
             trigger (trigger_module.Trigger): The trigger to handle.
+
+        A /stop is answered at once instead of being queued, and a user message that arrives during a model turn goes to the steering inbox.
 
         Raises:
             ValueError: The trigger is addressed to a different desk.
@@ -108,10 +124,71 @@ class DeskRuntime:
             raise ValueError(
                 f'Trigger for desk {trigger.desk!r} was sent to desk {self.name!r}'
             )
+        if trigger.text.strip() == _STOP_COMMAND:
+            self._publish(
+                event_module.EventKind.TRIGGER_RECEIVED,
+                trigger.to_json_dictionary(),
+            )
+            self._stop(trigger)
+            return
+        if self._can_steer(trigger):
+            self.steering_inbox.add(trigger, self._running_trigger_id)
+            payload = trigger.to_json_dictionary()
+            payload['steering_into'] = self._running_trigger_id
+            self._publish(event_module.EventKind.TRIGGER_RECEIVED, payload)
+            return
         self._trigger_queue.put_nowait(trigger)
         self._publish(
             event_module.EventKind.TRIGGER_RECEIVED,
             trigger.to_json_dictionary(),
+        )
+
+    def _can_steer(self, trigger: trigger_module.Trigger) -> bool:
+        """Says whether a trigger should steer the running turn rather than wait.
+
+        Args:
+            trigger (trigger_module.Trigger): The new trigger.
+
+        Returns:
+            bool: True for a user message, not a command, while a model turn runs.
+        """
+        return (
+            trigger.source == trigger_module.TriggerSource.USER_MESSAGE
+            and self._running_trigger_id is not None
+            and not self._commands.is_command(trigger.text)
+        )
+
+    def _stop(self, trigger: trigger_module.Trigger) -> None:
+        """Cancels the running model turn, and answers the /stop at once.
+
+        Args:
+            trigger (trigger_module.Trigger): The /stop trigger.
+        """
+        if self._turn_task is not None and not self._turn_task.done():
+            self._stop_requested = True
+            self._turn_task.cancel()
+            text = 'Stopping the running turn.'
+        else:
+            text = 'Nothing is running, so there is nothing to stop.'
+        self._publish(
+            event_module.EventKind.TURN_STARTED,
+            {
+                'trigger_id': trigger.trigger_id,
+            },
+        )
+        self._publish(
+            event_module.EventKind.TEXT,
+            {
+                'trigger_id': trigger.trigger_id,
+                'text': text,
+                'silent': False,
+            },
+        )
+        self._publish(
+            event_module.EventKind.TURN_FINISHED,
+            {
+                'trigger_id': trigger.trigger_id,
+            },
         )
 
     @property
@@ -227,8 +304,33 @@ class DeskRuntime:
             return _PAUSED_REPLY
         if self._session_keeper is not None:
             trigger = await self._session_keeper.prepare(trigger)
-        result = await self.turn_runner.run_turn(self._with_context(trigger))
+        self._running_trigger_id = trigger.trigger_id
+        self._turn_task = asyncio.create_task(
+            self.turn_runner.run_turn(self._with_context(trigger))
+        )
+        try:
+            result = await self._turn_task
+        except asyncio.CancelledError:
+            if not self._stop_requested:
+                raise
+            self._stop_requested = False
+            self._publish(
+                event_module.EventKind.STOPPED,
+                {
+                    'trigger_id': trigger.trigger_id,
+                },
+            )
+            return _STOPPED_REPLY
+        finally:
+            self._running_trigger_id = None
+            self._turn_task = None
+            self._queue_undelivered()
         return result.text
+
+    def _queue_undelivered(self) -> None:
+        """Queues the mid-turn messages the turn never picked up as their own turns."""
+        for trigger in self.steering_inbox.take_undelivered():
+            self._trigger_queue.put_nowait(trigger)
 
     def _with_context(
         self,

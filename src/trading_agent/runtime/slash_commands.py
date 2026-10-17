@@ -18,7 +18,6 @@ if TYPE_CHECKING:
 
 _LATER_COMMANDS = {
     '/think': 'a later milestone, with per-desk thinking settings',
-    '/stop': 'a later milestone, with steering a running turn',
 }
 
 
@@ -129,6 +128,7 @@ class SlashCommands:
                 '/compact             save what matters, then compress the conversation into a summary',
                 '/rollover            summarise the day and start a fresh session now',
                 "/usage               today's model calls, tokens, costs and Claude's limits",
+                '/stop                stop the running turn at once (it skips the queue)',
                 '/pause               stop answering until /resume (commands still work)',
                 '/resume              start answering again',
                 '/<skill-name> ...    ask the desk to follow one of its skills',

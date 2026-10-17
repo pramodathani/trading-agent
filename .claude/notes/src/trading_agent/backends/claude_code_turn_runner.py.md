@@ -68,3 +68,7 @@ Verified on 2026-10-17: `/compact` ran a flush turn (Claude saved a preference t
 ## MCP_TOOL_TIMEOUT (milestone 14)
 
 Claude Code limits how long one MCP tool call may take, and its default is not documented in the binary. delegate_task can wait up to 30 minutes for subagents, so the runner sets `MCP_TOOL_TIMEOUT` to 2,000,000 ms. trading-agent's own registry still applies each tool's shorter limit.
+
+## Steering and /stop (milestone 18)
+
+The PostToolUse hook list holds the steering hook when the desk has an inbox. A cancelled turn disconnects Claude Code, which stops its process; the next turn starts a new process and resumes the saved session, as after any failure.

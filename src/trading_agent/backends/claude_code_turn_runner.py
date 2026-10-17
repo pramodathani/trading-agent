@@ -14,6 +14,7 @@ Typical usage example:
   result = await runner.run_turn(trigger)
 """
 
+import asyncio
 import dataclasses
 import logging
 import os
@@ -26,11 +27,13 @@ from trading_agent.agent import context_compressor
 from trading_agent.agent import prompt_builder as prompt_builder_module
 from trading_agent.backends import backend as backend_module
 from trading_agent.backends import claude_pre_compact_hook
+from trading_agent.backends import claude_steering_hook
 from trading_agent.backends import claude_tool_allowlist_hook
 from trading_agent.backends import claude_tool_bridge
 from trading_agent.configuration import agent_configuration
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
+from trading_agent.runtime import steering_inbox as steering_inbox_module
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.runtime import turn_runner
 
@@ -79,6 +82,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         bridge: claude_tool_bridge.ClaudeToolBridge,
         event_bus: event_bus_module.EventBus,
         settings: ClaudeCodeSettings,
+        steering_inbox: steering_inbox_module.SteeringInbox | None = None,
     ):
         """Creates the runner without starting Claude Code.
 
@@ -89,6 +93,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
             bridge (claude_tool_bridge.ClaudeToolBridge): The desk's tools, as Claude Code sees them.
             event_bus (event_bus_module.EventBus): Where every step is published.
             settings (ClaudeCodeSettings): The prompt, token, folder and round limit.
+            steering_inbox (steering_inbox_module.SteeringInbox | None): The desk's mid-turn messages, handed to Claude after each tool call, or None.
         """
         self._desk_name = desk_name
         self._backend_name = backend_name
@@ -97,6 +102,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         self._bridge = bridge
         self._event_bus = event_bus
         self._settings = settings
+        self._steering_inbox = steering_inbox
         self._client = None
         self._session_prompt_fingerprint = None
         self.session_id: str | None = None
@@ -126,6 +132,9 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
             await client.query(self._query_text(prompt, trigger))
             self._session_prompt_fingerprint = prompt.fingerprint
             return await self._read_response(client, trigger)
+        except asyncio.CancelledError:
+            await self._disconnect()
+            raise
         except backend_module.BackendUnavailableError:
             await self._disconnect()
             raise
@@ -356,6 +365,11 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
                         ],
                     ),
                 ],
+                'PostToolUse': [
+                    claude_agent_sdk.HookMatcher(
+                        hooks=self._post_tool_hooks(),
+                    ),
+                ],
             },
             permission_mode='bypassPermissions',
             setting_sources=[],
@@ -366,6 +380,18 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
             resume=self.session_id,
             stderr=self._log_stderr,
         )
+
+    def _post_tool_hooks(self) -> list[claude_steering_hook.ClaudeSteeringHook]:
+        """The hooks that run after each tool call.
+
+        Returns:
+            list[claude_steering_hook.ClaudeSteeringHook]: The steering hook, or nothing when the desk has no steering inbox.
+        """
+        if self._steering_inbox is None:
+            return []
+        return [
+            claude_steering_hook.ClaudeSteeringHook(self._steering_inbox),
+        ]
 
     def _environment(self) -> dict[str, str]:
         """The environment variables Claude Code gets on top of the gateway's.
