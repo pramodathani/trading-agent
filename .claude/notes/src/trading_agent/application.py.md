@@ -11,3 +11,7 @@ From milestone 8 the application builds the secret redactor and the trade journa
 ## checkpoints command (milestone 11)
 
 `trading-agent checkpoints list|restore` is handled before the gateway is built, like `proposals`. An unknown `--desk` exits with status 1 rather than creating an empty checkpoint repository for a desk that does not exist.
+
+## Skills (milestone 13)
+
+`trading-agent skills list|import` runs before the gateway is built. The gateway runs `SkillUsageTracker` as a second background worker beside the journal.

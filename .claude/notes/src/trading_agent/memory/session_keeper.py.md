@@ -25,3 +25,7 @@ While the router's current session has no exchanges, the latest summary is put i
 ## Verified on 2026-10-17
 
 The state file was backdated to 2026-10-16 and the gateway restarted. The first message made Claude write the summary, rewrite Memory.md under three headings (one checkpoint taken before), and the new session `2026-10-17-2` started with a fresh Claude session that knew the test codeword from the summary alone.
+
+## Skill review (milestone 13)
+
+With a curator, the rollover runs `_review_skills` after writing the summary: the code archives idle skills, then the review turn runs in the old session. See `skills/skill_curator.py.md`.

@@ -790,3 +790,87 @@ class TestSessionSearch:
         assert '[2026-10-19 · journal]' in result.text
         assert 'buy 1 NIFTY future' in result.text
         assert 'model_usage' not in result.text
+
+
+class _FakeCurator:
+    """Stands in for the skill curator.
+
+    Attributes:
+        archived_on: The date archive_unused was called with, or None.
+    """
+
+    def __init__(self):
+        """Creates the curator with nothing archived."""
+        self.archived_on = None
+
+    def archive_unused(self, today: datetime.date) -> list[str]:
+        """Records the call.
+
+        Args:
+            today (datetime.date): Today's date.
+
+        Returns:
+            list[str]: One pretend archived skill.
+        """
+        self.archived_on = today
+        return [
+            'old-skill',
+        ]
+
+    def review_request(
+        self,
+        trading_date: datetime.date,
+        archived: list[str],
+    ) -> str:
+        """Writes a recognisable request.
+
+        Args:
+            trading_date (datetime.date): The day being closed.
+            archived (list[str]): The skills just archived.
+
+        Returns:
+            str: The request.
+        """
+        return (
+            f'Skill review for {trading_date.isoformat()}; archived {archived}'
+        )
+
+
+class TestSkillReviewAtRollover:
+    """The rollover reviews skills right after the summary, in the old session."""
+
+    def test_review_turn_follows_the_summary(self, tmp_path: Path) -> None:
+        """The second turn of the rollover is the skill review.
+
+        Args:
+            tmp_path (Path): A scratch folder.
+        """
+        calendar = _Calendar(_MONDAY)
+        curator = _FakeCurator()
+
+        async def scenario() -> _Desk:
+            """Runs a Monday turn and the first Tuesday turn.
+
+            Returns:
+                _Desk: The desk.
+            """
+            desk = _Desk(tmp_path, calendar)
+            desk.keeper = session_keeper_module.SessionKeeper(
+                'main',
+                desk.router,
+                desk.store,
+                desk.event_bus,
+                curator,
+            )
+            await desk.keeper.start()
+            await desk.turn('Monday trade')
+            calendar.today = _TUESDAY
+            await desk.turn('Good morning')
+            return desk
+
+        desk = asyncio.run(scenario())
+        texts = desk.claude.received_texts
+        assert 'is ending' in texts[1]
+        assert texts[2] == "Skill review for 2026-10-19; archived ['old-skill']"
+        assert texts[3].endswith('Good morning')
+        assert curator.archived_on == _TUESDAY

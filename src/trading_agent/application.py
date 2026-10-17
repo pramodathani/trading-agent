@@ -17,6 +17,7 @@ from trading_agent import desk_builder
 from trading_agent.client import checkpoint_commands
 from trading_agent.client import message_client
 from trading_agent.client import proposal_commands
+from trading_agent.client import skill_commands
 from trading_agent.configuration import agent_configuration
 from trading_agent.configuration import configuration_loader
 from trading_agent.configuration import secrets as secrets_module
@@ -28,6 +29,8 @@ from trading_agent.journal import secret_redactor
 from trading_agent.journal import trade_journal
 from trading_agent.memory import checkpoints as checkpoints_module
 from trading_agent.runtime import event_bus as event_bus_module
+from trading_agent.skills import skill_usage
+from trading_agent.tools import bash_sandbox
 from trading_agent.workspace import proposal_store
 from trading_agent.workspace import workspace_layout
 
@@ -48,7 +51,7 @@ class Application:
     def run(self) -> None:
         """Reads the configuration and runs the chosen command until it ends.
 
-        The process exits with status 2 when the configuration is invalid, and with the command's own status after `doctor`, `send`, `proposals` and `checkpoints`.
+        The process exits with status 2 when the configuration is invalid, and with the command's own status after `doctor`, `send`, `proposals`, `checkpoints` and `skills`.
         """
         arguments = command_line.CommandLine().parse(self._argument_list)
         log_level = logging.INFO
@@ -107,6 +110,24 @@ class Application:
                     vars(arguments).get('limit', 20),
                 )
             )
+        if arguments.command == 'skills':
+            sandbox = bash_sandbox.BashSandbox(
+                layout.root,
+                [],
+                configuration.sandbox.passed_environment,
+            )
+            commands = skill_commands.SkillCommands(
+                layout,
+                desk_names,
+                sandbox.passed_environment(),
+            )
+            sys.exit(
+                commands.run(
+                    arguments.skill_action,
+                    vars(arguments).get('source'),
+                    vars(arguments).get('replace', False),
+                )
+            )
         self._serve(configuration, secrets)
 
     def _serve(
@@ -137,12 +158,17 @@ class Application:
             workspace_layout.WorkspaceLayout(configuration.workspace_directory),
             redactor,
         )
+        usage_tracker = skill_usage.SkillUsageTracker(
+            event_bus,
+            workspace_layout.WorkspaceLayout(configuration.workspace_directory),
+        )
         gateway = gateway_application.GatewayApplication(
             event_bus,
             desks,
             guard,
             [
                 journal,
+                usage_tracker,
             ],
             redactor,
         )

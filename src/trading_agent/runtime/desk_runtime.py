@@ -24,6 +24,7 @@ from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import slash_commands
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.runtime import turn_runner as turn_runner_module
+from trading_agent.skills import skill_library as skill_library_module
 from trading_agent.tools import tool_registry as tool_registry_module
 
 _LOGGER = logging.getLogger(__name__)
@@ -57,6 +58,7 @@ class DeskRuntime:
         mode: str = 'dry_run',
         tool_registry: tool_registry_module.ToolRegistry | None = None,
         session_keeper: session_keeper_module.SessionKeeper | None = None,
+        skill_library: skill_library_module.SkillLibrary | None = None,
     ):
         """Creates the desk without starting its loop.
 
@@ -67,6 +69,7 @@ class DeskRuntime:
             mode (str): "dry_run" or "live", reported by /status.
             tool_registry (tool_registry_module.ToolRegistry | None): The desk's tools, closed when the desk stops, or None.
             session_keeper (session_keeper_module.SessionKeeper | None): Keeps the desk's sessions across restarts and days, or None to keep nothing.
+            skill_library (skill_library_module.SkillLibrary | None): The desk's skills, invocable as /<skill-name>, or None.
         """
         self.name = desk_configuration.name
         self.state = DeskState.STOPPED
@@ -74,7 +77,11 @@ class DeskRuntime:
         self.turn_runner = turn_runner
         self._event_bus = event_bus
         self._trigger_queue = asyncio.Queue()
-        self._commands = slash_commands.SlashCommands(self, mode)
+        self._commands = slash_commands.SlashCommands(
+            self,
+            mode,
+            skill_library,
+        )
         self._tool_registry = tool_registry
         self._session_keeper = session_keeper
 
@@ -172,7 +179,10 @@ class DeskRuntime:
             str: The answer's text.
         """
         if self._commands.is_command(trigger.text):
-            return await self._commands.handle(trigger.text)
+            skill_text = self._commands.skill_request(trigger.text)
+            if skill_text is None:
+                return await self._commands.handle(trigger.text)
+            trigger = dataclasses.replace(trigger, text=skill_text)
         if self.paused:
             return _PAUSED_REPLY
         if self._session_keeper is not None:

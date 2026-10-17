@@ -13,3 +13,7 @@ Commands that belong to later milestones (`/compact`, `/usage`, `/think`, `/stop
 ## /compact (milestone 12)
 
 `/compact` is now real: it builds a trigger for event tagging and calls the router's `compact`. The test of not-yet-built commands now uses `/usage`.
+
+## /<skill-name> (milestone 13)
+
+`skill_request` turns `/breakout NIFTY` into a model turn asking the desk to load and follow that skill, with the rest of the line as its input. Built-in commands win over a skill of the same name, so a skill called `status` can never take over `/status`.

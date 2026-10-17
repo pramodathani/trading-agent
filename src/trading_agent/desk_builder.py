@@ -40,6 +40,10 @@ from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import no_model_turn_runner
 from trading_agent.runtime import turn_runner
+from trading_agent.skills import skill_curator
+from trading_agent.skills import skill_library
+from trading_agent.skills import skill_usage
+from trading_agent.skills import skill_writer
 from trading_agent.tools import add_note_tool
 from trading_agent.tools import address_guard
 from trading_agent.tools import bash_background_tool
@@ -64,6 +68,7 @@ from trading_agent.tools import get_orders_tool
 from trading_agent.tools import get_portfolio_tool
 from trading_agent.tools import get_quote_tool
 from trading_agent.tools import get_time_tool
+from trading_agent.tools import load_skill_tool
 from trading_agent.tools import modify_order_tool
 from trading_agent.tools import order_tool
 from trading_agent.tools import path_policy
@@ -73,6 +78,9 @@ from trading_agent.tools import propose_file_change_tool
 from trading_agent.tools import read_file_tool
 from trading_agent.tools import search_instruments_tool
 from trading_agent.tools import search_sessions_tool
+from trading_agent.tools import skill_archive_tool
+from trading_agent.tools import skill_create_tool
+from trading_agent.tools import skill_patch_tool
 from trading_agent.tools import tool_call_executor
 from trading_agent.tools import tool_registry
 from trading_agent.tools import web_fetch_tool
@@ -115,6 +123,7 @@ class DeskBuilder:
         )
         self._result_formatter = result_formatter.ResultFormatter()
         self._order_services = self._build_order_services()
+        self._skill_libraries: dict[str, skill_library.SkillLibrary] = {}
 
     def _build_order_services(self) -> order_tool.OrderServices:
         """Builds the one risk engine and order book that every desk shares.
@@ -181,15 +190,46 @@ class DeskBuilder:
         store = session_store.SessionStore(
             self._layout.sessions_directory(desk_name)
         )
-        executor = self._executor(desk_configuration, checkpoints)
+        sandbox = bash_sandbox.BashSandbox(
+            self._layout.scratch_directory(desk_name),
+            self._configuration.sandbox.hidden_paths,
+            self._configuration.sandbox.passed_environment,
+        )
+        library = skill_library.SkillLibrary(
+            self._layout.installed_skills_directory,
+            self._layout.agent_skills_directory(desk_name),
+            environment=sandbox.passed_environment(),
+        )
+        self._skill_libraries[desk_name] = library
+        writer = skill_writer.SkillWriter(
+            library,
+            checkpoints,
+            self._layout.skill_ledger_file(desk_name),
+        )
+        executor = self._executor(
+            desk_configuration,
+            checkpoints,
+            sandbox,
+            library,
+            writer,
+        )
         runner = self._turn_runner(desk_configuration, executor, store)
         keeper = None
         if isinstance(runner, model_router.ModelRouter):
+            curator = skill_curator.SkillCurator(
+                library,
+                skill_usage.SkillUsageReader(
+                    self._layout.skill_usage_file(desk_name)
+                ),
+                writer,
+                self._configuration.skills.archive_after_days,
+            )
             keeper = session_keeper.SessionKeeper(
                 desk_name,
                 runner,
                 store,
                 self._event_bus,
+                curator,
             )
         return desk_runtime.DeskRuntime(
             desk_configuration,
@@ -198,6 +238,7 @@ class DeskBuilder:
             self._configuration.mode,
             executor.tool_registry,
             keeper,
+            library,
         )
 
     def _turn_runner(
@@ -286,12 +327,18 @@ class DeskBuilder:
         self,
         desk_configuration: agent_configuration.DeskConfiguration,
         checkpoints: checkpoints_module.Checkpoints,
+        sandbox: bash_sandbox.BashSandbox,
+        library: skill_library.SkillLibrary,
+        writer: skill_writer.SkillWriter,
     ) -> tool_call_executor.ToolCallExecutor:
         """Builds the desk's tools and the executor that runs them.
 
         Args:
             desk_configuration (agent_configuration.DeskConfiguration): The desk's settings.
             checkpoints (checkpoints_module.Checkpoints): Snapshots the desk's files before the file tools change them.
+            sandbox (bash_sandbox.BashSandbox): The desk's bash sandbox.
+            library (skill_library.SkillLibrary): The desk's skills, for load_skill.
+            writer (skill_writer.SkillWriter): Changes the desk's own skills.
 
         Returns:
             tool_call_executor.ToolCallExecutor: The executor.
@@ -299,10 +346,6 @@ class DeskBuilder:
         agent_settings = self._configuration.agent
         sandbox_settings = self._configuration.sandbox
         web_settings = self._configuration.web
-        sandbox = bash_sandbox.BashSandbox(
-            self._layout.scratch_directory(desk_configuration.name),
-            sandbox_settings.hidden_paths,
-        )
         session = bash_session.BashSession(
             sandbox,
             sandbox_settings.command_timeout_seconds,
@@ -341,6 +384,10 @@ class DeskBuilder:
                 search_sessions_tool.SearchSessionsTool(
                     session_search.SessionSearch(desk_directory)
                 ),
+                load_skill_tool.LoadSkillTool(library),
+                skill_create_tool.SkillCreateTool(writer),
+                skill_patch_tool.SkillPatchTool(writer),
+                skill_archive_tool.SkillArchiveTool(writer),
                 web_search_tool.WebSearchTool(
                     web_settings.searxng_base_url,
                     web_settings.search_result_limit,
@@ -507,7 +554,7 @@ class DeskBuilder:
         self,
         desk_configuration: agent_configuration.DeskConfiguration,
     ) -> prompt_builder.PromptBuilder:
-        """Builds the prompt builder for a desk.
+        """Builds the prompt builder for a desk, with the skill library build() made for it.
 
         Args:
             desk_configuration (agent_configuration.DeskConfiguration): The desk's settings.
@@ -519,4 +566,5 @@ class DeskBuilder:
             self._layout,
             desk_configuration.name,
             self._configuration.mode,
+            self._skill_libraries.get(desk_configuration.name),
         )

@@ -21,3 +21,7 @@ Since milestone 6 the desk also closes its tool registry when it stops, which en
 ## Session keeper (milestone 11)
 
 When the desk has a session keeper, `run` calls `keeper.start()` before the first trigger, so `/status` shows the resumed session straight away, and `_answer` calls `keeper.prepare(trigger)` before each model turn. `prepare` runs before `_with_context`, so the India-time line stays the first line of the message even when a summary is put in front of the trigger. Commands and paused desks skip `prepare`, so `/status` never triggers a rollover.
+
+## /<skill-name> (milestone 13)
+
+A slash message is first offered to `skill_request`; if it names a usable skill, the trigger's text is replaced and the message goes down the normal model path, paused check and session keeper included. Otherwise it is handled as a command, as before.

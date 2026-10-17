@@ -20,6 +20,7 @@ from trading_agent.memory import session_store as session_store_module
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import trigger as trigger_module
+from trading_agent.skills import skill_curator as skill_curator_module
 
 _LOGGER = logging.getLogger(__name__)
 _FALLBACK_TRIGGER_CHARACTERS = 300
@@ -35,6 +36,7 @@ class SessionKeeper:
         router: model_router_module.ModelRouter,
         store: session_store_module.SessionStore,
         event_bus: event_bus_module.EventBus,
+        curator: skill_curator_module.SkillCurator | None = None,
     ):
         """Creates the keeper.
 
@@ -43,11 +45,13 @@ class SessionKeeper:
             router (model_router_module.ModelRouter): The desk's router, built with the same store.
             store (session_store_module.SessionStore): The desk's sessions folder.
             event_bus (event_bus_module.EventBus): Where new sessions are announced.
+            curator (skill_curator_module.SkillCurator | None): Reviews the desk's own skills after the day's summary, or None to skip the review.
         """
         self._desk_name = desk_name
         self._router = router
         self._store = store
         self._event_bus = event_bus
+        self._curator = curator
 
     async def start(self) -> None:
         """Picks up the saved session, or starts the first one, when the desk starts."""
@@ -95,6 +99,7 @@ class SessionKeeper:
         if self._router.exchanges and previous_date is not None:
             summary = await self._summary(previous_date)
             summary_path = self._store.write_summary(previous_date, summary)
+            await self._review_skills(previous_date)
         await self._router.reset()
         self._publish_session_started(
             'daily_rollover',
@@ -133,6 +138,29 @@ class SessionKeeper:
         if not result.text.strip():
             return self._fallback_summary()
         return result.text
+
+    async def _review_skills(self, trading_date: datetime.date) -> None:
+        """Archives unused skills and gives the desk its daily skill review turn.
+
+        The review runs in the old session, right after the summary, while the whole day is still in the desk's context. A review that fails is logged and the rollover carries on.
+
+        Args:
+            trading_date (datetime.date): The day being closed.
+        """
+        if self._curator is None:
+            return
+        archived = self._curator.archive_unused(self._store.today())
+        request = trigger_module.Trigger.now(
+            trigger_module.TriggerSource.ROLLOVER,
+            self._desk_name,
+            self._curator.review_request(trading_date, archived),
+        )
+        try:
+            await self._router.run_turn(request)
+        except backend_module.BackendUnavailableError:
+            _LOGGER.exception(
+                'No model could review the skills of desk %s', self._desk_name
+            )
 
     def _fallback_summary(self) -> str:
         """Lists the session's exchanges, shortened, when no model could write a summary.

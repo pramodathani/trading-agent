@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 from trading_agent.backends import model_router
 from trading_agent.runtime import trigger as trigger_module
+from trading_agent.skills import skill_library as skill_library_module
 
 if TYPE_CHECKING:
     from trading_agent.runtime import desk_runtime
@@ -25,15 +26,22 @@ _LATER_COMMANDS = {
 class SlashCommands:
     """The commands of one desk."""
 
-    def __init__(self, desk: desk_runtime.DeskRuntime, mode: str):
+    def __init__(
+        self,
+        desk: desk_runtime.DeskRuntime,
+        mode: str,
+        skill_library: skill_library_module.SkillLibrary | None = None,
+    ):
         """Creates the commands for a desk.
 
         Args:
             desk (desk_runtime.DeskRuntime): The desk the commands act on.
             mode (str): "dry_run" or "live", reported by /status.
+            skill_library (skill_library_module.SkillLibrary | None): The desk's skills, each of which can be invoked as /<skill-name>, or None.
         """
         self._desk = desk
         self._mode = mode
+        self._skill_library = skill_library
         self._commands: dict[str, Callable[[str], Awaitable[str]]] = {
             '/help': self._help,
             '/status': self._status,
@@ -54,6 +62,33 @@ class SlashCommands:
             bool: True when it starts with a slash.
         """
         return text.strip().startswith('/')
+
+    def skill_request(self, text: str) -> str | None:
+        """Turns /<skill-name> into a request for the model to follow that skill.
+
+        Built-in commands take precedence over skills of the same name.
+
+        Args:
+            text (str): The message, such as "/opening-range-breakout NIFTY".
+
+        Returns:
+            str | None: The text to send to the model, or None when the message does not name a usable skill.
+        """
+        if self._skill_library is None:
+            return None
+        name, _, argument = text.strip().partition(' ')
+        name = name.lower()
+        if name in self._commands:
+            return None
+        skill = self._skill_library.find(name[1:])
+        if skill is None:
+            return None
+        lines = [
+            f'[The user invoked your skill {skill.name} with /{skill.name}. Load it with load_skill and follow it.]',
+        ]
+        if argument.strip():
+            lines.append(argument.strip())
+        return '\n'.join(lines)
 
     async def handle(self, text: str) -> str:
         """Runs one command.
@@ -93,6 +128,7 @@ class SlashCommands:
                 '/compact             save what matters, then compress the conversation into a summary',
                 '/pause               stop answering until /resume (commands still work)',
                 '/resume              start answering again',
+                '/<skill-name> ...    ask the desk to follow one of its skills',
                 '/help                this list',
             ]
         )

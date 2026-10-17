@@ -9,3 +9,7 @@ The fingerprint is the first 16 hex digits of the text's SHA-256. The Claude run
 ## How your memory works (milestone 11)
 
 A fixed section after the header explains sessions, the rollover, `add_note`, `search_sessions` and checkpoints. It lives in code rather than in `Agents.md` because it describes how the program works, which the user should not have to keep in step with the code. The header line now mentions it. Changing it changed every desk's prompt fingerprint once, so Claude received the new instructions inside its next message.
+
+## Skills index (milestone 13)
+
+With a skill library, the index of usable skills comes last in the prompt, after Memory.md. It changes only when a skill is imported, written, patched or archived, so the prompt cache keeps working between those events.

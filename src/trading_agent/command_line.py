@@ -113,6 +113,31 @@ class CommandLine:
             default='main',
             help='The desk (default: main).',
         )
+        skills_parser = subparsers.add_parser(
+            'skills',
+            help='List skills, or import skills into workspace/shared/skills/installed.',
+        )
+        skill_actions = skills_parser.add_subparsers(
+            dest='skill_action',
+            required=True,
+        )
+        skill_actions.add_parser(
+            'list',
+            help="List each desk's usable and hidden skills.",
+        )
+        import_parser = skill_actions.add_parser(
+            'import',
+            help='Import every skill found in a folder, a .zip file or a git URL.',
+        )
+        import_parser.add_argument(
+            'source',
+            help='The folder, .zip file or git URL.',
+        )
+        import_parser.add_argument(
+            '--replace',
+            action='store_true',
+            help='Replace installed skills that have the same name.',
+        )
         arguments = parser.parse_args(argument_list)
         if arguments.command is None:
             arguments.command = 'serve'

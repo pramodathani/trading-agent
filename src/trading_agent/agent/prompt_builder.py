@@ -13,6 +13,7 @@ import dataclasses
 import hashlib
 from pathlib import Path
 
+from trading_agent.skills import skill_library as skill_library_module
 from trading_agent.workspace import workspace_layout
 
 MAXIMUM_FILE_CHARACTERS = 20000
@@ -40,6 +41,7 @@ class PromptBuilder:
         layout: workspace_layout.WorkspaceLayout,
         desk_name: str,
         mode: str,
+        skill_library: skill_library_module.SkillLibrary | None = None,
     ):
         """Creates the builder.
 
@@ -47,10 +49,12 @@ class PromptBuilder:
             layout (workspace_layout.WorkspaceLayout): Where the files are.
             desk_name (str): The desk the prompt is for.
             mode (str): "dry_run" or "live", stated in the prompt.
+            skill_library (skill_library_module.SkillLibrary | None): The desk's skills, listed as an index at the end, or None for no index.
         """
         self._layout = layout
         self._desk_name = desk_name
         self._mode = mode
+        self._skill_library = skill_library
 
     def build(self) -> SystemPrompt:
         """Reads the files and assembles the prompt.
@@ -71,6 +75,8 @@ class PromptBuilder:
                 'Memory.md', self._layout.memory_file(self._desk_name)
             ),
         ]
+        if self._skill_library is not None:
+            sections.append(self._skill_library.index_text())
         if self._layout.is_template(self._layout.user_file):
             sections.append(self._layout.template_text('FirstRunInterview.md'))
         text = '\n\n'.join(sections)
@@ -98,7 +104,7 @@ class PromptBuilder:
             [
                 f'You are the "{self._desk_name}" desk of trading-agent.',
                 mode_line,
-                'After a note on how your memory works, the files below are your instructions, in this order: how every desk works, your persona, the user, the trading rules, and your own memory.',
+                'After a note on how your memory works, the files below are your instructions, in this order: how every desk works, your persona, the user, the trading rules, and your own memory. An index of your skills comes last.',
             ]
         )
 

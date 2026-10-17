@@ -31,3 +31,7 @@ From milestone 8 every desk shares one BrokerReader, so the UBI lock covers all 
 ## Milestone 12: compression
 
 Each agent-loop runner gets its own `ContextCompressor`, sized by its backend's `context_window`, so Qwen and Gemma each compress at their own 70%. The Claude settings get both thresholds.
+
+## Milestone 13: skills
+
+`build` now makes the bash sandbox itself, with `[sandbox] passed_environment`, so the skill library can check needs against what the sandbox passes. Each desk gets a `SkillLibrary`, a `SkillWriter` (with the desk's checkpoints and ledger), a `SkillCurator` handed to the session keeper, and the tools `load_skill`, `skill_create`, `skill_patch` and `skill_archive`. The library is kept per desk in `_skill_libraries` so `_prompt_builder` can add the index without threading the library through every backend-building method.
