@@ -98,7 +98,7 @@ class ChannelRoutes(route_group.RouteGroup):
             },
         }
 
-    def approve(self, code: str) -> dict[str, Any]:
+    async def approve(self, code: str) -> dict[str, Any]:
         """Pairs the chat that was given a code.
 
         Args:
@@ -112,7 +112,7 @@ class ChannelRoutes(route_group.RouteGroup):
         """
         try:
             if self._channel is not None:
-                chat = self._channel.approve(code)
+                chat = await self._channel.approve(code)
             else:
                 chat = self._store.approve(
                     code, self._configuration.default_desk

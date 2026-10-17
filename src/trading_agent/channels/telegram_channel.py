@@ -103,7 +103,7 @@ class TelegramChannel:
         self._event_bus.unsubscribe(self._subscription)
         await self._api.close()
 
-    def approve(self, code: str) -> pairing_store_module.PairedChat:
+    async def approve(self, code: str) -> pairing_store_module.PairedChat:
         """Pairs the chat that was given a code, and tells the chat.
 
         Args:
@@ -117,11 +117,9 @@ class TelegramChannel:
         """
         chat = self._pairing.approve(code, self._default_desk)
         self._publish_channel('paired', chat.chat_id, chat.name, '')
-        asyncio.get_running_loop().create_task(
-            self._send(
-                chat.chat_id,
-                f'Paired. You are talking to the {chat.desk} desk. Send /help to see what you can do.',
-            )
+        await self._send(
+            chat.chat_id,
+            f'Paired. You are talking to the {chat.desk} desk. Send /help to see what you can do.',
         )
         return chat
 

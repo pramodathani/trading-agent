@@ -616,3 +616,35 @@ class TestTelegramPieces:
         assert approved.status_code == 200
         assert unknown.status_code == 404
         assert listing.json()['telegram']['paired'][0]['chat_id'] == _OWNER
+
+
+class TestApprovalThroughTheChannel:
+    """Tests for approving a code while the Telegram channel runs."""
+
+    def test_approving_through_the_route_tells_the_chat(
+        self, tmp_path: Path
+    ) -> None:
+        """Approving on the web page pairs the chat and sends it "Paired", through a running channel."""
+        scenario = _Scenario(tmp_path)
+        code = scenario.pairing.request(_OWNER, 'Owner')
+        group = channel_routes.ChannelRoutes(
+            access_guard.AccessGuard(_TOKEN),
+            scenario.pairing,
+            agent_configuration.TelegramConfiguration(enabled=True),
+            True,
+            scenario.channel,
+        )
+        application = fastapi.FastAPI()
+        application.include_router(group.router())
+        client = fastapi.testclient.TestClient(application)
+
+        response = client.post(
+            f'/api/channels/telegram/pairings/{code}/approve',
+            headers={
+                'Authorization': f'Bearer {_TOKEN}',
+            },
+        )
+
+        assert response.status_code == 200
+        assert scenario.pairing.paired_chat(_OWNER) is not None
+        assert scenario.api.sent_to(_OWNER)[0].startswith('Paired.')
