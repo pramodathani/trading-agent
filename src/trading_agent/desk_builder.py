@@ -107,6 +107,7 @@ from trading_agent.tools import schedule_wakeup_tool
 from trading_agent.tools import search_instruments_tool
 from trading_agent.tools import search_knowledge_tool
 from trading_agent.tools import search_sessions_tool
+from trading_agent.tools import send_image_tool
 from trading_agent.tools import send_message_tool
 from trading_agent.tools import set_price_alert_tool
 from trading_agent.tools import skill_archive_tool
@@ -115,6 +116,7 @@ from trading_agent.tools import skill_patch_tool
 from trading_agent.tools import tool_call_executor
 from trading_agent.tools import tool_registry
 from trading_agent.tools import tool_search_tool
+from trading_agent.tools import view_image_tool
 from trading_agent.tools import web_fetch_tool
 from trading_agent.tools import web_search_tool
 from trading_agent.tools import write_file_tool
@@ -592,6 +594,13 @@ class DeskBuilder:
                 self._event_bus,
                 desk_configuration.name,
             ),
+            send_image_tool.SendImageTool(
+                policy,
+                self._attachment_store,
+                self._event_bus,
+                desk_configuration.name,
+            ),
+            view_image_tool.ViewImageTool(policy),
             skill_create_tool.SkillCreateTool(writer),
             skill_patch_tool.SkillPatchTool(writer),
             skill_archive_tool.SkillArchiveTool(writer),
