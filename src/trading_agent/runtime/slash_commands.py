@@ -6,12 +6,19 @@ Typical usage example:
   reply = await commands.handle('/status')
 """
 
+import dataclasses
+import datetime
+import zoneinfo
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
 from trading_agent.backends import model_router
+from trading_agent.journal import journal_reader as journal_reader_module
+from trading_agent.runtime import event as event_module
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.skills import skill_library as skill_library_module
+from trading_agent.subagents import subagent_library as subagent_library_module
+from trading_agent.tools import tool_registry as tool_registry_module
 
 if TYPE_CHECKING:
     from trading_agent.runtime import desk_runtime
@@ -23,7 +30,28 @@ _INSTANT_COMMANDS = (
     '/help',
     '/status',
     '/usage',
+    '/context',
+    '/tools',
+    '/skills',
+    '/subagents',
 )
+_INDIA = zoneinfo.ZoneInfo('Asia/Kolkata')
+_FULL = 'full'
+
+
+@dataclasses.dataclass(frozen=True)
+class CommandParts:
+    """The parts of the gateway some commands read, beyond the desk itself.
+
+    Attributes:
+        tool_registry: The desk's tools, listed by /tools, or None.
+        subagent_library: The subagents the desk can delegate to, listed by /subagents, or None.
+        journal_reader: The desk's journal, read by /subagents, or None.
+    """
+
+    tool_registry: tool_registry_module.ToolRegistry | None = None
+    subagent_library: subagent_library_module.SubagentLibrary | None = None
+    journal_reader: journal_reader_module.JournalReader | None = None
 
 
 class SlashCommands:
@@ -34,6 +62,7 @@ class SlashCommands:
         desk: desk_runtime.DeskRuntime,
         mode: str,
         skill_library: skill_library_module.SkillLibrary | None = None,
+        parts: CommandParts | None = None,
     ):
         """Creates the commands for a desk.
 
@@ -41,10 +70,12 @@ class SlashCommands:
             desk (desk_runtime.DeskRuntime): The desk the commands act on.
             mode (str): "dry_run" or "live", reported by /status.
             skill_library (skill_library_module.SkillLibrary | None): The desk's skills, each of which can be invoked as /<skill-name>, or None.
+            parts (CommandParts | None): The tools, subagents and journal some commands read, or None when none are available.
         """
         self._desk = desk
         self._mode = mode
         self._skill_library = skill_library
+        self._parts = parts or CommandParts()
         self._commands: dict[str, Callable[[str], Awaitable[str]]] = {
             '/help': self._help,
             '/status': self._status,
@@ -55,6 +86,10 @@ class SlashCommands:
             '/model': self._model,
             '/pause': self._pause,
             '/resume': self._resume,
+            '/context': self._context,
+            '/tools': self._tools,
+            '/skills': self._skills,
+            '/subagents': self._subagents,
         }
 
     def is_command(self, text: str) -> bool:
@@ -171,13 +206,17 @@ class SlashCommands:
                 '/compact             save what matters, then compress the conversation into a summary',
                 '/rollover            summarise the day and start a fresh session now',
                 "/usage               today's model calls, tokens, costs and Claude's limits",
+                '/context             how full the context window is, and with what',
+                '/tools [full]        the tools the desk can call',
+                '/skills              the skills the desk can follow',
+                "/subagents           the desk's subagents and today's runs",
                 '/stop                stop the running turn at once (it skips the queue)',
                 '/pause               stop answering until /resume (commands still work)',
                 '/resume              start answering again',
                 '/<skill-name> ...    ask the desk to follow one of its skills',
                 '/help                this list',
                 '',
-                '/help, /status and /usage answer at once, even while the desk is working.',
+                '/help, /status, /usage, /context, /tools, /skills and /subagents answer at once, even while the desk is working.',
             ]
         )
 
@@ -318,6 +357,196 @@ class SlashCommands:
         del argument
         self._desk.paused = False
         return 'Resumed.'
+
+    async def _context(self, argument: str) -> str:
+        """Shows how full the context window of the model that answered last is.
+
+        Args:
+            argument (str): Ignored.
+
+        Returns:
+            str: The window's size and what fills it, or a note that no turn has run yet.
+        """
+        del argument
+        usage = self._desk.turn_runner.context_usage()
+        if usage is None:
+            return 'No turn has run in this session yet, so there is no context window to show.'
+        how = 'measured by the model' if usage.measured else 'estimated'
+        percent = 0
+        if usage.context_window:
+            percent = round(100 * usage.total_tokens / usage.context_window)
+        lines = [
+            f'Context window of {usage.model} ({usage.backend}), {how}:',
+            f'{usage.total_tokens:,} of {usage.context_window:,} tokens used ({percent}%)',
+        ]
+        for category in usage.categories:
+            line = f'  {category.name}: {category.tokens:,}'
+            if category.deferred:
+                line = f'{line} (listed, not loaded)'
+            lines.append(line)
+        recorded = datetime.datetime.fromisoformat(usage.recorded_at)
+        lines.append(f'As of {recorded.astimezone(_INDIA):%H:%M} IST.')
+        return '\n'.join(lines)
+
+    async def _tools(self, argument: str) -> str:
+        """Lists the tools the desk can call.
+
+        Args:
+            argument (str): "full" for whole descriptions; anything else gives the first sentence of each.
+
+        Returns:
+            str: One tool per line, or a note that the desk has no tools.
+        """
+        registry = self._parts.tool_registry
+        if registry is None or not registry.tool_names:
+            return 'This desk has no tools.'
+        full = argument.lower() == _FULL
+        lines = [
+            f'{len(registry.tool_names)} tools:',
+        ]
+        for definition in registry.definitions():
+            function = definition['function']
+            description = function['description']
+            if not full:
+                description = self._first_sentence(description)
+            lines.append(f'- {function["name"]}: {description}')
+        if not full:
+            lines.append('Send /tools full for the whole descriptions.')
+        return '\n'.join(lines)
+
+    async def _skills(self, argument: str) -> str:
+        """Lists the desk's skills, the user's and its own, and the skills that cannot be used here.
+
+        Args:
+            argument (str): Ignored.
+
+        Returns:
+            str: The skills grouped by who wrote them, or a note that there are none.
+        """
+        del argument
+        library = self._skill_library
+        if library is None:
+            return 'This desk has no skills.'
+        yours = []
+        own = []
+        for skill in library.available():
+            line = f'- /{skill.name}: {self._first_sentence(skill.description)}'
+            if skill.origin == skill_library_module.AGENT:
+                own.append(line)
+            else:
+                yours.append(line)
+        hidden = []
+        for hidden_skill in library.hidden():
+            missing = ', '.join(hidden_skill.missing)
+            hidden.append(f'- {hidden_skill.skill.name}: needs {missing}')
+        if not yours and not own and not hidden:
+            return 'This desk has no skills yet.'
+        lines = []
+        self._add_section(lines, 'Your skills:', yours)
+        self._add_section(lines, "The desk's own skills:", own)
+        self._add_section(lines, 'Skills that cannot be used here:', hidden)
+        return '\n'.join(lines)
+
+    async def _subagents(self, argument: str) -> str:
+        """Lists the subagents the desk can delegate to, and today's subagent runs.
+
+        Args:
+            argument (str): Ignored.
+
+        Returns:
+            str: The subagents and runs, or a note that there are none.
+        """
+        del argument
+        lines = []
+        library = self._parts.subagent_library
+        definitions = []
+        if library is not None:
+            for definition in library.definitions():
+                definitions.append(
+                    f'- {definition.name}: {self._first_sentence(definition.description)}'
+                )
+            for broken in library.broken():
+                definitions.append(
+                    f'- {broken.path.name} is broken: {broken.error}'
+                )
+        self._add_section(lines, 'Subagents:', definitions)
+        self._add_section(lines, 'Runs today:', self._subagent_runs())
+        if not lines:
+            return 'This desk has no subagents and ran none today.'
+        return '\n'.join(lines)
+
+    def _subagent_runs(self) -> list[str]:
+        """Describes today's subagent runs from the desk's journal, oldest first.
+
+        Returns:
+            list[str]: One line per run; a run with no finish event is shown as running.
+        """
+        reader = self._parts.journal_reader
+        if reader is None:
+            return []
+        events = reader.events(
+            reader.today(),
+            (
+                event_module.EventKind.SUBAGENT_STARTED,
+                event_module.EventKind.SUBAGENT_FINISHED,
+            ),
+        )
+        finished = {}
+        for event in events:
+            if event['kind'] == event_module.EventKind.SUBAGENT_FINISHED:
+                finished[event['payload'].get('trigger_id')] = event['payload']
+        lines = []
+        for event in events:
+            if event['kind'] != event_module.EventKind.SUBAGENT_STARTED:
+                continue
+            payload = event['payload']
+            started = datetime.datetime.fromisoformat(event['created_at'])
+            line = f'- {started.astimezone(_INDIA):%H:%M} {payload.get("subagent")}: '
+            ending = finished.get(payload.get('trigger_id'))
+            if ending is None:
+                line = f'{line}running'
+            else:
+                line = f'{line}{ending.get("outcome")} on {ending.get("backend")} in {ending.get("seconds")} s'
+            lines.append(line)
+        return lines
+
+    def _add_section(
+        self,
+        lines: list[str],
+        heading: str,
+        entries: list[str],
+    ) -> None:
+        """Adds a heading and its entries to a reply, with a blank line before it, unless there are no entries.
+
+        Args:
+            lines (list[str]): The reply's lines, extended in place.
+            heading (str): The section's heading.
+            entries (list[str]): The section's lines.
+        """
+        if not entries:
+            return
+        if lines:
+            lines.append('')
+        lines.append(heading)
+        lines.extend(entries)
+
+    def _first_sentence(self, text: str) -> str:
+        """The first sentence of a description, for one-line lists.
+
+        Args:
+            text (str): The description.
+
+        Returns:
+            str: The text up to and including the first full stop that ends a sentence, or the first line when there is none.
+        """
+        stripped = text.strip()
+        if not stripped:
+            return ''
+        first_line = stripped.splitlines()[0]
+        end = first_line.find('. ')
+        if end == -1:
+            return first_line
+        return first_line[: end + 1]
 
     def _router(self) -> model_router.ModelRouter | None:
         """The desk's model router, when it has one.

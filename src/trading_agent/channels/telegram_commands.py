@@ -59,6 +59,22 @@ _MENU = (
         "Today's model calls, tokens and costs",
     ),
     (
+        'context',
+        "How full the desk's context window is",
+    ),
+    (
+        'tools',
+        'The tools the desk can call',
+    ),
+    (
+        'skills',
+        'The skills the desk can follow',
+    ),
+    (
+        'subagents',
+        "The desk's subagents and today's runs",
+    ),
+    (
         'model',
         'Show or change the model order',
     ),
@@ -202,6 +218,8 @@ class TelegramCommands:
                 'These go to your desk:',
                 "/stop - stop the desk's running turn",
                 "/usage - today's model calls, tokens and costs",
+                "/context - how full the desk's context window is",
+                '/tools, /skills, /subagents - what the desk can use',
                 '/model [name|auto] - show or change the model order',
                 "/compact - compress the desk's conversation",
                 '/new - start a fresh conversation',

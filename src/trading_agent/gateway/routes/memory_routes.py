@@ -16,7 +16,6 @@ Typical usage example:
 """
 
 import datetime
-import json
 import re
 import zoneinfo
 from collections.abc import Mapping
@@ -28,6 +27,7 @@ import fastapi
 from trading_agent.gateway import access_guard
 from trading_agent.gateway import gateway_parts
 from trading_agent.gateway.routes import route_group
+from trading_agent.journal import journal_reader
 from trading_agent.memory import session_search
 from trading_agent.workspace import workspace_layout
 
@@ -287,16 +287,7 @@ class MemoryRoutes(route_group.RouteGroup):
             for kind in kinds.split(','):
                 if kind.strip():
                     wanted.add(kind.strip())
-        events = []
-        path = folder / f'{day}.jsonl'
-        if path.is_file():
-            for line in path.read_text(encoding='utf-8').splitlines():
-                try:
-                    event = json.loads(line)
-                except ValueError:
-                    continue
-                if wanted is None or event.get('kind') in wanted:
-                    events.append(event)
+        events = journal_reader.JournalReader(folder).events(day, wanted)
         limit = max(1, min(limit, _MOST_EVENTS))
         return {
             'day': day,

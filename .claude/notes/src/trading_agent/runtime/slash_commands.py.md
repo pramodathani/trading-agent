@@ -35,3 +35,14 @@ Shows the usage tracker's summary for the desk. The test of not-yet-built comman
 `command_name` takes the first word, drops a `@botname` suffix and lowercases it. Telegram adds the suffix when a command is picked from the menu in a group chat; before this, `/usage@my_bot` reached the desk and was answered "Unknown command". `_argument` splits on any whitespace, so an argument on the next line also works.
 
 `is_instant` names the commands that only read the desk. The desk answers those beside a running turn (see the note on `desk_runtime.py`). A command belongs in `_INSTANT_COMMANDS` only if it changes nothing, so it can safely run at the same time as a model turn.
+
+## /context, /tools, /skills and /subagents, since 2026-10-18
+
+These copy what Claude Code, OpenClaw and Hermes offer under the same names, and they are text versions of the web page's side panel, for Telegram. All four only read, so they are instant commands.
+
+`CommandParts` holds what these commands need beyond the desk: the tool registry, the subagent library and the desk's journal reader. It is a frozen dataclass so the desk builder can hand everything over in one argument instead of `DeskRuntime` growing one argument per command. `DeskRuntime` always puts its own tool registry into it, so the registry has one source.
+
+- `/context` reports the snapshot of the backend that answered last (`ModelRouter.context_usage`). Claude's numbers are measured by Claude Code; the other backends' are estimates, and the reply says which.
+- `/tools` shows the first sentence of each description, because the full descriptions of about 40 tools would fill several Telegram messages. `/tools full` gives them whole.
+- `/skills` groups skills by `Skill.origin`, so the user can see which skills the desk wrote for itself. Skills hidden for a missing program or variable are listed with what they lack.
+- `/subagents` reads today's `subagent_started` and `subagent_finished` events from the journal, because no run list is kept in memory. A start without a matching finish is shown as running; after a restart mid-run it would stay "running" for the rest of the day, which is acceptable for a read-out.

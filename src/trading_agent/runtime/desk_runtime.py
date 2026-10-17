@@ -71,6 +71,7 @@ class DeskRuntime:
         usage_tracker: usage_tracker_module.UsageTracker | None = None,
         market_status: market_status_module.MarketStatus | None = None,
         steering_inbox: steering_inbox_module.SteeringInbox | None = None,
+        command_parts: slash_commands.CommandParts | None = None,
     ):
         """Creates the desk without starting its loop.
 
@@ -85,6 +86,7 @@ class DeskRuntime:
             usage_tracker (usage_tracker_module.UsageTracker | None): Today's model usage, shown by /usage, or None.
             market_status (market_status_module.MarketStatus | None): Describes the market for the context line, or None to leave it out.
             steering_inbox (steering_inbox_module.SteeringInbox | None): Where mid-turn messages wait for the running turn, shared with the turn runner; None creates one that only this desk reads.
+            command_parts (slash_commands.CommandParts | None): The subagents and journal some commands read, or None; the desk's own tool registry is added to it.
         """
         self.name = desk_configuration.name
         self.state = DeskState.STOPPED
@@ -96,6 +98,10 @@ class DeskRuntime:
             self,
             mode,
             skill_library,
+            dataclasses.replace(
+                command_parts or slash_commands.CommandParts(),
+                tool_registry=tool_registry,
+            ),
         )
         self._tool_registry = tool_registry
         self._session_keeper = session_keeper
