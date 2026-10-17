@@ -244,6 +244,7 @@ class AgentConfiguration(pydantic.BaseModel):
         mode: "dry_run" sends every order to UBI as a dry run, and "live" sends real orders.
         workspace_directory: The folder holding the desks' files, memory and journals.
         tradingmachine_environment_file: The .env file that tradingmachine reads its UBI and MongoDB settings from.
+        mcp_servers_file: The JSON file listing the MCP servers every desk can use.
         gateway: Where the web server listens.
         desks: The desks to run.
         backends: The model backends, keyed by the name desks refer to them by.
@@ -260,6 +261,7 @@ class AgentConfiguration(pydantic.BaseModel):
     mode: Literal['dry_run', 'live'] = 'dry_run'
     workspace_directory: Path = Path('workspace')
     tradingmachine_environment_file: Path
+    mcp_servers_file: Path = Path('mcp_servers.json')
     gateway: GatewayConfiguration = GatewayConfiguration()
     desks: list[DeskConfiguration] = pydantic.Field(min_length=1)
     backends: dict[str, BackendConfiguration] = {}

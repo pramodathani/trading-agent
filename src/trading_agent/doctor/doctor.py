@@ -12,6 +12,7 @@ from trading_agent.doctor.checks import bubblewrap_check
 from trading_agent.doctor.checks import chrome_check
 from trading_agent.doctor.checks import claude_code_backend_check
 from trading_agent.doctor.checks import gateway_token_check
+from trading_agent.doctor.checks import mcp_servers_check
 from trading_agent.doctor.checks import ollama_backend_check
 from trading_agent.doctor.checks import openai_compatible_backend_check
 from trading_agent.doctor.checks import python_version_check
@@ -113,6 +114,11 @@ class Doctor:
                 workspace_layout.WorkspaceLayout(
                     self._configuration.workspace_directory
                 ).trading_rules_file
+            )
+        )
+        checks.append(
+            mcp_servers_check.McpServersCheck(
+                self._configuration.mcp_servers_file
             )
         )
         checks.append(bubblewrap_check.BubblewrapCheck())

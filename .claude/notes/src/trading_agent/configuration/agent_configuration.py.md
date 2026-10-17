@@ -13,3 +13,7 @@ The `base_url` rule is a validator rather than a separate model per backend kind
 ## Skills settings (milestone 13)
 
 `[skills] archive_after_days` (30) and `[sandbox] passed_environment` (empty).
+
+## mcp_servers_file (milestone 13)
+
+Defaults to `mcp_servers.json` beside trading_agent.toml.
