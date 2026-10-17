@@ -1,6 +1,6 @@
 # Tools
 
-A desk acts through tools. Each tool is a class with a JSON schema, and the same tools are offered to every model. The table below lists all 47, grouped by what they are for.
+A desk acts through tools. Each tool is a class with a JSON schema, and the same tools are offered to every model. The table below lists all 49, grouped by what they are for.
 
 | Group | Tools |
 |---|---|
@@ -11,6 +11,7 @@ A desk acts through tools. Each tool is a class with a JSON schema, and the same
 | Browser | `browser_open`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_screenshot`, `browser_back`, `browser_tabs` |
 | The web | `web_search`, `web_fetch` |
 | Files and memory | `read_file`, `write_file`, `edit_file`, `add_note`, `search_sessions`, `propose_file_change` |
+| Pictures | `view_image`, `send_image` |
 | Skills | `load_skill`, `skill_create`, `skill_patch`, `skill_archive` |
 | Scheduling and messages | `cron_create`, `cron_list`, `cron_delete`, `schedule_wakeup`, `set_price_alert`, `cancel_price_alert`, `send_message` |
 | Extensions | `tool_search`, `call_mcp_tool`, `delegate_task`, `search_knowledge` |
@@ -30,7 +31,7 @@ The sandbox starts with an empty environment, so no secret reaches it unless `[s
 
 ## The browser
 
-Each desk has its own headless Chrome with a clean profile, never your own, because your profile holds your broker logins. A page comes back as a snapshot: its title, its clickable elements numbered so the model can click by number, and its visible text. Claude and Gemma, which can see pictures, can also take a screenshot.
+Each desk has its own headless Chrome with a clean profile, never your own, because your profile holds your broker logins. A page comes back as a snapshot: its title, its clickable elements numbered so the model can click by number, and its visible text. The models can also take a screenshot and look at it, and Chat shows it under the tool's card. [Pictures and documents](../using/pictures-and-documents.md) explains `view_image` and `send_image`.
 
 <figure class="diagram">
 --8<-- "docs/assets/diagrams/browser.svg"

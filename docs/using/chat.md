@@ -1,6 +1,6 @@
 # Talking to a desk
 
-A message to a desk becomes a **turn**: the desk reads it with its instructions, thinks, calls tools, and answers. Every step is shown as it happens. In Chat a tool call is a folded card with its arguments and result, and the answer appears as it is written.
+A message to a desk becomes a **turn**: the desk reads it with its instructions, thinks, calls tools, and answers. Every step is shown as it happens. In Chat a tool call is a folded card with its arguments and result, and the answer appears as it is written. Messages can carry pictures and documents, both ways; [Pictures and documents](pictures-and-documents.md) explains how.
 
 ## Slash commands
 

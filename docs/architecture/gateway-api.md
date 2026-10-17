@@ -19,7 +19,10 @@ curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8120/api/desks
 |---|---|---|---|
 | <span class="method get">GET</span> | `/api/desks` | Every desk's state, models and session | yes |
 | <span class="method get">GET</span> | `/api/desks/{desk}` | One desk, with its persona | yes |
-| <span class="method post">POST</span> | `/api/desks/{desk}/messages` | Queue a message or slash command; the answer arrives as events | yes |
+| <span class="method post">POST</span> | `/api/desks/{desk}/messages` | Queue a message or slash command, with `attachment_ids` naming uploaded files; the answer arrives as events | yes |
+| <span class="method post">POST</span> | `/api/desks/{desk}/attachments` | Upload one picture or document (a form with a `file` field); answers its attachment | yes |
+| <span class="method get">GET</span> | `/api/desks/{desk}/attachments/{attachment}` | The uploaded file itself | yes |
+| <span class="method get">GET</span> | `/api/desks/{desk}/pictures/{path}` | A picture inside the desk's folder, such as a screenshot in a tool card | yes |
 | <span class="method post">POST</span> | `/api/desks/{desk}/pause` | Stop the desk asking its models | yes |
 | <span class="method post">POST</span> | `/api/desks/{desk}/resume` | Start it again | yes |
 | <span class="method post">POST</span> | `/api/desks/{desk}/flatten` | Cancel the desk's orders and close its positions, with a reason | yes |
