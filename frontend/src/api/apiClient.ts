@@ -1,6 +1,7 @@
 import { tokenStore } from '../auth/tokenStore';
 import type {
   AccountDocument,
+  Attachment,
   AppEntry,
   CheckpointEntry,
   CronJob,
@@ -68,15 +69,47 @@ export class ApiClient {
   }
 
   /**
-   * Sends a message or slash command to a desk.
+   * Sends a message or slash command to a desk, with files uploaded beforehand.
    * @param deskName The desk.
-   * @param text The message.
+   * @param text The message; may be empty when files are attached.
+   * @param attachmentIds The uploads to send with it.
    * @returns The new trigger's id.
    */
-  sendMessage(deskName: string, text: string): Promise<{ trigger_id: string }> {
+  sendMessage(deskName: string, text: string, attachmentIds: string[] = []): Promise<{ trigger_id: string }> {
     return this.request('POST', `/api/desks/${deskName}/messages`, {
       text,
+      attachment_ids: attachmentIds,
     });
+  }
+
+  /**
+   * Uploads one file for a desk, to send with a message.
+   * @param deskName The desk.
+   * @param file The file.
+   * @returns The stored attachment.
+   */
+  uploadAttachment(deskName: string, file: File): Promise<Attachment> {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    return this.request('POST', `/api/desks/${deskName}/attachments`, form);
+  }
+
+  /**
+   * Fetches an uploaded file, to show a picture or open a document.
+   * @param deskName The desk.
+   * @param attachmentId The upload.
+   * @returns The file's contents.
+   */
+  async attachmentFile(deskName: string, attachmentId: string): Promise<Blob> {
+    const response = await fetch(`/api/desks/${deskName}/attachments/${attachmentId}`, {
+      headers: {
+        Authorization: `Bearer ${tokenStore.current() ?? ''}`,
+      },
+    });
+    if (!response.ok) {
+      throw new ApiError(response.status, await this.explain(response));
+    }
+    return response.blob();
   }
 
   /**
@@ -462,13 +495,17 @@ export class ApiClient {
     const headers: Record<string, string> = {
       Authorization: `Bearer ${tokenStore.current() ?? ''}`,
     };
-    if (body !== undefined) {
+    let encoded: BodyInit | undefined;
+    if (body instanceof FormData) {
+      encoded = body;
+    } else if (body !== undefined) {
       headers['Content-Type'] = 'application/json';
+      encoded = JSON.stringify(body);
     }
     const response = await fetch(path, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: encoded,
     });
     if (response.status === 401) {
       tokenStore.clear();

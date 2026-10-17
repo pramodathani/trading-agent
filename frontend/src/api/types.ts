@@ -6,6 +6,22 @@ export interface AgentEvent {
   created_at: string;
 }
 
+/** A file sent with a chat message, as the gateway stores it. */
+export interface Attachment {
+  attachment_id: string;
+  desk: string;
+  kind: 'image' | 'document';
+  file_name: string;
+  media_type: string;
+  size_bytes: number;
+  desk_path: string;
+  text_desk_path: string | null;
+  text_characters: number | null;
+  page_count: number | null;
+  problem: string;
+  created_at: string;
+}
+
 /** One desk's state, as GET /api/desks describes it. */
 export interface DeskSummary {
   name: string;

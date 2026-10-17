@@ -1,4 +1,4 @@
-import type { AgentEvent } from '../api/types';
+import type { AgentEvent, Attachment } from '../api/types';
 import { eventDescriber } from './eventDescriber';
 
 /** One tool call inside a turn, with its result once it arrives. */
@@ -31,6 +31,7 @@ export interface ChatTurn {
   triggerId: string;
   source: string;
   text: string;
+  attachments: Attachment[];
   receivedAt: string;
   started: boolean;
   finished: boolean;
@@ -149,6 +150,7 @@ export class ChatTurnBuilder {
       triggerId,
       source: String(event.payload.source ?? ''),
       text: String(event.payload.text ?? ''),
+      attachments: Array.isArray(event.payload.attachments) ? (event.payload.attachments as Attachment[]) : [],
       receivedAt: event.created_at,
       started: false,
       finished: false,
