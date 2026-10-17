@@ -1,6 +1,7 @@
 """Tests for the risk engine, with a fake account and a fake kill switch, and the real limits, ledger and rules."""
 
 import asyncio
+import dataclasses
 import datetime
 import zoneinfo
 from pathlib import Path
@@ -799,4 +800,95 @@ class TestAccountCheck:
 
         asyncio.run(setup.engine.check_account())
 
+        assert setup.kill_switch.triggers == []
+
+
+_DESK_LIMITS = (
+    _LIMITS
+    + """
+[desks.intraday]
+allowed_products = ["mis"]
+
+[desks.scalper]
+allowed_products = ["mis"]
+daily_loss_limit_percent = 2
+
+[desks.positional]
+allowed_products = ["cnc", "nrml"]
+"""
+)
+
+
+class TestDesks:
+    """Several desks share one account and one risk engine."""
+
+    def test_two_desks_cannot_trade_the_same_stock(
+        self, tmp_path: Path
+    ) -> None:
+        """Intraday gets INFY first; the scalper is then refused it; positional may not use mis.
+
+        Args:
+            tmp_path (Path): A temporary folder from pytest.
+        """
+        setup = _Setup(tmp_path, _DESK_LIMITS)
+
+        intraday = setup.evaluate(_order(desk='intraday', product='mis'))
+        scalper = setup.evaluate(_order(desk='scalper', product='mis'))
+        positional = setup.evaluate(
+            _order(
+                desk='positional',
+                product='mis',
+                instrument_id='tcs',
+                symbol='TCS',
+            )
+        )
+
+        assert intraday.approved
+        assert not scalper.approved
+        assert 'intraday' in '\n'.join(scalper.reasons)
+        assert not positional.approved
+        assert 'mis' in '\n'.join(positional.reasons)
+
+    def test_desk_loss_limit_stops_only_that_desk(self, tmp_path: Path) -> None:
+        """A 5,000 loss on a stock the scalper held, closed and gave up, halts the scalper alone.
+
+        Args:
+            tmp_path (Path): A temporary folder from pytest.
+        """
+        setup = _Setup(tmp_path, _DESK_LIMITS)
+        setup.ledger.claim('idea', 'scalper', setup.now)
+        setup.ledger.release_unheld(set(), setup.now, datetime.timedelta(0))
+        assert setup.ledger.owner('idea') is None
+        setup.snapshots.snapshot = dataclasses.replace(
+            _snapshot(day_pnl=-5000.0),
+            day_pnl_by_instrument={
+                'idea': -5000.0,
+            },
+        )
+
+        intraday = setup.evaluate(
+            _order(
+                desk='intraday',
+                product='mis',
+                instrument_id='tcs',
+                symbol='TCS',
+            )
+        )
+        scalper = setup.evaluate(
+            _order(
+                desk='scalper',
+                product='mis',
+                instrument_id='sbin',
+                symbol='SBIN',
+            )
+        )
+
+        assert setup.engine.desk_day_pnl(setup.snapshots.snapshot) == {
+            'scalper': -5000.0,
+        }
+        assert intraday.approved
+        assert not scalper.approved
+        assert "scalper desk's daily loss limit is reached" in '\n'.join(
+            scalper.reasons
+        )
         assert setup.kill_switch.triggers == []

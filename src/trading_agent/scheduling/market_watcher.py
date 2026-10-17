@@ -4,7 +4,7 @@ While NSE equities or MCX trade, every cycle (15 seconds by default) it:
 
 1. reads UBI's order book once and finds the finished broker orders (complete, cancelled, rejected or expired) that belong to a desk's own orders in the desk order book, matched by parent_id or order_id; each desk gets one message listing its updates;
 2. reads the last price of every instrument a desk has an alert on, once each, and wakes the desk for each alert crossed, removing the alert;
-3. once a minute, asks the risk engine to check the account, so the kill switch fires at the daily or weekly loss limit even when no desk is placing orders.
+3. once a minute, asks the risk engine to check the account, so the kill switch fires at the daily or weekly loss limit, and a desk is halted at its own daily loss limit, even when no desk is placing orders; the account's and each desk's profit and loss are then published as an account_status event.
 
 The ids of orders already reported are kept in a small file, so a restart neither repeats a fill nor forgets one that finished while the gateway was down. Dry-run orders reach no broker, so they never appear in the order book and are skipped.
 
@@ -28,6 +28,7 @@ from typing import Any
 from tradingmachine.assets import exceptions as instrument_exceptions
 from tradingmachine.unified_broker_interface import exceptions as ubi_exceptions
 
+from trading_agent.risk import account_snapshot as account_snapshot_module
 from trading_agent.risk import exchange_hours as exchange_hours_module
 from trading_agent.risk import risk_engine as risk_engine_module
 from trading_agent.runtime import desk_runtime as desk_runtime_module
@@ -145,7 +146,32 @@ class MarketWatcher:
         )
         if due:
             self._last_account_check = now
-            await self._risk_engine.check_account()
+            snapshot = await self._risk_engine.check_account()
+            if snapshot is not None:
+                self._publish_account_status(snapshot)
+
+    def _publish_account_status(
+        self,
+        snapshot: account_snapshot_module.AccountSnapshot,
+    ) -> None:
+        """Publishes the account's and each desk's profit and loss today.
+
+        Args:
+            snapshot (account_snapshot_module.AccountSnapshot): The account now.
+        """
+        desk_pnl = self._risk_engine.desk_day_pnl(snapshot)
+        self._event_bus.publish(
+            event_module.Event.now(
+                event_module.EventKind.ACCOUNT_STATUS,
+                None,
+                {
+                    'total_balance': snapshot.total_balance,
+                    'day_pnl': snapshot.day_pnl,
+                    'desk_pnl': desk_pnl,
+                    'open_positions': len(snapshot.positions),
+                },
+            )
+        )
 
     async def check_fills(self) -> int:
         """Reports newly finished broker orders to the desks that placed them.

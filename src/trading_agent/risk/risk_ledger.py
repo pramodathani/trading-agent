@@ -1,6 +1,6 @@
 """The risk engine's memory, in a small SQLite database shared by every desk.
 
-It records which desk owns which instrument, when each desk's approved orders were sent, each day's profit or loss, and any trading halts, so that all of them survive a restart of the gateway. Only the risk engine and the kill switch write to it; the desks have no tool that can.
+It records which desk owns which instrument, which desk owned each instrument on each day (so a desk's profit and loss can be worked out even after it closed a position and gave the instrument up), when each desk's approved orders were sent, each day's profit or loss, and any trading halts, so that all of them survive a restart of the gateway. Only the risk engine and the kill switch write to it; the desks have no tool that can.
 
 Typical usage example:
 
@@ -18,6 +18,7 @@ _SCHEMA = [
     'CREATE TABLE IF NOT EXISTS approvals (desk TEXT NOT NULL, approved_at TEXT NOT NULL)',
     'CREATE TABLE IF NOT EXISTS daily_pnl (trading_date TEXT PRIMARY KEY, pnl REAL NOT NULL)',
     'CREATE TABLE IF NOT EXISTS halts (scope TEXT NOT NULL, reason TEXT NOT NULL, until_date TEXT NOT NULL, created_at TEXT NOT NULL)',
+    'CREATE TABLE IF NOT EXISTS day_owners (trading_date TEXT NOT NULL, instrument_id TEXT NOT NULL, desk TEXT NOT NULL, PRIMARY KEY (trading_date, instrument_id))',
 ]
 ACCOUNT_SCOPE = 'account'
 
@@ -71,6 +72,10 @@ class RiskLedger:
                 'INSERT INTO ownership (instrument_id, desk, claimed_at) VALUES (?, ?, ?) ON CONFLICT(instrument_id) DO UPDATE SET desk = excluded.desk, claimed_at = excluded.claimed_at',
                 (instrument_id, desk, now.isoformat()),
             )
+            self._connection.execute(
+                'INSERT INTO day_owners (trading_date, instrument_id, desk) VALUES (?, ?, ?) ON CONFLICT(trading_date, instrument_id) DO UPDATE SET desk = excluded.desk',
+                (now.date().isoformat(), instrument_id, desk),
+            )
 
     def release_unheld(
         self,
@@ -106,6 +111,25 @@ class RiskLedger:
                 )
                 released.append(instrument_id)
         return released
+
+    def day_owners(self, trading_date: datetime.date) -> dict[str, str]:
+        """Which desk owned each instrument on a day, released or not.
+
+        Args:
+            trading_date (datetime.date): The India date.
+
+        Returns:
+            dict[str, str]: Desk names keyed by instrument id; the last desk to claim an instrument that day.
+        """
+        with self._lock:
+            rows = self._connection.execute(
+                'SELECT instrument_id, desk FROM day_owners WHERE trading_date = ?',
+                (trading_date.isoformat(),),
+            ).fetchall()
+        owners = {}
+        for instrument_id, desk in rows:
+            owners[instrument_id] = desk
+        return owners
 
     def owned_by(self, desk: str) -> set[str]:
         """The instruments a desk owns.

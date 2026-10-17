@@ -59,6 +59,7 @@ class DeskLimits(pydantic.BaseModel):
         allowed_products: The products the desk may use, such as mis, cnc or nrml; empty allows all.
         allowed_instruments: The symbols the desk may trade; empty allows all.
         maximum_orders_per_minute: How many orders the desk may send in a minute, or None for no cap.
+        daily_loss_limit_percent: Today's loss on the instruments this desk owned, as a share of the live total balance, that stops this desk alone for the rest of the day; None for no desk limit.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -69,6 +70,9 @@ class DeskLimits(pydantic.BaseModel):
     allowed_products: list[str] = []
     allowed_instruments: list[str] = []
     maximum_orders_per_minute: int | None = pydantic.Field(default=None, gt=0)
+    daily_loss_limit_percent: float | None = pydantic.Field(
+        default=None, gt=0, le=100
+    )
 
 
 class TradingLimits(pydantic.BaseModel):

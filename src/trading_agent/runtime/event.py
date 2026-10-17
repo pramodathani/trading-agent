@@ -37,6 +37,8 @@ class EventKind(enum.StrEnum):
     MESSAGE = 'message'
     FILL = 'fill'
     PRICE_ALERT = 'price_alert'
+    DESK_HALT = 'desk_halt'
+    ACCOUNT_STATUS = 'account_status'
     TEXT = 'text'
     TURN_FINISHED = 'turn_finished'
     ERROR = 'error'

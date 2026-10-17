@@ -31,3 +31,9 @@ Approving an order claims the instrument for the desk. Before every decision, cl
 ## check_account (milestone 15)
 
 Reads the account, records today's profit and loss in the ledger, and runs the loss-limit check, without an order. The market watcher calls it once a minute while the market is open, so the kill switch fires on a losing position even when no desk is trading. A UBI failure is logged and returns None; unreadable limits skip the check.
+
+## Several desks (milestone 16)
+
+- `desk_day_pnl` sums each instrument's day profit and loss for the desk that owned it today (the ledger's `day_owners`); positions no desk claimed, such as the user's own, count for no desk.
+- `_check_desk_loss_limits` runs before each order and in `check_account`: a desk at its own daily loss limit is halted until tomorrow, with a `desk_halt` event, and only that desk; the account kill switch is untouched, and the halted desk can still close its positions.
+- Stock ownership already gave each instrument to one desk; the new tests run it across the intraday, scalper and positional desks, with each desk's allowed products.

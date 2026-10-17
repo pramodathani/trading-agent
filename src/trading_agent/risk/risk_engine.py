@@ -138,6 +138,7 @@ class RiskEngine:
         )
         if limits is not None:
             await self._check_loss_limits(limits.account, snapshot, now)
+            self._check_desk_loss_limits(limits, snapshot, now)
         margin = self._services.margin_estimator.margin(order)
         reducing = self._reduces_own_position(order, snapshot)
         reasons.extend(self._market_reasons(order, limits, now))
@@ -177,7 +178,77 @@ class RiskEngine:
         except trading_limits_module.LimitsError:
             return snapshot
         await self._check_loss_limits(limits.account, snapshot, now)
+        self._check_desk_loss_limits(limits, snapshot, now)
         return snapshot
+
+    def desk_day_pnl(
+        self,
+        snapshot: account_snapshot_module.AccountSnapshot,
+    ) -> dict[str, float]:
+        """Today's profit or loss of each desk, from the instruments it owned today.
+
+        An instrument counts for the desk that last claimed it today, even after the position was closed and the claim released, so a loss taken on a closed trade still counts against the desk that took it. Positions no desk claimed, such as the user's own, count for no desk.
+
+        Args:
+            snapshot (account_snapshot_module.AccountSnapshot): The account now.
+
+        Returns:
+            dict[str, float]: Each desk's profit or loss, keyed by desk name; desks with nothing today are absent.
+        """
+        today = self._clock().astimezone(_INDIA).date()
+        owners = self._services.ledger.day_owners(today)
+        pnl = {}
+        for instrument_id, amount in snapshot.day_pnl_by_instrument.items():
+            desk = owners.get(instrument_id)
+            if desk is None:
+                continue
+            pnl[desk] = pnl.get(desk, 0.0) + amount
+        return pnl
+
+    def _check_desk_loss_limits(
+        self,
+        limits: trading_limits_module.TradingLimits,
+        snapshot: account_snapshot_module.AccountSnapshot,
+        now: datetime.datetime,
+    ) -> None:
+        """Halts each desk whose own daily loss limit is reached, leaving the other desks trading.
+
+        A halted desk can still reduce and close its own positions, as with every halt.
+
+        Args:
+            limits (trading_limits_module.TradingLimits): The limits.
+            snapshot (account_snapshot_module.AccountSnapshot): The account now.
+            now (datetime.datetime): The current time, in India time.
+        """
+        desk_pnl = self.desk_day_pnl(snapshot)
+        for desk, desk_limits in limits.desks.items():
+            percent = desk_limits.daily_loss_limit_percent
+            if percent is None:
+                continue
+            limit = percent / 100 * snapshot.total_balance
+            pnl = desk_pnl.get(desk, 0.0)
+            if pnl >= 0 or pnl > -limit:
+                continue
+            if self._services.ledger.active_halt(desk, now.date()) is not None:
+                continue
+            reason = f"The {desk} desk's daily loss limit is reached: its profit and loss today is {pnl:,.2f}, and its limit is {percent:g}% of {snapshot.total_balance:,.2f} = {limit:,.2f}. The other desks keep trading."
+            self._services.ledger.halt(
+                desk,
+                reason,
+                now.date() + datetime.timedelta(days=1),
+                now,
+            )
+            self._event_bus.publish(
+                event_module.Event.now(
+                    event_module.EventKind.DESK_HALT,
+                    desk,
+                    {
+                        'reason': reason,
+                        'desk_pnl': pnl,
+                        'limit': limit,
+                    },
+                )
+            )
 
     async def _check_loss_limits(
         self,

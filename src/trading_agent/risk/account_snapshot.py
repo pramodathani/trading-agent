@@ -48,6 +48,7 @@ class AccountSnapshot:
         positions: The open positions.
         held_quantities: The quantity held as delivery holdings, by instrument id.
         held_symbols: The upper-case symbols of every delivery holding, including holdings UBI gives no instrument id.
+        day_pnl_by_instrument: Today's profit or loss of each position in UBI's day view, closed ones included, by instrument id.
     """
 
     total_balance: float
@@ -56,6 +57,9 @@ class AccountSnapshot:
     positions: tuple[PositionRow, ...]
     held_quantities: dict[str, int] = dataclasses.field(default_factory=dict)
     held_symbols: frozenset[str] = frozenset()
+    day_pnl_by_instrument: dict[str, float] = dataclasses.field(
+        default_factory=dict
+    )
 
     def net_quantity(self, instrument_id: str) -> int:
         """The account's total position in one instrument, across products.
@@ -125,6 +129,12 @@ class AccountSnapshotReader:
                 held_quantities[str(instrument_id)] = int(
                     row.get('quantity') or 0
                 )
+        day_pnl_by_instrument = {}
+        for row in positions.get('day', []):
+            instrument_id = str(row.get('instrument_id') or row.get('symbol'))
+            day_pnl_by_instrument[instrument_id] = day_pnl_by_instrument.get(
+                instrument_id, 0.0
+            ) + self._row_pnl(row)
         return AccountSnapshot(
             total_balance=float(summary['total_balance']),
             margin_utilized=float(summary.get('margin_utilized') or 0),
@@ -132,6 +142,23 @@ class AccountSnapshotReader:
             positions=tuple(rows),
             held_quantities=held_quantities,
             held_symbols=frozenset(held_symbols),
+            day_pnl_by_instrument=day_pnl_by_instrument,
+        )
+
+    def _row_pnl(self, row: dict[str, Any]) -> float:
+        """One day-view position's profit or loss.
+
+        Args:
+            row (dict[str, Any]): The position, whose pnl holds realized, unrealized and total.
+
+        Returns:
+            float: The total, or realized plus unrealized when there is no total.
+        """
+        pnl = row.get('pnl') or {}
+        if pnl.get('total') is not None:
+            return float(pnl['total'])
+        return float(pnl.get('realized') or 0) + float(
+            pnl.get('unrealized') or 0
         )
 
     def _read_funds(self) -> dict[str, Any]:

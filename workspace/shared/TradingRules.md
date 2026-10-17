@@ -14,6 +14,7 @@ The limits block below is read by the risk engine, which is plain code, not an A
 - `allow_option_writing` lets desks sell options to open or enlarge a short position. While it is false, only buying options, and selling options already held, is allowed.
 - A desk's optional `maximum_orders_per_minute` caps how fast it may send orders. Leave it out for no cap.
 - A desk's `allowed_products` and `allowed_instruments` restrict what it may trade. An empty list means everything is allowed.
+- A desk's optional `daily_loss_limit_percent` stops only that desk for the rest of the day once its own losses reach that share of the total balance; the other desks keep trading. A desk's losses are those of the instruments it held that day, closed trades included. Leave it out for no desk limit; the account-wide limits still apply.
 
 ```toml limits
 [account]
@@ -28,6 +29,15 @@ allow_option_writing = false
 [desks.main]
 allowed_products = []
 allowed_instruments = []
+
+[desks.intraday]
+allowed_products = ["mis"]
+
+[desks.scalper]
+allowed_products = ["mis"]
+
+[desks.positional]
+allowed_products = ["cnc", "nrml"]
 ```
 
 ## Strategies

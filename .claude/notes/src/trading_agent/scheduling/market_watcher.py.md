@@ -25,3 +25,7 @@ Once a minute it calls `RiskEngine.check_account`. Before this milestone the los
 ## Verified on 2026-10-17 (a Saturday)
 
 Cycles do not run on a weekend, so the checks were called once from a script against the real UBI: the account read gave a balance of 23,723.06 with no positions; with no real orders the order book was not read; an alert planted below IDEA's real price (12.59) fired, reached the desk and was removed. Fills could not be seen live, because there were no real orders; they are covered by the tests.
+
+## account_status (milestone 16)
+
+After each account check the watcher publishes `account_status` (no desk): total balance, day P&L, each desk's P&L and the open position count, once a minute while the market is open. The web interface will show it.
