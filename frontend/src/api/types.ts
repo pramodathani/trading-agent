@@ -357,3 +357,58 @@ export interface AppEntry {
   unit_error: string;
 }
 
+/** One choice in a desk's question. */
+export interface RequestOption {
+  label: string;
+  description: string;
+  preview: string | null;
+}
+
+/** One question in a desk's question request. */
+export interface RequestQuestion {
+  question: string;
+  header: string;
+  options: RequestOption[];
+  multi_select: boolean;
+}
+
+/** The user's answer to one question. */
+export interface QuestionAnswer {
+  selected: string[];
+  other: string;
+}
+
+/** A desk's question, plan or permission request to the user. */
+export interface UserRequest {
+  request_id: string;
+  desk: string;
+  kind: 'question' | 'plan' | 'permission';
+  content: {
+    questions?: RequestQuestion[];
+    title?: string;
+    plan?: string;
+    tool_name?: string;
+    arguments?: Record<string, unknown>;
+    reason?: string;
+  };
+  created_at: string;
+  status: 'pending' | 'answered' | 'dismissed' | 'expired';
+  response: {
+    answers?: QuestionAnswer[];
+    decision?: string;
+    feedback?: string;
+    reason?: string;
+    result?: string;
+    result_is_error?: boolean;
+  } | null;
+  responded_at: string | null;
+  responded_via: string | null;
+  expires_at: string | null;
+}
+
+/** A standing permission: a desk may use a tool without asking. */
+export interface PermissionGrant {
+  desk: string;
+  tool_name: string;
+  granted_at: string;
+}

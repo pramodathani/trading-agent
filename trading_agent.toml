@@ -74,3 +74,9 @@ context_window = 1000000
 [telegram]
 enabled = true
 default_desk = "main"
+
+[approvals]
+tools = [
+    "flatten_desk",
+]
+expiry_minutes = 5

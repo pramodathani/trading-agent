@@ -5,8 +5,11 @@ import type { AgentEvent, Attachment } from '../api/types';
 import { AttachmentList } from '../components/AttachmentList';
 import { MarkdownText } from '../components/MarkdownText';
 import { PictureThumbnail } from '../components/PictureThumbnail';
+import { RequestDock } from '../components/requests/RequestDock';
+import { RequestSummary } from '../components/requests/RequestSummary';
 import { elapsedText, TurnProgress } from '../components/TurnProgress';
 import { useLiveEvents, useStreamingTexts } from '../hooks/useLiveEvents';
+import { usePolled } from '../hooks/usePolled';
 import { useDesks } from '../layout/desksContext';
 import { useSelectedDesk } from '../layout/selectedDeskStore';
 import { SidePanel } from '../sidePanel/SidePanel';
@@ -20,6 +23,11 @@ import { VoiceInput } from '../utilities/voiceInput';
 
 const JOURNAL_LIMIT = 1500;
 const BOTTOM_SLACK_PIXELS = 48;
+const REQUESTS_REFRESH_MILLISECONDS = 30000;
+const REQUEST_EVENT_KINDS = new Set([
+  'user_request',
+  'user_response',
+]);
 const ACCEPTED_FILES = '.png,.jpg,.jpeg,.webp,.gif,.pdf,.docx,.xlsx,.csv,.tsv,.txt,.md,.json';
 const SLASH_COMMANDS = [
   '/status',
@@ -52,6 +60,9 @@ export function ChatPage() {
   const desks = useDesks();
   const panelOpen = useSidePanelOpen();
   const liveEvents = useLiveEvents();
+  const requests = usePolled(() => apiClient.requests('pending'), REQUESTS_REFRESH_MILLISECONDS);
+  const refreshRequests = requests.refresh;
+  const lastLiveEvent = liveEvents.length > 0 ? liveEvents[liveEvents.length - 1] : null;
   const streams = useStreamingTexts();
   const [loaded, setLoaded] = useState<AgentEvent[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -116,6 +127,17 @@ export function ChatPage() {
     liveEvents,
     deskName,
   ]);
+
+  useEffect(() => {
+    if (lastLiveEvent !== null && REQUEST_EVENT_KINDS.has(lastLiveEvent.kind)) {
+      refreshRequests();
+    }
+  }, [
+    lastLiveEvent,
+    refreshRequests,
+  ]);
+
+  const deskRequests = (requests.data ?? []).filter((request) => request.desk === deskName);
 
   const items = useMemo(() => chatTurnBuilder.build(deskEvents), [
     deskEvents,
@@ -367,6 +389,7 @@ export function ChatPage() {
         </div>
       </div>
       <div className="composer-area">
+        <RequestDock requests={deskRequests} onDone={refreshRequests} />
         <form className={dragging ? 'composer dragging' : 'composer'} onSubmit={send} onDragOver={handleDragOver} onDragLeave={() => setDragging(false)} onDrop={handleDrop}>
           {pending.length > 0 && (
             <div className="pending-files">
@@ -542,14 +565,23 @@ function TurnView(properties: TurnViewProperties) {
   const showStream = turn.answer === null && !turn.finished && properties.streamingText.length > 0;
   return (
     <section className="turn">
-      <div className={fromUser ? 'bubble user' : 'bubble trigger'}>
-        <div className="bubble-meta">
-          <span>{fromUser ? 'You' : eventDescriber.sourceWords(turn.source)}</span>
-          <span className="mono">{formatter.time(turn.receivedAt)}</span>
+      {turn.requestId !== null ? (
+        <div className="answer-note" title={turn.text}>
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M4 3v5a2 2 0 0 0 2 2h7M10 7l3 3-3 3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Your response went to the desk <span className="mono">{formatter.time(turn.receivedAt)}</span>
         </div>
-        {turn.text.length > 0 && <pre>{turn.text}</pre>}
-        <AttachmentList deskName={properties.deskName} attachments={turn.attachments} />
-      </div>
+      ) : (
+        <div className={fromUser ? 'bubble user' : 'bubble trigger'}>
+          <div className="bubble-meta">
+            <span>{fromUser ? 'You' : eventDescriber.sourceWords(turn.source)}</span>
+            <span className="mono">{formatter.time(turn.receivedAt)}</span>
+          </div>
+          {turn.text.length > 0 && <pre>{turn.text}</pre>}
+          <AttachmentList deskName={properties.deskName} attachments={turn.attachments} />
+        </div>
+      )}
       {turn.steps.length > 0 && (
         <div className="steps">
           {stepSegments(turn.steps).map((segment, index) => {
@@ -562,6 +594,9 @@ function TurnView(properties: TurnViewProperties) {
             }
             if (step.type === 'tool') {
               return null;
+            }
+            if (step.type === 'request') {
+              return <RequestSummary key={step.request.request_id} request={step.request} />;
             }
             if (step.event.kind === 'message') {
               return <DeskMessageView key={eventMerger.key(step.event)} deskName={properties.deskName} event={step.event} />;

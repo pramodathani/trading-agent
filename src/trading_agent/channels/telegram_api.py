@@ -14,6 +14,7 @@ Typical usage example:
 """
 
 import dataclasses
+from collections.abc import Sequence
 from pathlib import Path
 
 import telegram
@@ -60,6 +61,28 @@ class IncomingMessage:
     files: tuple[IncomingFile, ...] = ()
 
 
+@dataclasses.dataclass(frozen=True)
+class IncomingButton:
+    """A press on one of the bot's buttons.
+
+    Attributes:
+        chat_id: The chat the button's message is in.
+        sender_name: The presser's first name, or their username when they have none.
+        callback_id: Telegram's id for the press, used to acknowledge it.
+        data: The text the bot attached to the button when sending it.
+        message_id: The message that holds the button.
+    """
+
+    chat_id: int
+    sender_name: str
+    callback_id: str
+    data: str
+    message_id: int
+
+
+ButtonRows = Sequence[Sequence[tuple[str, str]]]
+
+
 class TelegramApi:
     """The bot's connection to Telegram."""
 
@@ -94,13 +117,13 @@ class TelegramApi:
         self.username = me.username or ''
         return self.username
 
-    async def messages(self) -> list[IncomingMessage]:
-        """Waits for new messages, up to the poll time; stickers, voice notes and the like are skipped.
+    async def messages(self) -> list[IncomingMessage | IncomingButton]:
+        """Waits for new messages and button presses, up to the poll time; stickers, voice notes and the like are skipped.
 
-        Messages are acknowledged once returned, so each is returned only once.
+        Updates are acknowledged once returned, so each is returned only once.
 
         Returns:
-            list[IncomingMessage]: The new messages, oldest first; empty when none arrived in time.
+            list[IncomingMessage | IncomingButton]: The new messages and presses, oldest first; empty when none arrived in time.
 
         Raises:
             TelegramApiError: Telegram could not be reached or refused the request.
@@ -111,6 +134,7 @@ class TelegramApi:
                 timeout=self._poll_seconds,
                 allowed_updates=[
                     'message',
+                    'callback_query',
                 ],
                 read_timeout=self._poll_seconds + _EXTRA_READ_SECONDS,
             )
@@ -121,6 +145,18 @@ class TelegramApi:
         incoming = []
         for update in updates:
             self._offset = update.update_id + 1
+            press = update.callback_query
+            if press is not None and press.message is not None:
+                incoming.append(
+                    IncomingButton(
+                        chat_id=press.message.chat.id,
+                        sender_name=press.from_user.first_name or press.from_user.username or '',
+                        callback_id=press.id,
+                        data=press.data or '',
+                        message_id=press.message.message_id,
+                    )
+                )
+                continue
             message = update.message
             if message is None:
                 continue
@@ -215,6 +251,94 @@ class TelegramApi:
                     f'{type(error).__name__}: {error}'
                 ) from error
 
+    async def send_with_buttons(
+        self,
+        chat_id: int,
+        text: str,
+        rows: ButtonRows,
+    ) -> int:
+        """Sends a message with buttons under it; a text too long for one message is sent in parts, the buttons under the last.
+
+        Args:
+            chat_id (int): The chat.
+            text (str): The message.
+            rows (ButtonRows): The buttons, row by row, each a (label, data) pair; the data comes back when it is pressed.
+
+        Returns:
+            int: The id of the message holding the buttons.
+
+        Raises:
+            TelegramApiError: Telegram could not be reached or refused the message.
+        """
+        parts = self.parts(text)
+        try:
+            for part in parts[:-1]:
+                await self._bot.send_message(chat_id, part)
+            sent = await self._bot.send_message(
+                chat_id,
+                parts[-1],
+                reply_markup=self._keyboard(rows),
+            )
+        except telegram.error.TelegramError as error:
+            raise TelegramApiError(
+                f'{type(error).__name__}: {error}'
+            ) from error
+        return sent.message_id
+
+    async def edit(
+        self,
+        chat_id: int,
+        message_id: int,
+        text: str,
+        rows: ButtonRows | None,
+    ) -> None:
+        """Replaces the text and buttons of a message the bot sent.
+
+        Args:
+            chat_id (int): The chat.
+            message_id (int): The message.
+            text (str): The new text, cut to fit one message.
+            rows (ButtonRows | None): The new buttons, or None to remove them.
+
+        Raises:
+            TelegramApiError: Telegram could not be reached or refused the change.
+        """
+        markup = None if rows is None else self._keyboard(rows)
+        try:
+            await self._bot.edit_message_text(
+                text[:_MESSAGE_LIMIT],
+                chat_id=chat_id,
+                message_id=message_id,
+                reply_markup=markup,
+            )
+        except telegram.error.BadRequest as error:
+            if 'not modified' in str(error).lower():
+                return
+            raise TelegramApiError(
+                f'{type(error).__name__}: {error}'
+            ) from error
+        except telegram.error.TelegramError as error:
+            raise TelegramApiError(
+                f'{type(error).__name__}: {error}'
+            ) from error
+
+    async def acknowledge(self, callback_id: str, text: str = '') -> None:
+        """Tells Telegram a button press was handled, optionally showing a short note on the phone.
+
+        Args:
+            callback_id (str): The press.
+            text (str): A note of up to 200 characters, or empty for none.
+
+        Raises:
+            TelegramApiError: Telegram could not be reached or refused the request.
+        """
+        try:
+            await self._bot.answer_callback_query(callback_id, text=text[:200] or None)
+        except telegram.error.TelegramError as error:
+            raise TelegramApiError(
+                f'{type(error).__name__}: {error}'
+            ) from error
+
     async def send_photo(self, chat_id: int, path: Path, caption: str) -> None:
         """Sends a picture with a caption.
 
@@ -252,6 +376,26 @@ class TelegramApi:
             ) from error
         if caption and not shown_caption:
             await self.send(chat_id, caption)
+
+    @staticmethod
+    def _keyboard(rows: ButtonRows) -> telegram.InlineKeyboardMarkup:
+        """Builds Telegram's buttons from (label, data) pairs.
+
+        Args:
+            rows (ButtonRows): The buttons, row by row.
+
+        Returns:
+            telegram.InlineKeyboardMarkup: The keyboard.
+        """
+        keyboard = []
+        for row in rows:
+            buttons = []
+            for label, data in row:
+                buttons.append(
+                    telegram.InlineKeyboardButton(label, callback_data=data)
+                )
+            keyboard.append(buttons)
+        return telegram.InlineKeyboardMarkup(keyboard)
 
     async def close(self) -> None:
         """Closes the connection."""

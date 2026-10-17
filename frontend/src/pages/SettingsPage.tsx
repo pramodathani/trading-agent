@@ -1,11 +1,12 @@
 import { apiClient } from '../api/apiClient';
 import { Loadable } from '../components/Loadable';
+import { PermissionGrantsPanel } from '../components/PermissionGrantsPanel';
 import { usePolled } from '../hooks/usePolled';
 
 const REFRESH_MILLISECONDS = 60000;
 
 /**
- * The configuration the gateway runs with, read-only, with every known secret masked.
+ * The standing permissions, and the configuration the gateway runs with, read-only, with every known secret masked.
  * @returns The page.
  */
 export function SettingsPage() {
@@ -18,6 +19,7 @@ export function SettingsPage() {
           This is trading_agent.toml as the gateway read it at start, with defaults filled in. Edit the file and restart the gateway to change it. Secrets live in .env and are never shown.
         </p>
       </div>
+      <PermissionGrantsPanel />
       <Loadable data={configuration.data} error={configuration.error}>
         {(document) => (
           <>

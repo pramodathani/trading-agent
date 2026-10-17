@@ -1,0 +1,68 @@
+import { useState } from 'react';
+
+import { apiClient } from '../api/apiClient';
+import { usePolled } from '../hooks/usePolled';
+import { formatter } from '../utilities/formatter';
+
+const REFRESH_MILLISECONDS = 30000;
+
+/**
+ * The standing permissions given with "Always allow", each with a button to revoke it so the desk asks again.
+ * @returns The panel.
+ */
+export function PermissionGrantsPanel() {
+  const grants = usePolled(() => apiClient.permissionGrants(), REFRESH_MILLISECONDS);
+  const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Revokes one grant.
+   * @param desk The desk.
+   * @param toolName The tool.
+   */
+  async function revoke(desk: string, toolName: string): Promise<void> {
+    setError(null);
+    try {
+      await apiClient.revokePermission(desk, toolName);
+      grants.refresh();
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    }
+  }
+
+  const list = grants.data ?? [];
+  return (
+    <section className="panel">
+      <h2>Standing permissions</h2>
+      <p className="muted small">The tools in [approvals] tools ask for your permission each time, unless you chose &quot;Always allow&quot; for a desk. Revoke one to make that desk ask again.</p>
+      {grants.error !== null && <p className="error-text small">{grants.error}</p>}
+      {error !== null && <p className="error-text small">{error}</p>}
+      {grants.data !== null && list.length === 0 && <p className="muted small">None. Every covered action asks first.</p>}
+      {list.length > 0 && (
+        <table>
+          <thead>
+            <tr>
+              <th>Desk</th>
+              <th>Tool</th>
+              <th>Allowed since</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {list.map((grant) => (
+              <tr key={`${grant.desk}/${grant.tool_name}`}>
+                <td>{grant.desk}</td>
+                <td className="mono">{grant.tool_name}</td>
+                <td>{formatter.dayTime(grant.granted_at)}</td>
+                <td className="number">
+                  <button type="button" className="danger" onClick={() => void revoke(grant.desk, grant.tool_name)}>
+                    Revoke
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}

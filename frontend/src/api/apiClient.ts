@@ -19,7 +19,9 @@ import type {
   NewJob,
   NotesFile,
   PackageEntry,
+  PermissionGrant,
   PriceAlert,
+  QuestionAnswer,
   Proposal,
   SearchHit,
   SessionEntry,
@@ -28,6 +30,7 @@ import type {
   TelegramStatus,
   ToolActionResult,
   UsageDocument,
+  UserRequest,
 } from './types';
 
 /** An error answer from the gateway, with its status code and explanation. */
@@ -67,6 +70,87 @@ export class ApiClient {
    */
   desks(): Promise<DesksDocument> {
     return this.request<DesksDocument>('GET', '/api/desks');
+  }
+
+  /**
+   * The desks' questions, plans and permission requests.
+   * @param status "pending" for those waiting, or "all".
+   * @returns The requests, oldest first.
+   */
+  async requests(status: 'pending' | 'all' = 'pending'): Promise<UserRequest[]> {
+    const document = await this.request<{ requests: UserRequest[] }>('GET', `/api/requests?status=${status}`);
+    return document.requests;
+  }
+
+  /**
+   * Answers a desk's questions.
+   * @param requestId The request.
+   * @param answers One answer per question, in order.
+   * @returns The answered request.
+   */
+  answerQuestions(requestId: string, answers: QuestionAnswer[]): Promise<UserRequest> {
+    return this.request<UserRequest>('POST', `/api/requests/${requestId}/answer`, {
+      answers,
+    });
+  }
+
+  /**
+   * Approves a desk's plan, or asks for changes.
+   * @param requestId The request.
+   * @param decision "approve" or "revise".
+   * @param feedback What should change, or a note with an approval.
+   * @returns The decided request.
+   */
+  decidePlan(requestId: string, decision: 'approve' | 'revise', feedback: string): Promise<UserRequest> {
+    return this.request<UserRequest>('POST', `/api/requests/${requestId}/plan`, {
+      decision,
+      feedback,
+    });
+  }
+
+  /**
+   * Allows a held call once or always, which runs it, or denies it.
+   * @param requestId The request.
+   * @param decision "allow_once", "always_allow" or "deny".
+   * @param reason Why it was denied, or a note; may be empty.
+   * @returns The decided request, with the call's result when it ran.
+   */
+  decidePermission(requestId: string, decision: 'allow_once' | 'always_allow' | 'deny', reason: string): Promise<UserRequest> {
+    return this.request<UserRequest>('POST', `/api/requests/${requestId}/permission`, {
+      decision,
+      reason,
+    });
+  }
+
+  /**
+   * The standing "Always allow" permissions.
+   * @returns The grants, oldest first.
+   */
+  async permissionGrants(): Promise<PermissionGrant[]> {
+    const document = await this.request<{ grants: PermissionGrant[] }>('GET', '/api/permissions');
+    return document.grants;
+  }
+
+  /**
+   * Makes a desk ask again before using a tool.
+   * @param desk The desk.
+   * @param toolName The tool.
+   * @returns Whether a grant was removed.
+   */
+  revokePermission(desk: string, toolName: string): Promise<{ revoked: boolean }> {
+    return this.request('POST', '/api/permissions/revoke', {
+      desk,
+      tool_name: toolName,
+    });
+  }
+
+  /**
+   * Closes a desk's request without answering it.
+   * @param requestId The request.
+   * @returns The dismissed request.
+   */
+  dismissRequest(requestId: string): Promise<UserRequest> {
+    return this.request<UserRequest>('POST', `/api/requests/${requestId}/dismiss`);
   }
 
   /**

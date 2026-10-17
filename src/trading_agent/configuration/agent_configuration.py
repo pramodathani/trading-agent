@@ -277,6 +277,20 @@ TELEGRAM_NOTIFICATIONS = (
 )
 
 
+class ApprovalConfiguration(pydantic.BaseModel):
+    """Which of the desks' actions wait for the user's permission.
+
+    Attributes:
+        tools: The tools whose every call by a desk or subagent waits for the user's permission, such as "flatten_desk"; empty for none.
+        expiry_minutes: How long a permission request stays open before it lapses and the action is not run.
+    """
+
+    model_config = pydantic.ConfigDict(extra='forbid')
+
+    tools: list[str] = []
+    expiry_minutes: int = pydantic.Field(default=5, ge=1, le=1440)
+
+
 class TelegramConfiguration(pydantic.BaseModel):
     """The Telegram channel.
 
@@ -337,6 +351,7 @@ class AgentConfiguration(pydantic.BaseModel):
         risk: How the risk engine works, apart from the limits in TradingRules.md.
         skills: How the desks' skills are kept.
         telegram: The Telegram channel.
+        approvals: Which actions wait for the user's permission.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -356,6 +371,7 @@ class AgentConfiguration(pydantic.BaseModel):
     risk: RiskConfiguration = RiskConfiguration()
     skills: SkillsConfiguration = SkillsConfiguration()
     telegram: TelegramConfiguration = TelegramConfiguration()
+    approvals: ApprovalConfiguration = ApprovalConfiguration()
 
     @pydantic.model_validator(mode='after')
     def _require_known_telegram_desk(self) -> AgentConfiguration:

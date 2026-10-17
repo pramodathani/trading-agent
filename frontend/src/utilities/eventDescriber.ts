@@ -146,6 +146,16 @@ export class EventDescriber {
           return this.make(`Telegram: paired ${this.text(payload.name)}`, '', 'good');
         }
         return this.make(`Telegram: connected as @${this.text(payload.name)}`, '', 'quiet');
+      case 'user_request':
+        if (payload.kind === 'plan') {
+          return this.make('The desk presented a plan for your approval', this.text((payload.content as Record<string, unknown> | undefined)?.title), 'warning');
+        }
+        if (payload.kind === 'permission') {
+          return this.make('The desk needs your permission', this.text((payload.content as Record<string, unknown> | undefined)?.tool_name), 'warning');
+        }
+        return this.make('The desk asked you a question', '', 'warning');
+      case 'user_response':
+        return this.make(payload.status === 'dismissed' ? `You dismissed a ${this.text(payload.kind)}` : `You answered a ${this.text(payload.kind)}`, this.text(payload.title), 'good');
       case 'stopped':
         return this.make('Turn stopped by you', '', 'warning');
       case 'desk_started':
