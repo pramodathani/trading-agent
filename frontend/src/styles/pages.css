@@ -1,0 +1,271 @@
+.token-page {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: 16px;
+}
+
+.token-card {
+  width: min(440px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.token-card p {
+  margin: 0;
+}
+
+.token-card .brand {
+  padding: 0;
+}
+
+.desk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 14px;
+}
+
+.desk-card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.desk-card.busy {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
+.desk-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.desk-pnl {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.desk-pnl strong {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.desk-models {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.desk-last-event {
+  min-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-card-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.chat-page {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+  max-width: 1000px;
+  gap: 12px;
+}
+
+.chat-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.chat-log {
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-right: 6px;
+}
+
+.turn {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bubble {
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  max-width: 85%;
+}
+
+.bubble pre {
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+}
+
+.bubble-meta {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  font-size: var(--font-size-tiny);
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+}
+
+.bubble.user {
+  align-self: flex-end;
+  background: var(--color-accent-tint);
+  border: 1px solid var(--color-accent);
+}
+
+.bubble.trigger {
+  align-self: flex-end;
+  background: var(--color-bg-store);
+  border: 1px dashed var(--color-border-strong);
+}
+
+.bubble.answer {
+  align-self: flex-start;
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+}
+
+.bubble.answer.silent {
+  opacity: 0.6;
+}
+
+.bubble.failed {
+  align-self: flex-start;
+  background: var(--color-danger-tint);
+  color: var(--color-loss);
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-self: flex-start;
+  width: min(85%, 720px);
+  border-left: 2px solid var(--color-border);
+  padding-left: 10px;
+}
+
+.step-line {
+  font-size: var(--font-size-small);
+}
+
+.tool-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+  background: var(--color-bg-store);
+}
+
+.tool-card.failed {
+  border-color: var(--color-warning);
+}
+
+.tool-card summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.tool-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 10px 10px;
+}
+
+.tool-card-body pre {
+  max-height: 260px;
+  overflow: auto;
+  background: var(--color-bg-input);
+  padding: 6px 8px;
+  border-radius: var(--radius-small);
+}
+
+.turn-status {
+  align-self: flex-start;
+}
+
+.turn-status.working {
+  color: var(--color-accent);
+}
+
+.loose-event {
+  font-size: var(--font-size-small);
+  align-self: center;
+  max-width: 85%;
+  text-align: center;
+}
+
+.chat-input {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.chat-input textarea {
+  resize: vertical;
+  min-height: 48px;
+}
+
+.chat-input p {
+  grid-column: 1 / 3;
+  margin: 0;
+}
+
+.slash-suggestions {
+  grid-column: 1 / 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.slash-suggestions button {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 3px 8px;
+}
+
+.feed {
+  padding: 4px 12px;
+}
+
+.two-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+.kill-panel {
+  border-color: var(--color-loss);
+  background: var(--color-danger-tint);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.kill-panel p {
+  margin: 0;
+}

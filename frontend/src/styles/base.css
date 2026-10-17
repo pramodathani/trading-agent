@@ -1,0 +1,172 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-bg-page);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  line-height: 1.45;
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 500;
+}
+
+h1 {
+  font-size: 20px;
+}
+
+h2 {
+  font-size: 16px;
+}
+
+h3 {
+  font-size: 14px;
+}
+
+code,
+pre,
+.mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-small);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-panel);
+  color: var(--color-text);
+  padding: 6px 12px;
+}
+
+button:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #1e2129;
+  font-weight: 500;
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--color-accent-strong);
+}
+
+button.danger {
+  border-color: var(--color-loss);
+  color: var(--color-loss);
+}
+
+button.danger.solid {
+  background: var(--color-loss);
+  color: #fff;
+}
+
+input,
+textarea,
+select {
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+  padding: 7px 10px;
+}
+
+input:focus,
+textarea:focus,
+select:focus,
+button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+th {
+  color: var(--color-text-muted);
+  font-weight: 500;
+  font-size: var(--font-size-small);
+}
+
+td.number,
+th.number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.small {
+  font-size: var(--font-size-small);
+}
+
+.profit {
+  color: var(--color-profit);
+}
+
+.loss {
+  color: var(--color-loss);
+}
+
+.flat {
+  color: var(--color-text-muted);
+}
+
+.error-text {
+  color: var(--color-loss);
+}
+
+.centered-message {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--color-text-muted);
+}
