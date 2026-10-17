@@ -35,6 +35,8 @@ class EventKind(enum.StrEnum):
     CRON_FIRED = 'cron_fired'
     CRON_RESULT = 'cron_result'
     MESSAGE = 'message'
+    FILL = 'fill'
+    PRICE_ALERT = 'price_alert'
     TEXT = 'text'
     TURN_FINISHED = 'turn_finished'
     ERROR = 'error'

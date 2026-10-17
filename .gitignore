@@ -28,4 +28,6 @@ workspace/shared/knowledge.db
 workspace/desks/*/sessions/
 workspace/desks/*/skills/
 workspace/desks/*/cron/
+workspace/desks/*/alerts.json
+workspace/shared/market_watcher.json
 workspace/.checkpoints/

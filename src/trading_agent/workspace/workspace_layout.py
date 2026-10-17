@@ -181,6 +181,22 @@ class WorkspaceLayout:
         """
         return self.desk_directory(desk_name) / 'notes'
 
+    def alerts_file(self, desk_name: str) -> Path:
+        """The desk's price alerts.
+
+        Args:
+            desk_name (str): The desk's name.
+
+        Returns:
+            Path: The desk's alerts.json.
+        """
+        return self.desk_directory(desk_name) / 'alerts.json'
+
+    @property
+    def market_watcher_state_file(self) -> Path:
+        """The ids of broker orders the market watcher has already reported."""
+        return self.shared_directory / 'market_watcher.json'
+
     def cron_directory(self, desk_name: str) -> Path:
         """Where the desk's scheduled jobs and their run record are kept.
 

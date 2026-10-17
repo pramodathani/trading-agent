@@ -767,3 +767,36 @@ class TestLimitsReader:
 
         assert desk.allowed_products == []
         assert desk.maximum_orders_per_minute is None
+
+
+class TestAccountCheck:
+    """The market watcher's account check fires the kill switch without an order."""
+
+    def test_loss_limit_fires_without_an_order(self, tmp_path: Path) -> None:
+        """A 23,000 loss on 150,000 fires the switch once from check_account alone.
+
+        Args:
+            tmp_path (Path): A temporary folder from pytest.
+        """
+        setup = _Setup(tmp_path)
+        setup.snapshots.snapshot = _snapshot(day_pnl=-23000.0)
+
+        snapshot = asyncio.run(setup.engine.check_account())
+        asyncio.run(setup.engine.check_account())
+
+        assert snapshot.day_pnl == -23000.0
+        assert len(setup.kill_switch.triggers) == 1
+        assert 'Daily loss limit reached' in setup.kill_switch.triggers[0]
+
+    def test_small_loss_does_nothing(self, tmp_path: Path) -> None:
+        """A 1,000 loss leaves the switch alone.
+
+        Args:
+            tmp_path (Path): A temporary folder from pytest.
+        """
+        setup = _Setup(tmp_path)
+        setup.snapshots.snapshot = _snapshot(day_pnl=-1000.0)
+
+        asyncio.run(setup.engine.check_account())
+
+        assert setup.kill_switch.triggers == []

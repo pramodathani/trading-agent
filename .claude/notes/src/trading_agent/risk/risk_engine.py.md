@@ -27,3 +27,7 @@ Approving an order claims the instrument for the desk. Before every decision, cl
 ## Verified on 2026-10-17
 
 28 unit tests cover every rule. Against the real account (balance 1,53,583.08, no positions, P&L 0), with a test ledger and a Monday clock: INFY and KWIL were refused as the user's holdings, and one NIFTY futures lot was refused for an estimated 2,60,394.19 of margin against a 38,395.77 cap; the kill switch did not fire.
+
+## check_account (milestone 15)
+
+Reads the account, records today's profit and loss in the ledger, and runs the loss-limit check, without an order. The market watcher calls it once a minute while the market is open, so the kill switch fires on a losing position even when no desk is trading. A UBI failure is logged and returns None; unreadable limits skip the check.

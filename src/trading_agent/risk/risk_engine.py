@@ -13,6 +13,7 @@ Typical usage example:
 
 import dataclasses
 import datetime
+import logging
 import zoneinfo
 from collections.abc import Callable
 
@@ -28,6 +29,7 @@ from trading_agent.risk import trading_limits as trading_limits_module
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
 
+_LOGGER = logging.getLogger(__name__)
 _INDIA = zoneinfo.ZoneInfo('Asia/Kolkata')
 _ONE_MINUTE = datetime.timedelta(minutes=1)
 _CASH_SEGMENT_WORD = 'equities'
@@ -150,6 +152,32 @@ class RiskEngine:
             ledger.claim(order.instrument_id, order.desk, now)
             ledger.record_approval(order.desk, now)
         return self._finish(order, reasons, margin)
+
+    async def check_account(
+        self,
+    ) -> account_snapshot_module.AccountSnapshot | None:
+        """Reads the account and fires the kill switch at a loss limit, without an order.
+
+        The market watcher calls this every cycle, because a losing position can reach the daily or weekly loss limit while no desk is placing orders.
+
+        Returns:
+            account_snapshot_module.AccountSnapshot | None: The account now, or None when UBI cannot be read.
+        """
+        now = self._clock().astimezone(_INDIA)
+        try:
+            snapshot = await self._services.snapshot_reader.read()
+        except ubi_exceptions.UnifiedBrokerInterfaceError:
+            _LOGGER.warning(
+                'The account could not be read for the loss-limit check'
+            )
+            return None
+        self._services.ledger.record_day_pnl(now.date(), snapshot.day_pnl)
+        try:
+            limits = self._services.limits_reader.read()
+        except trading_limits_module.LimitsError:
+            return snapshot
+        await self._check_loss_limits(limits.account, snapshot, now)
+        return snapshot
 
     async def _check_loss_limits(
         self,
