@@ -18,6 +18,7 @@ import asyncio
 import dataclasses
 import logging
 import os
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +26,7 @@ import claude_agent_sdk
 
 from trading_agent.agent import context_compressor
 from trading_agent.agent import prompt_builder as prompt_builder_module
+from trading_agent.attachments import image_preparer as image_preparer_module
 from trading_agent.backends import backend as backend_module
 from trading_agent.backends import claude_pre_compact_hook
 from trading_agent.backends import claude_steering_hook
@@ -105,6 +107,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         self._steering_inbox = steering_inbox
         self._client = None
         self._session_prompt_fingerprint = None
+        self._image_preparer = image_preparer_module.ImagePreparer()
         self.session_id: str | None = None
 
     async def run_turn(
@@ -129,7 +132,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         try:
             client = await self._connected_client(prompt)
             await self._compact_if_full(client, trigger)
-            await client.query(self._query_text(prompt, trigger))
+            await client.query(self._query(prompt, trigger))
             self._session_prompt_fingerprint = prompt.fingerprint
             return await self._read_response(client, trigger)
         except asyncio.CancelledError:
@@ -293,6 +296,67 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
             await client.connect()
             self._client = client
         return self._client
+
+    def _query(
+        self,
+        prompt: prompt_builder_module.SystemPrompt,
+        trigger: trigger_module.Trigger,
+    ) -> str | AsyncIterator[dict[str, Any]]:
+        """What to send Claude for a turn: the text alone, or a message of text and pictures.
+
+        Args:
+            prompt (prompt_builder_module.SystemPrompt): The current prompt.
+            trigger (trigger_module.Trigger): The turn's trigger.
+
+        Returns:
+            str | AsyncIterator[dict[str, Any]]: The text when nothing is attached, otherwise a stream of one user message whose content is the text and the pictures.
+        """
+        text = self._query_text(prompt, trigger)
+        content = []
+        for attachment in trigger.images:
+            image = self._image_preparer.prepare(attachment.stored_file())
+            if image is not None:
+                content.append(
+                    {
+                        'type': 'image',
+                        'source': {
+                            'type': 'base64',
+                            'media_type': image.media_type,
+                            'data': image.base64_data(),
+                        },
+                    }
+                )
+        if not content:
+            return text
+        content.insert(
+            0,
+            {
+                'type': 'text',
+                'text': text,
+            },
+        )
+        return self._one_message(content)
+
+    async def _one_message(
+        self,
+        content: list[dict[str, Any]],
+    ) -> AsyncIterator[dict[str, Any]]:
+        """Yields one user message, in the form Claude Code reads on its input.
+
+        Args:
+            content (list[dict[str, Any]]): The message's text and picture blocks.
+
+        Yields:
+            dict[str, Any]: The message.
+        """
+        yield {
+            'type': 'user',
+            'message': {
+                'role': 'user',
+                'content': content,
+            },
+            'parent_tool_use_id': None,
+        }
 
     def _query_text(
         self,

@@ -7,6 +7,7 @@ Typical usage example:
 
 from pathlib import Path
 
+from trading_agent.agent import messages
 from trading_agent.tools import browser_session as browser_session_module
 from trading_agent.tools import browser_tool
 from trading_agent.tools import tool
@@ -49,5 +50,6 @@ class BrowserScreenshotTool(browser_tool.BrowserTool):
         shown_path = path.resolve().relative_to(self._desk_directory)
         return tool.ToolResult(
             text=f'Screenshot of the current page, saved as {shown_path}.',
-            image_png=picture,
+            image=messages.MessageImage('image/png', picture),
+            picture_desk_path=shown_path.as_posix(),
         )

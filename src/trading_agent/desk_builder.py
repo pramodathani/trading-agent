@@ -19,6 +19,7 @@ from trading_agent.agent import agent_turn_runner
 from trading_agent.agent import context_compressor
 from trading_agent.agent import loop_guard
 from trading_agent.agent import prompt_builder
+from trading_agent.attachments import attachment_store
 from trading_agent.backends import backend as backend_module
 from trading_agent.backends import claude_code_turn_runner
 from trading_agent.backends import claude_tool_bridge
@@ -106,6 +107,7 @@ from trading_agent.tools import schedule_wakeup_tool
 from trading_agent.tools import search_instruments_tool
 from trading_agent.tools import search_knowledge_tool
 from trading_agent.tools import search_sessions_tool
+from trading_agent.tools import send_image_tool
 from trading_agent.tools import send_message_tool
 from trading_agent.tools import set_price_alert_tool
 from trading_agent.tools import skill_archive_tool
@@ -114,6 +116,7 @@ from trading_agent.tools import skill_patch_tool
 from trading_agent.tools import tool_call_executor
 from trading_agent.tools import tool_registry
 from trading_agent.tools import tool_search_tool
+from trading_agent.tools import view_image_tool
 from trading_agent.tools import web_fetch_tool
 from trading_agent.tools import web_search_tool
 from trading_agent.tools import write_file_tool
@@ -160,6 +163,7 @@ class DeskBuilder:
             configuration.workspace_directory
         )
         self._proposal_store = proposal_store.ProposalStore(self._layout)
+        self._attachment_store = attachment_store.AttachmentStore(self._layout)
         self._broker_reader = broker_reader.BrokerReader(
             configuration.tradingmachine_environment_file
         )
@@ -358,6 +362,7 @@ class DeskBuilder:
             subagents=self._subagent_library,
             packages=self._packages,
             calendar=self.calendar,
+            attachments=self._attachment_store,
         )
 
     def market_watcher(
@@ -589,6 +594,13 @@ class DeskBuilder:
                 self._event_bus,
                 desk_configuration.name,
             ),
+            send_image_tool.SendImageTool(
+                policy,
+                self._attachment_store,
+                self._event_bus,
+                desk_configuration.name,
+            ),
+            view_image_tool.ViewImageTool(policy),
             skill_create_tool.SkillCreateTool(writer),
             skill_patch_tool.SkillPatchTool(writer),
             skill_archive_tool.SkillArchiveTool(writer),

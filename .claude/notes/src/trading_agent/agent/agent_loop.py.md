@@ -17,3 +17,9 @@ The first live run on 2026-10-16 with Gemma 4 31b called `get_time` unprompted, 
 After the results of a tool round are added, the loop asks the steering inbox for waiting messages and adds them as a user message, so the next model call sees them.
 
 When /stop cancels a turn during a tool round, the conversation would end with an assistant message asking for tools that have no results. OpenAI-compatible servers refuse such a conversation on the next call. The loop therefore answers each unanswered call with an error result saying the user stopped the turn. Results are only added after every call of a round finishes, so a round is either fully answered or not at all.
+
+## Pictures, since 2026-10-17
+
+`_run_rounds` puts the trigger's pictures on the turn's user message, prepared by `ImagePreparer`. A picture whose file cannot be read is left out rather than failing the turn. Only the first user message of a turn carries pictures; steering messages are text, and messages with attachments never steer.
+
+Four pictures are kept (`_PICTURES_KEPT`) before every model call, including between tool rounds of one turn. Four covers a follow-up question about a chart sent in the previous turn, plus a few screenshots, while capping pictures at about 6,000 tokens. Claude's history is held by Claude Code, not by this loop, so the trimming does not apply to it; Claude Code compacts its own history.

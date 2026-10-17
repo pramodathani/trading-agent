@@ -100,6 +100,18 @@ export class Formatter {
   }
 
   /**
+   * A file's size in the unit a person reads easily.
+   * @param bytes The size in bytes.
+   * @returns Such as "240 KB" or "3.1 MB".
+   */
+  fileSize(bytes: number): string {
+    if (bytes < 1024 * 1024) {
+      return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+    }
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  /**
    * Chooses the colour class for a profit or loss.
    * @param amount The amount.
    * @returns "profit", "loss" or "flat".

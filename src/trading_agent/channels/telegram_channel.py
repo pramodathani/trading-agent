@@ -7,6 +7,8 @@ It runs two loops beside the desks:
 
 A message sent while its desk is working steers the running turn, as on the web page; the chat is told so, and the running turn's answer comes to it too.
 
+A photo or file from a paired chat is downloaded into the desk's uploads, as an upload from the web page is, and goes to the desk with the caption as the message. Files from chats that are not paired are never downloaded.
+
 Typical usage example:
 
   channel = TelegramChannel(api, pairing, commands, formatter, desks, parts, event_bus, 'main')
@@ -16,7 +18,12 @@ Typical usage example:
 import asyncio
 import logging
 from collections.abc import Mapping
+from pathlib import Path
 
+from trading_agent.attachments import attachment as attachment_module
+from trading_agent.attachments import (
+    attachment_store as attachment_store_module,
+)
 from trading_agent.channels import (
     notification_formatter as notification_formatter_module,
 )
@@ -60,6 +67,7 @@ class TelegramChannel:
         parts: Mapping[str, gateway_parts.DeskParts],
         event_bus: event_bus_module.EventBus,
         default_desk: str,
+        attachments: attachment_store_module.AttachmentStore | None = None,
     ):
         """Creates the channel without contacting Telegram.
 
@@ -72,6 +80,7 @@ class TelegramChannel:
             parts (Mapping[str, gateway_parts.DeskParts]): Each desk's session store, for the daily summaries.
             event_bus (event_bus_module.EventBus): Where the desks' events arrive.
             default_desk (str): The desk a newly paired chat talks to.
+            attachments (attachment_store_module.AttachmentStore | None): Where photos and files sent to the bot are kept, or None to refuse them.
         """
         self._api = api
         self._pairing = pairing
@@ -81,9 +90,11 @@ class TelegramChannel:
         self._parts = parts
         self._event_bus = event_bus
         self._default_desk = default_desk
+        self._attachments = attachments
         self._subscription = event_bus.subscribe(maximum_queued=_QUEUE_SIZE)
         self._reply_chats: dict[str, set[int]] = {}
         self._trigger_sources: dict[str, tuple[str, str]] = {}
+        self._running_triggers: dict[str, str] = {}
         self.state = _STATE_OFF
         self.error = ''
         self.username = ''
@@ -181,7 +192,7 @@ class TelegramChannel:
         if chat is None:
             await self._handle_stranger(message)
             return
-        if self._commands.handles(message.text):
+        if not message.files and self._commands.handles(message.text):
             reply = await self._commands.answer(chat, message.text)
             await self._send(chat.chat_id, reply)
             return
@@ -192,15 +203,67 @@ class TelegramChannel:
                 f'The desk {chat.desk!r} is not running. Choose another with /desk.',
             )
             return
+        attachments = await self._download(chat.chat_id, chat.desk, message)
+        if not message.text.strip() and not attachments:
+            return
         trigger = trigger_module.Trigger.now(
             trigger_module.TriggerSource.USER_MESSAGE,
             chat.desk,
-            message.text,
+            message.text.strip(),
+            attachments,
         )
         self._reply_chats.setdefault(trigger.trigger_id, set()).add(
             chat.chat_id
         )
         desk.submit(trigger)
+
+    async def _download(
+        self,
+        chat_id: int,
+        desk_name: str,
+        message: telegram_api_module.IncomingMessage,
+    ) -> tuple[attachment_module.Attachment, ...]:
+        """Downloads a message's photo or file into the desk's uploads, telling the chat when one is refused.
+
+        Args:
+            chat_id (int): The chat, for any refusal.
+            desk_name (str): The desk the files are for.
+            message (telegram_api_module.IncomingMessage): The message.
+
+        Returns:
+            tuple[attachment_module.Attachment, ...]: The files that were stored.
+        """
+        stored = []
+        for incoming_file in message.files:
+            refusal = None
+            if self._attachments is None:
+                refusal = 'Files cannot be sent to the desks from here.'
+            elif (
+                incoming_file.size_bytes > attachment_store_module.MAXIMUM_BYTES
+            ):
+                refusal = f'{incoming_file.file_name} is larger than 20 MB, the most a desk takes.'
+            if refusal is not None:
+                await self._send(chat_id, refusal)
+                continue
+            try:
+                data = await self._api.download(incoming_file.file_id)
+                attachment = await asyncio.to_thread(
+                    self._attachments.save,
+                    desk_name,
+                    incoming_file.file_name,
+                    data,
+                )
+            except telegram_api_module.TelegramApiError as error:
+                await self._send(
+                    chat_id,
+                    f'{incoming_file.file_name} could not be downloaded from Telegram: {error}',
+                )
+                continue
+            except attachment_store_module.AttachmentRefusedError as error:
+                await self._send(chat_id, str(error))
+                continue
+            stored.append(attachment)
+        return tuple(stored)
 
     async def _handle_stranger(
         self, message: telegram_api_module.IncomingMessage
@@ -244,8 +307,17 @@ class TelegramChannel:
         if kind == event_module.EventKind.STEERING:
             await self._forward_steering(payload)
             return
+        if kind == event_module.EventKind.TURN_STARTED:
+            self._running_triggers[published_event.desk or ''] = trigger_id
+            return
         if kind == event_module.EventKind.TURN_FINISHED:
             self._reply_chats.pop(trigger_id, None)
+            self._running_triggers.pop(published_event.desk or '', None)
+            return
+        if kind == event_module.EventKind.MESSAGE and payload.get(
+            'attachments'
+        ):
+            await self._forward_pictures(published_event)
             return
         waiting_chats = self._reply_chats.get(trigger_id, set())
         if waiting_chats and kind in (
@@ -274,6 +346,53 @@ class TelegramChannel:
         )
         if notification is not None:
             await self._broadcast(notification)
+
+    async def _forward_pictures(
+        self,
+        published_event: event_module.Event,
+    ) -> None:
+        """Sends the pictures a desk showed with send_image.
+
+        They go to the chats waiting for the desk's running turn, so a picture asked for on Telegram comes back there. A picture sent while no chat is waiting, such as from a scheduled job, is pushed to every paired chat when messages are pushed.
+
+        Args:
+            published_event (event_module.Event): The message event carrying the pictures.
+        """
+        payload = published_event.payload
+        running = self._running_triggers.get(published_event.desk or '')
+        chats = set(self._reply_chats.get(running, set()))
+        caption = str(payload.get('text', ''))
+        if not chats:
+            notification = self._formatter.format(published_event, None, None)
+            if notification is None:
+                return
+            caption = notification
+            for chat in self._pairing.paired_chats():
+                chats.add(chat.chat_id)
+        for chat_id in chats:
+            shown_caption = caption
+            for attachment in payload.get('attachments', []):
+                await self._send_photo(
+                    chat_id, Path(attachment['path']), shown_caption
+                )
+                shown_caption = ''
+
+    async def _send_photo(self, chat_id: int, path: Path, caption: str) -> None:
+        """Sends a picture, logging a failure instead of raising it.
+
+        Args:
+            chat_id (int): The chat.
+            path (Path): The picture.
+            caption (str): The text shown with it; may be empty.
+        """
+        try:
+            await self._api.send_photo(chat_id, path, caption)
+        except (telegram_api_module.TelegramApiError, OSError) as error:
+            _LOGGER.warning(
+                'Could not send a picture to Telegram chat %s: %s',
+                chat_id,
+                error,
+            )
 
     async def _forward_steering(self, payload: dict) -> None:
         """Tells a chat that its message reached the running turn, and sends it that turn's answer too.

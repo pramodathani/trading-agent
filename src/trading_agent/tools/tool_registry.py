@@ -148,5 +148,6 @@ class ToolRegistry:
         return tool_module.ToolResult(
             text=text,
             is_error=result.is_error,
-            image_png=result.image_png,
+            image=result.image,
+            picture_desk_path=result.picture_desk_path,
         )

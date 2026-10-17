@@ -167,6 +167,34 @@ class OpenAICompatibleBackend(backend.ModelBackend):
         if delta_call.function.arguments:
             parts.argument_fragments.append(delta_call.function.arguments)
 
+    def _content(self, message: messages.ConversationMessage) -> Any:
+        """A user or assistant message's content: its text, or its text and pictures.
+
+        Args:
+            message (messages.ConversationMessage): The message.
+
+        Returns:
+            Any: The text alone, or a list of a text part and one image part per picture.
+        """
+        if not message.images:
+            return message.text
+        content = [
+            {
+                'type': 'text',
+                'text': message.text,
+            },
+        ]
+        for image in message.images:
+            content.append(
+                {
+                    'type': 'image_url',
+                    'image_url': {
+                        'url': f'data:{image.media_type};base64,{image.base64_data()}',
+                    },
+                }
+            )
+        return content
+
     def _wire_messages(
         self,
         conversation: conversation_module.Conversation,
@@ -185,11 +213,13 @@ class OpenAICompatibleBackend(backend.ModelBackend):
                 'content': conversation.system_prompt,
             },
         ]
+        pictures = []
         for message in conversation.messages:
             if message.role == messages.Role.TOOL:
                 content = message.text
-                if message.image_png is not None:
-                    content += '\n[A picture was returned, but it cannot be shown to this model. Use the text instead.]'
+                if message.image is not None:
+                    content += '\n[The picture is in the next user message.]'
+                    pictures.append(message)
                 wire_messages.append(
                     {
                         'role': 'tool',
@@ -198,9 +228,11 @@ class OpenAICompatibleBackend(backend.ModelBackend):
                     }
                 )
                 continue
+            self._add_tool_pictures(wire_messages, pictures)
+            pictures = []
             wire_message = {
                 'role': str(message.role),
-                'content': message.text,
+                'content': self._content(message),
             }
             if message.tool_calls:
                 wire_calls = []
@@ -217,4 +249,45 @@ class OpenAICompatibleBackend(backend.ModelBackend):
                     )
                 wire_message['tool_calls'] = wire_calls
             wire_messages.append(wire_message)
+        self._add_tool_pictures(wire_messages, pictures)
         return wire_messages
+
+    def _add_tool_pictures(
+        self,
+        wire_messages: list[dict[str, Any]],
+        tool_messages: list[messages.ConversationMessage],
+    ) -> None:
+        """Adds a user message holding the pictures that tools returned.
+
+        Chat Completions takes only text in a tool message, so the pictures follow the tool results in a user message of their own.
+
+        Args:
+            wire_messages (list[dict[str, Any]]): The messages built so far; the new message is appended.
+            tool_messages (list[messages.ConversationMessage]): The tool messages that returned a picture; nothing is added when it is empty.
+        """
+        if not tool_messages:
+            return
+        names = []
+        for message in tool_messages:
+            names.append(message.tool_name or 'a tool')
+        content = [
+            {
+                'type': 'text',
+                'text': f'[The pictures returned by the tool results above, in order: {", ".join(names)}.]',
+            },
+        ]
+        for message in tool_messages:
+            content.append(
+                {
+                    'type': 'image_url',
+                    'image_url': {
+                        'url': f'data:{message.image.media_type};base64,{message.image.base64_data()}',
+                    },
+                }
+            )
+        wire_messages.append(
+            {
+                'role': 'user',
+                'content': content,
+            }
+        )

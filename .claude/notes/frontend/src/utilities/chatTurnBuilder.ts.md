@@ -9,3 +9,9 @@ Risk decisions and order events carry no trigger id. They happen inside a turn, 
 ## Steering (milestone 18, part 2)
 
 A trigger_received event with `steering_into` belongs inside the running turn, so it becomes a step of that turn rather than a new item. If the running turn ended before taking it, the message is queued as its own turn; when that turn starts, the message is added to the chat as a normal turn at that point.
+
+## Attachments, since 2026-10-17
+
+A turn's `attachments` come from the `trigger_received` event's payload, where the gateway writes them with the trigger, so pictures reappear after a reload or a restart without another request.
+
+`ToolStep.picturePath` comes from the `picture_path` key of a `tool_result` event, set when the tool showed the model a picture saved in the desk folder.

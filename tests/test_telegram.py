@@ -213,6 +213,7 @@ class _Scenario:
             subagents=None,
             packages=None,
             calendar=None,
+            attachments=None,
         )
         self.api = _StandInApi()
         self.channel = telegram_channel.TelegramChannel(

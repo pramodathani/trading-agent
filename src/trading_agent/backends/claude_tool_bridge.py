@@ -9,7 +9,6 @@ Typical usage example:
   bridge.current_trigger = trigger
 """
 
-import base64
 from typing import Any
 
 import claude_agent_sdk
@@ -54,12 +53,12 @@ class ClaudeToolHandler:
                 'text': result.text,
             },
         ]
-        if result.image_png is not None:
+        if result.image is not None:
             content.append(
                 {
                     'type': 'image',
-                    'data': base64.b64encode(result.image_png).decode('ascii'),
-                    'mimeType': 'image/png',
+                    'data': result.image.base64_data(),
+                    'mimeType': result.image.media_type,
                 }
             )
         return {

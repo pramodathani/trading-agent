@@ -67,3 +67,9 @@ While building each desk, the builder records its stores and tools in a `DeskPar
 ## Steering inboxes (milestone 18)
 
 The builder makes one steering inbox per desk and gives it to the desk's runtime and to the desk's own runners, through `backend_runner`'s `steering_inbox` argument. Subagent runners are built through the same method without it, so they cannot be steered.
+
+## The attachment store, since 2026-10-17
+
+The builder creates the one `AttachmentStore` and hands it out in the shared parts.
+
+`send_image` and `view_image` are given every desk's file rules (`PathPolicy`), so they read exactly what `read_file` can. `send_image` also gets the one shared `AttachmentStore`, the same object the upload routes and Telegram use, so a picture a desk sends is found by `GET /api/desks/{desk}/attachments/{id}` like any upload.

@@ -35,3 +35,7 @@ The `Agents.md` template's line "Notes and memory tools arrive in later mileston
 `create_missing` writes `templates/personas/<desk>.md` as a desk's Persona.md when such a template exists. `template_text` accepts a path with a folder for that.
 
 `telegram_pairing_file` (milestone 19) is in workspace/shared, which the desks cannot write.
+
+## `uploads/`, since 2026-10-17
+
+`uploads_directory` is the desk's folder of files the user sent. It is not created up front; the store creates each upload's folder when one arrives.

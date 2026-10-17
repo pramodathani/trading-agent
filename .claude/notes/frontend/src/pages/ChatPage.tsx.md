@@ -11,3 +11,15 @@ A stopped turn's partial text is not kept; the turn shows "Stopped by the user" 
 Tested in Chrome on 2026-10-17 with the scalper desk on Qwen: a message sent during a four-call task was handed over and Qwen ended its answer with the requested word; Stop ended a 700-word essay mid-stream, and the next message was answered normally.
 
 Answers are shown as plain text with line breaks kept, not rendered Markdown, to avoid another dependency for now.
+
+## Attachments, since 2026-10-17
+
+Files can be added three ways: the Attach button (a hidden file input), dropping files on the message box, and pasting a picture into it, which covers screenshots copied to the clipboard. Each file is uploaded at once and shown as a chip: uploading, ready, or not attached with the reason. Send waits until no file is still uploading, and sends the ready ones' identifiers with the text; the text may be empty when files are attached.
+
+The chips are cleared when the user switches desk, because an upload belongs to one desk and cannot be sent to another. Picture previews in the chips use `blob:` addresses of the local file, revoked when the chip goes.
+
+In the history, the user's bubble shows its attachments through `AttachmentList`, and the text block is left out when a message was only files.
+
+## Pictures from the desk
+
+A tool card's picture is drawn below the folded card, not inside it, because a screenshot hidden behind a click is easy to miss. A `message` event, whether inside a turn or loose, is drawn by `DeskMessageView` as a desk bubble with its text and pictures; before part 2 a message inside a turn showed only the word "Message", hiding its text.

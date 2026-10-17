@@ -192,6 +192,7 @@ class _Workspace:
             subagents=None,
             packages=None,
             calendar=None,
+            attachments=None,
         )
 
     def client(

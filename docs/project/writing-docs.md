@@ -16,7 +16,7 @@ The preview uses port 8130 so that it never clashes with the gateway on 8120. Al
 
 ## Publishing
 
-`.github/workflows/docs.yml` builds the site with `mkdocs build --strict` on every push and pull request, and publishes it to GitHub Pages from `main`, exactly as for tradingmachine. It installs only the packages in the `docs` extra, read from `pyproject.toml`. The repository does not have a GitHub remote yet, so the site is not published until one exists.
+`.github/workflows/docs.yml` builds the site with `mkdocs build --strict` on every push and pull request, and publishes it to GitHub Pages from `main`, exactly as for tradingmachine. It installs only the packages in the `docs` extra, read from `pyproject.toml`. The site is published at https://pramodathani.github.io/trading-agent/ from the public repository pramodathani/trading-agent.
 
 ## Diagrams
 

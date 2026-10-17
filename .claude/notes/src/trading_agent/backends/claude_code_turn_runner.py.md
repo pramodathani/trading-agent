@@ -72,3 +72,11 @@ Claude Code limits how long one MCP tool call may take, and its default is not d
 ## Steering and /stop (milestone 18)
 
 The PostToolUse hook list holds the steering hook when the desk has an inbox. A cancelled turn disconnects Claude Code, which stops its process; the next turn starts a new process and resumes the saved session, as after any failure.
+
+## Pictures, since 2026-10-17
+
+`client.query` takes either a string or an async iterable of messages. A turn with pictures is sent as one user message whose `content` is a text block followed by `image` blocks with base64 data, in the Messages API's format, which Claude Code passes on through its stream-json input. A turn without pictures still sends the plain string, so nothing changed for ordinary turns.
+
+`_one_message` is an async generator because `query` iterates its argument with `async for`. It yields no `session_id`; `query` fills it in.
+
+Checked on 2026-10-17: the main desk (opus) described a test picture exactly, and a picture dropped on the chat page ("9035" on green) came back correctly.

@@ -127,7 +127,7 @@ Without being asked, the bot sends every paired chat the events listed in `notif
 | `model_switches` | A desk switched model because one failed or hit a limit |
 | `job_results` | A command job finished |
 | `desk_reports` | What a desk said when it woke on its own: a scheduled check, a heartbeat that found something to do, a price alert or a webhook |
-| `messages` | A desk used `send_message` to tell you something |
+| `messages` | A desk used `send_message` to tell you something, or `send_image` to show you a picture while no chat was waiting for its answer |
 | `alerts` | A price alert fired |
 | `halts` | A desk reached its loss limit, or the kill switch fired |
 | `errors` | A turn failed |
