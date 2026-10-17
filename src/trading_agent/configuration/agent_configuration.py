@@ -35,6 +35,8 @@ class DeskConfiguration(pydantic.BaseModel):
         name: The desk's name, used in folder names, order tags and the web interface.
         enabled: Whether the desk starts with the gateway.
         backend_order: The backends the desk may use, most preferred first, by their names in [backends].
+        heartbeat_minutes: Minutes between heartbeats while NSE equities trade, or None for no heartbeat; each heartbeat is a model turn.
+        rollover_time: The India time on trading days, as HH:MM, when the desk's session rolls over with a summary.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -42,6 +44,11 @@ class DeskConfiguration(pydantic.BaseModel):
     name: str = pydantic.Field(pattern=r'^[a-z][a-z0-9_]*$')
     enabled: bool = True
     backend_order: list[str] = []
+    heartbeat_minutes: int | None = pydantic.Field(default=None, ge=1, le=240)
+    rollover_time: str = pydantic.Field(
+        default='15:45',
+        pattern=r'^([01][0-9]|2[0-3]):[0-5][0-9]$',
+    )
 
 
 class AgentLoopConfiguration(pydantic.BaseModel):
@@ -245,6 +252,7 @@ class AgentConfiguration(pydantic.BaseModel):
         workspace_directory: The folder holding the desks' files, memory and journals.
         tradingmachine_environment_file: The .env file that tradingmachine reads its UBI and MongoDB settings from.
         mcp_servers_file: The JSON file listing the MCP servers every desk can use.
+        market_calendar_directory: UBI's folder of yearly exchange calendars, or None to know weekends only.
         gateway: Where the web server listens.
         desks: The desks to run.
         backends: The model backends, keyed by the name desks refer to them by.
@@ -262,6 +270,7 @@ class AgentConfiguration(pydantic.BaseModel):
     workspace_directory: Path = Path('workspace')
     tradingmachine_environment_file: Path
     mcp_servers_file: Path = Path('mcp_servers.json')
+    market_calendar_directory: Path | None = None
     gateway: GatewayConfiguration = GatewayConfiguration()
     desks: list[DeskConfiguration] = pydantic.Field(min_length=1)
     backends: dict[str, BackendConfiguration] = {}

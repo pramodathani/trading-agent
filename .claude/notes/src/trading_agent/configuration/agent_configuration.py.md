@@ -17,3 +17,7 @@ The `base_url` rule is a validator rather than a separate model per backend kind
 ## mcp_servers_file (milestone 13)
 
 Defaults to `mcp_servers.json` beside trading_agent.toml.
+
+## Scheduling settings (milestone 15)
+
+`market_calendar_directory` (UBI's calendars folder), and per desk `heartbeat_minutes` (off by default) and `rollover_time` (15:45).

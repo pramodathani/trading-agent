@@ -1,6 +1,6 @@
 """Decides whether an exchange is open for new orders at a given moment.
 
-With trading_window = "exchange_hours", each exchange's own regular session applies: NSE and BSE equities and derivatives 09:15 to 15:30, currency derivatives 09:00 to 17:00, and MCX 09:00 to 23:30, or 23:55 while the United States is not on daylight saving time, because MCX's evening follows US trading hours. A fixed "HH:MM-HH:MM" window applies the same hours to every exchange. Weekends are closed. Exchange holidays are not known here yet; the market calendar of milestone 15 adds them.
+With trading_window = "exchange_hours", each exchange's own regular session applies: NSE and BSE equities and derivatives 09:15 to 15:30, currency derivatives 09:00 to 17:00, and MCX 09:00 to 23:30, or 23:55 while the United States is not on daylight saving time, because MCX's evening follows US trading hours. A fixed "HH:MM-HH:MM" window applies the same hours to every exchange. Weekends are closed. With a market calendar, exchange holidays are closed too, a commodity holiday that closes only the morning or evening session narrows the hours, and a special session such as Muhurat trading opens the exchange for its own hours, even on a weekend or holiday.
 
 Typical usage example:
 
@@ -10,6 +10,8 @@ Typical usage example:
 
 import datetime
 import zoneinfo
+
+from trading_agent.scheduling import market_calendar as market_calendar_module
 
 _INDIA = zoneinfo.ZoneInfo('Asia/Kolkata')
 _NEW_YORK = zoneinfo.ZoneInfo('America/New_York')
@@ -25,10 +27,22 @@ _MCX_OPEN = datetime.time(9, 0)
 _MCX_CLOSE_DURING_US_DAYLIGHT_SAVING = datetime.time(23, 30)
 _MCX_CLOSE_OTHERWISE = datetime.time(23, 55)
 _SATURDAY = 5
+_COMMODITY_SPLIT = datetime.time(17, 0)
 
 
 class ExchangeHours:
-    """The regular trading sessions of the Indian exchanges."""
+    """The trading sessions of the Indian exchanges."""
+
+    def __init__(
+        self,
+        calendar: market_calendar_module.MarketCalendar | None = None,
+    ):
+        """Creates the checker.
+
+        Args:
+            calendar (market_calendar_module.MarketCalendar | None): The exchanges' holidays and special sessions, or None to know weekends only.
+        """
+        self._calendar = calendar
 
     def is_open(
         self,
@@ -49,16 +63,81 @@ class ExchangeHours:
             tuple[bool, str]: Whether it is open, and the session that applies, for messages.
         """
         local = moment.astimezone(_INDIA)
+        special = self._special_session(exchange, segment, local)
+        if special is not None:
+            special_text = f'the {special.name} session, {special.opens:%H:%M}-{special.closes:%H:%M} India time'
+            if special.opens <= local.time() < special.closes:
+                return True, special_text
+            return (
+                False,
+                f'it is {local:%H:%M} India time; today has only {special_text}',
+            )
         start, end = self._session(exchange, segment, local, trading_window)
         session_text = f'{start:%H:%M}-{end:%H:%M} India time on weekdays'
         if local.weekday() >= _SATURDAY:
             return False, f'it is a weekend; the session is {session_text}'
+        closure = self._closure(exchange, segment, local)
+        if closure is not None:
+            if closure.closed == 'all':
+                return (
+                    False,
+                    f'it is an exchange holiday ({closure.name}); the session is {session_text}',
+                )
+            if closure.closed == 'morning':
+                start = max(start, _COMMODITY_SPLIT)
+            if closure.closed == 'evening':
+                end = min(end, _COMMODITY_SPLIT)
+            session_text = f'{start:%H:%M}-{end:%H:%M} India time today, because of {closure.name}'
         if not start <= local.time() < end:
             return (
                 False,
                 f'it is {local:%H:%M} India time; the session is {session_text}',
             )
         return True, session_text
+
+    def _special_session(
+        self,
+        exchange: str,
+        segment: str,
+        local: datetime.datetime,
+    ) -> market_calendar_module.SpecialSession | None:
+        """The special session on the moment's date, if the calendar has one.
+
+        Args:
+            exchange (str): The exchange.
+            segment (str): UBI's segment.
+            local (datetime.datetime): The moment in India time.
+
+        Returns:
+            market_calendar_module.SpecialSession | None: The session, or None.
+        """
+        if self._calendar is None:
+            return None
+        calendar_name = self._calendar.calendar_for(exchange, segment)
+        return self._calendar.special_session(
+            local.date(), exchange, calendar_name
+        )
+
+    def _closure(
+        self,
+        exchange: str,
+        segment: str,
+        local: datetime.datetime,
+    ) -> market_calendar_module.Closure | None:
+        """The holiday on the moment's date, if the calendar has one.
+
+        Args:
+            exchange (str): The exchange.
+            segment (str): UBI's segment.
+            local (datetime.datetime): The moment in India time.
+
+        Returns:
+            market_calendar_module.Closure | None: The holiday, or None.
+        """
+        if self._calendar is None:
+            return None
+        calendar_name = self._calendar.calendar_for(exchange, segment)
+        return self._calendar.closure(local.date(), exchange, calendar_name)
 
     def _session(
         self,

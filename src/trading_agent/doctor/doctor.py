@@ -13,6 +13,7 @@ from trading_agent.doctor.checks import chrome_check
 from trading_agent.doctor.checks import claude_code_backend_check
 from trading_agent.doctor.checks import gateway_token_check
 from trading_agent.doctor.checks import injection_check
+from trading_agent.doctor.checks import market_calendar_check
 from trading_agent.doctor.checks import mcp_servers_check
 from trading_agent.doctor.checks import ollama_backend_check
 from trading_agent.doctor.checks import openai_compatible_backend_check
@@ -126,6 +127,11 @@ class Doctor:
                     self._configuration.workspace_directory
                 ),
                 desk_names,
+            )
+        )
+        checks.append(
+            market_calendar_check.MarketCalendarCheck(
+                self._configuration.market_calendar_directory
             )
         )
         checks.append(
