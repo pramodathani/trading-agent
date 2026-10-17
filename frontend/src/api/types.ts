@@ -300,3 +300,18 @@ export interface TelegramStatus {
   paired: PairedChat[];
   pending: PendingPairing[];
 }
+
+/** One package's web app, with whether it answers and its unit's state. */
+export interface AppEntry {
+  package: string;
+  error: string;
+  title: string;
+  description: string;
+  url: string | null;
+  open_in: 'frame' | 'tab';
+  unit: string | null;
+  healthy: boolean;
+  health_detail: string;
+  unit_state: { load_state: string; active_state: string; sub_state: string } | null;
+  unit_error: string;
+}

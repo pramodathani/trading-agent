@@ -10,6 +10,7 @@ import { DesksContext } from './desksContext';
 import { selectedDeskStore, useSelectedDesk } from './selectedDeskStore';
 
 const DESKS_REFRESH_MILLISECONDS = 5000;
+const APPS_REFRESH_MILLISECONDS = 30000;
 const STATE_CHANGING_KINDS = new Set([
   'trigger_received',
   'turn_started',
@@ -29,6 +30,7 @@ const CONNECTION_WORDS = {
  */
 export function AppLayout() {
   const desks = usePolled(() => apiClient.desks(), DESKS_REFRESH_MILLISECONDS);
+  const apps = usePolled(() => apiClient.apps(), APPS_REFRESH_MILLISECONDS);
   const selectedDesk = useSelectedDesk();
   const connection = useConnectionState();
   const events = useLiveEvents();
@@ -130,6 +132,13 @@ export function AppLayout() {
           <NavLink className="nav-link" to="/settings">
             Settings
           </NavLink>
+          {(apps.data ?? []).length > 0 && <div className="nav-section">Apps</div>}
+          {(apps.data ?? []).map((app) => (
+            <NavLink key={app.package} className="nav-link app-link" to={`/apps/${app.package}`} title={app.description}>
+              <span className={app.healthy ? 'health-dot up' : 'health-dot down'} />
+              {app.title}
+            </NavLink>
+          ))}
           <div className="sidebar-footer">
             <button
               type="button"

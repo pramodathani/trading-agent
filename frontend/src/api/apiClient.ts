@@ -1,6 +1,7 @@
 import { tokenStore } from '../auth/tokenStore';
 import type {
   AccountDocument,
+  AppEntry,
   CheckpointEntry,
   CronJob,
   CronRun,
@@ -393,6 +394,25 @@ export class ApiClient {
    */
   usage(): Promise<UsageDocument> {
     return this.request('GET', '/api/usage');
+  }
+
+  /**
+   * The packages' web apps.
+   * @returns Each app and its state.
+   */
+  async apps(): Promise<AppEntry[]> {
+    const document = await this.request<{ apps: AppEntry[] }>('GET', '/api/apps');
+    return document.apps;
+  }
+
+  /**
+   * Starts, stops or restarts an app's systemd unit.
+   * @param packageName The package.
+   * @param action "start", "stop" or "restart".
+   * @returns The app and its state afterwards.
+   */
+  appAction(packageName: string, action: 'start' | 'stop' | 'restart'): Promise<AppEntry> {
+    return this.request('POST', `/api/apps/${encodeURIComponent(packageName)}/${action}`);
   }
 
   /**
