@@ -13,3 +13,7 @@
 ## Verified on 2026-10-17
 
 Importing `~/.hermes/skills/research` brought in 6 skills; importing `~/.hermes/skills/email/himalaya` brought in one that `skills list` showed as hidden, "needs program himalaya". The test imports were removed afterwards.
+
+## Warnings and the shared fetcher (milestone 13, part 3)
+
+Each imported skill's `.md` and `.txt` files are scanned for prompt injection, and the import prints a warning per finding while still importing the skill. Fetching from a folder, zip file or git URL now lives in `extensions/source_fetcher.py`, shared with the package installer.

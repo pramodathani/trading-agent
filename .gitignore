@@ -24,6 +24,7 @@ workspace/desks/*/journal/
 workspace/journal/
 workspace/shared/risk_ledger.db
 workspace/shared/desk_orders.db
+workspace/shared/knowledge.db
 workspace/desks/*/sessions/
 workspace/desks/*/skills/
 workspace/.checkpoints/

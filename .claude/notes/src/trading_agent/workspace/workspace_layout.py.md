@@ -17,3 +17,7 @@ The `Agents.md` template's line "Notes and memory tools arrive in later mileston
 ## Skills (milestone 13)
 
 `installed_skills_directory` (`shared/skills/installed/`, the user's, tracked by the project's git like the other shared files), `agent_skills_directory`, `skill_usage_file` and `skill_ledger_file` (all under `desks/<desk>/skills/`, which `.gitignore` leaves out like the desk's other working files).
+
+## Knowledge, hooks and packages (milestone 13, part 3)
+
+`knowledge_directory` (created at start-up so the user can find it), `knowledge_index_file` (ignored by git), `hooks_directory` and `packages_directory`.

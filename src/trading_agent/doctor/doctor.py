@@ -12,6 +12,7 @@ from trading_agent.doctor.checks import bubblewrap_check
 from trading_agent.doctor.checks import chrome_check
 from trading_agent.doctor.checks import claude_code_backend_check
 from trading_agent.doctor.checks import gateway_token_check
+from trading_agent.doctor.checks import injection_check
 from trading_agent.doctor.checks import mcp_servers_check
 from trading_agent.doctor.checks import ollama_backend_check
 from trading_agent.doctor.checks import openai_compatible_backend_check
@@ -114,6 +115,17 @@ class Doctor:
                 workspace_layout.WorkspaceLayout(
                     self._configuration.workspace_directory
                 ).trading_rules_file
+            )
+        )
+        desk_names = []
+        for desk in self._configuration.desks:
+            desk_names.append(desk.name)
+        checks.append(
+            injection_check.InjectionCheck(
+                workspace_layout.WorkspaceLayout(
+                    self._configuration.workspace_directory
+                ),
+                desk_names,
             )
         )
         checks.append(

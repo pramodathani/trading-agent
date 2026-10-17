@@ -9,18 +9,16 @@ Typical usage example:
 
 import dataclasses
 import shutil
-import subprocess
 import tempfile
-import zipfile
 from pathlib import Path
 
+from trading_agent.extensions import injection_scanner
+from trading_agent.extensions import source_fetcher
 from trading_agent.skills import skill as skill_module
 
-_GIT_PREFIXES = (
-    'https://',
-    'http://',
-    'git@',
-    'ssh://',
+_SCANNED_SUFFIXES = (
+    '.md',
+    '.txt',
 )
 
 
@@ -37,12 +35,14 @@ class ImportResult:
         name: The skill's name, or None when its SKILL.md could not be read.
         outcome: "imported", "replaced", "skipped" or "invalid".
         detail: Why it was skipped or invalid, or an empty string.
+        warnings: Passages that look like prompt injection, as "file, line: what it looks like".
     """
 
     source: Path
     name: str | None
     outcome: str
     detail: str
+    warnings: tuple[str, ...] = ()
 
 
 class SkillImporter:
@@ -56,6 +56,7 @@ class SkillImporter:
         """
         self._installed_directory = installed_directory
         self._parser = skill_module.SkillParser()
+        self._scanner = injection_scanner.InjectionScanner()
 
     def import_source(self, source: str, replace: bool) -> list[ImportResult]:
         """Imports every skill found in a folder, zip file or git URL.
@@ -71,7 +72,13 @@ class SkillImporter:
             SkillImportError: The source does not exist, cannot be unpacked or cloned, or holds no SKILL.md.
         """
         with tempfile.TemporaryDirectory(prefix='skill-import-') as scratch:
-            root = self._local_root(source, Path(scratch))
+            try:
+                root = source_fetcher.SourceFetcher().local_folder(
+                    source,
+                    Path(scratch),
+                )
+            except source_fetcher.SourceError as error:
+                raise SkillImportError(str(error)) from error
             folders = self._skill_folders(root)
             if not folders:
                 raise SkillImportError(f'No SKILL.md found in {source}')
@@ -79,91 +86,6 @@ class SkillImporter:
             for folder in folders:
                 results.append(self._import_folder(folder, replace))
             return results
-
-    def _local_root(self, source: str, scratch: Path) -> Path:
-        """Turns the source into a local folder.
-
-        Args:
-            source (str): The folder, zip file or git URL.
-            scratch (Path): A temporary folder for unpacking or cloning.
-
-        Returns:
-            Path: The folder to search for skills.
-
-        Raises:
-            SkillImportError: The source cannot be used.
-        """
-        if source.startswith(_GIT_PREFIXES):
-            return self._clone(source, scratch / 'clone')
-        path = Path(source).expanduser()
-        if path.is_file() and path.suffix == '.zip':
-            return self._unzip(path, scratch / 'unzipped')
-        if path.is_dir():
-            return path
-        raise SkillImportError(
-            f'{source} is not a folder, a .zip file or a git URL'
-        )
-
-    def _clone(self, url: str, target: Path) -> Path:
-        """Clones a git repository's latest commit.
-
-        Args:
-            url (str): The repository.
-            target (Path): Where to clone it.
-
-        Returns:
-            Path: The clone.
-
-        Raises:
-            SkillImportError: git failed.
-        """
-        completed = subprocess.run(
-            [
-                'git',
-                'clone',
-                '--depth',
-                '1',
-                '--quiet',
-                url,
-                str(target),
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if completed.returncode != 0:
-            raise SkillImportError(
-                f'git clone {url} failed: {completed.stderr.strip()}'
-            )
-        return target
-
-    def _unzip(self, archive: Path, target: Path) -> Path:
-        """Unpacks a zip file, refusing entries that would land outside the target.
-
-        Args:
-            archive (Path): The zip file.
-            target (Path): Where to unpack it.
-
-        Returns:
-            Path: The unpacked folder.
-
-        Raises:
-            SkillImportError: The file is not a zip file, or an entry tries to escape the folder.
-        """
-        target.mkdir(parents=True)
-        resolved_target = target.resolve()
-        try:
-            with zipfile.ZipFile(archive) as zip_file:
-                for member in zip_file.namelist():
-                    destination = (target / member).resolve()
-                    if not destination.is_relative_to(resolved_target):
-                        raise SkillImportError(
-                            f'{archive} has an entry outside its folder: {member}'
-                        )
-                zip_file.extractall(target)
-        except zipfile.BadZipFile as error:
-            raise SkillImportError(f'{archive} is not a zip file') from error
-        return target
 
     def _skill_folders(self, root: Path) -> list[Path]:
         """Finds every folder holding a SKILL.md, skipping git internals.
@@ -227,4 +149,29 @@ class SkillImporter:
             name=skill.name,
             outcome=outcome,
             detail='',
+            warnings=self._warnings(folder),
         )
+
+    def _warnings(self, folder: Path) -> tuple[str, ...]:
+        """Scans a skill's text files for prompt injection.
+
+        The skill is still imported, because the user decides; the warnings tell them what to read before relying on it.
+
+        Args:
+            folder (Path): The skill's folder.
+
+        Returns:
+            tuple[str, ...]: One line per finding.
+        """
+        warnings = []
+        for path in sorted(folder.rglob('*')):
+            if not path.is_file() or path.suffix not in _SCANNED_SUFFIXES:
+                continue
+            if '.git' in path.parts:
+                continue
+            text = path.read_text(encoding='utf-8', errors='replace')
+            for finding in self._scanner.scan(text):
+                warnings.append(
+                    f'{path.relative_to(folder)}, line {finding.line_number}: {finding.rule} ("{finding.excerpt}")'
+                )
+        return tuple(warnings)

@@ -5,6 +5,9 @@ The workspace has a shared part that belongs to the user, and one folder per des
   workspace/
     shared/   Agents.md  User.md  TradingRules.md
     shared/skills/installed/   the user's imported skills
+    shared/knowledge/   the user's documents, searched with search_knowledge
+    shared/hooks/<event>/   the user's hook scripts
+    shared/packages/<package>/   installed packages
     desks/<desk>/   Persona.md  Memory.md  notes/  sessions/  skills/  proposals/  scratch/
     .checkpoints/<desk>.git   snapshots of each desk's own files
 
@@ -102,6 +105,26 @@ class WorkspaceLayout:
             Path: The desk's Memory.md.
         """
         return self.desk_directory(desk_name) / 'Memory.md'
+
+    @property
+    def hooks_directory(self) -> Path:
+        """The user's hook scripts, one folder per event."""
+        return self.shared_directory / 'hooks'
+
+    @property
+    def packages_directory(self) -> Path:
+        """The installed packages, one folder each."""
+        return self.shared_directory / 'packages'
+
+    @property
+    def knowledge_directory(self) -> Path:
+        """The user's documents that every desk can search."""
+        return self.shared_directory / 'knowledge'
+
+    @property
+    def knowledge_index_file(self) -> Path:
+        """The SQLite full-text index of the knowledge folder."""
+        return self.shared_directory / 'knowledge.db'
 
     @property
     def installed_skills_directory(self) -> Path:
@@ -228,6 +251,7 @@ class WorkspaceLayout:
         """
         created = []
         self.shared_directory.mkdir(parents=True, exist_ok=True)
+        self.knowledge_directory.mkdir(parents=True, exist_ok=True)
         for file_name in SHARED_FILE_NAMES:
             target = self.shared_directory / file_name
             if self._write_template_if_missing(target, file_name):

@@ -8,6 +8,7 @@ Typical usage example:
 
 from collections.abc import Awaitable
 
+from trading_agent.extensions import untrusted_text
 from trading_agent.tools import address_guard
 from trading_agent.tools import browser_session as browser_session_module
 from trading_agent.tools import tool
@@ -38,9 +39,12 @@ class BrowserTool(tool.Tool):
             tool.ToolResult: The action's text, or an error the model can act on.
         """
         try:
-            return tool.ToolResult.success(await action)
+            text = await action
         except (
             browser_session_module.BrowserError,
             address_guard.AddressRefusedError,
         ) as error:
             return tool.ToolResult.error(str(error))
+        return tool.ToolResult.success(
+            untrusted_text.UntrustedText().wrap('a browser page', text)
+        )

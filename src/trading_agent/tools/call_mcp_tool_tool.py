@@ -10,6 +10,7 @@ from typing import Any
 import pydantic
 
 from trading_agent.extensions import mcp_client_manager
+from trading_agent.extensions import untrusted_text
 from trading_agent.tools import tool
 
 _CALL_TIMEOUT_SECONDS = 120.0
@@ -67,7 +68,10 @@ class CallMcpToolTool(tool.Tool):
             return tool.ToolResult.error(str(error))
         text = result.text or '(the tool returned no text)'
         return tool.ToolResult(
-            text=f'[Output of {arguments.server}/{arguments.tool}, data from outside trading-agent:]\n{text}',
+            text=untrusted_text.UntrustedText().wrap(
+                f'the MCP tool {arguments.server}/{arguments.tool}',
+                text,
+            ),
             is_error=result.is_error,
             image_png=result.image_png,
         )
