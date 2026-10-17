@@ -39,3 +39,7 @@ From milestone 8 the application builds the secret redactor and the trade journa
 ## The API's route groups (milestone 17)
 
 `_route_groups` builds the API's route groups from the desk builder's parts, the scheduler, the usage tracker, the MCP manager and the redactor. It is a separate method because `_serve` was already long, and the list of route groups will grow with later milestones.
+
+## Telegram (milestone 19)
+
+`_telegram_channel` builds the channel only when `[telegram] enabled` is true and a token is set; enabled without a token logs a warning and runs without Telegram, rather than refusing to start the desks. The channel runs as one of the gateway's background workers. `trading-agent pairing` works without the gateway.

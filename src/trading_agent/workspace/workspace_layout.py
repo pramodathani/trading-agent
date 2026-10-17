@@ -197,6 +197,11 @@ class WorkspaceLayout:
         """The ids of broker orders the market watcher has already reported."""
         return self.shared_directory / 'market_watcher.json'
 
+    @property
+    def telegram_pairing_file(self) -> Path:
+        """The Telegram chats allowed to command the desks, and the pairing codes waiting for approval."""
+        return self.shared_directory / 'telegram_pairing.json'
+
     def cron_directory(self, desk_name: str) -> Path:
         """Where the desk's scheduled jobs and their run record are kept.
 

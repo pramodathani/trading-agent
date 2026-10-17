@@ -40,6 +40,7 @@ class EventKind(enum.StrEnum):
     DESK_HALT = 'desk_halt'
     ACCOUNT_STATUS = 'account_status'
     STEERING = 'steering'
+    CHANNEL = 'channel'
     STOPPED = 'stopped'
     TEXT = 'text'
     TURN_FINISHED = 'turn_finished'

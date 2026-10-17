@@ -263,6 +263,61 @@ class BackendConfiguration(pydantic.BaseModel):
         return self
 
 
+TELEGRAM_NOTIFICATIONS = (
+    'fills',
+    'rejections',
+    'model_switches',
+    'job_results',
+    'desk_reports',
+    'messages',
+    'alerts',
+    'halts',
+    'errors',
+    'daily_summaries',
+)
+
+
+class TelegramConfiguration(pydantic.BaseModel):
+    """The Telegram channel.
+
+    Attributes:
+        enabled: Whether the gateway talks to Telegram; it also needs TRADING_AGENT_TELEGRAM_BOT_TOKEN in .env.
+        default_desk: The desk a paired chat talks to until it chooses another with /desk.
+        notifications: What is pushed to every paired chat without being asked: fills, rejections, model_switches, job_results, desk_reports, messages, alerts, halts, errors and daily_summaries.
+        poll_seconds: How long one long-poll request to Telegram waits for new messages before asking again.
+    """
+
+    model_config = pydantic.ConfigDict(extra='forbid')
+
+    enabled: bool = False
+    default_desk: str = 'main'
+    notifications: list[str] = list(TELEGRAM_NOTIFICATIONS)
+    poll_seconds: int = pydantic.Field(default=30, ge=1, le=50)
+
+    @pydantic.field_validator('notifications')
+    @classmethod
+    def _require_known_notifications(
+        cls, notifications: list[str]
+    ) -> list[str]:
+        """Checks that every notification name is known.
+
+        Args:
+            notifications (list[str]): The names.
+
+        Returns:
+            list[str]: The names, unchanged.
+
+        Raises:
+            ValueError: A name is not one of TELEGRAM_NOTIFICATIONS.
+        """
+        for name in notifications:
+            if name not in TELEGRAM_NOTIFICATIONS:
+                raise ValueError(
+                    f'Unknown Telegram notification {name!r}; known ones are {", ".join(TELEGRAM_NOTIFICATIONS)}'
+                )
+        return notifications
+
+
 class AgentConfiguration(pydantic.BaseModel):
     """Everything in trading_agent.toml.
 
@@ -281,6 +336,7 @@ class AgentConfiguration(pydantic.BaseModel):
         browser: How each desk's Chrome browser runs.
         risk: How the risk engine works, apart from the limits in TradingRules.md.
         skills: How the desks' skills are kept.
+        telegram: The Telegram channel.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -299,6 +355,24 @@ class AgentConfiguration(pydantic.BaseModel):
     browser: BrowserConfiguration = BrowserConfiguration()
     risk: RiskConfiguration = RiskConfiguration()
     skills: SkillsConfiguration = SkillsConfiguration()
+    telegram: TelegramConfiguration = TelegramConfiguration()
+
+    @pydantic.model_validator(mode='after')
+    def _require_known_telegram_desk(self) -> AgentConfiguration:
+        """Checks that Telegram's default desk is one of the desks.
+
+        Returns:
+            AgentConfiguration: This configuration, unchanged.
+
+        Raises:
+            ValueError: The default desk does not exist.
+        """
+        for desk in self.desks:
+            if desk.name == self.telegram.default_desk:
+                return self
+        raise ValueError(
+            f'[telegram] default_desk {self.telegram.default_desk!r} is not a desk'
+        )
 
     @pydantic.model_validator(mode='after')
     def _require_known_backends(self) -> AgentConfiguration:

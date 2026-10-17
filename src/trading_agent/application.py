@@ -14,10 +14,16 @@ import uvicorn
 
 from trading_agent import command_line
 from trading_agent import desk_builder
+from trading_agent.channels import notification_formatter
+from trading_agent.channels import pairing_store
+from trading_agent.channels import telegram_api
+from trading_agent.channels import telegram_channel
+from trading_agent.channels import telegram_commands
 from trading_agent.client import checkpoint_commands
 from trading_agent.client import mcp_commands
 from trading_agent.client import message_client
 from trading_agent.client import package_commands
+from trading_agent.client import pairing_commands
 from trading_agent.client import proposal_commands
 from trading_agent.client import skill_commands
 from trading_agent.client import subagent_commands
@@ -33,6 +39,7 @@ from trading_agent.gateway import access_guard
 from trading_agent.gateway import gateway_application
 from trading_agent.gateway import token_redacting_filter
 from trading_agent.gateway.routes import account_routes
+from trading_agent.gateway.routes import channel_routes
 from trading_agent.gateway.routes import desk_routes
 from trading_agent.gateway.routes import extension_routes
 from trading_agent.gateway.routes import file_routes
@@ -162,6 +169,16 @@ class Application:
                     vars(arguments).get('replace', False),
                 )
             )
+        if arguments.command == 'pairing':
+            commands = pairing_commands.PairingCommands(
+                pairing_store.PairingStore(layout.telegram_pairing_file),
+                configuration.telegram.default_desk,
+            )
+            if arguments.pairing_action == 'approve':
+                sys.exit(commands.approve(arguments.code))
+            if arguments.pairing_action == 'revoke':
+                sys.exit(commands.revoke(arguments.chat_id))
+            sys.exit(commands.list())
         if arguments.command == 'subagents':
             library = subagent_library.SubagentLibrary(
                 layout.agents_directory,
@@ -251,19 +268,31 @@ class Application:
             event_bus,
             workspace_layout.WorkspaceLayout(configuration.workspace_directory),
         )
+        pairing = pairing_store.PairingStore(layout.telegram_pairing_file)
+        telegram = self._telegram_channel(
+            configuration,
+            secrets,
+            builder,
+            desks,
+            event_bus,
+            pairing,
+        )
+        workers = [
+            journal,
+            skill_uses,
+            model_usage,
+            manager,
+            hooks,
+            scheduler,
+            builder.market_watcher(desks),
+        ]
+        if telegram is not None:
+            workers.append(telegram)
         gateway = gateway_application.GatewayApplication(
             event_bus,
             desks,
             guard,
-            [
-                journal,
-                skill_uses,
-                model_usage,
-                manager,
-                hooks,
-                scheduler,
-                builder.market_watcher(desks),
-            ],
+            workers,
             redactor,
             secrets.webhook_token,
             self._route_groups(
@@ -275,6 +304,9 @@ class Application:
                 model_usage,
                 manager,
                 redactor,
+                pairing,
+                bool(secrets.telegram_bot_token),
+                telegram,
             ),
             configuration.gateway.frontend_directory,
         )
@@ -299,6 +331,9 @@ class Application:
         model_usage: usage_tracker_module.UsageTracker,
         manager: mcp_client_manager.McpClientManager,
         redactor: secret_redactor.SecretRedactor,
+        pairing: pairing_store.PairingStore,
+        telegram_token_present: bool,
+        telegram: telegram_channel.TelegramChannel | None,
     ) -> list[route_group.RouteGroup]:
         """Creates every route group of the gateway's API.
 
@@ -311,6 +346,9 @@ class Application:
             model_usage (usage_tracker_module.UsageTracker): Today's model usage.
             manager (mcp_client_manager.McpClientManager): The MCP connections.
             redactor (secret_redactor.SecretRedactor): Masks secrets.
+            pairing (pairing_store.PairingStore): The Telegram pairing file.
+            telegram_token_present (bool): Whether a Telegram bot token is set.
+            telegram (telegram_channel.TelegramChannel | None): The running Telegram channel, or None.
 
         Returns:
             list[route_group.RouteGroup]: The route groups.
@@ -343,4 +381,61 @@ class Application:
                 redactor,
                 desk_names,
             ),
+            channel_routes.ChannelRoutes(
+                guard,
+                pairing,
+                configuration.telegram,
+                telegram_token_present,
+                telegram,
+            ),
         ]
+
+    def _telegram_channel(
+        self,
+        configuration: agent_configuration.AgentConfiguration,
+        secrets: secrets_module.Secrets,
+        builder: desk_builder.DeskBuilder,
+        desks: Mapping[str, desk_runtime.DeskRuntime],
+        event_bus: event_bus_module.EventBus,
+        pairing: pairing_store.PairingStore,
+    ) -> telegram_channel.TelegramChannel | None:
+        """Builds the Telegram channel, when it is switched on and has a token.
+
+        Args:
+            configuration (agent_configuration.AgentConfiguration): The agent's configuration.
+            secrets (secrets_module.Secrets): The secrets, holding the bot token.
+            builder (desk_builder.DeskBuilder): The builder, for the shared and desk parts.
+            desks (Mapping[str, desk_runtime.DeskRuntime]): The running desks.
+            event_bus (event_bus_module.EventBus): The event bus.
+            pairing (pairing_store.PairingStore): The pairing file.
+
+        Returns:
+            telegram_channel.TelegramChannel | None: The channel, or None when Telegram is off or has no token.
+        """
+        settings = configuration.telegram
+        if not settings.enabled:
+            return None
+        if not secrets.telegram_bot_token:
+            logging.getLogger(__name__).warning(
+                '[telegram] is enabled but TRADING_AGENT_TELEGRAM_BOT_TOKEN is not set; Telegram stays off'
+            )
+            return None
+        return telegram_channel.TelegramChannel(
+            telegram_api.TelegramApi(
+                secrets.telegram_bot_token, settings.poll_seconds
+            ),
+            pairing,
+            telegram_commands.TelegramCommands(
+                desks,
+                builder.shared_parts(),
+                pairing,
+                configuration.mode,
+            ),
+            notification_formatter.NotificationFormatter(
+                settings.notifications
+            ),
+            desks,
+            builder.desk_parts(),
+            event_bus,
+            settings.default_desk,
+        )

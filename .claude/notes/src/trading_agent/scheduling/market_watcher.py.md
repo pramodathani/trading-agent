@@ -29,3 +29,7 @@ Cycles do not run on a weekend, so the checks were called once from a script aga
 ## account_status (milestone 16)
 
 After each account check the watcher publishes `account_status` (no desk): total balance, day P&L, each desk's P&L and the open position count, once a minute while the market is open. The web interface will show it.
+
+## Fill events name the stock (milestone 19)
+
+The fill event now carries the order's symbol, side and quantity, so a phone notification can say what filled without looking anything up.

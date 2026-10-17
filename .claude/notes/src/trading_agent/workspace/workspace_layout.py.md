@@ -33,3 +33,5 @@ The `Agents.md` template's line "Notes and memory tools arrive in later mileston
 ## Per-desk personas (milestone 16)
 
 `create_missing` writes `templates/personas/<desk>.md` as a desk's Persona.md when such a template exists. `template_text` accepts a path with a folder for that.
+
+`telegram_pairing_file` (milestone 19) is in workspace/shared, which the desks cannot write.

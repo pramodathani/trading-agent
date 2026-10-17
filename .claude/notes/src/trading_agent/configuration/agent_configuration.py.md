@@ -33,3 +33,7 @@ A desk's list of HH:MM times for its routine checks.
 ## gateway.frontend_directory (milestone 18)
 
 The built web page's folder, `frontend/dist` by default. It is relative to the project folder, because `bin/trading-agent` changes to the project folder before starting.
+
+## [telegram] (milestone 19)
+
+Off by default, because it needs a bot token the user creates. `notifications` is checked against the known names when the file is read, so a typing mistake is reported at start instead of silently pushing nothing. `default_desk` must be one of the desks.

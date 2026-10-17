@@ -70,3 +70,7 @@ context_window = 32768
 kind = "claude_code"
 model = "opus"
 context_window = 1000000
+
+[telegram]
+enabled = false
+default_desk = "main"

@@ -192,6 +192,32 @@ class CommandLine:
             'list',
             help='List every subagent with its model, tools and limits.',
         )
+        pairing_parser = subparsers.add_parser(
+            'pairing',
+            help='Manage the Telegram chats allowed to command the desks.',
+        )
+        pairing_actions = pairing_parser.add_subparsers(
+            dest='pairing_action',
+            required=True,
+        )
+        pairing_actions.add_parser(
+            'list',
+            help='List the paired chats and the codes waiting for approval.',
+        )
+        approve_parser = pairing_actions.add_parser(
+            'approve',
+            help='Pair the chat that the bot gave this code.',
+        )
+        approve_parser.add_argument(
+            'code', help='The eight-character code the bot sent.'
+        )
+        revoke_parser = pairing_actions.add_parser(
+            'revoke',
+            help='Unpair a chat, so the bot ignores it.',
+        )
+        revoke_parser.add_argument(
+            'chat_id', help='The chat id that `pairing list` shows.'
+        )
         arguments = parser.parse_args(argument_list)
         if arguments.command is None:
             arguments.command = 'serve'
