@@ -5,3 +5,7 @@ The API needs to reach many objects the desk builder creates: each desk's sessio
 `DeskParts` is per desk and `SharedParts` is shared. Each route group takes the whole bundle but uses only the fields it needs, which is why the tests can fill unused fields with `None`: a dataclass does not check types at run time.
 
 Milestone 17 introduced both.
+
+## `attachments`, since 2026-10-17
+
+The one `AttachmentStore` is a shared part because the web routes and the Telegram channel both store uploads, and both must find them again when a message names them.

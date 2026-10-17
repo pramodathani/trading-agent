@@ -43,3 +43,7 @@ From milestone 8 the application builds the secret redactor and the trade journa
 ## Telegram (milestone 19)
 
 `_telegram_channel` builds the channel only when `[telegram] enabled` is true and a token is set; enabled without a token logs a warning and runs without Telegram, rather than refusing to start the desks. The channel runs as one of the gateway's background workers. `trading-agent pairing` works without the gateway.
+
+## Attachments, since 2026-10-17
+
+`_route_groups` adds `AttachmentRoutes` and gives `DeskRoutes` the attachment store; `_telegram_channel` gives the channel the same store.

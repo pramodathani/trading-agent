@@ -10,6 +10,7 @@ Typical usage example:
 
 import dataclasses
 
+from trading_agent.attachments import attachment_store
 from trading_agent.extensions import installed_packages
 from trading_agent.memory import checkpoints
 from trading_agent.memory import session_store
@@ -69,6 +70,7 @@ class SharedParts:
         subagents: The subagent definitions.
         packages: The installed packages.
         calendar: The exchange calendar.
+        attachments: The files the user sends with messages.
     """
 
     layout: workspace_layout.WorkspaceLayout
@@ -82,3 +84,4 @@ class SharedParts:
     subagents: subagent_library.SubagentLibrary
     packages: installed_packages.InstalledPackages
     calendar: market_calendar.MarketCalendar
+    attachments: attachment_store.AttachmentStore

@@ -26,18 +26,35 @@ class TelegramApiError(RuntimeError):
 
 
 @dataclasses.dataclass(frozen=True)
+class IncomingFile:
+    """A photo or file attached to a message, not yet downloaded.
+
+    Attributes:
+        file_id: Telegram's id for the file, used to download it.
+        file_name: The file's name; a photo, which has none, gets one made from the message.
+        size_bytes: The file's size as Telegram reports it, or 0 when unknown.
+    """
+
+    file_id: str
+    file_name: str
+    size_bytes: int
+
+
+@dataclasses.dataclass(frozen=True)
 class IncomingMessage:
-    """One text message sent to the bot.
+    """One message sent to the bot: its text, and any photo or file with it.
 
     Attributes:
         chat_id: Telegram's id for the chat it came from.
         sender_name: The sender's first name, or their username when they have none.
-        text: The message's text.
+        text: The message's text, or a photo's or file's caption; may be empty.
+        files: The photo or file attached, not yet downloaded.
     """
 
     chat_id: int
     sender_name: str
     text: str
+    files: tuple[IncomingFile, ...] = ()
 
 
 class TelegramApi:
@@ -75,7 +92,7 @@ class TelegramApi:
         return self.username
 
     async def messages(self) -> list[IncomingMessage]:
-        """Waits for new text messages, up to the poll time.
+        """Waits for new messages, up to the poll time; stickers, voice notes and the like are skipped.
 
         Messages are acknowledged once returned, so each is returned only once.
 
@@ -102,7 +119,11 @@ class TelegramApi:
         for update in updates:
             self._offset = update.update_id + 1
             message = update.message
-            if message is None or message.text is None:
+            if message is None:
+                continue
+            files = self._files(message)
+            text = message.text or message.caption or ''
+            if not text and not files:
                 continue
             sender = message.from_user
             name = ''
@@ -112,10 +133,66 @@ class TelegramApi:
                 IncomingMessage(
                     chat_id=message.chat.id,
                     sender_name=name,
-                    text=message.text,
+                    text=text,
+                    files=files,
                 )
             )
         return incoming
+
+    async def download(self, file_id: str) -> bytes:
+        """Downloads a file that was sent to the bot.
+
+        Telegram lets a bot download files of up to 20 MB.
+
+        Args:
+            file_id (str): Telegram's id for the file.
+
+        Returns:
+            bytes: The file's contents.
+
+        Raises:
+            TelegramApiError: Telegram could not be reached, or refused because the file is too large.
+        """
+        try:
+            telegram_file = await self._bot.get_file(file_id)
+            data = await telegram_file.download_as_bytearray()
+        except telegram.error.TelegramError as error:
+            raise TelegramApiError(
+                f'{type(error).__name__}: {error}'
+            ) from error
+        return bytes(data)
+
+    def _files(self, message: telegram.Message) -> tuple[IncomingFile, ...]:
+        """The photo or file attached to a message.
+
+        Telegram sends a photo in several sizes, smallest first; the largest is taken. A photo has no file name, so it is named after the message.
+
+        Args:
+            message (telegram.Message): The message.
+
+        Returns:
+            tuple[IncomingFile, ...]: The attached photo or file, or nothing.
+        """
+        if message.photo:
+            largest = message.photo[-1]
+            return (
+                IncomingFile(
+                    file_id=largest.file_id,
+                    file_name=f'photo-{message.message_id}.jpg',
+                    size_bytes=largest.file_size or 0,
+                ),
+            )
+        if message.document is not None:
+            document = message.document
+            return (
+                IncomingFile(
+                    file_id=document.file_id,
+                    file_name=document.file_name
+                    or f'file-{message.message_id}',
+                    size_bytes=document.file_size or 0,
+                ),
+            )
+        return ()
 
     async def send(self, chat_id: int, text: str) -> None:
         """Sends a plain-text message, split into parts when it is longer than Telegram allows.

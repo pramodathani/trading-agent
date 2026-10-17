@@ -19,6 +19,7 @@ from trading_agent.agent import agent_turn_runner
 from trading_agent.agent import context_compressor
 from trading_agent.agent import loop_guard
 from trading_agent.agent import prompt_builder
+from trading_agent.attachments import attachment_store
 from trading_agent.backends import backend as backend_module
 from trading_agent.backends import claude_code_turn_runner
 from trading_agent.backends import claude_tool_bridge
@@ -160,6 +161,7 @@ class DeskBuilder:
             configuration.workspace_directory
         )
         self._proposal_store = proposal_store.ProposalStore(self._layout)
+        self._attachment_store = attachment_store.AttachmentStore(self._layout)
         self._broker_reader = broker_reader.BrokerReader(
             configuration.tradingmachine_environment_file
         )
@@ -358,6 +360,7 @@ class DeskBuilder:
             subagents=self._subagent_library,
             packages=self._packages,
             calendar=self.calendar,
+            attachments=self._attachment_store,
         )
 
     def market_watcher(

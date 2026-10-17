@@ -2,7 +2,7 @@
 
   GET  /api/desks                     every desk's state, models and session
   GET  /api/desks/{desk}              one desk, with its persona
-  POST /api/desks/{desk}/messages     queue a message or /command; the reply arrives on /ws/events
+  POST /api/desks/{desk}/messages     queue a message or /command, with uploads named by id; the reply arrives on /ws/events
   POST /api/desks/{desk}/pause        stop asking models until resumed (commands still work)
   POST /api/desks/{desk}/resume       start answering again
   POST /api/desks/{desk}/flatten      cancel the desk's orders and close its positions
@@ -15,12 +15,16 @@ Typical usage example:
 """
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Self
 
 import fastapi
 import pydantic
 
 from trading_agent.agent import messages
+from trading_agent.attachments import attachment as attachment_module
+from trading_agent.attachments import (
+    attachment_store as attachment_store_module,
+)
 from trading_agent.backends import model_router
 from trading_agent.gateway import access_guard
 from trading_agent.gateway import gateway_parts
@@ -29,15 +33,35 @@ from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.workspace import workspace_layout
 
+_MOST_ATTACHMENTS = 10
+
 
 class MessageRequest(pydantic.BaseModel):
     """The body of a message sent to a desk.
 
     Attributes:
-        text: What to tell or ask the desk.
+        text: What to tell or ask the desk; may be empty when files are attached.
+        attachment_ids: The uploads to send with it, from POST /api/desks/{desk}/attachments.
     """
 
-    text: str = pydantic.Field(min_length=1)
+    text: str = ''
+    attachment_ids: list[str] = pydantic.Field(
+        default=[], max_length=_MOST_ATTACHMENTS
+    )
+
+    @pydantic.model_validator(mode='after')
+    def _require_something(self) -> Self:
+        """Checks that the message has text or at least one attachment.
+
+        Returns:
+            MessageRequest: The message.
+
+        Raises:
+            ValueError: The message is empty.
+        """
+        if not self.text.strip() and not self.attachment_ids:
+            raise ValueError('A message needs text or an attached file')
+        return self
 
 
 class FlattenRequest(pydantic.BaseModel):
@@ -60,6 +84,7 @@ class DeskRoutes(route_group.RouteGroup):
         parts: Mapping[str, gateway_parts.DeskParts] | None = None,
         layout: workspace_layout.WorkspaceLayout | None = None,
         mode: str = 'dry_run',
+        attachment_store: attachment_store_module.AttachmentStore | None = None,
     ):
         """Creates the routes.
 
@@ -69,12 +94,14 @@ class DeskRoutes(route_group.RouteGroup):
             parts (Mapping[str, gateway_parts.DeskParts] | None): Each desk's tools, for flatten, or None when flatten is not offered.
             layout (workspace_layout.WorkspaceLayout | None): Where the personas are, or None to leave them out.
             mode (str): "dry_run" or "live", reported with each desk.
+            attachment_store (attachment_store_module.AttachmentStore | None): Where uploads are kept, or None when messages cannot carry files.
         """
         super().__init__(guard)
         self._desks = desks
         self._parts = parts or {}
         self._layout = layout
         self._mode = mode
+        self._attachment_store = attachment_store
 
     def _add_routes(self, router: fastapi.APIRouter) -> None:
         """Adds the desk routes.
@@ -147,17 +174,57 @@ class DeskRoutes(route_group.RouteGroup):
 
         Returns:
             dict[str, Any]: The new trigger's identifier, to match it with later events.
+
+        Raises:
+            fastapi.HTTPException: There is no such desk (404), or an attachment is not one of the desk's uploads (422).
         """
         desk = self._find(self._desks, desk_name, 'desk')
         trigger = trigger_module.Trigger.now(
             trigger_module.TriggerSource.USER_MESSAGE,
             desk_name,
-            message.text,
+            message.text.strip(),
+            self._attachments(desk_name, message.attachment_ids),
         )
         desk.submit(trigger)
         return {
             'trigger_id': trigger.trigger_id,
         }
+
+    def _attachments(
+        self,
+        desk_name: str,
+        attachment_ids: list[str],
+    ) -> tuple[attachment_module.Attachment, ...]:
+        """Looks up the uploads a message names.
+
+        Args:
+            desk_name (str): The desk the uploads must belong to.
+            attachment_ids (list[str]): Their identifiers.
+
+        Returns:
+            tuple[attachment_module.Attachment, ...]: The attachments, in the order named.
+
+        Raises:
+            fastapi.HTTPException: Files are named but none can be attached here, or one is not the desk's upload (422).
+        """
+        if not attachment_ids:
+            return ()
+        if self._attachment_store is None:
+            raise fastapi.HTTPException(
+                status_code=422,
+                detail='This gateway takes no attached files',
+            )
+        found = []
+        for attachment_id in attachment_ids:
+            try:
+                found.append(
+                    self._attachment_store.find(desk_name, attachment_id)
+                )
+            except attachment_store_module.AttachmentNotFoundError as error:
+                raise fastapi.HTTPException(
+                    status_code=422, detail=str(error)
+                ) from error
+        return tuple(found)
 
     def pause(self, desk_name: str) -> dict[str, Any]:
         """Pauses a desk.

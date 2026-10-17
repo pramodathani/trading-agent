@@ -43,6 +43,7 @@ from trading_agent.gateway import gateway_application
 from trading_agent.gateway import token_redacting_filter
 from trading_agent.gateway.routes import account_routes
 from trading_agent.gateway.routes import app_routes
+from trading_agent.gateway.routes import attachment_routes
 from trading_agent.gateway.routes import channel_routes
 from trading_agent.gateway.routes import desk_routes
 from trading_agent.gateway.routes import extension_routes
@@ -383,6 +384,12 @@ class Application:
                 parts,
                 shared.layout,
                 configuration.mode,
+                shared.attachments,
+            ),
+            attachment_routes.AttachmentRoutes(
+                desks,
+                shared.attachments,
+                guard,
             ),
             account_routes.AccountRoutes(guard, shared, desk_names),
             memory_routes.MemoryRoutes(guard, parts, shared.layout),
@@ -465,4 +472,5 @@ class Application:
             builder.desk_parts(),
             event_bus,
             settings.default_desk,
+            builder.shared_parts().attachments,
         )

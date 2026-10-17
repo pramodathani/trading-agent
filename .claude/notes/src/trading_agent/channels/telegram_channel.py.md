@@ -21,3 +21,9 @@ Telegram being unreachable never stops the gateway: connecting and polling retry
 ## Approving from the web page
 
 `approve` pairs the chat and tells it at once. `trading-agent pairing approve` cannot message the chat, because it runs in another process; the chat is simply obeyed from its next message, as docs/telegram_setup.md says.
+
+## Photos and files, since 2026-10-17
+
+A paired chat's photo or file is downloaded and stored as an upload, and sent to the desk with the caption as the message text. The pairing check comes first, so a stranger's file is never downloaded; a test checks that. A file Telegram reports as larger than 20 MB is refused before downloading, and any refusal is told to the chat in the store's words.
+
+A message with a file is never treated as a command, even when its caption starts with a slash, because the file is meant for a desk. Storing runs in a worker thread, as on the web, because reading a PDF can take a second.
