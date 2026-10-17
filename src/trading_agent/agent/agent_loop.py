@@ -239,12 +239,15 @@ class AgentLoop:
                     'round': round_number,
                     'prompt_tokens': reply.prompt_tokens,
                     'completion_tokens': reply.completion_tokens,
+                    'cache_read_tokens': reply.cache_read_tokens,
+                    'cost_usd': reply.cost_usd,
                 },
             )
             conversation.append(
                 messages.ConversationMessage.assistant(
                     reply.text,
                     reply.tool_calls,
+                    reply.reasoning,
                 )
             )
             if reply.prompt_tokens:

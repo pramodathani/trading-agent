@@ -4,6 +4,7 @@ import { apiClient } from '../api/apiClient';
 import type { AgentEvent, Attachment } from '../api/types';
 import { AttachmentList } from '../components/AttachmentList';
 import { MarkdownText } from '../components/MarkdownText';
+import { ModelMenu } from '../components/ModelMenu';
 import { PictureThumbnail } from '../components/PictureThumbnail';
 import { RequestDock } from '../components/requests/RequestDock';
 import { RequestSummary } from '../components/requests/RequestSummary';
@@ -474,6 +475,7 @@ export function ChatPage() {
         <div className="composer-footer">
           <span className={listening ? 'composer-hint listening' : 'composer-hint'}>{listening ? 'Listening… press the microphone again to stop' : modeWords}</span>
           <span className="spacer" />
+          {desk !== null && <ModelMenu desk={desk} onChanged={desks.refresh} />}
         </div>
         {voiceError !== null && <p className="error-text small composer-note">{voiceError}</p>}
         {sendError !== null && <p className="error-text small composer-note">{sendError}</p>}

@@ -21,6 +21,7 @@ from trading_agent.configuration import agent_configuration
 
 _INVALID_ARGUMENTS_KEY = 'unparseable_arguments'
 _PLACEHOLDER_API_KEY = 'not-needed'
+_NO_VISION_NOTE = '[A picture was attached here, but this model cannot see pictures, so it was left out.]'
 
 
 class _ToolCallParts:
@@ -82,6 +83,7 @@ class OpenAICompatibleBackend(backend.ModelBackend):
             api_key (str): The server's API key, or an empty string for a local server that needs none.
         """
         super().__init__(name, backend_configuration.model)
+        self._vision = backend_configuration.vision
         self._client = openai.AsyncOpenAI(
             base_url=backend_configuration.base_url,
             api_key=api_key or _PLACEHOLDER_API_KEY,
@@ -108,9 +110,9 @@ class OpenAICompatibleBackend(backend.ModelBackend):
             backend.BackendUnavailableError: The server cannot be reached, refused the request, or is rate limiting.
         """
         text_parts = []
+        reasoning_parts = []
         call_parts = {}
-        prompt_tokens = 0
-        completion_tokens = 0
+        usage = None
         try:
             stream = await self._client.chat.completions.create(
                 model=self.model,
@@ -123,9 +125,11 @@ class OpenAICompatibleBackend(backend.ModelBackend):
             )
             async for chunk in stream:
                 if chunk.usage is not None:
-                    prompt_tokens = chunk.usage.prompt_tokens
-                    completion_tokens = chunk.usage.completion_tokens
+                    usage = chunk.usage
                 for choice in chunk.choices:
+                    thought = getattr(choice.delta, 'reasoning_content', None)
+                    if thought:
+                        reasoning_parts.append(thought)
                     piece = choice.delta.content
                     if piece:
                         text_parts.append(piece)
@@ -133,18 +137,82 @@ class OpenAICompatibleBackend(backend.ModelBackend):
                     for delta_call in choice.delta.tool_calls or []:
                         self._add_call_delta(call_parts, delta_call)
         except openai.APIError as error:
-            raise backend.BackendUnavailableError(
-                f'OpenAI-compatible backend {self.name} failed: {error!r}'
-            ) from error
+            raise self._unavailable(error) from error
         tool_calls = []
         for index in sorted(call_parts):
             tool_calls.append(call_parts[index].to_tool_call())
+        prompt_tokens = 0
+        completion_tokens = 0
+        cache_read_tokens = 0
+        cost_usd = None
+        if usage is not None:
+            prompt_tokens = usage.prompt_tokens
+            completion_tokens = usage.completion_tokens
+            cache_read_tokens = self._cache_read_tokens(usage)
+            cost_usd = self._cost_usd(usage, cache_read_tokens)
         return backend.ModelReply(
             text=''.join(text_parts),
             tool_calls=tool_calls,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
+            reasoning=''.join(reasoning_parts),
+            cache_read_tokens=cache_read_tokens,
+            cost_usd=cost_usd,
         )
+
+    def _unavailable(self, error: openai.APIError) -> backend.BackendUnavailableError:
+        """Turns a failed request into the error that sends the router to the next backend.
+
+        Subclasses override this to set a waiting time for errors they recognise, such as a server out of credit.
+
+        Args:
+            error (openai.APIError): The failure.
+
+        Returns:
+            backend.BackendUnavailableError: The error to raise.
+        """
+        return backend.BackendUnavailableError(
+            f'OpenAI-compatible backend {self.name} failed: {error!r}'
+        )
+
+    def _cache_read_tokens(self, usage: Any) -> int:
+        """How many prompt tokens the server read from its cache, as OpenAI reports it.
+
+        Args:
+            usage (Any): The completion's usage object.
+
+        Returns:
+            int: The cached tokens, or 0 when the server did not say.
+        """
+        details = getattr(usage, 'prompt_tokens_details', None)
+        if details is None:
+            return 0
+        return int(getattr(details, 'cached_tokens', 0) or 0)
+
+    def _cost_usd(self, usage: Any, cache_read_tokens: int) -> float | None:
+        """What the call cost, when the backend knows its prices.
+
+        Args:
+            usage (Any): The completion's usage object.
+            cache_read_tokens (int): The prompt tokens read from the cache.
+
+        Returns:
+            float | None: The cost in US dollars, or None; the plain backend leaves costs to the rupee prices in /usage.
+        """
+        del usage, cache_read_tokens
+        return None
+
+    def _assistant_extras(self, message: messages.ConversationMessage) -> dict[str, Any]:
+        """Extra fields sent with an assistant message, beyond its text and tool calls.
+
+        Args:
+            message (messages.ConversationMessage): The assistant message.
+
+        Returns:
+            dict[str, Any]: The fields; none for a plain OpenAI-compatible server.
+        """
+        del message
+        return {}
 
     def _add_call_delta(
         self,
@@ -178,6 +246,8 @@ class OpenAICompatibleBackend(backend.ModelBackend):
         """
         if not message.images:
             return message.text
+        if not self._vision:
+            return f'{message.text}\n{_NO_VISION_NOTE}'.strip()
         content = [
             {
                 'type': 'text',
@@ -217,7 +287,9 @@ class OpenAICompatibleBackend(backend.ModelBackend):
         for message in conversation.messages:
             if message.role == messages.Role.TOOL:
                 content = message.text
-                if message.image is not None:
+                if message.image is not None and not self._vision:
+                    content += f'\n{_NO_VISION_NOTE}'
+                elif message.image is not None:
                     content += '\n[The picture is in the next user message.]'
                     pictures.append(message)
                 wire_messages.append(
@@ -248,6 +320,8 @@ class OpenAICompatibleBackend(backend.ModelBackend):
                         }
                     )
                 wire_message['tool_calls'] = wire_calls
+            if message.role == messages.Role.ASSISTANT:
+                wire_message.update(self._assistant_extras(message))
             wire_messages.append(wire_message)
         self._add_tool_pictures(wire_messages, pictures)
         return wire_messages

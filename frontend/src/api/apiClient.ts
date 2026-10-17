@@ -154,6 +154,20 @@ export class ApiClient {
   }
 
   /**
+   * Tries one backend first from now on, optionally with another of its provider's models, or returns to the configured order.
+   * @param deskName The desk.
+   * @param backendName The backend, or null for the configured order.
+   * @param model Another model the backend offers, or null for its configured one.
+   * @returns The desk's state afterwards.
+   */
+  chooseModel(deskName: string, backendName: string | null, model: string | null = null): Promise<DeskSummary> {
+    return this.request<DeskSummary>('POST', `/api/desks/${deskName}/model`, {
+      backend: backendName,
+      model,
+    });
+  }
+
+  /**
    * How full a desk's context window is, and which tools it has.
    * @param deskName The desk.
    * @returns The latest snapshot, or null usage before the first turn, and the tool names.

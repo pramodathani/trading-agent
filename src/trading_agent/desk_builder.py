@@ -23,6 +23,7 @@ from trading_agent.attachments import attachment_store
 from trading_agent.backends import backend as backend_module
 from trading_agent.backends import claude_code_turn_runner
 from trading_agent.backends import claude_tool_bridge
+from trading_agent.backends import deepseek_backend
 from trading_agent.backends import model_router
 from trading_agent.backends import ollama_backend
 from trading_agent.backends import openai_compatible_backend
@@ -470,6 +471,7 @@ class DeskBuilder:
             routes,
             self._event_bus,
             session_store=store,
+            completed_calls=executor.completed_calls,
         )
 
     def backend_runner(
@@ -508,11 +510,20 @@ class DeskBuilder:
                 maximum_rounds,
                 steering_inbox,
             )
-        if backend_configuration.kind == 'openai_compatible':
+        api_key = self._secrets.openai_api_key
+        if backend_configuration.api_key_variable is not None:
+            api_key = self._secrets.named(backend_configuration.api_key_variable)
+        if backend_configuration.kind == 'deepseek':
+            model_backend = deepseek_backend.DeepSeekBackend(
+                backend_name,
+                backend_configuration,
+                api_key,
+            )
+        elif backend_configuration.kind == 'openai_compatible':
             model_backend = openai_compatible_backend.OpenAICompatibleBackend(
                 backend_name,
                 backend_configuration,
-                self._secrets.openai_api_key,
+                api_key,
             )
         else:
             model_backend = ollama_backend.OllamaBackend(

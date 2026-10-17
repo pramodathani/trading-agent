@@ -89,6 +89,28 @@ class TurnRunner:
         del state
         return False
 
+    def active_model(self) -> str | None:
+        """The model the runner uses now.
+
+        Runners without a model keep this default.
+
+        Returns:
+            str | None: The model's name, or None.
+        """
+        return None
+
+    def use_model(self, model: str | None) -> None:
+        """Switches to another model of the same provider, or back to the configured one.
+
+        Args:
+            model (str | None): The model's name, or None for the configured model.
+
+        Raises:
+            ValueError: Always, because this runner has no model to switch.
+        """
+        if model is not None:
+            raise ValueError('This desk runs without a model')
+
     def context_usage(self) -> context_usage_module.ContextUsage | None:
         """How full the runner's context window is, as of its last turn.
 

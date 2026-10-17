@@ -76,6 +76,22 @@ class AgentTurnRunner(turn_runner.TurnRunner):
             return 'There was nothing to compact.'
         return f'Compressed the conversation from about {before:,} tokens into a summary, after a memory-flush turn.'
 
+    def active_model(self) -> str | None:
+        """The model the loop's backend uses now.
+
+        Returns:
+            str | None: The model's name.
+        """
+        return self._agent_loop.backend.model
+
+    def use_model(self, model: str | None) -> None:
+        """Switches the loop's backend to another model on the same server, keeping the conversation.
+
+        Args:
+            model (str | None): The model's name, or None for the configured model.
+        """
+        self._agent_loop.backend.use_model(model)
+
     def context_usage(self) -> context_usage_module.ContextUsage | None:
         """Estimates how full the model's context window is.
 

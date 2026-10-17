@@ -36,8 +36,9 @@ class BackendUsage:
         calls: Model calls; for Claude, turns.
         prompt_tokens: Tokens sent.
         completion_tokens: Tokens written by the model.
-        cache_read_tokens: Tokens Claude read from its prompt cache.
+        cache_read_tokens: Tokens the server read from its prompt cache, for Claude and DeepSeek.
         api_equivalent_cost_usd: What Claude's usage would have cost on the API, in US dollars.
+        cost_usd: What a paid API, such as DeepSeek's, actually charged, in US dollars.
     """
 
     calls: int = 0
@@ -45,6 +46,7 @@ class BackendUsage:
     completion_tokens: int = 0
     cache_read_tokens: int = 0
     api_equivalent_cost_usd: float = 0.0
+    cost_usd: float = 0.0
 
 
 class UsageTracker:
@@ -139,6 +141,7 @@ class UsageTracker:
         usage.api_equivalent_cost_usd += float(
             payload.get('api_equivalent_cost_usd') or 0.0
         )
+        usage.cost_usd += float(payload.get('cost_usd') or 0.0)
 
     def today(self, desk_name: str) -> dict[str, BackendUsage]:
         """A desk's usage today, by backend.
@@ -193,6 +196,8 @@ class UsageTracker:
             cost = self._rupees(backend_name, counts)
             if cost is not None:
                 line = f'{line}, about ₹{cost:,.2f}'
+            if counts.cost_usd:
+                line = f'{line}, charged ${counts.cost_usd:,.4f}'
             if counts.api_equivalent_cost_usd:
                 line = f'{line} (on the subscription; the API would have charged ${counts.api_equivalent_cost_usd:,.2f})'
             lines.append(line)

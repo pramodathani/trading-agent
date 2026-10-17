@@ -12,6 +12,7 @@ Typical usage example:
 
 import dataclasses
 import datetime
+import json
 import time
 from collections.abc import Callable, Sequence
 
@@ -22,6 +23,7 @@ from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.runtime import turn_runner
+from trading_agent.tools import tool_call_executor as tool_call_executor_module
 
 DEFAULT_WAITING_PERIODS_SECONDS = (
     30.0,
@@ -29,6 +31,7 @@ DEFAULT_WAITING_PERIODS_SECONDS = (
     300.0,
 )
 _HANDOVER_EXCHANGE_LIMIT = 10
+_COMPLETED_RESULT_CHARACTERS = 400
 
 
 class BackendRoute:
@@ -59,17 +62,23 @@ class BackendRoute:
         self,
         now: float,
         waiting_periods_seconds: Sequence[float],
+        retry_after_seconds: float | None = None,
     ) -> float:
         """Counts a failure and starts the backend's waiting period.
 
         Args:
             now (float): The current monotonic time.
             waiting_periods_seconds (Sequence[float]): The waits after the first, second and later failures in a row.
+            retry_after_seconds (float | None): How long the backend itself said to wait, such as until a subscription limit resets; it replaces the usual period when given.
 
         Returns:
             float: How long the backend now waits, in seconds.
         """
         self.consecutive_failures += 1
+        if retry_after_seconds is not None:
+            waiting_seconds = max(retry_after_seconds, 0.0)
+            self.available_at = now + waiting_seconds
+            return waiting_seconds
         index = min(
             self.consecutive_failures - 1,
             len(waiting_periods_seconds) - 1,
@@ -102,6 +111,7 @@ class ModelRouter(turn_runner.TurnRunner):
         ] = DEFAULT_WAITING_PERIODS_SECONDS,
         clock: Callable[[], float] = time.monotonic,
         session_store: session_store_module.SessionStore | None = None,
+        completed_calls: Callable[[str], Sequence[tool_call_executor_module.CompletedCall]] | None = None,
     ):
         """Creates the router.
 
@@ -112,6 +122,7 @@ class ModelRouter(turn_runner.TurnRunner):
             waiting_periods_seconds (Sequence[float]): The waits after the first, second and later failures in a row.
             clock (Callable[[], float]): The source of monotonic time, replaceable in tests.
             session_store (session_store_module.SessionStore | None): Where exchanges are kept across restarts, or None to keep them in memory only.
+            completed_calls (Callable[[str], Sequence[tool_call_executor_module.CompletedCall]] | None): Gives the tool calls already made for a trigger, so a backend that takes over halfway through a turn does not repeat them; None when unknown.
 
         Raises:
             ValueError: No routes were given.
@@ -127,6 +138,7 @@ class ModelRouter(turn_runner.TurnRunner):
         self._last_backend_name = None
         self._preferred_backend_name = None
         self._session_store = session_store
+        self._completed_calls = completed_calls
         self.session_id: str | None = None
         self.trading_date: datetime.date | None = None
 
@@ -152,14 +164,16 @@ class ModelRouter(turn_runner.TurnRunner):
                 waiting = route.available_at - now
                 reasons.append(f'{route.name} is waiting {waiting:.0f} s')
                 continue
+            attempt = self._with_handover(route, trigger)
+            if reasons:
+                attempt = self._with_completed_calls(attempt, reasons)
             try:
-                result = await route.turn_runner.run_turn(
-                    self._with_handover(route, trigger)
-                )
+                result = await route.turn_runner.run_turn(attempt)
             except backend_module.BackendUnavailableError as error:
                 waiting = route.record_failure(
                     self._clock(),
                     self._waiting_periods_seconds,
+                    error.retry_after_seconds,
                 )
                 reasons.append(f'{route.name}: {error}')
                 self._publish_unavailable(trigger, route, error, waiting)
@@ -268,6 +282,38 @@ class ModelRouter(turn_runner.TurnRunner):
         """The backend tried first because of /model, or None for the configured order."""
         return self._preferred_backend_name
 
+    def choose(self, backend_name: str | None, model: str | None = None) -> None:
+        """Tries one backend first, optionally with another of its provider's models, or returns to the configured order and models.
+
+        The chosen model applies only to the chosen backend; every other backend goes back to its configured model.
+
+        Args:
+            backend_name (str | None): The backend to try first, or None for the configured order.
+            model (str | None): The model that backend should use, or None for its configured one.
+
+        Raises:
+            ValueError: No backend of the desk has that name, or a model was given without a backend.
+        """
+        if backend_name is None and model is not None:
+            raise ValueError('Choose a backend to use another model')
+        self.prefer(backend_name)
+        for route in self._routes:
+            if route.name == backend_name:
+                route.turn_runner.use_model(model)
+            else:
+                route.turn_runner.use_model(None)
+
+    def active_models(self) -> dict[str, str | None]:
+        """The model each backend uses now.
+
+        Returns:
+            dict[str, str | None]: Each backend's model, keyed by backend name.
+        """
+        models = {}
+        for route in self._routes:
+            models[route.name] = route.turn_runner.active_model()
+        return models
+
     def prefer(self, backend_name: str | None) -> None:
         """Tries one backend first from now on, or returns to the configured order.
 
@@ -350,6 +396,41 @@ class ModelRouter(turn_runner.TurnRunner):
         lines.append('[End of hand-over. The new trigger follows.]')
         lines.append('')
         lines.append(trigger.text)
+        return dataclasses.replace(trigger, text='\n'.join(lines))
+
+    def _with_completed_calls(
+        self,
+        trigger: trigger_module.Trigger,
+        reasons: Sequence[str],
+    ) -> trigger_module.Trigger:
+        """Adds to the trigger's text the tool calls an earlier backend already made in this turn before it failed.
+
+        Without this, a backend taking over could repeat an action, such as placing an order a second time.
+
+        Args:
+            trigger (trigger_module.Trigger): The trigger, possibly with a hand-over already in front.
+            reasons (Sequence[str]): Why the earlier backends failed.
+
+        Returns:
+            trigger_module.Trigger: The trigger unchanged when no call was made, or with the calls listed after its text.
+        """
+        if self._completed_calls is None:
+            return trigger
+        calls = self._completed_calls(trigger.trigger_id)
+        if not calls:
+            return trigger
+        lines = [
+            trigger.text,
+            '',
+            f'[Harness note: another model started this turn and stopped partway ({"; ".join(reasons)}). These tool calls were already made in this turn, oldest first. Do not repeat any of them unless you deliberately mean to do it again; carry on from where it stopped.]',
+        ]
+        for call in calls:
+            outcome = 'failed' if call.is_error else 'returned'
+            result = call.result_text
+            if len(result) > _COMPLETED_RESULT_CHARACTERS:
+                result = f'{result[:_COMPLETED_RESULT_CHARACTERS]}…'
+            lines.append(f'- {call.name} {json.dumps(call.arguments, ensure_ascii=False)} {outcome}: {result}')
+        lines.append('[End of harness note.]')
         return dataclasses.replace(trigger, text='\n'.join(lines))
 
     def _finish(

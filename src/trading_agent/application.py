@@ -407,6 +407,7 @@ class Application:
                 shared.layout,
                 configuration.mode,
                 shared.attachments,
+                configuration.backends,
             ),
             attachment_routes.AttachmentRoutes(
                 desks,

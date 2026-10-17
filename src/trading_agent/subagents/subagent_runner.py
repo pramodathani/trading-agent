@@ -209,7 +209,7 @@ class SubagentRunner:
             },
         )
         outcome, text, backend_name = await self._run(
-            routes, trigger, definition
+            routes, trigger, definition, executor
         )
         if prepared.bash_session is not None:
             await prepared.bash_session.close()
@@ -239,6 +239,7 @@ class SubagentRunner:
         routes: list[model_router.BackendRoute],
         trigger: trigger_module.Trigger,
         definition: definition_module.SubagentDefinition,
+        executor: tool_call_executor.ToolCallExecutor,
     ) -> tuple[str, str, str | None]:
         """Runs the task's turn with its time limit, and always closes its runners.
 
@@ -246,12 +247,16 @@ class SubagentRunner:
             routes (list[model_router.BackendRoute]): The task's backends.
             trigger (trigger_module.Trigger): The task.
             definition (definition_module.SubagentDefinition): The subagent, for its time limit.
+            executor (tool_call_executor.ToolCallExecutor): The task's executor, whose record of calls keeps a backend taking over from repeating them.
 
         Returns:
             tuple[str, str, str | None]: A tuple (outcome, text, backend_name), where outcome is "answered", "timed out" or "failed", text the report or the reason, and backend_name the backend that answered, if any.
         """
         router = model_router.ModelRouter(
-            self._desk_name, routes, self._event_bus
+            self._desk_name,
+            routes,
+            self._event_bus,
+            completed_calls=executor.completed_calls,
         )
         try:
             result = await asyncio.wait_for(

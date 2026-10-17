@@ -15,6 +15,7 @@ from trading_agent.doctor import doctor_check
 from trading_agent.doctor.checks import bubblewrap_check
 from trading_agent.doctor.checks import chrome_check
 from trading_agent.doctor.checks import claude_code_backend_check
+from trading_agent.doctor.checks import deepseek_backend_check
 from trading_agent.doctor.checks import desk_loss_limits_check
 from trading_agent.doctor.checks import dry_run_order_check
 from trading_agent.doctor.checks import gateway_token_check
@@ -131,6 +132,14 @@ class Doctor:
                     openai_compatible_backend_check.OpenAICompatibleBackendCheck(
                         backend_name,
                         backend,
+                    )
+                )
+            if backend.kind == 'deepseek':
+                checks.append(
+                    deepseek_backend_check.DeepSeekBackendCheck(
+                        backend_name,
+                        backend,
+                        self._secrets,
                     )
                 )
             if backend.kind == 'claude_code':

@@ -34,7 +34,17 @@ export interface DeskSummary {
   last_model: string | null;
   session_id: string | null;
   exchanges: number;
+  backends?: DeskBackend[];
   persona?: string | null;
+}
+
+/** One backend a desk can use, and the model behind it. */
+export interface DeskBackend {
+  name: string;
+  kind: string;
+  model: string;
+  active_model: string | null;
+  other_models: string[];
 }
 
 /** One part of a context window, such as the messages or the free space. */
@@ -305,6 +315,7 @@ export interface BackendUsage {
   completion_tokens: number;
   cache_read_tokens: number;
   api_equivalent_cost_usd: number;
+  cost_usd?: number;
 }
 
 /** The answer of GET /api/usage. */
