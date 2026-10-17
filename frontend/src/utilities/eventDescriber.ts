@@ -138,6 +138,14 @@ export class EventDescriber {
           return this.make('Your message was handed to the running turn', '', 'good');
         }
         return this.make('The turn ended before your message reached it, so it is the next turn', '', 'normal');
+      case 'channel':
+        if (payload.action === 'stranger') {
+          return this.make(`Telegram: a chat that is not paired wrote (${this.text(payload.name)}, chat ${this.text(payload.chat_id)})`, this.text(payload.text), 'warning');
+        }
+        if (payload.action === 'paired') {
+          return this.make(`Telegram: paired ${this.text(payload.name)}`, '', 'good');
+        }
+        return this.make(`Telegram: connected as @${this.text(payload.name)}`, '', 'quiet');
       case 'stopped':
         return this.make('Turn stopped by you', '', 'warning');
       case 'desk_started':

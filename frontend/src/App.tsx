@@ -6,6 +6,7 @@ import { tokenStore } from './auth/tokenStore';
 import { AppLayout } from './layout/AppLayout';
 import { eventSocket } from './live/eventSocket';
 import { ActivityPage } from './pages/ActivityPage';
+import { ChannelsPage } from './pages/ChannelsPage';
 import { ChatPage } from './pages/ChatPage';
 import { CheckpointsPage } from './pages/CheckpointsPage';
 import { CronPage } from './pages/CronPage';
@@ -57,6 +58,7 @@ export function App() {
           <Route path="skills" element={<SkillsPage />} />
           <Route path="extensions" element={<ExtensionsPage />} />
           <Route path="models" element={<ModelsPage />} />
+          <Route path="channels" element={<ChannelsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/desks" replace />} />
         </Route>

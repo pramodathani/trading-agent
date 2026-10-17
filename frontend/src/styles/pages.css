@@ -411,3 +411,7 @@
   font-family: var(--font-family);
   font-size: var(--font-size-body);
 }
+
+.pairing-form {
+  margin-top: 10px;
+}

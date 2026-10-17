@@ -22,6 +22,7 @@ import type {
   SessionEntry,
   SkillEntry,
   SubagentEntry,
+  TelegramStatus,
   ToolActionResult,
   UsageDocument,
 } from './types';
@@ -392,6 +393,33 @@ export class ApiClient {
    */
   usage(): Promise<UsageDocument> {
     return this.request('GET', '/api/usage');
+  }
+
+  /**
+   * Telegram's state, paired chats and waiting codes.
+   * @returns The Telegram status.
+   */
+  async telegram(): Promise<TelegramStatus> {
+    const document = await this.request<{ telegram: TelegramStatus }>('GET', '/api/channels');
+    return document.telegram;
+  }
+
+  /**
+   * Pairs the Telegram chat that was given a code.
+   * @param code The code the bot sent.
+   * @returns The paired chat.
+   */
+  approvePairing(code: string): Promise<Record<string, unknown>> {
+    return this.request('POST', `/api/channels/telegram/pairings/${encodeURIComponent(code)}/approve`);
+  }
+
+  /**
+   * Unpairs a Telegram chat.
+   * @param chatId The chat.
+   * @returns The removed chat.
+   */
+  revokePairing(chatId: number): Promise<Record<string, unknown>> {
+    return this.request('DELETE', `/api/channels/telegram/chats/${chatId}`);
   }
 
   /**

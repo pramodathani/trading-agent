@@ -271,3 +271,32 @@ export interface UsageDocument {
   desks: Record<string, Record<string, BackendUsage>>;
   rate_limits: Record<string, Record<string, unknown>>;
 }
+
+/** A Telegram chat the desks obey. */
+export interface PairedChat {
+  chat_id: number;
+  name: string;
+  paired_at: string;
+  desk: string;
+}
+
+/** A Telegram chat waiting for its code to be approved. */
+export interface PendingPairing {
+  code: string;
+  chat_id: number;
+  name: string;
+  requested_at: string;
+}
+
+/** Telegram's state, as GET /api/channels gives it. */
+export interface TelegramStatus {
+  enabled: boolean;
+  token_present: boolean;
+  state: string;
+  error: string;
+  username: string;
+  default_desk: string;
+  notifications: string[];
+  paired: PairedChat[];
+  pending: PendingPairing[];
+}

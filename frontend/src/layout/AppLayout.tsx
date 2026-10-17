@@ -124,6 +124,9 @@ export function AppLayout() {
           <NavLink className="nav-link" to="/models">
             Models
           </NavLink>
+          <NavLink className="nav-link" to="/channels">
+            Channels
+          </NavLink>
           <NavLink className="nav-link" to="/settings">
             Settings
           </NavLink>
