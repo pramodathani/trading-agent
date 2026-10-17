@@ -4,7 +4,8 @@ The workspace has a shared part that belongs to the user, and one folder per des
 
   workspace/
     shared/   Agents.md  User.md  TradingRules.md
-    desks/<desk>/   Persona.md  Memory.md  proposals/  scratch/
+    desks/<desk>/   Persona.md  Memory.md  notes/  sessions/  proposals/  scratch/
+    .checkpoints/<desk>.git   snapshots of each desk's own files
 
 Typical usage example:
 
@@ -101,6 +102,39 @@ class WorkspaceLayout:
         """
         return self.desk_directory(desk_name) / 'Memory.md'
 
+    def notes_directory(self, desk_name: str) -> Path:
+        """Where the desk records its daily improvement notes.
+
+        Args:
+            desk_name (str): The desk's name.
+
+        Returns:
+            Path: The desk's notes folder.
+        """
+        return self.desk_directory(desk_name) / 'notes'
+
+    def sessions_directory(self, desk_name: str) -> Path:
+        """Where the desk's session logs, session state and daily summaries are kept.
+
+        Args:
+            desk_name (str): The desk's name.
+
+        Returns:
+            Path: The desk's sessions folder.
+        """
+        return self.desk_directory(desk_name) / 'sessions'
+
+    def checkpoint_repository(self, desk_name: str) -> Path:
+        """The git directory holding snapshots of the desk's own files.
+
+        Args:
+            desk_name (str): The desk's name.
+
+        Returns:
+            Path: The repository, such as workspace/.checkpoints/main.git.
+        """
+        return self.root / '.checkpoints' / f'{desk_name}.git'
+
     def proposals_directory(self, desk_name: str) -> Path:
         """Where the desk's proposed changes to the user's files wait.
 
@@ -164,6 +198,7 @@ class WorkspaceLayout:
                 parents=True, exist_ok=True
             )
             self.scratch_directory(desk_name).mkdir(parents=True, exist_ok=True)
+            self.notes_directory(desk_name).mkdir(parents=True, exist_ok=True)
             for file_name in DESK_FILE_NAMES:
                 target = self.desk_directory(desk_name) / file_name
                 if self._write_template_if_missing(target, file_name):
