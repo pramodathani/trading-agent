@@ -12,6 +12,7 @@ import './styles/layout.css';
 import './styles/components.css';
 import './styles/pages.css';
 import './styles/sidePanel.css';
+import './styles/markdown.css';
 import { themeController } from './utilities/themeController';
 
 themeController.applyStoredChoice();

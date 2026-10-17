@@ -1,0 +1,232 @@
+.markdown {
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  overflow-wrap: anywhere;
+}
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown p {
+  margin: 10.5px 0 0;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  margin: 18px 0 0;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.markdown h1 {
+  font-size: 18px;
+}
+
+.markdown h2 {
+  font-size: 16px;
+}
+
+.markdown h3,
+.markdown h4 {
+  font-size: var(--font-size-body);
+}
+
+.markdown strong {
+  font-weight: 600;
+}
+
+.markdown ul,
+.markdown ol {
+  margin: 10.5px 0 0;
+  padding-left: 28px;
+}
+
+.markdown li {
+  margin-top: 3.5px;
+  padding-left: 7px;
+}
+
+.markdown li > p {
+  margin-top: 3.5px;
+}
+
+.markdown li::marker {
+  color: var(--color-text-muted);
+}
+
+.markdown a {
+  color: var(--color-blue);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--color-blue) 40%, transparent);
+  text-underline-offset: 2px;
+}
+
+.markdown a:hover {
+  text-decoration-color: var(--color-blue);
+}
+
+.markdown blockquote {
+  margin: 10.5px 0 0;
+  padding: 0 0 0 12px;
+  border-left: 3px solid var(--color-border-strong);
+  color: var(--color-text-secondary);
+}
+
+.markdown hr {
+  margin: 16px 0 0;
+  border: none;
+  border-top: 1px solid var(--color-border);
+}
+
+.markdown :not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  color: var(--color-inline-code);
+  background: var(--color-fill-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  padding: 1px 3px;
+}
+
+.markdown-table {
+  margin: 10.5px 0 0;
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+}
+
+.markdown-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.markdown-table th,
+.markdown-table td {
+  padding: 6px 10.5px;
+  font-size: var(--font-size-body);
+  text-align: left;
+  vertical-align: top;
+  white-space: normal;
+  border-bottom: none;
+}
+
+.markdown-table th {
+  font-weight: 500;
+  color: var(--color-text);
+  background: var(--color-fill-subtle);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.markdown-table td {
+  border-top: 1px solid var(--color-border);
+}
+
+.markdown-table tr:first-child td {
+  border-top: none;
+}
+
+.markdown-table th[align='right'],
+.markdown-table td[align='right'] {
+  text-align: right;
+}
+
+.code-block {
+  margin: 10.5px 0 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+  background: var(--color-bg-raised);
+  overflow: hidden;
+}
+
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 4px 12px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+}
+
+.code-block-copy {
+  padding: 2px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+}
+
+.code-block-copy:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+  color: var(--color-text);
+}
+
+.code-block pre {
+  margin: 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  white-space: pre;
+  word-break: normal;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
+
+.code-block pre code {
+  font-family: inherit;
+  font-size: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in,
+.hljs-literal,
+.hljs-type {
+  color: var(--color-code-keyword);
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-symbol {
+  color: var(--color-code-string);
+}
+
+.hljs-number,
+.hljs-meta {
+  color: var(--color-code-number);
+}
+
+.hljs-title,
+.hljs-title.function_,
+.hljs-section,
+.hljs-name {
+  color: var(--color-code-title);
+}
+
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-property,
+.hljs-params {
+  color: var(--color-code-attribute);
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--color-code-comment);
+  font-style: italic;
+}
+
+.hljs-deletion {
+  color: var(--color-loss);
+}

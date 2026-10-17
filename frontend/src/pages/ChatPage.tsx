@@ -3,6 +3,7 @@ import { type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent
 import { apiClient } from '../api/apiClient';
 import type { AgentEvent, Attachment } from '../api/types';
 import { AttachmentList } from '../components/AttachmentList';
+import { MarkdownText } from '../components/MarkdownText';
 import { PictureThumbnail } from '../components/PictureThumbnail';
 import { elapsedText, TurnProgress } from '../components/TurnProgress';
 import { useLiveEvents, useStreamingTexts } from '../hooks/useLiveEvents';
@@ -525,7 +526,7 @@ function TurnView(properties: TurnViewProperties) {
           <div className="bubble-meta">
             <span>Writing…</span>
           </div>
-          <pre>{properties.streamingText}</pre>
+          <MarkdownText text={properties.streamingText} />
         </div>
       )}
       {turn.answer !== null && (
@@ -533,7 +534,7 @@ function TurnView(properties: TurnViewProperties) {
           <div className="bubble-meta">
             <span>{turn.silent ? 'Nothing to do' : 'Desk'}</span>
           </div>
-          <pre>{turn.answer}</pre>
+          <MarkdownText text={turn.answer} />
         </div>
       )}
       {turn.error !== null && <div className="bubble failed">The turn failed: {turn.error}</div>}
@@ -689,7 +690,7 @@ function DeskMessageView(properties: { deskName: string; event: AgentEvent }) {
         <span>{label}</span>
         <span className="mono">{formatter.time(properties.event.created_at)}</span>
       </div>
-      {text.length > 0 && <pre>{text}</pre>}
+      {text.length > 0 && <MarkdownText text={text} />}
       <AttachmentList deskName={properties.deskName} attachments={attachments} large />
     </div>
   );
