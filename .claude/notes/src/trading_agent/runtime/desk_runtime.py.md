@@ -56,3 +56,13 @@ After every model turn, messages the turn never picked up are queued as their ow
 `_with_context` adds one note line per attachment after the message text, from `Attachment.describe_for_model`. The notes go into the turn's text, which every backend sends, so a document's location reaches Claude, Ollama and OpenAI the same way; the pictures themselves are added by each backend.
 
 `_can_steer` is False for a message with attachments. Steering hands a running turn text only (for Claude through a hook's `additionalContext`, which cannot carry pictures), so a picture sent mid-turn would be lost. Such a message becomes its own turn instead.
+
+## Commands answered beside the running turn, since 2026-10-18
+
+Claude Code answers `/status`, `/tasks` and `/usage` without waiting for the response in progress, and the desks now do the same. A command that only reads the desk (`SlashCommands.is_instant`) is answered in its own asyncio task, started from `submit`, instead of waiting in the queue behind a model turn that may run for minutes. Commands that change the desk, such as `/new`, `/compact`, `/model` and `/pause`, still wait in the queue, because changing the conversation or the model halfway through a turn would leave the turn in an unclear state.
+
+The task publishes started, text and finished events for the command's trigger, like `/stop` does, so the web page and Telegram's reply routing treat it as a small turn of its own. Text always comes before finished, because Telegram forgets which chat to answer when a trigger finishes.
+
+`submit` is a plain method, so it can only start a task when an event loop is running. If none is running, which only happens in tests that submit before starting the loop, the command is queued as before. The tasks are kept in `_beside_tasks` so they are not garbage-collected while running, and they are cancelled when the desk stops.
+
+`/stop` is now recognised by its command word through `SlashCommands.command_name`, so `/stop now` and `/stop@my_bot` (the form Telegram uses in groups) work like `/stop`.

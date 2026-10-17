@@ -19,6 +19,11 @@ if TYPE_CHECKING:
 _LATER_COMMANDS = {
     '/think': 'a later milestone, with per-desk thinking settings',
 }
+_INSTANT_COMMANDS = (
+    '/help',
+    '/status',
+    '/usage',
+)
 
 
 class SlashCommands:
@@ -63,6 +68,31 @@ class SlashCommands:
         """
         return text.strip().startswith('/')
 
+    def command_name(self, text: str) -> str:
+        """The command word of a message, lowercased and without the @botname suffix Telegram adds in groups.
+
+        Args:
+            text (str): The message, such as "/usage@my_bot today".
+
+        Returns:
+            str: The command word, such as "/usage", or an empty string for an empty message.
+        """
+        words = text.strip().split()
+        if not words:
+            return ''
+        return words[0].split('@')[0].lower()
+
+    def is_instant(self, text: str) -> bool:
+        """Says whether a command only reads the desk, so it can be answered at once instead of waiting for the running turn.
+
+        Args:
+            text (str): The message.
+
+        Returns:
+            bool: True for the read-only commands, such as /status.
+        """
+        return self.command_name(text) in _INSTANT_COMMANDS
+
     def skill_request(self, text: str) -> str | None:
         """Turns /<skill-name> into a request for the model to follow that skill.
 
@@ -76,8 +106,8 @@ class SlashCommands:
         """
         if self._skill_library is None:
             return None
-        name, _, argument = text.strip().partition(' ')
-        name = name.lower()
+        name = self.command_name(text)
+        argument = self._argument(text)
         if name in self._commands:
             return None
         skill = self._skill_library.find(name[1:])
@@ -86,8 +116,8 @@ class SlashCommands:
         lines = [
             f'[The user invoked your skill {skill.name} with /{skill.name}. Load it with load_skill and follow it.]',
         ]
-        if argument.strip():
-            lines.append(argument.strip())
+        if argument:
+            lines.append(argument)
         return '\n'.join(lines)
 
     async def handle(self, text: str) -> str:
@@ -99,14 +129,27 @@ class SlashCommands:
         Returns:
             str: The reply to show the user.
         """
-        name, _, argument = text.strip().partition(' ')
-        name = name.lower()
+        name = self.command_name(text)
         command = self._commands.get(name)
         if command is not None:
-            return await command(argument.strip())
+            return await command(self._argument(text))
         if name in _LATER_COMMANDS:
             return f'{name} is not available yet; it arrives in {_LATER_COMMANDS[name]}.'
         return f'Unknown command {name}. Type /help for the list.'
+
+    def _argument(self, text: str) -> str:
+        """The text after a message's command word.
+
+        Args:
+            text (str): The message, such as "/model qwen".
+
+        Returns:
+            str: The argument, such as "qwen", stripped of surrounding spaces.
+        """
+        words = text.strip().split(maxsplit=1)
+        if len(words) < 2:
+            return ''
+        return words[1].strip()
 
     async def _help(self, argument: str) -> str:
         """Lists the commands.
@@ -133,6 +176,8 @@ class SlashCommands:
                 '/resume              start answering again',
                 '/<skill-name> ...    ask the desk to follow one of its skills',
                 '/help                this list',
+                '',
+                '/help, /status and /usage answer at once, even while the desk is working.',
             ]
         )
 

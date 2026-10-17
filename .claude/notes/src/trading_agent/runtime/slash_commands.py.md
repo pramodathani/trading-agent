@@ -29,3 +29,9 @@ Shows the usage tracker's summary for the desk. The test of not-yet-built comman
 ## /stop (milestone 18)
 
 /stop is no longer a "later" command. It is handled by the desk runtime before the queue, because a command that waits its turn cannot stop the turn in front of it. /help lists it.
+
+## Command words and instant commands, since 2026-10-18
+
+`command_name` takes the first word, drops a `@botname` suffix and lowercases it. Telegram adds the suffix when a command is picked from the menu in a group chat; before this, `/usage@my_bot` reached the desk and was answered "Unknown command". `_argument` splits on any whitespace, so an argument on the next line also works.
+
+`is_instant` names the commands that only read the desk. The desk answers those beside a running turn (see the note on `desk_runtime.py`). A command belongs in `_INSTANT_COMMANDS` only if it changes nothing, so it can safely run at the same time as a model turn.

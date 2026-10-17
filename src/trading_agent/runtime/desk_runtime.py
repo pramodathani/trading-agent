@@ -2,7 +2,7 @@
 
 A desk handles one trigger at a time, so it never runs two turns at once. Different desks each have their own runtime and run side by side.
 
-A message from the user that arrives while a model turn is running is steering: it goes to the desk's steering inbox and the running turn picks it up at its next tool round, instead of waiting for the turn to end. `/stop` skips the queue altogether and cancels the running turn.
+A message from the user that arrives while a model turn is running is steering: it goes to the desk's steering inbox and the running turn picks it up at its next tool round, instead of waiting for the turn to end. `/stop` skips the queue altogether and cancels the running turn. Commands that only read the desk, such as `/status`, also skip the queue and are answered beside the running turn.
 
 A message that starts with a slash is a command and is answered by code. Anything else goes to the desk's turn runner, prefixed with a line stating the India time and what woke the desk; those facts change every turn, so they belong in the message rather than in the system prompt. A desk with a session keeper lets it resume the saved session when the desk starts, and roll over to a new session before the first turn of a new day.
 
@@ -108,6 +108,7 @@ class DeskRuntime:
         self._running_trigger_id: str | None = None
         self._turn_task: asyncio.Task | None = None
         self._stop_requested = False
+        self._beside_tasks: set[asyncio.Task] = set()
 
     def submit(self, trigger: trigger_module.Trigger) -> None:
         """Adds a trigger to the end of the desk's queue.
@@ -115,7 +116,7 @@ class DeskRuntime:
         Args:
             trigger (trigger_module.Trigger): The trigger to handle.
 
-        A /stop is answered at once instead of being queued, and a user message that arrives during a model turn goes to the steering inbox.
+        A /stop is answered at once instead of being queued, a read-only command such as /status is answered beside the running turn, and a user message that arrives during a model turn goes to the steering inbox.
 
         Raises:
             ValueError: The trigger is addressed to a different desk.
@@ -124,12 +125,19 @@ class DeskRuntime:
             raise ValueError(
                 f'Trigger for desk {trigger.desk!r} was sent to desk {self.name!r}'
             )
-        if trigger.text.strip() == _STOP_COMMAND:
+        if self._commands.command_name(trigger.text) == _STOP_COMMAND:
             self._publish(
                 event_module.EventKind.TRIGGER_RECEIVED,
                 trigger.to_json_dictionary(),
             )
             self._stop(trigger)
+            return
+        if self._answers_beside(trigger):
+            self._publish(
+                event_module.EventKind.TRIGGER_RECEIVED,
+                trigger.to_json_dictionary(),
+            )
+            self._start_beside(trigger)
             return
         if self._can_steer(trigger):
             self.steering_inbox.add(trigger, self._running_trigger_id)
@@ -158,6 +166,75 @@ class DeskRuntime:
             and not trigger.attachments
             and not self._commands.is_command(trigger.text)
         )
+
+    def _answers_beside(self, trigger: trigger_module.Trigger) -> bool:
+        """Says whether a trigger is a command answered beside the running turn instead of queued.
+
+        Args:
+            trigger (trigger_module.Trigger): The new trigger.
+
+        Returns:
+            bool: True for a read-only command without attachments, sent while an event loop runs to answer it.
+        """
+        if trigger.attachments or not self._commands.is_instant(trigger.text):
+            return False
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return False
+        return True
+
+    def _start_beside(self, trigger: trigger_module.Trigger) -> None:
+        """Starts answering a command in its own task, keeping the task until it ends.
+
+        Args:
+            trigger (trigger_module.Trigger): The command.
+        """
+        task = asyncio.get_running_loop().create_task(
+            self._answer_beside(trigger)
+        )
+        self._beside_tasks.add(task)
+        task.add_done_callback(self._beside_tasks.discard)
+
+    async def _answer_beside(self, trigger: trigger_module.Trigger) -> None:
+        """Answers a command beside the running turn and publishes the answer as a turn of its own.
+
+        Args:
+            trigger (trigger_module.Trigger): The command.
+        """
+        self._publish(
+            event_module.EventKind.TURN_STARTED,
+            {
+                'trigger_id': trigger.trigger_id,
+            },
+        )
+        try:
+            text = await self._commands.handle(trigger.text)
+        except Exception as error:
+            _LOGGER.exception('Command failed on desk %s', self.name)
+            self._publish(
+                event_module.EventKind.ERROR,
+                {
+                    'trigger_id': trigger.trigger_id,
+                    'error': repr(error),
+                },
+            )
+        else:
+            self._publish(
+                event_module.EventKind.TEXT,
+                {
+                    'trigger_id': trigger.trigger_id,
+                    'text': text,
+                    'silent': False,
+                },
+            )
+        finally:
+            self._publish(
+                event_module.EventKind.TURN_FINISHED,
+                {
+                    'trigger_id': trigger.trigger_id,
+                },
+            )
 
     def _stop(self, trigger: trigger_module.Trigger) -> None:
         """Cancels the running model turn, and answers the /stop at once.
@@ -208,6 +285,8 @@ class DeskRuntime:
                 trigger = await self._trigger_queue.get()
                 await self._handle(trigger)
         finally:
+            for task in list(self._beside_tasks):
+                task.cancel()
             await self.turn_runner.close()
             if self._tool_registry is not None:
                 await self._tool_registry.close()

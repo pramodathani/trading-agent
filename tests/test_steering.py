@@ -147,15 +147,39 @@ class _DeskScenario:
             await self.collect(subscription, 2)
             task.cancel()
 
-    async def stop_running_turn(self) -> None:
-        """Starts a turn that never ends by itself, and stops it with /stop."""
+    async def stop_running_turn(self, stop_text: str = '/stop') -> None:
+        """Starts a turn that never ends by itself, and stops it with /stop.
+
+        Args:
+            stop_text (str): The stop message to send, such as "/stop now".
+        """
         with self.event_bus.subscribe() as subscription:
             task = asyncio.create_task(self.desk.run())
             self.desk.submit(_message('think for a long time'))
             await self.runner.started.wait()
-            self.desk.submit(_message('/stop'))
+            self.desk.submit(_message(stop_text))
             await self.collect(subscription, 2)
             self.state_after = self.desk.state
+            task.cancel()
+
+    async def ask_during_turn(self, command: str) -> None:
+        """Starts a turn, sends a command while it runs, and waits for both answers, releasing the turn after the command's answer when the command was not queued.
+
+        Args:
+            command (str): The command to send, such as "/status".
+        """
+        with self.event_bus.subscribe() as subscription:
+            task = asyncio.create_task(self.desk.run())
+            self.desk.submit(_message('scan the market'))
+            await self.runner.started.wait()
+            self.desk.submit(_message(command))
+            self.queued_while_busy = self.desk.queued_count
+            finished_before_release = 0
+            if self.queued_while_busy == 0:
+                finished_before_release = 1
+            await self.collect(subscription, finished_before_release)
+            self.runner.release.set()
+            await self.collect(subscription, 2 - finished_before_release)
             task.cancel()
 
     def kinds(self) -> list[event_module.EventKind]:
@@ -350,6 +374,18 @@ class TestStop:
         )
         assert scenario.state_after == desk_runtime.DeskState.IDLE
 
+    def test_stop_with_words_or_a_bot_name(self) -> None:
+        """/stop followed by words, or with the @botname Telegram adds in groups, still stops the turn at once."""
+        for stop_text in (
+            '/stop now please',
+            '/stop@test_bot',
+        ):
+            scenario = _DeskScenario()
+
+            asyncio.run(scenario.stop_running_turn(stop_text))
+
+            assert 'Stopping the running turn.' in scenario.texts()
+
     def test_stop_with_nothing_running(self) -> None:
         """/stop on an idle desk says there is nothing to stop and queues nothing."""
         scenario = _DeskScenario()
@@ -372,6 +408,32 @@ class TestStop:
         assert last.role == messages.Role.TOOL
         assert last.is_error
         assert '/stop' in last.text
+
+
+class TestInstantCommands:
+    """Tests for read-only commands answered beside the running turn."""
+
+    def test_status_answers_while_a_turn_runs(self) -> None:
+        """/status is answered before the running turn ends, and is not queued behind it."""
+        scenario = _DeskScenario()
+
+        asyncio.run(scenario.ask_during_turn('/status'))
+
+        texts = scenario.texts()
+        assert 'Desk: main' in texts[0]
+        assert 'State: busy' in texts[0]
+        assert texts[1] == 'done'
+        assert scenario.queued_while_busy == 0
+        assert scenario.runner.texts[-1].endswith('scan the market')
+
+    def test_changing_commands_still_wait_for_the_turn(self) -> None:
+        """/new changes the desk, so it waits in the queue until the running turn ends."""
+        scenario = _DeskScenario()
+
+        asyncio.run(scenario.ask_during_turn('/new'))
+
+        assert scenario.queued_while_busy == 1
+        assert scenario.texts()[0] == 'done'
 
 
 def test_inbox_is_empty_after_taking() -> None:

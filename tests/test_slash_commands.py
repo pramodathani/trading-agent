@@ -183,6 +183,18 @@ class TestSlashCommands:
         assert setup.claude.reset_count == 1
         assert setup.gemma.reset_count == 1
 
+    def test_bot_name_suffix_is_ignored(self) -> None:
+        """A command with the @botname Telegram adds in groups works like the plain command."""
+        replies = _Desk().send(
+            [
+                '/usage@test_bot',
+                '/model@test_bot gemma',
+            ]
+        )
+
+        assert 'Usage is not being tracked on this gateway.' in replies
+        assert any('1. gemma' in reply for reply in replies)
+
     def test_later_and_unknown_commands_explain_themselves(self) -> None:
         """Commands from later milestones say when they arrive; unknown ones point to /help."""
         replies = _Desk().send(

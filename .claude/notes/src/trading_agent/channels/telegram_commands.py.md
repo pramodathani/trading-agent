@@ -15,3 +15,11 @@ It needs the word CONFIRM, as the plan says, so a tap on a suggested command can
 Pausing every desk from a phone in one message is the gentle alternative to the kill switch: nothing is flattened, but no desk asks a model until /resume.
 
 Group chats add `@botname` to commands; that suffix is ignored. docs/telegram_setup.md tells the user to stop the bot joining groups anyway.
+
+## Command menu and help, since 2026-10-18
+
+`menu()` gives the list Telegram shows when the user types a slash. It mixes Telegram's own commands with the desk commands that are passed through, because the user cannot tell the two apart on the phone. Telegram requires names without the slash, lowercase, at most 32 characters, and descriptions of 1 to 256 characters; a test checks this.
+
+`/help` now lists the desk commands too, instead of naming only three of them.
+
+The Telegram versions of `/status`, `/help`, `/pause` and `/resume` shadow the desk versions of the same names. That is deliberate, because the Telegram ones cover every desk and the account, which is what matters on the phone.

@@ -62,6 +62,7 @@ class _StandInApi:
         """Creates the stand-in with nothing received or sent."""
         self._incoming: asyncio.Queue = asyncio.Queue()
         self.sent: list[tuple[int, str]] = []
+        self.menu: list[tuple[str, str]] = []
 
     async def start(self) -> str:
         """Pretends the token works.
@@ -89,6 +90,14 @@ class _StandInApi:
             text (str): The message.
         """
         self.sent.append((chat_id, text))
+
+    async def set_commands(self, commands: tuple[tuple[str, str], ...]) -> None:
+        """Records the command menu.
+
+        Args:
+            commands (tuple[tuple[str, str], ...]): Each command as (name, description).
+        """
+        self.menu = list(commands)
 
     async def close(self) -> None:
         """Does nothing."""
@@ -391,6 +400,24 @@ class TestTelegramChannel:
         assert scenario.api.sent_to(_OWNER) == [
             'echo: hello desk',
         ]
+
+    def test_command_menu_is_registered_on_connect(
+        self, tmp_path: Path
+    ) -> None:
+        """Connecting gives Telegram the command menu, so typing a slash on the phone lists the commands."""
+        scenario = _Scenario(tmp_path)
+        scenario.pair_owner()
+
+        asyncio.run(scenario.converse(_OWNER, ['hello desk'], 1))
+
+        names = [name for name, _ in scenario.api.menu]
+        assert 'status' in names
+        assert 'stop' in names
+        assert 'kill' in names
+        for name, description in scenario.api.menu:
+            assert name == name.lower()
+            assert not name.startswith('/')
+            assert 0 < len(description) <= 256
 
     def test_desk_command_changes_the_desk(self, tmp_path: Path) -> None:
         """/desk intraday makes later messages go to intraday."""

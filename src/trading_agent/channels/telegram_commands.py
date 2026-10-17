@@ -33,6 +33,60 @@ _COMMANDS = (
     '/resume',
     '/kill',
 )
+_MENU = (
+    (
+        'status',
+        'Every desk, and the account',
+    ),
+    (
+        'positions',
+        'Open positions and which desk owns each',
+    ),
+    (
+        'pnl',
+        "Today's and this week's profit or loss, by desk",
+    ),
+    (
+        'desk',
+        'Talk to another desk: /desk <name>',
+    ),
+    (
+        'stop',
+        "Stop the desk's running turn",
+    ),
+    (
+        'usage',
+        "Today's model calls, tokens and costs",
+    ),
+    (
+        'model',
+        'Show or change the model order',
+    ),
+    (
+        'compact',
+        "Compress the desk's conversation",
+    ),
+    (
+        'new',
+        'Start a fresh conversation with the desk',
+    ),
+    (
+        'pause',
+        'Stop a desk asking its models: /pause [desk|all]',
+    ),
+    (
+        'resume',
+        'Start it again: /resume [desk|all]',
+    ),
+    (
+        'kill',
+        'Halt every desk and flatten: /kill CONFIRM <reason>',
+    ),
+    (
+        'help',
+        'Every command',
+    ),
+)
 
 
 class TelegramCommands:
@@ -71,6 +125,14 @@ class TelegramCommands:
             bool: True for /start, /help, /desk, /status, /positions, /pnl, /pause, /resume and /kill.
         """
         return self._command_name(text) in _COMMANDS
+
+    def menu(self) -> tuple[tuple[str, str], ...]:
+        """The command menu Telegram shows when the user types a slash.
+
+        Returns:
+            tuple[tuple[str, str], ...]: Each command as (name without the slash, description).
+        """
+        return _MENU
 
     async def answer(
         self, chat: pairing_store_module.PairedChat, text: str
@@ -137,7 +199,14 @@ class TelegramCommands:
                 '/resume [desk|all] - start it again',
                 '/kill CONFIRM <reason> - halt every desk until tomorrow and flatten the account',
                 '',
-                "The desks' own commands, such as /stop, /usage and /model, are passed to the desk.",
+                'These go to your desk:',
+                "/stop - stop the desk's running turn",
+                "/usage - today's model calls, tokens and costs",
+                '/model [name|auto] - show or change the model order',
+                "/compact - compress the desk's conversation",
+                '/new - start a fresh conversation',
+                '/rollover - summarise the day and start a fresh session',
+                '/<skill-name> - ask the desk to follow one of its skills',
             ]
         )
 
