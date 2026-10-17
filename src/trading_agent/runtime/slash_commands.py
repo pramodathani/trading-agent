@@ -10,12 +10,12 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
 from trading_agent.backends import model_router
+from trading_agent.runtime import trigger as trigger_module
 
 if TYPE_CHECKING:
     from trading_agent.runtime import desk_runtime
 
 _LATER_COMMANDS = {
-    '/compact': 'milestone 12, with context compression',
     '/usage': 'milestone 15, with the usage tracker',
     '/think': 'a later milestone, with per-desk thinking settings',
     '/stop': 'a later milestone, with steering a running turn',
@@ -38,6 +38,7 @@ class SlashCommands:
             '/help': self._help,
             '/status': self._status,
             '/new': self._new,
+            '/compact': self._compact,
             '/model': self._model,
             '/pause': self._pause,
             '/resume': self._resume,
@@ -89,6 +90,7 @@ class SlashCommands:
                 '/model <name>        try that model first from now on',
                 '/model auto          go back to the configured order',
                 '/new                 forget this conversation and start a fresh one',
+                '/compact             save what matters, then compress the conversation into a summary',
                 '/pause               stop answering until /resume (commands still work)',
                 '/resume              start answering again',
                 '/help                this list',
@@ -137,6 +139,23 @@ class SlashCommands:
         if router is not None and router.session_id is not None:
             return f'Started a fresh conversation, session {router.session_id}. The workspace files and Memory.md still apply.'
         return 'Started a fresh conversation. The workspace files still apply.'
+
+    async def _compact(self, argument: str) -> str:
+        """Compresses the conversation of the model that answered last.
+
+        Args:
+            argument (str): Ignored.
+
+        Returns:
+            str: What happened.
+        """
+        del argument
+        trigger = trigger_module.Trigger.now(
+            trigger_module.TriggerSource.USER_MESSAGE,
+            self._desk.name,
+            '/compact',
+        )
+        return await self._desk.turn_runner.compact(trigger)
 
     async def _model(self, argument: str) -> str:
         """Shows or changes which model is tried first.

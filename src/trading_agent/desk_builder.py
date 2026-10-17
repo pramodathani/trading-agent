@@ -14,6 +14,7 @@ from pathlib import Path
 
 from trading_agent.agent import agent_loop
 from trading_agent.agent import agent_turn_runner
+from trading_agent.agent import context_compressor
 from trading_agent.agent import loop_guard
 from trading_agent.agent import prompt_builder
 from trading_agent.backends import backend as backend_module
@@ -277,6 +278,7 @@ class DeskBuilder:
         return self._agent_loop_runner(
             desk_configuration,
             model_backend,
+            backend_configuration,
             executor,
         )
 
@@ -439,6 +441,8 @@ class DeskBuilder:
             working_directory=working_directory.resolve(),
             maximum_rounds=self._configuration.agent.maximum_rounds,
             sessions_directory=self._claude_sessions_directory(),
+            compression_threshold=self._configuration.agent.compression_threshold,
+            emergency_compression_threshold=self._configuration.agent.emergency_compression_threshold,
         )
         return claude_code_turn_runner.ClaudeCodeTurnRunner(
             desk_configuration.name,
@@ -464,24 +468,35 @@ class DeskBuilder:
         self,
         desk_configuration: agent_configuration.DeskConfiguration,
         model_backend: backend_module.ModelBackend,
+        backend_configuration: agent_configuration.BackendConfiguration,
         executor: tool_call_executor.ToolCallExecutor,
     ) -> agent_turn_runner.AgentTurnRunner:
-        """Builds an agent loop, with its own conversation, on a model backend.
+        """Builds an agent loop, with its own conversation and compressor, on a model backend.
 
         Args:
             desk_configuration (agent_configuration.DeskConfiguration): The desk's settings.
             model_backend (backend_module.ModelBackend): The model the loop asks.
+            backend_configuration (agent_configuration.BackendConfiguration): Its settings, for the context window.
             executor (tool_call_executor.ToolCallExecutor): The desk's tool executor.
 
         Returns:
             agent_turn_runner.AgentTurnRunner: The runner.
         """
+        agent_settings = self._configuration.agent
+        compressor = context_compressor.ContextCompressor(
+            desk_configuration.name,
+            backend_configuration.context_window,
+            agent_settings.compression_threshold,
+            agent_settings.emergency_compression_threshold,
+            self._event_bus,
+        )
         loop = agent_loop.AgentLoop(
             desk_configuration.name,
             model_backend,
             executor,
             self._event_bus,
-            self._configuration.agent.maximum_rounds,
+            agent_settings.maximum_rounds,
+            compressor,
         )
         return agent_turn_runner.AgentTurnRunner(
             loop,

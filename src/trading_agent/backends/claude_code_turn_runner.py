@@ -6,6 +6,8 @@ Claude Code runs the agent loop itself, so this is a turn runner rather than a M
 - the subscription token from `claude setup-token` is passed as CLAUDE_CODE_OAUTH_TOKEN;
 - every built-in Claude Code tool is switched off, and a PreToolUse hook allows only trading-agent's tools.
 
+Before each turn the runner asks Claude Code how full the session's context is. At 70% of the window it gives Claude a memory-flush turn and then sends `/compact`, so Claude saves what matters before the older turns are summarised. Claude Code's own automatic compaction stays on as a safety net for one very long turn, set to fire at about 82% by limiting the window it measures against.
+
 Typical usage example:
 
   runner = ClaudeCodeTurnRunner('main', 'claude', backend_configuration, bridge, event_bus, settings)
@@ -20,8 +22,10 @@ from typing import Any
 
 import claude_agent_sdk
 
+from trading_agent.agent import context_compressor
 from trading_agent.agent import prompt_builder as prompt_builder_module
 from trading_agent.backends import backend as backend_module
+from trading_agent.backends import claude_pre_compact_hook
 from trading_agent.backends import claude_tool_allowlist_hook
 from trading_agent.backends import claude_tool_bridge
 from trading_agent.configuration import agent_configuration
@@ -46,6 +50,8 @@ class ClaudeCodeSettings:
         working_directory: The folder Claude Code runs in.
         maximum_rounds: The most model calls one turn may make.
         sessions_directory: Where Claude Code keeps its sessions, normally ~/.claude/projects, checked before a saved session is resumed.
+        compression_threshold: The share of the context window at which the session is flushed and compacted before a turn.
+        emergency_compression_threshold: The share of the window given to Claude Code as its own compaction window, the safety net for one long turn.
     """
 
     prompt_builder: prompt_builder_module.PromptBuilder
@@ -53,6 +59,8 @@ class ClaudeCodeSettings:
     working_directory: Path
     maximum_rounds: int
     sessions_directory: Path
+    compression_threshold: float
+    emergency_compression_threshold: float
 
 
 class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
@@ -84,6 +92,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         self._desk_name = desk_name
         self._backend_name = backend_name
         self._model = backend_configuration.model
+        self._context_window = backend_configuration.context_window
         self._bridge = bridge
         self._event_bus = event_bus
         self._settings = settings
@@ -112,6 +121,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         prompt = self._settings.prompt_builder.build()
         try:
             client = await self._connected_client(prompt)
+            await self._compact_if_full(client, trigger)
             await client.query(self._query_text(prompt, trigger))
             self._session_prompt_fingerprint = prompt.fingerprint
             return await self._read_response(client, trigger)
@@ -123,6 +133,117 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
             raise backend_module.BackendUnavailableError(
                 f'Claude Code failed: {error!r}'
             ) from error
+
+    async def compact(self, trigger: trigger_module.Trigger) -> str:
+        """Flushes and compacts the session now, for the /compact command.
+
+        Args:
+            trigger (trigger_module.Trigger): The command's trigger, used to tag events.
+
+        Returns:
+            str: What happened, for the user.
+
+        Raises:
+            backend_module.BackendUnavailableError: Claude cannot be used now.
+        """
+        if self.session_id is None:
+            return 'Claude has no session yet, so there is nothing to compact.'
+        self._check_preconditions()
+        self._bridge.executor.start_turn()
+        prompt = self._settings.prompt_builder.build()
+        try:
+            client = await self._connected_client(prompt)
+            usage = await client.get_context_usage()
+            after = await self._flush_and_compact(
+                client,
+                trigger,
+                'command',
+                usage['totalTokens'],
+            )
+        except backend_module.BackendUnavailableError:
+            await self._disconnect()
+            raise
+        except claude_agent_sdk.ClaudeSDKError as error:
+            await self._disconnect()
+            raise backend_module.BackendUnavailableError(
+                f'Claude Code failed: {error!r}'
+            ) from error
+        return f"Compacted Claude's session from {usage['totalTokens']:,} to {after:,} tokens, after a memory-flush turn."
+
+    def note_compaction(self) -> None:
+        """Remembers that the session was compacted, so the next turn sends the instruction files again.
+
+        Updated instructions delivered inside earlier messages may not survive a compaction, so the next turn's message carries the complete current version.
+        """
+        self._session_prompt_fingerprint = None
+
+    async def _compact_if_full(
+        self,
+        client: claude_agent_sdk.ClaudeSDKClient,
+        trigger: trigger_module.Trigger,
+    ) -> None:
+        """Flushes and compacts the session when it fills the configured share of the window.
+
+        Args:
+            client (claude_agent_sdk.ClaudeSDKClient): The connected client.
+            trigger (trigger_module.Trigger): The turn about to run.
+        """
+        if self.session_id is None:
+            return
+        usage = await client.get_context_usage()
+        limit = self._settings.compression_threshold * self._context_window
+        if usage['totalTokens'] < limit:
+            return
+        await self._flush_and_compact(
+            client,
+            trigger,
+            'threshold',
+            usage['totalTokens'],
+        )
+
+    async def _flush_and_compact(
+        self,
+        client: claude_agent_sdk.ClaudeSDKClient,
+        trigger: trigger_module.Trigger,
+        reason: str,
+        tokens_before: int,
+    ) -> int:
+        """Gives Claude a memory-flush turn, then compacts the session with instructions on what to keep.
+
+        Args:
+            client (claude_agent_sdk.ClaudeSDKClient): The connected client.
+            trigger (trigger_module.Trigger): The trigger that caused it, used to tag the event.
+            reason (str): "threshold" or "command", for the event.
+            tokens_before (int): The session's size before, for the event.
+
+        Returns:
+            int: The session's size afterwards, in tokens.
+        """
+        flush_trigger = trigger_module.Trigger.now(
+            trigger_module.TriggerSource.COMPRESSION,
+            self._desk_name,
+            context_compressor.FLUSH_REQUEST,
+        )
+        self._bridge.current_trigger = flush_trigger
+        await client.query(context_compressor.FLUSH_REQUEST)
+        await self._read_response(client, flush_trigger)
+        await client.query(f'/compact Keep {context_compressor.SUMMARY_FOCUS}.')
+        await self._read_response(client, flush_trigger)
+        self._bridge.current_trigger = trigger
+        self.note_compaction()
+        usage = await client.get_context_usage()
+        self._publish(
+            event_module.EventKind.CONTEXT_COMPRESSED,
+            {
+                'trigger_id': trigger.trigger_id,
+                'backend': self._backend_name,
+                'reason': reason,
+                'tokens_before': tokens_before,
+                'tokens_after': usage['totalTokens'],
+                'context_window': self._context_window,
+            },
+        )
+        return usage['totalTokens']
 
     def _check_preconditions(self) -> None:
         """Refuses to run when the run would not use the subscription.
@@ -170,7 +291,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
     ) -> str:
         """The text to send for a turn, with updated instructions in front when the files changed.
 
-        A resumed Claude Code session keeps the system prompt it started with and ignores a new one, so changed workspace files are delivered inside the message instead. Once sent, they are part of the session and survive a later resume.
+        A resumed Claude Code session keeps the system prompt it started with and ignores a new one, so changed workspace files are delivered inside the message instead. Once sent, they are part of the session and survive a later resume. After a compaction they are sent again, because the summary may have dropped them.
 
         Args:
             prompt (prompt_builder_module.SystemPrompt): The current prompt.
@@ -183,7 +304,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
             return trigger.text
         return '\n'.join(
             [
-                '[Your instruction files have changed since this session started. The complete current versions follow. They replace the versions in your system prompt and in any earlier update; follow these from now on.]',
+                '[The complete current versions of your instruction files follow, because they changed or this session was compacted since you last saw them. They replace the versions in your system prompt and in any earlier update; follow these from now on.]',
                 prompt.text,
                 '[End of the updated instructions. The trigger follows.]',
                 '',
@@ -205,6 +326,12 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         allowlist_hook = claude_tool_allowlist_hook.ClaudeToolAllowlistHook(
             allowed_tool_names
         )
+        pre_compact_hook = claude_pre_compact_hook.ClaudePreCompactHook(
+            self._desk_name,
+            self._backend_name,
+            self._event_bus,
+            self.note_compaction,
+        )
         return claude_agent_sdk.ClaudeAgentOptions(
             system_prompt=prompt_text,
             model=self._model,
@@ -218,6 +345,13 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
                     claude_agent_sdk.HookMatcher(
                         hooks=[
                             allowlist_hook,
+                        ],
+                    ),
+                ],
+                'PreCompact': [
+                    claude_agent_sdk.HookMatcher(
+                        hooks=[
+                            pre_compact_hook,
                         ],
                     ),
                 ],
@@ -237,11 +371,18 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
 
         The SDK copies the gateway's whole environment into Claude Code and can only add or replace variables. tradingmachine copies its settings, including the MongoDB password, into the gateway's environment when it loads its .env file, so every TRADINGMACHINE_ variable is replaced with an empty value.
 
+        CLAUDE_CODE_AUTO_COMPACT_WINDOW makes Claude Code measure its automatic compaction against a smaller window; it compacts 33,000 tokens below that window, so 850,000 of 1,000,000 fires at 817,000. CLAUDE_AUTOCOMPACT_PCT_OVERRIDE, which the plan named, did not change the threshold Claude Code reports, so it is not used.
+
         Returns:
-            dict[str, str]: The subscription token, and an empty value for each tradingmachine setting.
+            dict[str, str]: The subscription token, the automatic compaction window, and an empty value for each tradingmachine setting.
         """
+        compaction_window = int(
+            self._settings.emergency_compression_threshold
+            * self._context_window
+        )
         environment = {
             'CLAUDE_CODE_OAUTH_TOKEN': self._settings.oauth_token,
+            'CLAUDE_CODE_AUTO_COMPACT_WINDOW': str(compaction_window),
         }
         for name in os.environ:
             if name.startswith(_TRADINGMACHINE_PREFIX):

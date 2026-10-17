@@ -9,3 +9,7 @@ Commands that belong to later milestones (`/compact`, `/usage`, `/think`, `/stop
 ## Sessions (milestone 11)
 
 `/status` shows the session id and how many exchanges it has, and `/new` names the new session it started. `/new` does not write a summary of the session it ends; only the daily rollover does.
+
+## /compact (milestone 12)
+
+`/compact` is now real: it builds a trigger for event tagging and calls the router's `compact`. The test of not-yet-built commands now uses `/usage`.

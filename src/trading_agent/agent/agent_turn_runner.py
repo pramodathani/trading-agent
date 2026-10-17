@@ -54,6 +54,24 @@ class AgentTurnRunner(turn_runner.TurnRunner):
         self.conversation.system_prompt = self._prompt_builder.build().text
         return await self._agent_loop.run_turn(self.conversation, trigger)
 
+    async def compact(self, trigger: trigger_module.Trigger) -> str:
+        """Flushes and compresses the conversation now, for the /compact command.
+
+        Args:
+            trigger (trigger_module.Trigger): The command's trigger, used to tag events.
+
+        Returns:
+            str: What happened, for the user.
+
+        Raises:
+            backend_module.BackendUnavailableError: The model could not be reached.
+        """
+        before = self.conversation.estimated_tokens()
+        compressed = await self._agent_loop.compact(self.conversation, trigger)
+        if not compressed:
+            return 'There was nothing to compact.'
+        return f'Compressed the conversation from about {before:,} tokens into a summary, after a memory-flush turn.'
+
     async def reset(self) -> None:
         """Starts a new, empty conversation."""
         self.conversation = conversation_module.Conversation(

@@ -137,6 +137,8 @@ def _runner(
             working_directory=Path('/tmp/trading-agent-test-scratch'),
             maximum_rounds=5,
             sessions_directory=sessions_directory,
+            compression_threshold=0.70,
+            emergency_compression_threshold=0.85,
         ),
     )
 
@@ -427,7 +429,9 @@ class TestClaudePromptUpdates:
         after_delivery = runner._query_text(builder.build(), trigger)
 
         assert unchanged == trigger.text
-        assert changed.startswith('[Your instruction files have changed')
+        assert changed.startswith(
+            '[The complete current versions of your instruction files'
+        )
         assert 'rules version two' in changed
         assert changed.endswith(trigger.text)
         assert after_delivery == trigger.text
@@ -440,7 +444,7 @@ class TestClaudeEnvironment:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Every TRADINGMACHINE_ variable reaches Claude Code empty, and the token is set.
+        """Every TRADINGMACHINE_ variable reaches Claude Code empty, and the token and compaction window are set.
 
         Args:
             monkeypatch (pytest.MonkeyPatch): Sets the variable for this test only.
@@ -452,6 +456,7 @@ class TestClaudeEnvironment:
 
         assert environment['TRADINGMACHINE_MONGODB_PASSWORD'] == ''
         assert environment['CLAUDE_CODE_OAUTH_TOKEN'] == 'sk-ant-oat-test'
+        assert environment['CLAUDE_CODE_AUTO_COMPACT_WINDOW'] == '850000'
 
 
 class TestClaudeSessionRestore:

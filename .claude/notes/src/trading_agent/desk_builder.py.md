@@ -27,3 +27,7 @@ From milestone 8 every desk shares one BrokerReader, so the UBI lock covers all 
 ## Milestone 11: memory
 
 `build` now creates, per desk, a `Checkpoints` repository and a `SessionStore`. The store goes to the model router, the checkpoints to `write_file`, `edit_file` and the new `add_note`, and `search_sessions` gets a `SessionSearch` over the desk folder. When the turn runner is a `ModelRouter`, a `SessionKeeper` is built and handed to the desk runtime; a desk without models gets none, because it has no sessions to keep.
+
+## Milestone 12: compression
+
+Each agent-loop runner gets its own `ContextCompressor`, sized by its backend's `context_window`, so Qwen and Gemma each compress at their own 70%. The Claude settings get both thresholds.

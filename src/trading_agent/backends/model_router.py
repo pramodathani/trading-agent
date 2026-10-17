@@ -182,6 +182,25 @@ class ModelRouter(turn_runner.TurnRunner):
         self._last_backend_name = None
         self._begin_session()
 
+    async def compact(self, trigger: trigger_module.Trigger) -> str:
+        """Compacts the conversation of the backend that answered last, for /compact.
+
+        Args:
+            trigger (trigger_module.Trigger): The command's trigger, used to tag events.
+
+        Returns:
+            str: What happened, naming the backend.
+        """
+        route = self._ordered_routes()[0]
+        for candidate in self._routes:
+            if candidate.name == self._last_backend_name:
+                route = candidate
+        try:
+            text = await route.turn_runner.compact(trigger)
+        except backend_module.BackendUnavailableError as error:
+            return f'{route.name} could not compact its conversation: {error}'
+        return f'{route.name}: {text}'
+
     async def restore_session(self) -> bool:
         """Picks up the session saved before a restart, or starts the first one.
 

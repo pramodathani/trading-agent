@@ -187,12 +187,12 @@ class TestSlashCommands:
         """Commands from later milestones say when they arrive; unknown ones point to /help."""
         replies = _Desk().send(
             [
-                '/compact',
+                '/usage',
                 '/frobnicate',
             ]
         )
 
-        assert 'milestone 12' in replies[0]
+        assert 'milestone 15' in replies[0]
         assert '/help' in replies[1]
 
     def test_model_sees_the_india_time_and_trigger_source(self) -> None:

@@ -50,6 +50,22 @@ class TurnRunner:
         Runners that remember nothing keep this empty default.
         """
 
+    async def compact(self, trigger: trigger_module.Trigger) -> str:
+        """Saves what matters and compresses the conversation now, for the /compact command.
+
+        Runners that keep no conversation keep this default.
+
+        Args:
+            trigger (trigger_module.Trigger): The command's trigger, used to tag events.
+
+        Returns:
+            str: What happened, for the user.
+        """
+        del trigger
+        return (
+            'This desk keeps no conversation, so there is nothing to compact.'
+        )
+
     def saved_state(self) -> dict[str, Any] | None:
         """What the runner needs to continue its conversation after a restart.
 

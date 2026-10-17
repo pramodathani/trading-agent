@@ -5,3 +5,7 @@
 ## saved_state and restore_state (milestone 11)
 
 Two optional hooks for crash recovery. The defaults say "nothing to save" and "could not resume", which is right for any runner whose conversation lives only in memory. The model router calls them; the desk runtime never does.
+
+## compact (milestone 12)
+
+Optional, for `/compact`. The default says there is nothing to compact.

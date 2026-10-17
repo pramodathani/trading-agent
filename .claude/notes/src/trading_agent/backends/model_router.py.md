@@ -25,3 +25,7 @@ The hand-over paragraph above said milestone 11 would replace it with a session 
 `/model` preferences are not saved; after a restart the configured order applies again.
 
 Verified on 2026-10-17: after a restart Claude resumed its saved session and recalled a codeword without any tool, and Qwen, asked first, received the session's exchanges as a hand-over and recalled it too.
+
+## /compact (milestone 12)
+
+`compact` asks the backend that answered last to compact its own conversation, because that is the conversation in use. A failure is reported as text, not raised, because `/compact` is a command and should always get an answer.

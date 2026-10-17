@@ -44,3 +44,23 @@ From milestone 8 the gateway loads tradingmachine's `.env`, which copies its set
 Before resuming, the runner checks that Claude Code still has the session's file (`<sessions_directory>/*/<session_id>.jsonl`; the folder name encodes the working directory, so every folder is searched). Without that check, a deleted session would make every Claude turn fail with "no conversation found", the router would put Claude into its waiting periods, and Claude would never recover because the bad id would be retried each time. With the check, a missing session simply means a new one, and the router's hand-over fills it in.
 
 `sessions_directory` is `$CLAUDE_CONFIG_DIR/projects`, or `~/.claude/projects` when that variable is not set (`desk_builder.py`).
+
+## Compaction (milestone 12)
+
+Measured on 2026-10-17 with `ClaudeSDKClient.get_context_usage()`, which asks Claude Code without calling the model:
+
+| Setting | Threshold reported for opus (1,000,000 tokens) |
+|---|---|
+| Default | 967,000 (the window minus a 33,000 buffer) |
+| `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=70` or `50` | 967,000, so no visible effect |
+| `CLAUDE_CODE_AUTO_COMPACT_WINDOW=700000` | 667,000 |
+
+The plan's `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` is in the binary and described as lowering the threshold, but the reported threshold ignored it, so it is not relied on. Instead:
+
+- Before each turn on an existing session, the runner reads the session's `totalTokens`. At `compression_threshold` (0.70) of the window it runs a memory-flush turn (the same `FLUSH_REQUEST` as the local backends) and then sends `/compact Keep <SUMMARY_FOCUS>.` as a query. Claude Code treats a query starting with a slash as its own command, as the session file confirmed.
+- `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is set to `emergency_compression_threshold` times the window (850,000), so Claude Code's own compaction fires at 817,000 tokens, the safety net for one turn that grows past 70% by itself.
+- After any compaction `note_compaction` clears the prompt fingerprint, so the instruction files are sent again. The heading of that message was reworded, because "have changed" was untrue after a compaction.
+
+On a 1,000,000-token window, 70% is 700,000 tokens per request. In practice Claude reaches the daily rollover long before that, so this mostly matters for a very busy day; compacting earlier also uses less of the Max subscription's limits per turn.
+
+Verified on 2026-10-17: `/compact` ran a flush turn (Claude saved a preference to Memory.md), then Claude Code compacted and recalled the preference afterwards. The size went from 16,792 to 16,885 tokens, because about 15,000 of a small session are the fixed instructions and tool descriptions, which compaction cannot remove.
