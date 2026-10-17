@@ -83,7 +83,7 @@ Still in the BotFather chat:
 
    The Telegram line should say that Telegram knows the bot as `@your_bot_username`. If it says the token was refused, copy the token again from BotFather.
 
-3. Restart the gateway (stop it, then run `bin/trading-agent serve` again, or `systemctl --user restart trading-agent` once milestone 21 has set up the service).
+3. Restart the gateway: `systemctl --user restart trading-agent`.
 
 ## 5. Pair your phone
 

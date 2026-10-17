@@ -12,7 +12,7 @@ In `dry_run` mode, UBI checks every order the desks place and sends none to a br
 |---|---|---|
 | Daily loss | 15% of the account; every desk stops and the account is flattened | TradingRules.md |
 | Weekly loss | 35% | TradingRules.md |
-| One order's value | at most 25% of the account | TradingRules.md |
+| One order's margin | at most 25% of the account | TradingRules.md |
 | Option writing | forbidden | TradingRules.md |
 | Each desk's products | intraday and scalper `mis`, positional `cnc` and `nrml`, main any | TradingRules.md |
 | Desk loss limits | none; only the account limits apply (your choice on 17 October 2026) | TradingRules.md |
