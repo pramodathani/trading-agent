@@ -37,6 +37,31 @@ export interface DeskSummary {
   persona?: string | null;
 }
 
+/** One part of a context window, such as the messages or the free space. */
+export interface ContextCategory {
+  name: string;
+  tokens: number;
+  deferred: boolean;
+}
+
+/** How full one backend's context window is. */
+export interface ContextUsage {
+  backend: string;
+  model: string;
+  total_tokens: number;
+  context_window: number;
+  categories: ContextCategory[];
+  measured: boolean;
+  recorded_at: string;
+}
+
+/** The answer of GET /api/desks/{desk}/context. */
+export interface ContextDocument {
+  desk: string;
+  usage: ContextUsage | null;
+  tools: string[];
+}
+
 /** The answer of GET /api/desks. */
 export interface DesksDocument {
   mode: string;
@@ -331,3 +356,4 @@ export interface AppEntry {
   unit_state: { load_state: string; active_state: string; sub_state: string } | null;
   unit_error: string;
 }
+

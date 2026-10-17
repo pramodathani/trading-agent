@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { NavLink, Outlet } from 'react-router';
+import { NavLink, Outlet, useLocation } from 'react-router';
 
 import { apiClient } from '../api/apiClient';
 import { tokenStore } from '../auth/tokenStore';
 import { useConnectionState, useLiveEvents } from '../hooks/useLiveEvents';
 import { usePolled } from '../hooks/usePolled';
+import { sidePanelStore, useSidePanelOpen } from '../sidePanel/sidePanelStore';
 import { themeController } from '../utilities/themeController';
-import { DesksContext } from './desksContext';
 import { DeskMenu } from './DeskMenu';
+import { DesksContext } from './desksContext';
 import { selectedDeskStore, useSelectedDesk } from './selectedDeskStore';
 
 const DESKS_REFRESH_MILLISECONDS = 5000;
@@ -35,6 +36,8 @@ export function AppLayout() {
   const selectedDesk = useSelectedDesk();
   const connection = useConnectionState();
   const events = useLiveEvents();
+  const location = useLocation();
+  const panelOpen = useSidePanelOpen();
   const [theme, setTheme] = useState(themeController.current());
   const lastEvent = events.length > 0 ? events[events.length - 1] : null;
   const refreshDesks = desks.refresh;
@@ -168,6 +171,21 @@ export function AppLayout() {
             <span className={`connection-dot ${connection}`} />
             {CONNECTION_WORDS[connection]}
           </span>
+          {location.pathname === '/chat' && (
+            <button
+              type="button"
+              className={panelOpen ? 'icon-button pressed' : 'icon-button'}
+              onClick={() => sidePanelStore.toggleOpen()}
+              aria-pressed={panelOpen}
+              aria-label={panelOpen ? 'Hide the details panel' : 'Show the details panel'}
+              title={panelOpen ? 'Hide the details panel' : 'Show the details panel'}
+            >
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <rect x="2" y="2.5" width="12" height="11" rx="2" fill="none" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M10 2.5v11" stroke="currentColor" strokeWidth="1.3" />
+              </svg>
+            </button>
+          )}
         </header>
         <main className="content">
           <Outlet />

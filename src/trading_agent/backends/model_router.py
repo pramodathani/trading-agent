@@ -15,6 +15,7 @@ import datetime
 import time
 from collections.abc import Callable, Sequence
 
+from trading_agent.agent import context_usage as context_usage_module
 from trading_agent.backends import backend as backend_module
 from trading_agent.memory import session_store as session_store_module
 from trading_agent.runtime import event as event_module
@@ -234,6 +235,18 @@ class ModelRouter(turn_runner.TurnRunner):
     def exchanges(self) -> tuple[session_store_module.Exchange, ...]:
         """The current session's finished exchanges, oldest first."""
         return tuple(self._exchanges)
+
+    def context_usage(self) -> context_usage_module.ContextUsage | None:
+        """How full the context window is of the backend that answered last, or of the first one to be tried before any turn.
+
+        Returns:
+            context_usage_module.ContextUsage | None: That backend's latest snapshot, or None when it has none.
+        """
+        chosen = self._ordered_routes()[0]
+        for route in self._routes:
+            if route.name == self._last_backend_name:
+                chosen = route
+        return chosen.turn_runner.context_usage()
 
     async def close(self) -> None:
         """Closes every backend's turn runner."""

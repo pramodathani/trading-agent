@@ -112,6 +112,34 @@ export class Formatter {
   }
 
   /**
+   * A count of tokens, shortened the way Claude Code shows it.
+   * @param tokens The count.
+   * @returns Such as "924", "46.4k" or "1M".
+   */
+  tokenCount(tokens: number): string {
+    if (tokens < 1000) {
+      return String(Math.round(tokens));
+    }
+    if (tokens < 1000000) {
+      return `${this.oneDecimal(tokens / 1000)}k`;
+    }
+    return `${this.oneDecimal(tokens / 1000000)}M`;
+  }
+
+  /**
+   * A share of a whole as a percentage with one decimal.
+   * @param part The part.
+   * @param whole The whole.
+   * @returns Such as "4.6%", or "—" when the whole is zero.
+   */
+  share(part: number, whole: number): string {
+    if (whole <= 0) {
+      return '—';
+    }
+    return `${(100 * part / whole).toFixed(1)}%`;
+  }
+
+  /**
    * Chooses the colour class for a profit or loss.
    * @param amount The amount.
    * @returns "profit", "loss" or "flat".
@@ -121,6 +149,16 @@ export class Formatter {
       return 'flat';
     }
     return amount > 0 ? 'profit' : 'loss';
+  }
+
+  /**
+   * A number with at most one decimal, without a trailing ".0".
+   * @param value The number.
+   * @returns Such as "46.4" or "6".
+   */
+  private oneDecimal(value: number): string {
+    const text = value.toFixed(1);
+    return text.endsWith('.0') ? text.slice(0, -2) : text;
   }
 }
 

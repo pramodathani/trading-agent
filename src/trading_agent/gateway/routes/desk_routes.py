@@ -2,6 +2,7 @@
 
   GET  /api/desks                     every desk's state, models and session
   GET  /api/desks/{desk}              one desk, with its persona
+  GET  /api/desks/{desk}/context      how full the model's context window is, and the desk's tools
   POST /api/desks/{desk}/messages     queue a message or /command, with uploads named by id; the reply arrives on /ws/events
   POST /api/desks/{desk}/pause        stop asking models until resumed (commands still work)
   POST /api/desks/{desk}/resume       start answering again
@@ -114,6 +115,9 @@ class DeskRoutes(route_group.RouteGroup):
             '/api/desks/{desk_name}', self.desk, methods=['GET']
         )
         router.add_api_route(
+            '/api/desks/{desk_name}/context', self.context, methods=['GET']
+        )
+        router.add_api_route(
             '/api/desks/{desk_name}/messages',
             self.send_message,
             methods=['POST'],
@@ -160,6 +164,29 @@ class DeskRoutes(route_group.RouteGroup):
             if persona.is_file():
                 summary['persona'] = persona.read_text(encoding='utf-8')
         return summary
+
+    def context(self, desk_name: str) -> dict[str, Any]:
+        """How full the desk's context window is, and which tools it has.
+
+        The snapshot belongs to the backend that answered last. Claude's is measured by Claude Code at the end of each turn; the other backends' are estimated from their conversation when asked.
+
+        Args:
+            desk_name (str): The desk.
+
+        Returns:
+            dict[str, Any]: The desk's name, the snapshot or None when there is none yet, and its tool names.
+        """
+        desk = self._find(self._desks, desk_name, 'desk')
+        usage = desk.turn_runner.context_usage()
+        tools = []
+        desk_parts = self._parts.get(desk_name)
+        if desk_parts is not None:
+            tools = desk_parts.tools.tool_names
+        return {
+            'desk': desk_name,
+            'usage': None if usage is None else usage.to_payload(),
+            'tools': tools,
+        }
 
     def send_message(
         self,

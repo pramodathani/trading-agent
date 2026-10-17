@@ -7,6 +7,8 @@ import { PictureThumbnail } from '../components/PictureThumbnail';
 import { useLiveEvents, useStreamingTexts } from '../hooks/useLiveEvents';
 import { useDesks } from '../layout/desksContext';
 import { useSelectedDesk } from '../layout/selectedDeskStore';
+import { SidePanel } from '../sidePanel/SidePanel';
+import { useSidePanelOpen } from '../sidePanel/sidePanelStore';
 import { chatTurnBuilder, type ChatItem, type ChatTurn, type SteeringStep, type ToolStep } from '../utilities/chatTurnBuilder';
 import { eventDescriber } from '../utilities/eventDescriber';
 import { eventMerger } from '../utilities/eventMerger';
@@ -43,6 +45,7 @@ interface PendingFile {
 export function ChatPage() {
   const deskName = useSelectedDesk();
   const desks = useDesks();
+  const panelOpen = useSidePanelOpen();
   const liveEvents = useLiveEvents();
   const streams = useStreamingTexts();
   const [loaded, setLoaded] = useState<AgentEvent[]>([]);
@@ -94,13 +97,17 @@ export function ChatPage() {
     deskName,
   ]);
 
-  const items = useMemo(() => {
+  const deskEvents = useMemo(() => {
     const deskLive = liveEvents.filter((event) => event.desk === deskName);
-    return chatTurnBuilder.build(eventMerger.merge(loaded, deskLive));
+    return eventMerger.merge(loaded, deskLive);
   }, [
     loaded,
     liveEvents,
     deskName,
+  ]);
+
+  const items = useMemo(() => chatTurnBuilder.build(deskEvents), [
+    deskEvents,
   ]);
 
   const lastItemKey = items.length > 0 ? itemKey(items[items.length - 1]) : '';
@@ -259,84 +266,97 @@ export function ChatPage() {
   const suggestions = draft.startsWith('/') && !draft.includes(' ') ? SLASH_COMMANDS.filter((command) => command.startsWith(draft)) : [];
 
   return (
-    <div className="chat-page">
-      <div className="chat-header">
-        <h1>Chat with {deskName}</h1>
-        {desk !== null && (
-          <span className="muted small">
-            {desk.state}
-            {desk.paused ? ', paused' : ''}
-            {desk.queued > 0 ? `, ${desk.queued} waiting` : ''} · session <span className="mono">{desk.session_id ?? '—'}</span>
-          </span>
-        )}
-      </div>
-      <div className="chat-log">
-        {loadError !== null && <p className="error-text">Could not read today&apos;s journal: {loadError}</p>}
-        {items.length === 0 && loadError === null && <p className="muted">Nothing today yet. Say hello, or try /status.</p>}
-        {items.map((item) =>
-          item.type === 'turn' ? <TurnView key={itemKey(item)} deskName={deskName} turn={item} streamingText={streams.get(item.triggerId) ?? ''} /> : <LooseEventView key={itemKey(item)} deskName={deskName} event={item.event} />,
-        )}
-        <div ref={bottomReference} />
-      </div>
-      <form className={dragging ? 'chat-input dragging' : 'chat-input'} onSubmit={send} onDragOver={handleDragOver} onDragLeave={() => setDragging(false)} onDrop={handleDrop}>
-        {pending.length > 0 && (
-          <div className="pending-files">
-            {pending.map((item) => (
-              <span key={item.localId} className={`pending-file ${item.status}`} title={item.error ?? item.fileName}>
-                {item.previewAddress !== null ? <img src={item.previewAddress} alt="" /> : <span className="attachment-badge">{item.fileName.split('.').pop()?.toUpperCase() ?? 'FILE'}</span>}
-                <span className="pending-file-name">{item.fileName}</span>
-                <span className="small muted">{pendingStatus(item)}</span>
-                <button type="button" className="pending-remove" onClick={() => removePending(item.localId)} aria-label={`Remove ${item.fileName}`}>
-                  ×
-                </button>
+    <div className={panelOpen ? 'chat-page with-panel' : 'chat-page'}>
+      <div className="chat-scroll">
+        <div className="chat-column">
+          <div className="chat-header">
+            <h1>Chat with {deskName}</h1>
+            {desk !== null && (
+              <span className="muted small">
+                {desk.state}
+                {desk.paused ? ', paused' : ''}
+                {desk.queued > 0 ? `, ${desk.queued} waiting` : ''}
               </span>
-            ))}
+            )}
           </div>
-        )}
-        {suggestions.length > 0 && (
-          <div className="slash-suggestions">
-            {suggestions.map((command) => (
-              <button key={command} type="button" onClick={() => setDraft(`${command} `)}>
-                {command}
-              </button>
-            ))}
+          <div className="chat-log">
+            {loadError !== null && <p className="error-text">Could not read today&apos;s journal: {loadError}</p>}
+            {items.length === 0 && loadError === null && <p className="muted">Nothing today yet. Say hello, or try /status.</p>}
+            {items.map((item) =>
+              item.type === 'turn' ? <TurnView key={itemKey(item)} deskName={deskName} turn={item} streamingText={streams.get(item.triggerId) ?? ''} /> : <LooseEventView key={itemKey(item)} deskName={deskName} event={item.event} />,
+            )}
+            <div ref={bottomReference} />
           </div>
-        )}
-        <textarea
-          rows={2}
-          value={draft}
-          placeholder={`Message ${deskName}, or type / for commands. Enter sends; Shift and Enter adds a line. Drop or paste pictures and documents here.`}
-          onChange={(change) => setDraft(change.target.value)}
-          onKeyDown={handleKey}
-          onPaste={handlePaste}
-        />
-        <input
-          ref={fileInput}
-          type="file"
-          multiple
-          accept={ACCEPTED_FILES}
-          hidden
-          onChange={(change) => {
-            addFiles(Array.from(change.target.files ?? []));
-            change.target.value = '';
-          }}
-        />
-        <span className="button-row">
-          <button type="button" onClick={() => fileInput.current?.click()} title="Attach pictures or documents: PNG, JPEG, WebP, GIF, PDF, Word, Excel, CSV, text, Markdown or JSON, up to 20 MB each">
-            Attach
-          </button>
-          {desk !== null && desk.state !== 'idle' && (
-            <button className="danger" type="button" onClick={stop} title="Cancel the running turn at once">
-              Stop
-            </button>
+        </div>
+      </div>
+      <div className="composer-area">
+        <form className={dragging ? 'composer dragging' : 'composer'} onSubmit={send} onDragOver={handleDragOver} onDragLeave={() => setDragging(false)} onDrop={handleDrop}>
+          {pending.length > 0 && (
+            <div className="pending-files">
+              {pending.map((item) => (
+                <span key={item.localId} className={`pending-file ${item.status}`} title={item.error ?? item.fileName}>
+                  {item.previewAddress !== null ? <img src={item.previewAddress} alt="" /> : <span className="attachment-badge">{item.fileName.split('.').pop()?.toUpperCase() ?? 'FILE'}</span>}
+                  <span className="pending-file-name">{item.fileName}</span>
+                  <span className="small muted">{pendingStatus(item)}</span>
+                  <button type="button" className="pending-remove" onClick={() => removePending(item.localId)} aria-label={`Remove ${item.fileName}`}>
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
           )}
-          <button className="primary" type="submit" disabled={!canSend}>
-            Send
-          </button>
-        </span>
-        {sendError !== null && <p className="error-text small">{sendError}</p>}
-        {desk !== null && desk.state !== 'idle' && <p className="muted small">The desk is working. A message you send now is handed to it at its next tool call; if the turn ends first, it becomes the next turn.</p>}
-      </form>
+          {suggestions.length > 0 && (
+            <div className="slash-suggestions">
+              {suggestions.map((command) => (
+                <button key={command} type="button" onClick={() => setDraft(`${command} `)}>
+                  {command}
+                </button>
+              ))}
+            </div>
+          )}
+          <textarea
+            rows={1}
+            value={draft}
+            placeholder={`Message ${deskName}, or type / for commands`}
+            title="Enter sends; Shift and Enter adds a line. Drop or paste pictures and documents here."
+            onChange={(change) => setDraft(change.target.value)}
+            onKeyDown={handleKey}
+            onPaste={handlePaste}
+          />
+          <input
+            ref={fileInput}
+            type="file"
+            multiple
+            accept={ACCEPTED_FILES}
+            hidden
+            onChange={(change) => {
+              addFiles(Array.from(change.target.files ?? []));
+              change.target.value = '';
+            }}
+          />
+          <div className="composer-row">
+            <button type="button" className="icon-button" onClick={() => fileInput.current?.click()} aria-label="Attach files" title="Attach pictures or documents: PNG, JPEG, WebP, GIF, PDF, Word, Excel, CSV, text, Markdown or JSON, up to 20 MB each">
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+            <span className="spacer" />
+            {desk !== null && desk.state !== 'idle' && (
+              <button className="danger" type="button" onClick={stop} title="Cancel the running turn at once">
+                Stop
+              </button>
+            )}
+            <button className="primary send-button" type="submit" disabled={!canSend} aria-label="Send">
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+        </form>
+        {sendError !== null && <p className="error-text small composer-note">{sendError}</p>}
+        {desk !== null && desk.state !== 'idle' && <p className="muted small composer-note">The desk is working. A message you send now is handed to it at its next tool call; if the turn ends first, it becomes the next turn.</p>}
+      </div>
+      {panelOpen && <SidePanel deskName={deskName} desk={desk} events={deskEvents} />}
     </div>
   );
 }

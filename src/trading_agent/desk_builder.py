@@ -828,7 +828,11 @@ class DeskBuilder:
             compressor,
             steering_inbox,
         )
-        return agent_turn_runner.AgentTurnRunner(loop, prompt)
+        return agent_turn_runner.AgentTurnRunner(
+            loop,
+            prompt,
+            backend_configuration.context_window,
+        )
 
     def _prompt_builder(
         self,

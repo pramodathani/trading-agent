@@ -25,6 +25,7 @@ from typing import Any
 import claude_agent_sdk
 
 from trading_agent.agent import context_compressor
+from trading_agent.agent import context_usage as context_usage_module
 from trading_agent.agent import prompt_builder as prompt_builder_module
 from trading_agent.attachments import image_preparer as image_preparer_module
 from trading_agent.backends import backend as backend_module
@@ -108,6 +109,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         self._client = None
         self._session_prompt_fingerprint = None
         self._image_preparer = image_preparer_module.ImagePreparer()
+        self._context_usage = None
         self.session_id: str | None = None
 
     async def run_turn(
@@ -134,7 +136,9 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
             await self._compact_if_full(client, trigger)
             await client.query(self._query(prompt, trigger))
             self._session_prompt_fingerprint = prompt.fingerprint
-            return await self._read_response(client, trigger)
+            result = await self._read_response(client, trigger)
+            await self._record_context_usage(client)
+            return result
         except asyncio.CancelledError:
             await self._disconnect()
             raise
@@ -173,6 +177,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
                 'command',
                 usage['totalTokens'],
             )
+            await self._record_context_usage(client)
         except backend_module.BackendUnavailableError:
             await self._disconnect()
             raise
@@ -182,6 +187,35 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
                 f'Claude Code failed: {error!r}'
             ) from error
         return f"Compacted Claude's session from {usage['totalTokens']:,} to {after:,} tokens, after a memory-flush turn."
+
+    def context_usage(self) -> context_usage_module.ContextUsage | None:
+        """How full Claude's context window was at the end of the last turn, as Claude Code measured it.
+
+        Returns:
+            context_usage_module.ContextUsage | None: The snapshot, or None before the first turn of the session.
+        """
+        return self._context_usage
+
+    async def _record_context_usage(
+        self,
+        client: claude_agent_sdk.ClaudeSDKClient,
+    ) -> None:
+        """Asks Claude Code how full the window is and keeps the answer for context_usage.
+
+        A failure only leaves the previous snapshot in place, because the turn itself has already succeeded.
+
+        Args:
+            client (claude_agent_sdk.ClaudeSDKClient): The connected client.
+        """
+        try:
+            report = await client.get_context_usage()
+        except claude_agent_sdk.ClaudeSDKError as error:
+            _LOGGER.warning('Could not read the context usage: %r', error)
+            return
+        self._context_usage = context_usage_module.ContextUsage.from_claude(
+            self._backend_name,
+            report,
+        )
 
     def note_compaction(self) -> None:
         """Remembers that the session was compacted, so the next turn sends the instruction files again.
@@ -687,6 +721,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         await self._disconnect()
         self.session_id = None
         self._session_prompt_fingerprint = None
+        self._context_usage = None
 
     async def close(self) -> None:
         """Stops the desk's Claude Code process when the desk stops."""

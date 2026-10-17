@@ -4,6 +4,7 @@ import type {
   Attachment,
   AppEntry,
   CheckpointEntry,
+  ContextDocument,
   CronJob,
   CronRun,
   DailySummary,
@@ -66,6 +67,15 @@ export class ApiClient {
    */
   desks(): Promise<DesksDocument> {
     return this.request<DesksDocument>('GET', '/api/desks');
+  }
+
+  /**
+   * How full a desk's context window is, and which tools it has.
+   * @param deskName The desk.
+   * @returns The latest snapshot, or null usage before the first turn, and the tool names.
+   */
+  deskContext(deskName: string): Promise<ContextDocument> {
+    return this.request<ContextDocument>('GET', `/api/desks/${deskName}/context`);
   }
 
   /**

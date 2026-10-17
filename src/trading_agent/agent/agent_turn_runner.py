@@ -9,6 +9,7 @@ Typical usage example:
 """
 
 from trading_agent.agent import agent_loop as agent_loop_module
+from trading_agent.agent import context_usage as context_usage_module
 from trading_agent.agent import conversation as conversation_module
 from trading_agent.agent import prompt_builder as prompt_builder_module
 from trading_agent.runtime import trigger as trigger_module
@@ -26,15 +27,18 @@ class AgentTurnRunner(turn_runner.TurnRunner):
         self,
         agent_loop: agent_loop_module.AgentLoop,
         prompt_builder: prompt_builder_module.PromptBuilder,
+        context_window: int = 0,
     ):
         """Creates the runner with an empty conversation.
 
         Args:
             agent_loop (agent_loop_module.AgentLoop): The loop to run each turn with.
             prompt_builder (prompt_builder_module.PromptBuilder): Builds the desk's system prompt.
+            context_window (int): How many tokens the model is given, for context_usage; 0 when it is not known.
         """
         self._agent_loop = agent_loop
         self._prompt_builder = prompt_builder
+        self._context_window = context_window
         self.conversation = conversation_module.Conversation(
             prompt_builder.build().text
         )
@@ -71,6 +75,23 @@ class AgentTurnRunner(turn_runner.TurnRunner):
         if not compressed:
             return 'There was nothing to compact.'
         return f'Compressed the conversation from about {before:,} tokens into a summary, after a memory-flush turn.'
+
+    def context_usage(self) -> context_usage_module.ContextUsage | None:
+        """Estimates how full the model's context window is.
+
+        Returns:
+            context_usage_module.ContextUsage | None: The estimate, or None when the context window is not known.
+        """
+        if self._context_window <= 0:
+            return None
+        backend = self._agent_loop.backend
+        return context_usage_module.ContextUsage.estimate(
+            backend.name,
+            backend.model,
+            self._context_window,
+            self.conversation,
+            self._agent_loop.tool_definitions(),
+        )
 
     async def reset(self) -> None:
         """Starts a new, empty conversation."""

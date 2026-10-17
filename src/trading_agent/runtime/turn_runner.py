@@ -10,6 +10,7 @@ Typical usage example:
 import dataclasses
 from typing import Any
 
+from trading_agent.agent import context_usage as context_usage_module
 from trading_agent.runtime import trigger as trigger_module
 
 
@@ -87,6 +88,16 @@ class TurnRunner:
         """
         del state
         return False
+
+    def context_usage(self) -> context_usage_module.ContextUsage | None:
+        """How full the runner's context window is, as of its last turn.
+
+        Runners that keep no conversation keep this default.
+
+        Returns:
+            context_usage_module.ContextUsage | None: The latest snapshot, or None when there is none.
+        """
+        return None
 
     async def close(self) -> None:
         """Releases anything the runner started, such as a Claude Code process.
