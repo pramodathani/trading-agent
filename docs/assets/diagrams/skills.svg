@@ -1,0 +1,79 @@
+<svg class="ta-svg" viewBox="0 0 1000 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="skills-title skills-description">
+  <title id="skills-title">Skills and the curator</title>
+  <desc id="skills-description">Your skills and the desk own skills are offered to each turn; usage is recorded, and the curator patches, merges and archives the desk skills.</desc>
+
+  <path class="wire" d="M230,95 L300,95"/>
+  <path class="wire" d="M510,95 L535,95 L535,155 L560,155"/>
+  <path class="wire" d="M510,225 L535,225 L535,195 L560,195"/>
+  <path class="wire" d="M760,175 L800,175"/>
+  <path class="wire" d="M890,230 L890,330"/>
+  <path class="wire" d="M800,375 L760,375"/>
+  <path class="wire" d="M560,375 L510,375"/>
+  <path class="wire" d="M300,385 L130,385 L130,300"/>
+  <path class="wire" d="M230,225 L300,225"/>
+  <text class="small" x="898" y="285">each use</text>
+  <text class="small" x="512" y="366">daily</text>
+  <text class="small" x="140" y="400">patch · merge · write new</text>
+
+  <path id="skills-loop-path" class="hidden-path" d="M890,230 L890,330 L890,375 L800,375 L760,375 L660,375 L560,375 L510,375 L405,385 L300,385 L130,385 L130,300 L130,225 L230,225 L300,225 L405,225 L510,225 L535,225 L535,195 L560,195 L660,195 L660,175 L760,175 L800,175 L890,175 L890,230"/>
+  <path id="skills-import-path" class="hidden-path" d="M100,95 L230,95 L300,95 L405,95 L510,95 L535,95 L535,155 L560,155 L660,155"/>
+
+  <circle class="dot" r="6"><animateMotion dur="14s" repeatCount="indefinite"><mpath href="#skills-loop-path"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="14s" begin="-4.667s" repeatCount="indefinite"><mpath href="#skills-loop-path"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="14s" begin="-9.333s" repeatCount="indefinite"><mpath href="#skills-loop-path"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="7s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.7;1" keyPoints="0;1;1"><mpath href="#skills-import-path"/></animateMotion></circle>
+
+  <rect class="box" x="30" y="60" width="200" height="70" rx="8"/>
+  <text class="title" x="130" y="88" text-anchor="middle">You</text>
+  <text class="mono" x="130" y="110" text-anchor="middle">trading-agent skills import</text>
+
+  <rect class="store" x="300" y="60" width="210" height="70" rx="8"/>
+  <text class="title" x="405" y="88" text-anchor="middle">Your installed skills</text>
+  <text class="mono" x="405" y="110" text-anchor="middle">shared/skills/installed/</text>
+
+  <rect class="store" x="300" y="190" width="210" height="70" rx="8"/>
+  <text class="title" x="405" y="218" text-anchor="middle">The desk's own skills</text>
+  <text class="mono" x="405" y="240" text-anchor="middle">desks/main/skills/agent/</text>
+
+  <rect class="accent-box" x="560" y="120" width="200" height="110" rx="8"/>
+  <text class="title" x="660" y="146" text-anchor="middle">Skill library</text>
+  <text class="small" x="660" y="168" text-anchor="middle">an index of names and</text>
+  <text class="small" x="660" y="183" text-anchor="middle">descriptions in every prompt;</text>
+  <text class="small" x="660" y="198" text-anchor="middle">hides skills whose programs</text>
+  <text class="small" x="660" y="213" text-anchor="middle">or variables are missing</text>
+
+  <rect class="box" x="800" y="120" width="180" height="110" rx="8"/>
+  <text class="title" x="890" y="148" text-anchor="middle">A desk turn</text>
+  <text class="small" x="890" y="170" text-anchor="middle">Claude, Qwen or Gemma</text>
+  <text class="small" x="890" y="185" text-anchor="middle">loads a skill and follows</text>
+  <text class="small" x="890" y="200" text-anchor="middle">its steps; /range-check</text>
+  <text class="small" x="890" y="215" text-anchor="middle">asks for one by name</text>
+
+  <rect class="box" x="800" y="330" width="180" height="90" rx="8"/>
+  <text class="title" x="890" y="358" text-anchor="middle">Usage tracker</text>
+  <text class="small" x="890" y="380" text-anchor="middle">each load_skill, and the</text>
+  <text class="small" x="890" y="395" text-anchor="middle">tool calls that failed after it</text>
+
+  <rect class="store" x="560" y="340" width="200" height="70" rx="8"/>
+  <text class="title" x="660" y="368" text-anchor="middle">Usage record</text>
+  <text class="mono" x="660" y="390" text-anchor="middle">skills/usage.jsonl</text>
+
+  <rect class="box" x="300" y="330" width="210" height="110" rx="8"/>
+  <text class="title" x="405" y="356" text-anchor="middle">Curator</text>
+  <text class="small" x="405" y="378" text-anchor="middle">at the daily rollover:</text>
+  <text class="small" x="405" y="393" text-anchor="middle">archives skills idle 30 days,</text>
+  <text class="small" x="405" y="408" text-anchor="middle">then a review turn with</text>
+  <text class="small" x="405" y="423" text-anchor="middle">the whole day in context</text>
+
+  <rect class="box" x="30" y="190" width="200" height="110" rx="8"/>
+  <text class="title" x="130" y="216" text-anchor="middle">Skill writer</text>
+  <text class="mono" x="130" y="238" text-anchor="middle">skill_create · skill_patch</text>
+  <text class="mono" x="130" y="253" text-anchor="middle">skill_archive</text>
+  <text class="small" x="130" y="273" text-anchor="middle">checkpoint first, then</text>
+  <text class="small" x="130" y="288" text-anchor="middle">a line in the ledger</text>
+
+  <circle cx="190" cy="500" r="6" class="dot"/>
+  <text x="204" y="500" dominant-baseline="middle">the desk's own learning loop</text>
+  <circle cx="520" cy="500" r="6" class="dot alt"/>
+  <text x="534" y="500" dominant-baseline="middle">skills you import</text>
+</svg>

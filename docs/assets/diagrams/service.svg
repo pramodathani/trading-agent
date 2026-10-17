@@ -1,0 +1,71 @@
+<svg class="ta-svg" viewBox="0 0 1000 520" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="service-title service-description">
+  <title id="service-title">The service</title>
+  <desc id="service-description">systemd starts the gateway at boot and restarts it after a crash; every desk resumes its session.</desc>
+
+  <path class="wire" d="M230,95 L330,95"/>
+  <path class="wire" d="M230,130 L330,130"/>
+  <path class="wire" d="M450,180 L450,250"/>
+  <path class="wire" d="M230,300 L280,300 L280,160 L330,160"/>
+  <text class="small" x="238" y="87">starts at boot</text>
+  <text class="small" x="238" y="122">restarts after 10 s</text>
+  <text class="small" x="460" y="220">resumes every session</text>
+  <text class="small" x="288" y="240">SIGKILL</text>
+
+  <path id="service-start" class="hidden-path" d="M130,95 L230,95 L330,95 L450,95"/>
+  <path id="service-resume-one" class="hidden-path" d="M450,295 L450,250 L450,180 L450,130"/>
+  <path id="service-crash" class="hidden-path" d="M130,300 L230,300 L280,300 L280,160 L330,160 L420,160"/>
+  <path id="service-restart" class="hidden-path" d="M130,130 L230,130 L330,130 L450,130"/>
+  <path id="service-resume-two" class="hidden-path" d="M450,295 L450,250 L450,180 L450,130"/>
+
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.12;1" keyPoints="0;1;1"><mpath href="#service-start"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.15;0.27;1" keyPoints="0;0;1;1"><mpath href="#service-resume-one"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.36;0.52;1" keyPoints="0;0;1;1"><mpath href="#service-crash"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.62;0.74;1" keyPoints="0;0;1;1"><mpath href="#service-restart"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.77;0.89;1" keyPoints="0;0;1;1"><mpath href="#service-resume-two"/></animateMotion></circle>
+
+  <rect class="box" x="30" y="60" width="200" height="110" rx="8"/>
+  <text class="title" x="130" y="86" text-anchor="middle">systemd --user</text>
+  <text class="mono" x="130" y="108" text-anchor="middle">trading-agent.service</text>
+  <text class="small" x="130" y="130" text-anchor="middle">Restart=always</text>
+  <text class="small" x="130" y="146" text-anchor="middle">enabled; runs without a login</text>
+
+  <rect class="box" x="30" y="255" width="200" height="90" rx="8"/>
+  <text class="title" x="130" y="282" text-anchor="middle">A crash</text>
+  <text class="small" x="130" y="326" text-anchor="middle">tested with kill -9 on 17 Oct</text>
+
+  <rect class="accent-box" x="330" y="60" width="240" height="120" rx="8"/>
+  <text class="title" x="450" y="86" text-anchor="middle">The gateway</text>
+  <text class="small" x="450" y="150" text-anchor="middle">four desks, still in dry_run</text>
+  <text class="small" x="450" y="166" text-anchor="middle">PID 883818, then 891447</text>
+
+  <rect class="store" x="330" y="250" width="240" height="95" rx="8"/>
+  <text class="title" x="450" y="276" text-anchor="middle">Each desk's session</text>
+  <text class="small" x="450" y="316" text-anchor="middle">the scalper still knew "PAPAYA"</text>
+  <text class="small" x="450" y="332" text-anchor="middle">after the crash</text>
+
+  <rect class="group" x="620" y="40" width="350" height="400" rx="10"/>
+  <text class="title" x="795" y="70" text-anchor="middle">bin/trading-agent preflight</text>
+  <text class="small" x="795" y="88" text-anchor="middle">what stands between today and live orders</text>
+
+  <text class="done" x="645" y="128">DONE</text>
+  <text x="705" y="128">Every doctor check</text>
+  <text class="done" x="645" y="163">DONE</text>
+  <text x="705" y="163">Service enabled and running</text>
+  <text class="done" x="645" y="198">DONE</text>
+  <text x="705" y="198">Desk limits: none, by your choice;</text>
+  <text class="small" x="705" y="213">the account stops at 15% a day, 35% a week</text>
+  <text class="todo" x="645" y="253">MONDAY</text>
+  <text x="705" y="253">A dry-run order through UBI</text>
+  <text class="todo" x="645" y="288">MONDAY</text>
+  <text x="705" y="288">Two desks, one stock: refused</text>
+  <text class="later" x="645" y="323">LATER</text>
+  <text x="705" y="323">Telegram pairing (optional)</text>
+  <text class="todo" x="645" y="358">LAST</text>
+  <text x="705" y="358">mode = "live", then restart</text>
+  <text class="small" x="795" y="410" text-anchor="middle">the steps are in docs/going_live.md</text>
+
+  <circle cx="200" cy="475" r="6" class="dot"/>
+  <text x="214" y="475" dominant-baseline="middle">start, crash, restart</text>
+  <circle cx="420" cy="475" r="6" class="dot alt"/>
+  <text x="434" y="475" dominant-baseline="middle">the desks' sessions coming back</text>
+</svg>

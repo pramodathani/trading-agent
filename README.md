@@ -9,6 +9,7 @@ An always-on, multi-desk AI trading agent on the `tradingmachine` library and UB
 | Web page | <http://127.0.0.1:8120>, with the token from `TRADING_AGENT_GATEWAY_ACCESS_TOKEN` in `.env` |
 | Telegram | See `docs/telegram_setup.md` |
 | Going live | See `docs/going_live.md` |
+| The documentation site | `.venv/bin/mkdocs serve -a 127.0.0.1:8130`, then <http://127.0.0.1:8130/trading-agent/> |
 | Your instructions to the desks | `workspace/shared/Agents.md`, `User.md`, `TradingRules.md`, and each desk's `Persona.md`, editable on the Files page |
 
 ## Commands

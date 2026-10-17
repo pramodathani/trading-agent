@@ -1,0 +1,44 @@
+# Repository structure
+
+```text
+trading-agent/
+├── bin/trading-agent          the command; changes to the project folder, then runs the package
+├── src/trading_agent/         the gateway and everything it runs
+├── frontend/                  the web page: React 19, TypeScript, Vite 8
+├── workspace/                 your files and the desks' memory, journals and sessions
+├── packages/                  package sources, such as packages/sridhara
+├── deploy/                    the systemd unit, and SearXNG's settings
+├── docs/                      this site's pages
+├── scripts/                   the API reference generator for this site
+├── tests/                     the pytest suite
+├── trading_agent.toml         the settings
+├── mcp_servers.json           the MCP servers
+├── mkdocs.yml                 this site's configuration
+└── .claude/notes/             one note per source file, with the reasoning behind it
+```
+
+## The source packages
+
+| Package | What it holds |
+|---|---|
+| `runtime` | The desk runtime, the event bus, triggers, slash commands and the steering inbox |
+| `agent` | The agent loop, the conversation, the prompt builder, context compression and the loop guard |
+| `backends` | The Ollama, OpenAI-compatible and Claude Code backends, and the model router |
+| `tools` | The 47 tools, the bash sandbox, the browser session and the address guard |
+| `risk` | The trading limits, the risk engine, the risk ledger, the account snapshot and the kill switch |
+| `trading` | The broker reader and the desk order book |
+| `memory` | Sessions, the session keeper, session search and checkpoints |
+| `skills` | The skill library, writer, usage tracker, curator and importer |
+| `subagents` | Subagent definitions, the runner and their toolbox |
+| `extensions` | MCP, packages, hooks, the injection scanner and apps |
+| `knowledge` | The full-text knowledge base |
+| `scheduling` | The market calendar, cron jobs and scheduler, built-in jobs, price alerts and the market watcher |
+| `journal` | The trade journal, the usage tracker and the secret redactor |
+| `channels` | Telegram: the API wrapper, pairing, commands and notifications |
+| `gateway` | The FastAPI application, the access guard and the route groups |
+| `configuration` | `trading_agent.toml` and `.env` |
+| `doctor` | The doctor's checks and the going-live checks |
+| `client` | The terminal commands that are not `serve` |
+| `workspace` | The workspace layout, its templates and proposals |
+
+`application.py` holds the `Application` class that `__main__.py` runs, and `desk_builder.py` builds each desk from its configuration. The [API reference](../reference/trading_agent/index.md) has one page per module.

@@ -1,0 +1,57 @@
+<svg class="ta-svg" viewBox="0 0 1000 630" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="model-router-title model-router-description">
+  <title id="model-router-title">The model router</title>
+  <desc id="model-router-description">Each desk tries its models in order and falls back to the next when one is unavailable, waiting longer after each failure.</desc>
+  <path class="wire" d="M130,55 L130,310 L400,310"/>
+  <path class="wire" d="M400,310 L840,115"/>
+  <path class="wire" d="M400,310 L840,305"/>
+  <path class="wire" d="M400,310 L840,495"/>
+  <path class="wire" d="M400,310 L130,500"/>
+  <path id="model-router-out-to-claude" class="hidden-path" d="M130,55 L130,310 L400,310 L840,115"/>
+  <path id="model-router-claude-fails" class="hidden-path" d="M840,115 L400,310"/>
+  <path id="model-router-out-to-qwen" class="hidden-path" d="M400,310 L840,305"/>
+  <path id="model-router-answer-back" class="hidden-path" d="M840,305 L400,310 L130,500"/>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.2;1" keyPoints="0;1;1"><mpath href="#model-router-out-to-claude"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.24;0.36;1" keyPoints="0;0;1;1"><mpath href="#model-router-claude-fails"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.38;0.5;1" keyPoints="0;0;1;1"><mpath href="#model-router-out-to-qwen"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.68;0.92;1" keyPoints="0;0;1;1"><mpath href="#model-router-answer-back"/></animateMotion></circle>
+  <rect class="box" x="40" y="30" width="180" height="50" rx="25"/>
+  <text class="title" x="130" y="52" text-anchor="middle">Trigger</text>
+  <text class="small" x="130" y="70" text-anchor="middle">"What time is it?"</text>
+  <rect class="accent-box" x="290" y="235" width="220" height="150" rx="8"/>
+  <text class="title" x="400" y="264" text-anchor="middle">Model router</text>
+  <text class="small" x="400" y="288" text-anchor="middle">tries the desk's backends in order</text>
+  <text class="small" x="400" y="312" text-anchor="middle">a failed backend waits</text>
+  <text class="mono" x="400" y="330" text-anchor="middle">30 s → 1 min → 5 min</text>
+  <text class="small" x="400" y="354" text-anchor="middle">a returning backend is handed</text>
+  <text class="small" x="400" y="370" text-anchor="middle">the turns it missed</text>
+  <rect class="store" x="720" y="55" width="240" height="120" rx="8"/>
+  <text class="small" x="840" y="78" text-anchor="middle">1st choice</text>
+  <text class="title" x="840" y="100" text-anchor="middle">Claude Opus 5.5</text>
+  <text class="small" x="840" y="122" text-anchor="middle">Claude Code, Max subscription</text>
+  <text class="small" x="840" y="152" text-anchor="middle">unavailable on a failed login,</text>
+  <text class="small" x="840" y="166" text-anchor="middle">a reached limit or an error</text>
+  <rect class="box" x="720" y="245" width="240" height="120" rx="8"/>
+  <text class="small" x="840" y="268" text-anchor="middle">2nd choice</text>
+  <text class="title" x="840" y="290" text-anchor="middle">Qwen3.8 27b</text>
+  <text class="mono" x="840" y="312" text-anchor="middle">qwen3.8:27b on Ollama</text>
+  <text class="small" x="840" y="340" text-anchor="middle">runs the same tools through</text>
+  <text class="small" x="840" y="354" text-anchor="middle">the same agent loop as Gemma</text>
+  <rect class="box" x="720" y="435" width="240" height="120" rx="8"/>
+  <text class="small" x="840" y="458" text-anchor="middle">3rd choice</text>
+  <text class="title" x="840" y="480" text-anchor="middle">Gemma 4 31b</text>
+  <text class="mono" x="840" y="502" text-anchor="middle">gemma4:31b on Ollama</text>
+  <text class="small" x="840" y="530" text-anchor="middle">used only if Qwen fails too</text>
+  <rect class="store" x="40" y="450" width="180" height="100" rx="8"/>
+  <text class="title" x="130" y="480" text-anchor="middle">Event bus</text>
+  <text class="mono" x="130" y="504" text-anchor="middle">backend_unavailable</text>
+  <text class="mono" x="130" y="522" text-anchor="middle">backend_switch</text>
+  <text class="small question" x="500" y="226">1 try Claude first</text>
+  <text class="small answer" x="600" y="262">2 authentication_failed</text>
+  <text class="small question" x="580" y="296">3 same turn, to Qwen</text>
+  <text class="small answer" x="272" y="452">4 Qwen&apos;s answer</text>
+  <circle cx="268" cy="592" r="6" class="dot"/>
+  <text x="282" y="592" dominant-baseline="middle">the turn going out</text>
+  <circle cx="468" cy="592" r="6" class="dot alt"/>
+  <text x="482" y="592" dominant-baseline="middle">what comes back</text>
+  <text class="small" x="500" y="620" text-anchor="middle">The fallback test on 2026-10-16: Claude failed, Qwen answered the same turn, and the next turn skipped Claude during its 30 s wait.</text>
+</svg>

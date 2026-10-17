@@ -1,0 +1,56 @@
+<svg class="ta-svg" viewBox="0 0 1000 630" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="browser-title browser-description">
+  <title id="browser-title">The browser tools</title>
+  <desc id="browser-description">Each desk has its own headless Chrome; a request guard blocks local addresses, and pages come back as numbered elements and text.</desc>
+  <path class="wire" d="M140,305 L460,305 L720,305 L910,170"/>
+  <path class="wire" d="M720,305 L910,440"/>
+  <path class="wire" d="M460,305 L460,490 L140,490 L140,305"/>
+  <path id="browser-request-out" class="hidden-path" d="M140,305 L460,305 L720,305 L910,170"/>
+  <path id="browser-request-refused" class="hidden-path" d="M460,305 L705,305 L460,305"/>
+  <path id="browser-page-back" class="hidden-path" d="M910,170 L720,305 L460,305 L460,490 L140,490 L140,305"/>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.25;1" keyPoints="0;1;1"><mpath href="#browser-request-out"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.3;0.48;1" keyPoints="0;0;1;1"><mpath href="#browser-request-refused"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.52;0.92;1" keyPoints="0;0;1;1"><mpath href="#browser-page-back"/></animateMotion></circle>
+  <rect class="box" x="40" y="255" width="200" height="100" rx="8"/>
+  <text class="title" x="140" y="283" text-anchor="middle">Desk</text>
+  <text class="mono" x="140" y="305" text-anchor="middle">browser_open</text>
+  <text class="mono" x="140" y="321" text-anchor="middle">browser_click 3</text>
+  <text class="mono" x="140" y="337" text-anchor="middle">browser_screenshot</text>
+  <rect class="accent-box" x="330" y="225" width="260" height="160" rx="8"/>
+  <text class="title" x="460" y="253" text-anchor="middle">Chrome 153, headless</text>
+  <text class="small" x="460" y="275" text-anchor="middle">driven by Playwright</text>
+  <text class="small" x="460" y="299" text-anchor="middle">its own profile per desk:</text>
+  <text class="small" x="460" y="315" text-anchor="middle">none of your logins or cookies</text>
+  <text class="small" x="460" y="339" text-anchor="middle">ordinary Chrome identity,</text>
+  <text class="small" x="460" y="355" text-anchor="middle">automation flag hidden</text>
+  <text class="small" x="460" y="373" text-anchor="middle">downloads refused</text>
+  <rect class="box" x="640" y="255" width="160" height="100" rx="8"/>
+  <text class="title" x="720" y="283" text-anchor="middle">Request guard</text>
+  <text class="small" x="720" y="305" text-anchor="middle">every request: pages,</text>
+  <text class="small" x="720" y="321" text-anchor="middle">scripts, images, and the</text>
+  <text class="small" x="720" y="337" text-anchor="middle">page's own fetches</text>
+  <rect class="store" x="830" y="110" width="150" height="120" rx="8"/>
+  <text class="title" x="905" y="140" text-anchor="middle">News sites</text>
+  <text class="mono" x="905" y="164" text-anchor="middle">Moneycontrol 200</text>
+  <text class="mono" x="905" y="182" text-anchor="middle">Zee Business 200</text>
+  <text class="mono" x="905" y="200" text-anchor="middle">MSN 200</text>
+  <text class="small" x="905" y="220" text-anchor="middle">plain download: 403</text>
+  <rect class="box" x="830" y="390" width="150" height="110" rx="8"/>
+  <text class="title" x="905" y="418" text-anchor="middle">Blocked</text>
+  <text class="small" x="905" y="440" text-anchor="middle">UBI on 127.0.0.1</text>
+  <text class="small" x="905" y="456" text-anchor="middle">the home network</text>
+  <text class="mono" x="905" y="474" text-anchor="middle">file:// pages</text>
+  <text class="small" x="905" y="490" text-anchor="middle">"Failed to fetch"</text>
+  <rect class="store" x="290" y="440" width="340" height="110" rx="8"/>
+  <text class="title" x="460" y="466" text-anchor="middle">What comes back</text>
+  <text class="mono" x="460" y="488" text-anchor="middle">[5] a "Latest News" → https://…</text>
+  <text class="mono" x="460" y="504" text-anchor="middle">[7] textbox "Search symbol"</text>
+  <text class="small" x="460" y="524" text-anchor="middle">numbered elements and text for every model,</text>
+  <text class="small" x="460" y="540" text-anchor="middle">a screenshot for Claude and Gemma, which can see</text>
+  <text class="small question" x="760" y="230">allowed</text>
+  <text class="small answer" x="742" y="398">refused</text>
+  <circle cx="268" cy="590" r="6" class="dot"/>
+  <text x="282" y="590" dominant-baseline="middle">a request leaving the browser</text>
+  <circle cx="548" cy="590" r="6" class="dot alt"/>
+  <text x="562" y="590" dominant-baseline="middle">refusals and pages coming back</text>
+  <text class="small" x="500" y="618" text-anchor="middle">The browser reads the sites plain downloads could not, and cannot be turned against this machine.</text>
+</svg>

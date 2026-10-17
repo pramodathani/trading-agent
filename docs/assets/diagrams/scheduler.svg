@@ -1,0 +1,76 @@
+<svg class="ta-svg" viewBox="0 0 1000 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="scheduler-title scheduler-description">
+  <title id="scheduler-title">The cron scheduler</title>
+  <desc id="scheduler-description">Jobs and built-in jobs are timed against the market calendar and wake the desk, run a command, or start a subagent.</desc>
+
+  <path class="wire" d="M230,105 L265,105 L265,200 L300,200"/>
+  <path class="wire" d="M230,210 L300,210"/>
+  <path class="wire" d="M230,320 L265,320 L265,220 L300,220"/>
+  <path class="wire" d="M520,190 L560,190 L560,100 L600,100"/>
+  <path class="wire" d="M520,230 L600,230"/>
+  <path class="wire" d="M520,270 L560,270 L560,360 L600,360"/>
+  <path class="wire" d="M780,230 L840,230"/>
+  <path class="wire" d="M780,360 L810,360 L810,250 L840,250"/>
+
+  <path id="scheduler-to-desk" class="hidden-path" d="M410,190 L520,190 L560,190 L560,100 L600,100 L690,100"/>
+  <path id="scheduler-to-command" class="hidden-path" d="M410,230 L520,230 L600,230 L690,230"/>
+  <path id="scheduler-to-subagent" class="hidden-path" d="M410,270 L520,270 L560,270 L560,360 L600,360 L690,360"/>
+  <path id="scheduler-command-result" class="hidden-path" d="M690,230 L780,230 L840,230 L905,230"/>
+  <path id="scheduler-subagent-result" class="hidden-path" d="M690,360 L780,360 L810,360 L810,250 L840,250 L905,250"/>
+
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.15;1" keyPoints="0;1;1"><mpath href="#scheduler-to-desk"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.3;0.42;1" keyPoints="0;0;1;1"><mpath href="#scheduler-to-command"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.45;0.56;1" keyPoints="0;0;1;1"><mpath href="#scheduler-command-result"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.6;0.73;1" keyPoints="0;0;1;1"><mpath href="#scheduler-to-subagent"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.8;0.94;1" keyPoints="0;0;1;1"><mpath href="#scheduler-subagent-result"/></animateMotion></circle>
+
+  <rect class="store" x="30" y="70" width="200" height="70" rx="8"/>
+  <text class="title" x="130" y="97" text-anchor="middle">The desk's jobs</text>
+  <text class="mono" x="130" y="119" text-anchor="middle">desks/main/cron/jobs.json</text>
+
+  <rect class="box" x="30" y="165" width="200" height="90" rx="8"/>
+  <text class="title" x="130" y="191" text-anchor="middle">Built-in jobs</text>
+  <text class="small" x="130" y="212" text-anchor="middle">rollover at 15:45 on trading days;</text>
+  <text class="small" x="130" y="227" text-anchor="middle">heartbeat every N minutes in</text>
+  <text class="small" x="130" y="242" text-anchor="middle">market hours, when switched on</text>
+
+  <rect class="store" x="30" y="280" width="200" height="80" rx="8"/>
+  <text class="title" x="130" y="306" text-anchor="middle">Market calendar</text>
+  <text class="small" x="130" y="326" text-anchor="middle">UBI's exchange files;</text>
+  <text class="small" x="130" y="341" text-anchor="middle">next holiday: 20 Oct, Dussehra</text>
+
+  <rect class="accent-box" x="300" y="140" width="220" height="180" rx="8"/>
+  <text class="title" x="410" y="166" text-anchor="middle">Cron scheduler</text>
+  <text class="small" x="410" y="188" text-anchor="middle">every 30 s: start what is due</text>
+  <text class="small" x="410" y="210" text-anchor="middle">makes up a missed run once</text>
+  <text class="small" x="410" y="225" text-anchor="middle">after a restart</text>
+  <text class="small" x="410" y="247" text-anchor="middle">records each run before it starts</text>
+  <text class="small" x="410" y="269" text-anchor="middle">skips a heartbeat while</text>
+  <text class="small" x="410" y="284" text-anchor="middle">the desk is busy</text>
+  <text class="small" x="410" y="306" text-anchor="middle">no model of its own</text>
+
+  <rect class="box" x="600" y="55" width="180" height="90" rx="8"/>
+  <text class="title" x="690" y="81" text-anchor="middle">The desk's queue</text>
+  <text class="small" x="690" y="102" text-anchor="middle">agent jobs, heartbeats,</text>
+  <text class="small" x="690" y="117" text-anchor="middle">/rollover; NOTHING_TO_DO</text>
+  <text class="small" x="690" y="132" text-anchor="middle">answers stay silent</text>
+
+  <rect class="box" x="600" y="190" width="180" height="80" rx="8"/>
+  <text class="title" x="690" y="216" text-anchor="middle">Command job</text>
+  <text class="small" x="690" y="237" text-anchor="middle">a shell command in the</text>
+  <text class="small" x="690" y="252" text-anchor="middle">desk's sandbox, no model</text>
+
+  <rect class="box" x="600" y="320" width="180" height="80" rx="8"/>
+  <text class="title" x="690" y="346" text-anchor="middle">Subagent job</text>
+  <text class="small" x="690" y="367" text-anchor="middle">a helper does the task</text>
+  <text class="small" x="690" y="382" text-anchor="middle">and reports</text>
+
+  <rect class="store" x="840" y="190" width="130" height="80" rx="8"/>
+  <text class="title" x="905" y="216" text-anchor="middle">Results</text>
+  <text class="mono" x="905" y="237" text-anchor="middle">cron_result</text>
+  <text class="small" x="905" y="254" text-anchor="middle">and webhook POST</text>
+
+  <circle cx="230" cy="465" r="6" class="dot"/>
+  <text x="244" y="465" dominant-baseline="middle">a job starting</text>
+  <circle cx="520" cy="465" r="6" class="dot alt"/>
+  <text x="534" y="465" dominant-baseline="middle">its result being published</text>
+</svg>

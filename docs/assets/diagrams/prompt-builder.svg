@@ -1,0 +1,61 @@
+<svg class="ta-svg" viewBox="0 0 1000 630" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="prompt-builder-title prompt-builder-description">
+  <title id="prompt-builder-title">Your files become the prompt</title>
+  <desc id="prompt-builder-description">The prompt builder reads your files into each model session; desks can only propose changes to them.</desc>
+  <path class="wire" d="M150,180 L480,180 L840,110"/>
+  <path class="wire" d="M480,180 L840,250"/>
+  <path class="wire" d="M480,180 L480,390"/>
+  <path class="wire" d="M480,390 L840,430 L840,530 L150,530 L150,180"/>
+  <path id="prompt-builder-files-to-loops" class="hidden-path" d="M150,180 L480,180 L840,110"/>
+  <path id="prompt-builder-files-to-claude" class="hidden-path" d="M150,180 L480,180 L840,250"/>
+  <path id="prompt-builder-proposal-loop" class="hidden-path" d="M480,390 L840,430 L840,530 L150,530 L150,425 L150,180"/>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.3;1" keyPoints="0;1;1"><mpath href="#prompt-builder-files-to-loops"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.08;0.36;1" keyPoints="0;0;1;1"><mpath href="#prompt-builder-files-to-claude"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.45;0.95;1" keyPoints="0;0;1;1"><mpath href="#prompt-builder-proposal-loop"/></animateMotion></circle>
+  <rect class="store" x="40" y="60" width="220" height="250" rx="8"/>
+  <text class="title" x="150" y="92" text-anchor="middle">Your files</text>
+  <text class="small" x="150" y="112" text-anchor="middle">tracked in git, edited only by you</text>
+  <text class="mono" x="150" y="148" text-anchor="middle">Agents.md</text>
+  <text class="mono" x="150" y="168" text-anchor="middle">User.md</text>
+  <text class="mono" x="150" y="188" text-anchor="middle">TradingRules.md</text>
+  <text class="mono" x="150" y="208" text-anchor="middle">Persona.md</text>
+  <text class="small" x="150" y="242" text-anchor="middle">plus the desk's own</text>
+  <text class="mono" x="150" y="260" text-anchor="middle">Memory.md</text>
+  <text class="small" x="150" y="290" text-anchor="middle">limits as % of the live balance</text>
+  <rect class="accent-box" x="360" y="110" width="240" height="140" rx="8"/>
+  <text class="title" x="480" y="140" text-anchor="middle">Prompt builder</text>
+  <text class="small" x="480" y="162" text-anchor="middle">reads the files before every turn</text>
+  <text class="small" x="480" y="182" text-anchor="middle">20,000 characters a file, 60,000 in all</text>
+  <text class="small" x="480" y="202" text-anchor="middle">adds the first-run interview while</text>
+  <text class="small" x="480" y="218" text-anchor="middle">User.md is still a template</text>
+  <text class="mono" x="480" y="238" text-anchor="middle">fingerprint: 16 hex digits</text>
+  <rect class="box" x="720" y="55" width="240" height="110" rx="8"/>
+  <text class="title" x="840" y="85" text-anchor="middle">Gemma and Qwen loops</text>
+  <text class="small" x="840" y="108" text-anchor="middle">the system prompt is simply</text>
+  <text class="small" x="840" y="124" text-anchor="middle">replaced every turn</text>
+  <rect class="box" x="720" y="195" width="240" height="110" rx="8"/>
+  <text class="title" x="840" y="225" text-anchor="middle">Claude session</text>
+  <text class="small" x="840" y="248" text-anchor="middle">a resumed session ignores a new</text>
+  <text class="small" x="840" y="264" text-anchor="middle">prompt, so changed files arrive</text>
+  <text class="small" x="840" y="280" text-anchor="middle">inside the next message, once</text>
+  <rect class="box" x="360" y="330" width="240" height="130" rx="8"/>
+  <text class="title" x="480" y="360" text-anchor="middle">Desk</text>
+  <text class="mono" x="480" y="384" text-anchor="middle">/status /model /new /pause</text>
+  <text class="small" x="480" y="402" text-anchor="middle">answered by code, no model</text>
+  <text class="small" x="480" y="426" text-anchor="middle">every message starts with</text>
+  <text class="mono" x="480" y="444" text-anchor="middle">[India time · woken by]</text>
+  <rect class="store" x="720" y="380" width="240" height="110" rx="8"/>
+  <text class="title" x="840" y="410" text-anchor="middle">proposals/</text>
+  <text class="mono" x="840" y="434" text-anchor="middle">propose_file_change</text>
+  <text class="small" x="840" y="456" text-anchor="middle">the complete new file and a reason;</text>
+  <text class="small" x="840" y="472" text-anchor="middle">nothing changes yet</text>
+  <rect class="box" x="40" y="400" width="220" height="56" rx="28"/>
+  <text class="title" x="150" y="424" text-anchor="middle">You</text>
+  <text class="mono" x="150" y="443" text-anchor="middle">proposals accept &lt;id&gt;</text>
+  <text class="small question" x="270" y="168">read every turn</text>
+  <text class="small answer" x="560" y="548">you review the diff, then accept or reject; the old file is kept</text>
+  <circle cx="248" cy="592" r="6" class="dot"/>
+  <text x="262" y="592" dominant-baseline="middle">your files becoming the instructions</text>
+  <circle cx="548" cy="592" r="6" class="dot alt"/>
+  <text x="562" y="592" dominant-baseline="middle">a desk's suggested change, through you</text>
+  <text class="small" x="500" y="620" text-anchor="middle">The desk can read your files every turn but can only change them by asking you.</text>
+</svg>

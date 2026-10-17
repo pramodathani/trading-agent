@@ -1,0 +1,51 @@
+# Tools
+
+A desk acts through tools. Each tool is a class with a JSON schema, and the same tools are offered to every model. The table below lists all 47, grouped by what they are for.
+
+| Group | Tools |
+|---|---|
+| Market data | `get_time`, `get_quote`, `get_candles`, `search_instruments` |
+| The account | `get_portfolio`, `get_orders` |
+| Orders | `place_order`, `place_bracket_order`, `modify_order`, `cancel_order`, `flatten_desk` |
+| Terminal | `bash_run`, `bash_background`, `bash_check`, `bash_restart` |
+| Browser | `browser_open`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_screenshot`, `browser_back`, `browser_tabs` |
+| The web | `web_search`, `web_fetch` |
+| Files and memory | `read_file`, `write_file`, `edit_file`, `add_note`, `search_sessions`, `propose_file_change` |
+| Skills | `load_skill`, `skill_create`, `skill_patch`, `skill_archive` |
+| Scheduling and messages | `cron_create`, `cron_list`, `cron_delete`, `schedule_wakeup`, `set_price_alert`, `cancel_price_alert`, `send_message` |
+| Extensions | `tool_search`, `call_mcp_tool`, `delegate_task`, `search_knowledge` |
+
+The full description each model reads is in the API reference, one page per tool, such as [place_order](../reference/trading_agent/tools/place_order_tool.md). A tool call that runs longer than 60 seconds is stopped, and the loop guard stops a tool called three times with the same arguments in one turn.
+
+## The terminal
+
+Each desk has one bash session that keeps running between commands, so the current folder and variables carry over. It runs inside **bwrap**, a sandbox: the desk's `scratch/` folder and `/tmp` are the only places it may write, the project and your files are read-only, and the folders that hold secrets appear empty.
+
+<figure class="diagram">
+--8<-- "docs/assets/diagrams/bash-sandbox.svg"
+<figcaption>What the desk's bash session can reach. It may write only in its scratch folder; the project is read-only; credential folders and every .env appear empty; the network is open so it can fetch data.</figcaption>
+</figure>
+
+The sandbox starts with an empty environment, so no secret reaches it unless `[sandbox] passed_environment` names it.
+
+## The browser
+
+Each desk has its own headless Chrome with a clean profile, never your own, because your profile holds your broker logins. A page comes back as a snapshot: its title, its clickable elements numbered so the model can click by number, and its visible text. Claude and Gemma, which can see pictures, can also take a screenshot.
+
+<figure class="diagram">
+--8<-- "docs/assets/diagrams/browser.svg"
+<figcaption>The browser tools. A request guard blocks local addresses, so a page cannot reach UBI or the gateway through the desk's browser; what comes back is numbered elements and text, or a screenshot.</figcaption>
+</figure>
+
+## Web search and fetch
+
+`web_search` asks the local SearXNG server, and `web_fetch` turns one page into its main text with its title and date. Both are far cheaper than the browser for reading news. `web_fetch` and the browser share the address guard: every address a host name resolves to must be a public internet address, checked again at each redirect, so a page cannot steer a desk to UBI, the databases or a router on the home network. Text from the web is labelled as untrusted data before the model reads it, as [Extensions](extensions.md#untrusted-text) explains.
+
+## The journal
+
+Every tool call, result, order, risk decision and fill is written to the desk's journal, one file per day, after secrets are masked. The Activity page reads it, and so does `search_sessions`.
+
+<figure class="diagram">
+--8<-- "docs/assets/diagrams/read-and-journal.svg"
+<figcaption>The broker reader reads UBI for the desk; every event passes through the secret redactor before the journal writes it and the live stream sends it.</figcaption>
+</figure>

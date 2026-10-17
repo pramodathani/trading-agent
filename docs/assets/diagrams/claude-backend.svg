@@ -1,0 +1,57 @@
+<svg class="ta-svg" viewBox="0 0 1000 630" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="claude-backend-title claude-backend-description">
+  <title id="claude-backend-title">The Claude Code backend</title>
+  <desc id="claude-backend-description">A trigger goes to the Claude turn runner, which drives Claude Code; Claude calls trading-agent tools through an in-process tool server and every step is published on the event bus.</desc>
+  <rect class="container" x="20" y="150" width="760" height="420" rx="10"/>
+  <text class="small" x="300" y="172">this computer: the gateway process and its Claude Code process</text>
+  <path class="wire" d="M130,55 L130,300 L660,300 L890,110"/>
+  <path class="wire" d="M660,300 L660,500"/>
+  <path class="wire" d="M400,300 L130,490"/>
+  <path id="claude-backend-question-path" class="hidden-path" d="M130,55 L130,300 L400,300 L660,300 L890,110"/>
+  <path id="claude-backend-tool-call-path" class="hidden-path" d="M890,110 L660,300 L660,500"/>
+  <path id="claude-backend-tool-result-path" class="hidden-path" d="M660,500 L660,300 L890,110"/>
+  <path id="claude-backend-answer-path" class="hidden-path" d="M890,110 L660,300 L400,300 L130,490"/>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.22;1" keyPoints="0;1;1"><mpath href="#claude-backend-question-path"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.27;0.45;1" keyPoints="0;0;1;1"><mpath href="#claude-backend-tool-call-path"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.5;0.68;1" keyPoints="0;0;1;1"><mpath href="#claude-backend-tool-result-path"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.73;0.95;1" keyPoints="0;0;1;1"><mpath href="#claude-backend-answer-path"/></animateMotion></circle>
+  <rect class="box" x="40" y="30" width="180" height="50" rx="25"/>
+  <text class="title" x="130" y="52" text-anchor="middle">Trigger</text>
+  <text class="small" x="130" y="70" text-anchor="middle">"What time is it?"</text>
+  <rect class="accent-box" x="290" y="235" width="220" height="130" rx="8"/>
+  <text class="title" x="400" y="264" text-anchor="middle">Claude turn runner</text>
+  <text class="small" x="400" y="288" text-anchor="middle">one session per desk, resumed</text>
+  <text class="small" x="400" y="304" text-anchor="middle">after a crash</text>
+  <text class="small" x="400" y="330" text-anchor="middle">refuses to start while</text>
+  <text class="mono" x="400" y="348" text-anchor="middle">ANTHROPIC_API_KEY is set</text>
+  <rect class="box" x="560" y="235" width="200" height="130" rx="8"/>
+  <text class="title" x="660" y="264" text-anchor="middle">Claude Code</text>
+  <text class="small" x="660" y="286" text-anchor="middle">the SDK's bundled copy</text>
+  <text class="mono" x="660" y="310" text-anchor="middle">bypassPermissions</text>
+  <text class="small" x="660" y="330" text-anchor="middle">no settings files read</text>
+  <text class="small" x="660" y="348" text-anchor="middle">all built-in tools off</text>
+  <rect class="box" x="560" y="430" width="200" height="120" rx="8"/>
+  <text class="title" x="660" y="458" text-anchor="middle">In-process tool server</text>
+  <text class="small" x="660" y="480" text-anchor="middle">allow-list hook, then the</text>
+  <text class="small" x="660" y="496" text-anchor="middle">same executor Gemma uses:</text>
+  <text class="small" x="660" y="516" text-anchor="middle">loop guard · checks · 60 s · cap</text>
+  <text class="mono" x="660" y="536" text-anchor="middle">get_time</text>
+  <rect class="store" x="40" y="440" width="180" height="100" rx="8"/>
+  <text class="title" x="130" y="470" text-anchor="middle">Event bus</text>
+  <text class="small" x="130" y="492" text-anchor="middle">streamed text, and</text>
+  <text class="mono" x="130" y="512" text-anchor="middle">rate_limit · model_usage</text>
+  <rect class="store" x="800" y="30" width="180" height="160" rx="8"/>
+  <text class="title" x="890" y="62" text-anchor="middle">Claude Opus 5.5</text>
+  <text class="small" x="890" y="84" text-anchor="middle">at Anthropic, on your</text>
+  <text class="small" x="890" y="100" text-anchor="middle">Max subscription</text>
+  <text class="mono" x="890" y="140" text-anchor="middle">apiKeySource: none</text>
+  <text class="small" x="890" y="160" text-anchor="middle">5-hour and weekly limits</text>
+  <text class="small question" x="596" y="214">1 question + tool list</text>
+  <text class="small answer" x="800" y="236">2 "call get_time"</text>
+  <text class="small question" x="672" y="404">3 "Friday 23:19 IST"</text>
+  <text class="small answer" x="206" y="388">4 the answer</text>
+  <circle cx="268" cy="592" r="6" class="dot"/>
+  <text x="282" y="596">going to Claude</text>
+  <circle cx="468" cy="592" r="6" class="dot alt"/>
+  <text x="482" y="596">coming from Claude</text>
+  <text class="small" x="500" y="620" text-anchor="middle">Claude Code runs the loop; every tool call still comes back into the gateway and passes through the same protections.</text>
+</svg>

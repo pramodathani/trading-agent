@@ -1,0 +1,70 @@
+<svg class="ta-svg" viewBox="0 0 1000 530" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="web-page-title web-page-description">
+  <title id="web-page-title">The web page and the gateway</title>
+  <desc id="web-page-description">The page loads once, sends requests with the token, and receives every event over one live connection.</desc>
+  <rect class="group" x="370" y="40" width="240" height="390" rx="10"/>
+  <text class="small" x="490" y="60" text-anchor="middle">the gateway, port 8120</text>
+
+  <path class="wire" d="M400,115 L280,115"/>
+  <path class="wire" d="M280,205 L400,205"/>
+  <path class="wire" d="M580,205 L650,205 L650,135 L700,135"/>
+  <path class="wire" d="M280,228 L400,228"/>
+  <path class="wire" d="M580,228 L640,228 L640,300 L700,300"/>
+  <path class="wire" d="M700,185 L675,185 L675,372 L580,372"/>
+  <path class="wire" d="M400,372 L280,372"/>
+  <text class="small" x="290" y="106">page loads once</text>
+  <text class="small" x="290" y="196">a message</text>
+  <text class="small" x="290" y="246">today's journal</text>
+  <text class="small" x="290" y="363">live events</text>
+
+  <path id="web-page-page" class="hidden-path" d="M490,115 L400,115 L280,115 L160,115"/>
+  <path id="web-page-message" class="hidden-path" d="M160,205 L280,205 L400,205 L580,205 L650,205 L650,135 L700,135 L835,135"/>
+  <path id="web-page-journal" class="hidden-path" d="M160,228 L280,228 L400,228 L580,228 L640,228 L640,300 L700,300 L835,300"/>
+  <path id="web-page-event" class="hidden-path" d="M835,185 L700,185 L675,185 L675,372 L580,372 L400,372 L280,372 L160,372"/>
+
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.14;1" keyPoints="0;1;1"><mpath href="#web-page-page"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.18;0.42;1" keyPoints="0;0;1;1"><mpath href="#web-page-message"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.46;0.74;1" keyPoints="0;0;1;1"><mpath href="#web-page-event"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.78;0.96;1" keyPoints="0;0;1;1"><mpath href="#web-page-journal"/></animateMotion></circle>
+
+  <rect class="accent-box" x="30" y="60" width="250" height="360" rx="8"/>
+  <text class="title" x="155" y="88" text-anchor="middle">Your browser</text>
+  <text class="small" x="155" y="106" text-anchor="middle">the token is kept here only</text>
+  <text x="60" y="150">Desks</text>
+  <text class="small" x="130" y="150">cards, pause, flatten</text>
+  <text x="60" y="180">Chat</text>
+  <text class="small" x="130" y="180">turns with tool cards</text>
+  <text x="60" y="270">Activity</text>
+  <text class="small" x="130" y="270">every desk, newest first</text>
+  <text x="60" y="300">Trading</text>
+  <text class="small" x="130" y="300">P&amp;L, owners, kill switch</text>
+  <text class="small" x="155" y="405" text-anchor="middle">one live connection for every page</text>
+
+  <rect class="box" x="400" y="90" width="180" height="50" rx="8"/>
+  <text class="title" x="490" y="112" text-anchor="middle">Web page files</text>
+  <text class="mono" x="490" y="128" text-anchor="middle">frontend/dist</text>
+
+  <rect class="box" x="400" y="180" width="180" height="70" rx="8"/>
+  <text class="title" x="490" y="205" text-anchor="middle">API</text>
+  <text class="small" x="490" y="223" text-anchor="middle">every request shows</text>
+  <text class="small" x="490" y="237" text-anchor="middle">the token</text>
+
+  <rect class="box" x="400" y="345" width="180" height="55" rx="8"/>
+  <text class="title" x="490" y="368" text-anchor="middle">Live events</text>
+  <text class="mono" x="490" y="386" text-anchor="middle">/ws/events</text>
+
+  <rect class="box" x="700" y="90" width="270" height="130" rx="8"/>
+  <text class="title" x="835" y="116" text-anchor="middle">The desks</text>
+  <text class="small" x="835" y="138" text-anchor="middle">main, intraday, scalper, positional</text>
+  <text class="small" x="835" y="156" text-anchor="middle">each turn's steps go on</text>
+  <text class="small" x="835" y="171" text-anchor="middle">the event bus as they happen</text>
+
+  <rect class="store" x="700" y="260" width="270" height="80" rx="8"/>
+  <text class="title" x="835" y="290" text-anchor="middle">Journal</text>
+  <text class="small" x="835" y="310" text-anchor="middle">every event today, so the chat shows</text>
+  <text class="small" x="835" y="324" text-anchor="middle">earlier turns' tool calls too</text>
+
+  <circle cx="230" cy="470" r="6" class="dot"/>
+  <text x="244" y="470" dominant-baseline="middle">a request from the page</text>
+  <circle cx="520" cy="470" r="6" class="dot alt"/>
+  <text x="534" y="470" dominant-baseline="middle">the page, or a live event, coming back</text>
+</svg>

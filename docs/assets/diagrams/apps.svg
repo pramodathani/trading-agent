@@ -1,0 +1,65 @@
+<svg class="ta-svg" viewBox="0 0 1000 520" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="apps-title apps-description">
+  <title id="apps-title">Packages as apps</title>
+  <desc id="apps-description">A package app.toml adds an existing web app to the sidebar; the gateway checks its page and controls its systemd unit.</desc>
+
+  <path class="wire" d="M125,180 L125,260"/>
+  <path class="wire" d="M220,305 L260,305 L260,280 L300,280"/>
+  <path class="wire" d="M520,180 L560,180 L560,100 L640,100"/>
+  <path class="wire" d="M725,160 L725,210"/>
+  <path class="wire" d="M520,248 L640,248"/>
+  <path class="wire" d="M640,268 L520,268"/>
+  <path class="wire" d="M520,300 L560,300 L560,410 L640,410"/>
+  <text class="small" x="134" y="215">trading-agent</text>
+  <text class="small" x="134" y="229">packages install</text>
+  <text class="small" x="734" y="190">shown in a frame</text>
+  <text class="small" x="530" y="240">page answers?</text>
+  <text class="small" x="568" y="350">start, stop,</text><text class="small" x="568" y="364">restart</text>
+
+  <path id="apps-install" class="hidden-path" d="M125,130 L125,180 L125,260 L125,305"/>
+  <path id="apps-health" class="hidden-path" d="M410,248 L520,248 L640,248 L725,248"/>
+  <path id="apps-answer" class="hidden-path" d="M725,268 L640,268 L520,268 L410,268"/>
+  <path id="apps-sidebar" class="hidden-path" d="M410,180 L520,180 L560,180 L560,100 L640,100 L725,100"/>
+  <path id="apps-restart" class="hidden-path" d="M410,300 L520,300 L560,300 L560,410 L640,410 L725,410"/>
+
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.15;1" keyPoints="0;1;1"><mpath href="#apps-install"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.2;0.36;1" keyPoints="0;0;1;1"><mpath href="#apps-health"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.4;0.54;1" keyPoints="0;0;1;1"><mpath href="#apps-answer"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.58;0.74;1" keyPoints="0;0;1;1"><mpath href="#apps-sidebar"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.78;0.96;1" keyPoints="0;0;1;1"><mpath href="#apps-restart"/></animateMotion></circle>
+
+  <rect class="box" x="30" y="80" width="190" height="100" rx="8"/>
+  <text class="title" x="125" y="106" text-anchor="middle">packages/sridhara</text>
+  <text class="mono" x="125" y="130" text-anchor="middle">app.toml</text>
+  <text class="small" x="125" y="150" text-anchor="middle">page :8095, sridhara.service</text>
+  <text class="small" x="125" y="166" text-anchor="middle">sridhara itself is unchanged</text>
+
+  <rect class="store" x="30" y="260" width="190" height="90" rx="8"/>
+  <text class="title" x="125" y="288" text-anchor="middle">Installed</text>
+  <text class="mono" x="125" y="310" text-anchor="middle">workspace/shared/</text>
+  <text class="mono" x="125" y="326" text-anchor="middle">packages/sridhara</text>
+
+  <rect class="accent-box" x="300" y="150" width="220" height="180" rx="8"/>
+  <text class="title" x="410" y="178" text-anchor="middle">App catalog</text>
+  <text class="small" x="410" y="200" text-anchor="middle">in the gateway; reads each</text>
+  <text class="small" x="410" y="214" text-anchor="middle">package's app.toml afresh</text>
+  <text class="small" x="410" y="316" text-anchor="middle">no app code runs in here</text>
+
+  <rect class="box" x="640" y="40" width="170" height="120" rx="8"/>
+  <text class="title" x="725" y="66" text-anchor="middle">Sidebar: Apps</text>
+  <circle cx="685" cy="96" r="4" class="dot ok"/>
+  <text x="697" y="100">Sridhara</text>
+  <text class="small" x="725" y="130" text-anchor="middle">green when it answers</text>
+
+  <rect class="store" x="640" y="210" width="170" height="110" rx="8"/>
+  <text class="title" x="725" y="290" text-anchor="middle">sridhara</text>
+  <text class="small" x="725" y="306" text-anchor="middle">port 8095, its own login</text>
+
+  <rect class="store" x="640" y="370" width="170" height="80" rx="8"/>
+  <text class="title" x="725" y="398" text-anchor="middle">systemd --user</text>
+  <text class="mono" x="725" y="420" text-anchor="middle">sridhara.service</text>
+
+  <circle cx="230" cy="480" r="6" class="dot"/>
+  <text x="244" y="480" dominant-baseline="middle">install, check or act</text>
+  <circle cx="470" cy="480" r="6" class="dot alt"/>
+  <text x="484" y="480" dominant-baseline="middle">what comes back to the page</text>
+</svg>

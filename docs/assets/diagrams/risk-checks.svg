@@ -1,0 +1,69 @@
+<svg class="ta-svg" viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="risk-checks-title risk-checks-description">
+  <title id="risk-checks-title">How the risk engine judges an order</title>
+  <desc id="risk-checks-description">The six questions the risk engine asks of every order, from the limits in TradingRules.md to who owns the instrument.</desc>
+  <rect class="container" x="222" y="88" width="490" height="548" rx="10"/>
+  <text class="small" x="252" y="110">Risk engine: plain code, before every order; no model can change it</text>
+  <path class="wire" d="M550,40 L690,40 L690,148"/>
+  <path class="wire" d="M690,148 L690,610 L243,610 L243,40 L380,40"/>
+  <path class="wire" d="M675,148 L690,148"/>
+  <path class="wire" d="M675,218 L690,218"/>
+  <path class="wire" d="M675,288 L690,288"/>
+  <path class="wire" d="M675,358 L690,358"/>
+  <path class="wire" d="M675,428 L690,428"/>
+  <path class="wire" d="M675,498 L690,498"/>
+  <path class="wire" d="M675,568 L690,568"/>
+  <path class="wire" d="M690,218 L760,200"/>
+  <path class="wire" d="M690,288 L760,330"/>
+  <path class="wire" d="M690,568 L760,520"/>
+  <path id="risk-checks-order-path" class="hidden-path" d="M465,40 L550,40 L690,40 L690,148 L690,218 L690,288 L760,330 L690,288 L690,358 L690,428 L690,498 L690,568 L760,520 L865,500"/>
+  <path id="risk-checks-decision-path" class="hidden-path" d="M865,500 L760,520 L690,568 L690,610 L243,610 L243,40 L380,40 L465,40"/>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.55;1" keyPoints="0;1;1"><mpath href="#risk-checks-order-path"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.58;0.95;1" keyPoints="0;0;1;1"><mpath href="#risk-checks-decision-path"/></animateMotion></circle>
+  <rect class="box" x="255" y="120" width="420" height="56" rx="6"/>
+  <text class="title" x="272" y="143">1  Read the limits from TradingRules.md</text>
+  <text class="small" x="272" y="163">unreadable → nothing new can be opened</text>
+  <rect class="box" x="255" y="190" width="420" height="56" rx="6"/>
+  <text class="title" x="272" y="213">2  Read the account from UBI</text>
+  <text class="small" x="272" y="233">balance, margin in use, today's P&amp;L, positions, holdings</text>
+  <rect class="accent-box" x="255" y="260" width="420" height="56" rx="6"/>
+  <text class="title" x="272" y="283">3  Loss limits: 15% today, 35% this week</text>
+  <text class="small" x="272" y="303">of the live balance; reached → the kill switch fires, once</text>
+  <rect class="box" x="255" y="330" width="420" height="56" rx="6"/>
+  <text class="title" x="272" y="353">4  Is the exchange open?</text>
+  <text class="small" x="272" y="373">NSE/BSE 09:15–15:30 · currency 09:00–17:00 · MCX to 23:30/23:55</text>
+  <rect class="box" x="255" y="400" width="420" height="56" rx="6"/>
+  <text class="title" x="272" y="423">5  Whose instrument is it?</text>
+  <text class="small" x="272" y="443">another desk's, or your own holding (INFY, KWIL…) → refused</text>
+  <rect class="box" x="255" y="470" width="420" height="56" rx="6"/>
+  <text class="title" x="272" y="493">6  Opening a position? Then every limit</text>
+  <text class="small" x="272" y="513">halts · trading switch · no option writing · margin ≤ 25% · capital</text>
+  <rect class="box" x="255" y="540" width="420" height="56" rx="6"/>
+  <text class="title" x="272" y="563">7  Approve: claim the instrument, record it</text>
+  <text class="small" x="272" y="583">closing your own position always passes; every reason is reported</text>
+  <rect class="box" x="380" y="12" width="170" height="56" rx="28"/>
+  <text class="title" x="465" y="36" text-anchor="middle">Order tool</text>
+  <text class="mono" x="465" y="55" text-anchor="middle">evaluate(order)</text>
+  <text class="small answer" x="30" y="28">the decision:</text>
+  <text class="mono answer" x="30" y="46">approved</text>
+  <text class="mono answer" x="30" y="62">or refused, with</text>
+  <text class="mono answer" x="30" y="78">every reason</text>
+  <rect class="store" x="760" y="150" width="210" height="100" rx="8"/>
+  <text class="title" x="865" y="180" text-anchor="middle">UBI</text>
+  <text class="small" x="865" y="202" text-anchor="middle">funds, positions, holdings</text>
+  <text class="mono" x="865" y="226" text-anchor="middle">such as ₹1,53,583.08</text>
+  <rect class="accent-box" x="760" y="290" width="210" height="100" rx="8"/>
+  <text class="title" x="865" y="318" text-anchor="middle">Kill switch</text>
+  <text class="mono" x="865" y="340" text-anchor="middle">Account.flatten</text>
+  <text class="small" x="865" y="360" text-anchor="middle">halt recorded first; dry run</text>
+  <text class="small" x="865" y="376" text-anchor="middle">in dry_run mode; never twice</text>
+  <rect class="store" x="760" y="450" width="210" height="110" rx="8"/>
+  <text class="title" x="865" y="480" text-anchor="middle">Risk ledger</text>
+  <text class="small" x="865" y="502" text-anchor="middle">who owns which instrument,</text>
+  <text class="small" x="865" y="518" text-anchor="middle">approvals, daily P&amp;L, halts</text>
+  <text class="mono" x="865" y="542" text-anchor="middle">risk_ledger.db</text>
+  <circle cx="268" cy="660" r="6" class="dot"/>
+  <text x="282" y="660" dominant-baseline="middle">the order being checked</text>
+  <circle cx="468" cy="660" r="6" class="dot alt"/>
+  <text x="482" y="660" dominant-baseline="middle">the decision going back</text>
+  <text class="small" x="500" y="688" text-anchor="middle">Against the real account: INFY and KWIL refused as your holdings, one NIFTY futures lot refused for its margin.</text>
+</svg>

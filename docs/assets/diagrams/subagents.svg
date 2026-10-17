@@ -1,0 +1,68 @@
+<svg class="ta-svg" viewBox="0 0 1000 570" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="subagents-title subagents-description">
+  <title id="subagents-title">Subagents</title>
+  <desc id="subagents-description">A desk hands tasks to subagents, which run in parallel with their own tools and models and report back.</desc>
+
+  <path class="wire" d="M200,245 L260,245"/>
+  <path class="wire" d="M260,305 L200,305"/>
+  <path class="wire" d="M490,240 L525,240 L525,140 L560,140"/>
+  <path class="wire" d="M490,310 L525,310 L525,380 L560,380"/>
+  <path class="wire" d="M760,140 L820,140"/>
+  <path class="wire" d="M760,380 L820,380"/>
+  <text class="small" x="205" y="325">reports</text>
+  <text class="small" x="532" y="270">at the same time</text>
+
+  <path id="subagents-out-one" class="hidden-path" d="M200,245 L260,245 L375,245 L490,240 L525,240 L525,140 L560,140 L660,140 L760,140 L820,140 L895,140"/>
+  <path id="subagents-out-two" class="hidden-path" d="M200,245 L260,245 L375,245 L490,310 L525,310 L525,380 L560,380 L660,380 L760,380 L820,380 L895,380"/>
+  <path id="subagents-back-one" class="hidden-path" d="M895,140 L820,140 L760,140 L660,140 L560,140 L525,140 L525,240 L490,240 L375,300 L260,305 L200,305 L115,305"/>
+  <path id="subagents-back-two" class="hidden-path" d="M895,380 L820,380 L760,380 L660,380 L560,380 L525,380 L525,310 L490,310 L375,300 L260,305 L200,305 L115,305"/>
+
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.4;1" keyPoints="0;1;1"><mpath href="#subagents-out-one"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.4;1" keyPoints="0;1;1"><mpath href="#subagents-out-two"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.5;0.86;1" keyPoints="0;0;1;1"><mpath href="#subagents-back-two"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.56;0.92;1" keyPoints="0;0;1;1"><mpath href="#subagents-back-one"/></animateMotion></circle>
+
+  <rect class="box" x="30" y="215" width="170" height="120" rx="8"/>
+  <text class="title" x="115" y="245" text-anchor="middle">The desk</text>
+  <text class="small" x="115" y="267" text-anchor="middle">calls delegate_task with</text>
+  <text class="small" x="115" y="282" text-anchor="middle">one to four tasks, then</text>
+  <text class="small" x="115" y="297" text-anchor="middle">checks important claims</text>
+
+  <rect class="accent-box" x="260" y="180" width="230" height="190" rx="8"/>
+  <text class="title" x="375" y="206" text-anchor="middle">Subagent runner</text>
+  <text class="small" x="375" y="228" text-anchor="middle">for each task: a fresh model</text>
+  <text class="small" x="375" y="243" text-anchor="middle">router, its own prompt and tools,</text>
+  <text class="small" x="375" y="258" text-anchor="middle">a time limit; afterwards it closes</text>
+  <text class="small" x="375" y="273" text-anchor="middle">the task's shell and Claude process</text>
+  <text class="small" x="375" y="303" text-anchor="middle">default tools: read-only</text>
+  <text class="small" x="375" y="318" text-anchor="middle">orders: only when listed</text>
+  <text class="small" x="375" y="333" text-anchor="middle">never: delegate_task, browser</text>
+  <text class="small" x="375" y="355" text-anchor="middle">one failure never stops the others</text>
+
+  <rect class="box" x="560" y="90" width="200" height="100" rx="8"/>
+  <text class="title" x="660" y="118" text-anchor="middle">news_reader</text>
+  <text class="mono" x="660" y="138" text-anchor="middle">model: qwen</text>
+  <text class="small" x="660" y="158" text-anchor="middle">7 searches, 5 articles;</text>
+  <text class="small" x="660" y="173" text-anchor="middle">reported after 103 s</text>
+
+  <rect class="box" x="560" y="330" width="200" height="100" rx="8"/>
+  <text class="title" x="660" y="358" text-anchor="middle">market_researcher</text>
+  <text class="mono" x="660" y="378" text-anchor="middle">model: qwen</text>
+  <text class="small" x="660" y="398" text-anchor="middle">candles, then python3 in its</text>
+  <text class="small" x="660" y="413" text-anchor="middle">own shell; reported after 89 s</text>
+
+  <rect class="store" x="820" y="90" width="150" height="100" rx="8"/>
+  <text class="title" x="895" y="125" text-anchor="middle">The web</text>
+  <text class="small" x="895" y="147" text-anchor="middle">labelled as data,</text>
+  <text class="small" x="895" y="162" text-anchor="middle">scanned for injection</text>
+
+  <rect class="store" x="820" y="330" width="150" height="100" rx="8"/>
+  <text class="title" x="895" y="365" text-anchor="middle">Market data</text>
+  <text class="small" x="895" y="387" text-anchor="middle">quotes and candles</text>
+  <text class="small" x="895" y="402" text-anchor="middle">through UBI</text>
+
+  <text class="small" x="500" y="460" text-anchor="middle">Definitions: workspace/shared/agents/*.md and packages' agents/, in Claude Code's format</text>
+  <circle cx="240" cy="500" r="6" class="dot"/>
+  <text x="254" y="500" dominant-baseline="middle">two tasks going out together</text>
+  <circle cx="560" cy="500" r="6" class="dot alt"/>
+  <text x="574" y="500" dominant-baseline="middle">the two reports coming back</text>
+</svg>

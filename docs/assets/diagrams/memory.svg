@@ -1,0 +1,83 @@
+<svg class="ta-svg" viewBox="0 0 1000 650" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="memory-title memory-description">
+  <title id="memory-title">Sessions, memory and checkpoints</title>
+  <desc id="memory-description">The session keeper resumes or rolls over each desk session; memory tools write the desk files, and every write is checkpointed first.</desc>
+  <rect class="container" x="220" y="60" width="380" height="480" rx="10"/>
+  <text class="small" x="240" y="82">One desk, such as main</text>
+
+  <path class="wire" d="M180,280 L205,280 L205,150 L245,150"/>
+  <path class="wire" d="M410,205 L410,245"/>
+  <path class="wire" d="M575,275 L620,275 L620,105 L660,105"/>
+  <path class="wire" d="M575,305 L640,305 L640,220 L660,220"/>
+  <path class="wire" d="M245,325 L180,325"/>
+  <path class="wire" d="M575,440 L630,440 L630,325 L660,325"/>
+  <path class="wire" d="M815,360 L815,390"/>
+  <path class="wire" d="M575,490 L640,490 L640,525 L660,525"/>
+
+  <path id="memory-request-path" class="hidden-path" d="M180,280 L205,280 L205,150 L245,150 L410,150 L410,275 L575,275 L620,275 L620,105 L660,105 L720,105"/>
+  <path id="memory-answer-path" class="hidden-path" d="M720,105 L660,105 L620,105 L620,275 L575,275 L410,275 L410,325 L245,325 L180,325 L140,325"/>
+  <path id="memory-save-path" class="hidden-path" d="M520,305 L575,305 L640,305 L640,220 L660,220 L720,220"/>
+  <path id="memory-restore-path" class="hidden-path" d="M720,220 L660,220 L640,220 L640,305 L575,305 L520,305"/>
+  <path id="memory-note-path" class="hidden-path" d="M520,440 L575,440 L630,440 L630,325 L660,325 L815,325 L815,430"/>
+  <path id="memory-search-path" class="hidden-path" d="M720,525 L660,525 L640,525 L640,490 L575,490 L520,490"/>
+
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.4;1" keyPoints="0;1;1"><mpath href="#memory-request-path"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.42;0.72;1" keyPoints="0;0;1;1"><mpath href="#memory-answer-path"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.6;0.72;1" keyPoints="0;0;1;1"><mpath href="#memory-save-path"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.8;0.94;1" keyPoints="0;0;1;1"><mpath href="#memory-restore-path"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="6s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.7;1" keyPoints="0;1;1"><mpath href="#memory-note-path"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="6s" begin="-3s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.5;1" keyPoints="0;1;1"><mpath href="#memory-search-path"/></animateMotion></circle>
+
+  <rect class="box" x="30" y="250" width="150" height="100" rx="8"/>
+  <text class="title" x="105" y="285" text-anchor="middle">Trigger</text>
+  <text class="small" x="105" y="305" text-anchor="middle">a message, a job,</text>
+  <text class="small" x="105" y="320" text-anchor="middle">an alert or a fill</text>
+
+  <rect class="box" x="245" y="95" width="330" height="110" rx="6"/>
+  <text class="title" x="262" y="120">1  Session keeper</text>
+  <text class="small" x="262" y="142">New India date? The desk folds its notes into</text>
+  <text class="small" x="262" y="157">Memory.md and summarises the day; a fresh</text>
+  <text class="small" x="262" y="172">session starts.</text>
+  <text class="small" x="262" y="192">New session? The last summary goes in front.</text>
+
+  <rect class="accent-box" x="245" y="245" width="330" height="110" rx="6"/>
+  <text class="title" x="262" y="270">2  Model router</text>
+  <text class="small" x="262" y="292">Runs the turn on the first ready model, then</text>
+  <text class="small" x="262" y="307">saves the exchange and Claude's session id.</text>
+  <text class="small" x="262" y="327">After a restart it reloads them: Claude</text>
+  <text class="small" x="262" y="342">resumes, the others get a hand-over.</text>
+
+  <rect class="box" x="245" y="395" width="330" height="120" rx="6"/>
+  <text class="title" x="262" y="420">3  Memory tools</text>
+  <text class="mono" x="262" y="442">add_note · write_file · edit_file</text>
+  <text class="small" x="262" y="458">take a checkpoint, then write</text>
+  <text class="mono" x="262" y="482">search_sessions</text>
+  <text class="small" x="262" y="498">reads the journal, summaries and notes</text>
+
+  <rect class="box" x="660" y="60" width="310" height="90" rx="8"/>
+  <text class="title" x="815" y="90" text-anchor="middle">Claude · Qwen · Gemma</text>
+  <text class="small" x="815" y="110" text-anchor="middle">each turn, and the end-of-day</text>
+  <text class="small" x="815" y="125" text-anchor="middle">summary turn, runs here</text>
+
+  <rect class="store" x="660" y="180" width="310" height="85" rx="8"/>
+  <text class="title" x="815" y="205" text-anchor="middle">Session store</text>
+  <text class="mono" x="815" y="225" text-anchor="middle">sessions/state.json</text>
+  <text class="mono" x="815" y="241" text-anchor="middle">sessions/2026-10-19-1.jsonl</text>
+  <text class="mono" x="815" y="257" text-anchor="middle">sessions/summaries/2026-10-19.md</text>
+
+  <rect class="store" x="660" y="290" width="310" height="70" rx="8"/>
+  <text class="title" x="815" y="317" text-anchor="middle">Checkpoints</text>
+  <text class="mono" x="815" y="339" text-anchor="middle">workspace/.checkpoints/main.git</text>
+
+  <rect class="store" x="660" y="390" width="310" height="70" rx="8"/>
+  <text class="title" x="815" y="417" text-anchor="middle">The desk's own files</text>
+  <text class="mono" x="815" y="439" text-anchor="middle">Memory.md · memory/ · notes/</text>
+
+  <rect class="store" x="660" y="490" width="310" height="70" rx="8"/>
+  <text class="title" x="815" y="517" text-anchor="middle">Journal</text>
+  <text class="mono" x="815" y="539" text-anchor="middle">journal/YYYY-MM-DD.jsonl</text>
+
+  <circle cx="200" cy="600" r="6" class="dot"/>
+  <text x="214" y="600" dominant-baseline="middle">a turn going out, an exchange saved, a note written</text>
+  <circle cx="590" cy="600" r="6" class="dot alt"/>
+  <text x="604" y="600" dominant-baseline="middle">an answer, a restore after restart, a search</text>
+</svg>

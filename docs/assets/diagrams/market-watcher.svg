@@ -1,0 +1,73 @@
+<svg class="ta-svg" viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="market-watcher-title market-watcher-description">
+  <title id="market-watcher-title">The market watcher</title>
+  <desc id="market-watcher-description">Without a model, the watcher reads fills, prices and the account, wakes the desk that needs to know, and fires the kill switch at the loss limit.</desc>
+
+  <path class="wire" d="M230,175 L300,175"/>
+  <path class="wire" d="M230,225 L300,225"/>
+  <path class="wire" d="M230,275 L300,275"/>
+  <path class="wire" d="M530,185 L620,185"/>
+  <path class="wire" d="M530,285 L575,285 L575,355 L620,355"/>
+  <path class="wire" d="M830,175 L790,175"/>
+  <path class="wire" d="M790,225 L810,225 L810,345 L830,345"/>
+  <text class="small" x="540" y="176">wakes the desk</text>
+  <text class="small" x="814" y="290">usage</text>
+
+  <path id="market-watcher-fill-in" class="hidden-path" d="M130,175 L230,175 L300,175 L415,175"/>
+  <path id="market-watcher-price-in" class="hidden-path" d="M130,225 L230,225 L300,225 L415,225"/>
+  <path id="market-watcher-wake" class="hidden-path" d="M415,185 L530,185 L620,185 L705,185"/>
+  <path id="market-watcher-kill" class="hidden-path" d="M130,275 L230,275 L300,275 L415,280 L530,285 L575,285 L575,355 L620,355 L705,355"/>
+  <path id="market-watcher-webhook" class="hidden-path" d="M905,175 L830,175 L790,175 L705,175"/>
+
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.15;1" keyPoints="0;1;1"><mpath href="#market-watcher-fill-in"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.05;0.2;1" keyPoints="0;0;1;1"><mpath href="#market-watcher-price-in"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.22;0.36;1" keyPoints="0;0;1;1"><mpath href="#market-watcher-wake"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.42;0.66;1" keyPoints="0;0;1;1"><mpath href="#market-watcher-kill"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.72;0.88;1" keyPoints="0;0;1;1"><mpath href="#market-watcher-webhook"/></animateMotion></circle>
+
+  <rect class="store" x="30" y="140" width="200" height="170" rx="8"/>
+  <text class="title" x="130" y="166" text-anchor="middle">UBI</text>
+  <text class="mono" x="130" y="186" text-anchor="middle">order book</text>
+  <text class="small" x="130" y="202" text-anchor="middle">finished broker orders</text>
+  <text class="mono" x="130" y="236" text-anchor="middle">last prices</text>
+  <text class="small" x="130" y="252" text-anchor="middle">for each alert</text>
+  <text class="mono" x="130" y="286" text-anchor="middle">account</text>
+  <text class="small" x="130" y="302" text-anchor="middle">balance and today's P&amp;L</text>
+
+  <rect class="accent-box" x="300" y="130" width="230" height="190" rx="8"/>
+  <text class="title" x="415" y="156" text-anchor="middle">Market watcher</text>
+  <text class="small" x="415" y="178" text-anchor="middle">no model; every 15 s while</text>
+  <text class="small" x="415" y="193" text-anchor="middle">NSE equities or MCX trade</text>
+  <text class="small" x="415" y="218" text-anchor="middle">fills: matched to the desk's own</text>
+  <text class="small" x="415" y="233" text-anchor="middle">orders, reported once</text>
+  <text class="small" x="415" y="258" text-anchor="middle">alerts: fire once, then removed</text>
+  <text class="small" x="415" y="283" text-anchor="middle">account: once a minute,</text>
+  <text class="small" x="415" y="298" text-anchor="middle">even when nobody trades</text>
+
+  <rect class="box" x="620" y="130" width="170" height="110" rx="8"/>
+  <text class="title" x="705" y="158" text-anchor="middle">The desk</text>
+  <text class="small" x="705" y="180" text-anchor="middle">gets one message for its</text>
+  <text class="small" x="705" y="195" text-anchor="middle">fills, alerts and webhook</text>
+  <text class="small" x="705" y="210" text-anchor="middle">messages, in its queue</text>
+
+  <rect class="accent-box" x="620" y="310" width="170" height="90" rx="8"/>
+  <text class="title" x="705" y="336" text-anchor="middle">Kill switch</text>
+  <text class="small" x="705" y="358" text-anchor="middle">fires at the daily or</text>
+  <text class="small" x="705" y="373" text-anchor="middle">weekly loss limit</text>
+
+  <rect class="box" x="830" y="130" width="150" height="90" rx="8"/>
+  <text class="title" x="905" y="156" text-anchor="middle">TradingView</text>
+  <text class="small" x="905" y="176" text-anchor="middle">or your script</text>
+  <text class="mono" x="905" y="198" text-anchor="middle">/hooks/wake/main</text>
+  <text class="small" x="905" y="212" text-anchor="middle">own token</text>
+
+  <rect class="store" x="830" y="300" width="150" height="90" rx="8"/>
+  <text class="title" x="905" y="326" text-anchor="middle">Usage tracker</text>
+  <text class="small" x="905" y="346" text-anchor="middle">tokens per desk and</text>
+  <text class="small" x="905" y="361" text-anchor="middle">model; Claude's limits</text>
+  <text class="mono" x="905" y="379" text-anchor="middle">/usage</text>
+
+  <circle cx="230" cy="450" r="6" class="dot"/>
+  <text x="244" y="450" dominant-baseline="middle">market data read, the loss limit checked</text>
+  <circle cx="590" cy="450" r="6" class="dot alt"/>
+  <text x="604" y="450" dominant-baseline="middle">a desk being woken</text>
+</svg>

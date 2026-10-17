@@ -1,0 +1,57 @@
+<svg class="ta-svg" viewBox="0 0 1000 630" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="agent-loop-title agent-loop-description">
+  <title id="agent-loop-title">The agent loop</title>
+  <desc id="agent-loop-description">A trigger starts a turn; the model is asked, its tool calls run through the tool registry and the loop guard, and the loop repeats until the model answers without a tool.</desc>
+  <rect class="container" x="20" y="150" width="620" height="410" rx="10"/>
+  <text class="small" x="360" y="172">one desk inside the gateway</text>
+  <path class="wire" d="M130,55 L130,300 L430,300"/>
+  <path class="wire" d="M430,300 L840,130"/>
+  <path class="wire" d="M430,300 L840,470"/>
+  <path class="wire" d="M430,300 L130,480"/>
+  <path class="wire" d="M430,380 L430,440"/>
+  <path id="agent-loop-question-path" class="hidden-path" d="M130,55 L130,300 L430,300 L840,130"/>
+  <path id="agent-loop-tool-call-path" class="hidden-path" d="M840,130 L430,300 L840,470"/>
+  <path id="agent-loop-tool-result-path" class="hidden-path" d="M840,470 L430,300 L840,130"/>
+  <path id="agent-loop-answer-path" class="hidden-path" d="M840,130 L430,300 L130,480"/>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.2;1" keyPoints="0;1;1"><mpath href="#agent-loop-question-path"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.25;0.45;1" keyPoints="0;0;1;1"><mpath href="#agent-loop-tool-call-path"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.5;0.7;1" keyPoints="0;0;1;1"><mpath href="#agent-loop-tool-result-path"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.75;0.95;1" keyPoints="0;0;1;1"><mpath href="#agent-loop-answer-path"/></animateMotion></circle>
+  <rect class="box" x="40" y="30" width="180" height="50" rx="25"/>
+  <text class="title" x="130" y="52" text-anchor="middle">Trigger</text>
+  <text class="small" x="130" y="70" text-anchor="middle">"What time is it?"</text>
+  <rect class="accent-box" x="330" y="230" width="200" height="150" rx="8"/>
+  <text class="title" x="430" y="262" text-anchor="middle">Agent loop</text>
+  <text class="small" x="430" y="286" text-anchor="middle">ask the model</text>
+  <text class="small" x="430" y="302" text-anchor="middle">run the tools it asks for</text>
+  <text class="small" x="430" y="318" text-anchor="middle">give it the results</text>
+  <text class="small" x="430" y="334" text-anchor="middle">repeat until it answers</text>
+  <text class="small" x="430" y="362" text-anchor="middle">at most 20 rounds a turn</text>
+  <rect class="box" x="330" y="440" width="200" height="90" rx="8"/>
+  <text class="title" x="430" y="468" text-anchor="middle">Loop guard</text>
+  <text class="small" x="430" y="490" text-anchor="middle">refuses the same call with the</text>
+  <text class="small" x="430" y="506" text-anchor="middle">same arguments after 3 times</text>
+  <rect class="store" x="40" y="440" width="180" height="90" rx="8"/>
+  <text class="title" x="130" y="470" text-anchor="middle">Event bus</text>
+  <text class="small" x="130" y="492" text-anchor="middle">every step, live:</text>
+  <text class="mono" x="130" y="510" text-anchor="middle">tool_call · text_delta</text>
+  <rect class="store" x="720" y="50" width="240" height="160" rx="8"/>
+  <text class="title" x="840" y="84" text-anchor="middle">Gemma 4 31b</text>
+  <text class="small" x="840" y="106" text-anchor="middle">on Ollama, on the RTX 4090</text>
+  <text class="mono" x="840" y="160" text-anchor="middle">num_ctx 32768</text>
+  <text class="small" x="840" y="180" text-anchor="middle">reply streams in pieces</text>
+  <rect class="box" x="720" y="390" width="240" height="160" rx="8"/>
+  <text class="title" x="840" y="422" text-anchor="middle">Tool registry</text>
+  <text class="small" x="840" y="444" text-anchor="middle">checks the arguments first</text>
+  <text class="mono" x="840" y="490" text-anchor="middle">get_time</text>
+  <text class="small" x="840" y="514" text-anchor="middle">60 s limit · errors become results</text>
+  <text class="small" x="840" y="530" text-anchor="middle">output capped at 20,000 characters</text>
+  <text class="small question" x="560" y="186">1 question + tool list</text>
+  <text class="small answer" x="618" y="238">2 "call get_time"</text>
+  <text class="small question" x="642" y="364">3 "Friday 23:02 IST"</text>
+  <text class="small answer" x="196" y="384">4 the answer</text>
+  <circle cx="268" cy="592" r="6" class="dot"/>
+  <text x="282" y="596">going to the model</text>
+  <circle cx="468" cy="592" r="6" class="dot alt"/>
+  <text x="482" y="596">coming from the model</text>
+  <text class="small" x="500" y="620" text-anchor="middle">One turn, two rounds: the model asks for a tool, reads the result, then answers.</text>
+</svg>

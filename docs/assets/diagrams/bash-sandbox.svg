@@ -1,0 +1,61 @@
+<svg class="ta-svg" viewBox="0 0 1000 630" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="bash-sandbox-title bash-sandbox-description">
+  <title id="bash-sandbox-title">The bash sandbox</title>
+  <desc id="bash-sandbox-description">Each desk has one long-running bash session inside bwrap, with its own scratch folder writable, the project read-only and secrets hidden.</desc>
+  <rect class="container" x="300" y="110" width="350" height="420" rx="12"/>
+  <text class="small" x="318" y="132">bwrap sandbox, one per desk</text>
+  <path class="wire" d="M140,300 L470,190"/>
+  <path class="wire" d="M470,190 L840,105"/>
+  <path class="wire" d="M470,190 L840,265"/>
+  <path class="wire" d="M140,345 L140,552 L840,552 L840,505"/>
+  <path id="bash-sandbox-command-in" class="hidden-path" d="M140,300 L470,190"/>
+  <path id="bash-sandbox-to-internet" class="hidden-path" d="M470,190 L840,105"/>
+  <path id="bash-sandbox-to-broker" class="hidden-path" d="M470,190 L840,265 L470,190"/>
+  <path id="bash-sandbox-output-back" class="hidden-path" d="M470,190 L140,300"/>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.15;1" keyPoints="0;1;1"><mpath href="#bash-sandbox-command-in"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.18;0.35;1" keyPoints="0;0;1;1"><mpath href="#bash-sandbox-to-internet"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.4;0.66;1" keyPoints="0;0;1;1"><mpath href="#bash-sandbox-to-broker"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.7;0.88;1" keyPoints="0;0;1;1"><mpath href="#bash-sandbox-output-back"/></animateMotion></circle>
+  <rect class="box" x="40" y="255" width="200" height="90" rx="8"/>
+  <text class="title" x="140" y="283" text-anchor="middle">Desk</text>
+  <text class="small" x="140" y="305" text-anchor="middle">Claude, Qwen or Gemma</text>
+  <text class="mono" x="140" y="327" text-anchor="middle">bash_run · read_file</text>
+  <rect class="accent-box" x="340" y="150" width="260" height="80" rx="8"/>
+  <text class="title" x="470" y="178" text-anchor="middle">bash, kept running</text>
+  <text class="small" x="470" y="198" text-anchor="middle">folder and variables carry over</text>
+  <text class="small" x="470" y="214" text-anchor="middle">stuck command → fresh terminal</text>
+  <rect class="box" x="340" y="250" width="260" height="56" rx="8"/>
+  <text class="title" x="470" y="274" text-anchor="middle">Writable</text>
+  <text class="small" x="470" y="292" text-anchor="middle">the desk's scratch folder and /tmp</text>
+  <rect class="box" x="340" y="320" width="260" height="56" rx="8"/>
+  <text class="title" x="470" y="344" text-anchor="middle">Read-only</text>
+  <text class="small" x="470" y="362" text-anchor="middle">code, TradingRules.md, everything else</text>
+  <rect class="store" x="340" y="390" width="260" height="120" rx="8"/>
+  <text class="title" x="470" y="414" text-anchor="middle">Hidden (appear empty)</text>
+  <text class="small" x="470" y="436" text-anchor="middle">every .env and the UBI folder</text>
+  <text class="small" x="470" y="452" text-anchor="middle">Docker socket and session bus</text>
+  <text class="small" x="470" y="468" text-anchor="middle">~/.claude, ~/.ssh, ~/.hermes, logins</text>
+  <text class="small" x="470" y="484" text-anchor="middle">the gateway's environment variables</text>
+  <text class="small" x="470" y="500" text-anchor="middle">the gateway's processes</text>
+  <rect class="store" x="720" y="55" width="240" height="100" rx="8"/>
+  <text class="title" x="840" y="85" text-anchor="middle">Internet</text>
+  <text class="small" x="840" y="107" text-anchor="middle">allowed: pip, curl, APIs</text>
+  <text class="mono" x="840" y="129" text-anchor="middle">example.com → 200</text>
+  <rect class="box" x="720" y="215" width="240" height="100" rx="8"/>
+  <text class="title" x="840" y="245" text-anchor="middle">UBI, MongoDB, Redis</text>
+  <text class="small" x="840" y="267" text-anchor="middle">reachable, but every one needs</text>
+  <text class="small" x="840" y="283" text-anchor="middle">credentials the sandbox cannot see</text>
+  <text class="mono" x="840" y="303" text-anchor="middle">/api/orders/place → 401</text>
+  <rect class="box" x="720" y="405" width="240" height="100" rx="8"/>
+  <text class="title" x="840" y="433" text-anchor="middle">web_search · web_fetch</text>
+  <text class="small" x="840" y="455" text-anchor="middle">SearXNG in Docker on 127.0.0.1:4001</text>
+  <text class="small" x="840" y="471" text-anchor="middle">pages on this machine or the home</text>
+  <text class="small" x="840" y="487" text-anchor="middle">network are refused, redirects too</text>
+  <text class="small" x="160" y="545">web tools run in the gateway, outside the sandbox</text>
+  <text class="small question" x="668" y="182">allowed out</text>
+  <text class="small answer" x="664" y="216">refused: 401</text>
+  <circle cx="248" cy="590" r="6" class="dot"/>
+  <text x="262" y="590" dominant-baseline="middle">a command and its internet traffic</text>
+  <circle cx="548" cy="590" r="6" class="dot alt"/>
+  <text x="562" y="590" dominant-baseline="middle">refusals and output coming back</text>
+  <text class="small" x="500" y="618" text-anchor="middle">The shell can do almost anything except read secrets, change your files or reach the broker, so it cannot get around the risk engine.</text>
+</svg>

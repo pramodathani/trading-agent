@@ -1,0 +1,326 @@
+:root {
+  --ta-get: #1b8a3a;
+  --ta-post: #1565c0;
+  --ta-put: #b26a00;
+  --ta-delete: #c62828;
+  --ta-diagram-stroke: #5f6368;
+  --ta-diagram-fill: #fff7f2;
+  --ta-diagram-accent: #ff5722;
+  --ta-diagram-store: #eef3fb;
+  --ta-diagram-text: #202124;
+  --ta-diagram-muted: #6b7280;
+}
+
+[data-md-color-scheme="slate"] {
+  --ta-get: #4caf50;
+  --ta-post: #64b5f6;
+  --ta-put: #ffb74d;
+  --ta-delete: #ef5350;
+  --ta-diagram-stroke: #9aa0a6;
+  --ta-diagram-fill: #2a2522;
+  --ta-diagram-accent: #ff8a65;
+  --ta-diagram-store: #1f2633;
+  --ta-diagram-text: #e8eaed;
+  --ta-diagram-muted: #9aa0a6;
+}
+
+.md-grid {
+  max-width: 76rem;
+}
+
+.md-typeset .admonition.danger,
+.md-typeset details.danger {
+  border-left-width: 0.4rem;
+}
+
+.md-typeset .method {
+  display: inline-block;
+  min-width: 4.2em;
+  padding: 0.1em 0.5em;
+  border-radius: 0.2rem;
+  color: #fff;
+  font-family: var(--md-code-font-family);
+  font-size: 0.75em;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.md-typeset .method.get {
+  background-color: var(--ta-get);
+}
+
+.md-typeset .method.post {
+  background-color: var(--ta-post);
+}
+
+.md-typeset .method.put {
+  background-color: var(--ta-put);
+}
+
+.md-typeset .method.delete {
+  background-color: var(--ta-delete);
+}
+
+.md-typeset .endpoint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6em;
+  margin: 1em 0;
+  padding: 0.6em 0.8em;
+  border-left: 0.25rem solid var(--md-accent-fg-color);
+  border-radius: 0.2rem;
+  background-color: var(--md-code-bg-color);
+  font-family: var(--md-code-font-family);
+  font-size: 0.85em;
+  overflow-wrap: anywhere;
+}
+
+.md-typeset .endpoint .auth {
+  margin-left: auto;
+  color: var(--md-default-fg-color--light);
+  font-family: var(--md-text-font-family);
+  font-size: 0.8em;
+}
+
+.md-typeset .status {
+  display: inline-block;
+  padding: 0 0.45em;
+  border-radius: 0.2rem;
+  font-family: var(--md-code-font-family);
+  font-size: 0.85em;
+  font-weight: 700;
+  color: #fff;
+  background-color: var(--md-default-fg-color--light);
+}
+
+.md-typeset .status.s2 {
+  background-color: var(--ta-get);
+}
+
+.md-typeset .status.s4 {
+  background-color: var(--ta-put);
+}
+
+.md-typeset .status.s5 {
+  background-color: var(--ta-delete);
+}
+
+.md-typeset .hero {
+  margin: 0 0 1.5em;
+}
+
+.md-typeset .hero p.lead {
+  font-size: 1.15em;
+  line-height: 1.6;
+}
+
+.md-typeset figure.diagram,
+.md-typeset .diagram {
+  display: block;
+  width: 100%;
+  max-width: none;
+  margin: 1.5em 0;
+  text-align: center;
+}
+
+.md-typeset .diagram svg {
+  width: 100%;
+  max-width: 60rem;
+  height: auto;
+}
+
+.md-typeset .diagram figcaption {
+  margin-top: 0.5em;
+  color: var(--md-default-fg-color--light);
+  font-size: 0.8em;
+}
+
+.ta-svg .box {
+  fill: var(--ta-diagram-fill);
+  stroke: var(--ta-diagram-stroke);
+  stroke-width: 1.5;
+}
+
+.ta-svg .store {
+  fill: var(--ta-diagram-store);
+  stroke: var(--ta-diagram-stroke);
+  stroke-width: 1.5;
+}
+
+.ta-svg .accent-box {
+  fill: var(--ta-diagram-fill);
+  stroke: var(--ta-diagram-accent);
+  stroke-width: 2.5;
+}
+
+.ta-svg .wire {
+  fill: none;
+  stroke: var(--ta-diagram-stroke);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+
+.ta-svg .wire-solid {
+  fill: none;
+  stroke: var(--ta-diagram-stroke);
+  stroke-width: 1.5;
+}
+
+.ta-svg text {
+  fill: var(--ta-diagram-text);
+  font-family: var(--md-text-font-family);
+  font-size: 13px;
+}
+
+.ta-svg text.title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.ta-svg text.small {
+  fill: var(--ta-diagram-muted);
+  font-size: 11px;
+}
+
+.ta-svg text.mono {
+  font-family: var(--md-code-font-family);
+  font-size: 11px;
+}
+
+.ta-svg .dot {
+  fill: var(--ta-diagram-accent);
+}
+
+.ta-svg .dot.alt {
+  fill: var(--ta-post);
+}
+
+.ta-svg .dot.ok {
+  fill: var(--ta-get);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ta-svg .wire {
+    animation: ta-march 1.2s linear infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ta-svg .dot {
+    display: none;
+  }
+}
+
+@keyframes ta-march {
+  to {
+    stroke-dashoffset: -18;
+  }
+}
+
+.md-typeset .vegalite {
+  width: 100%;
+}
+
+.md-typeset .member {
+  display: inline-block;
+  min-width: 5.2em;
+  padding: 0.1em 0.5em;
+  border-radius: 0.2rem;
+  color: #fff;
+  font-family: var(--md-code-font-family);
+  font-size: 0.75em;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.md-typeset .member.property {
+  background-color: var(--ta-get);
+}
+
+.md-typeset .member.method {
+  background-color: var(--ta-post);
+}
+
+.md-typeset .member.writes {
+  background-color: var(--ta-delete);
+}
+
+.md-typeset .member.class {
+  background-color: var(--ta-diagram-stroke);
+}
+
+.md-typeset .member.function {
+  background-color: var(--ta-put);
+}
+
+.md-typeset .endpoint .route {
+  margin-left: auto;
+  font-size: 0.85em;
+}
+
+:root {
+  --ta-diagram-group: #f5f5f5;
+}
+
+[data-md-color-scheme="slate"] {
+  --ta-diagram-group: #262a34;
+}
+
+.ta-svg .hidden-path {
+  fill: none;
+  stroke: none;
+}
+
+.ta-svg .container,
+.ta-svg .group {
+  fill: var(--ta-diagram-group);
+  stroke: none;
+}
+
+.ta-svg .marker {
+  stroke-width: 2;
+  stroke-dasharray: 4 3;
+  stroke: var(--ta-diagram-accent);
+}
+
+.ta-svg .marker[data-tone="alt"] {
+  stroke: var(--ta-post);
+}
+
+.ta-svg .muted-fill {
+  fill: var(--ta-diagram-muted);
+}
+
+.ta-svg text.accent,
+.ta-svg text.todo {
+  fill: var(--ta-diagram-accent);
+}
+
+.ta-svg text.answer {
+  fill: var(--ta-post);
+}
+
+.ta-svg text.done {
+  fill: var(--ta-get);
+}
+
+.ta-svg text.later {
+  fill: var(--ta-diagram-muted);
+}
+
+.ta-svg text.done,
+.ta-svg text.todo,
+.ta-svg text.later {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ta-svg text.question {
+  fill: var(--ta-diagram-accent);
+}

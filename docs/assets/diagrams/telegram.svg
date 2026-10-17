@@ -1,0 +1,65 @@
+<svg class="ta-svg" viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="telegram-title telegram-description">
+  <title id="telegram-title">Telegram</title>
+  <desc id="telegram-description">Your phone talks to the desks through your bot; strangers get only a pairing code, and alerts come back to every paired chat.</desc>
+  <rect class="group" x="430" y="40" width="545" height="410" rx="10"/>
+  <text class="small" x="702" y="60" text-anchor="middle">the gateway on this computer; no port is opened</text>
+
+  <path class="wire" d="M180,230 L230,230"/>
+  <path class="wire" d="M230,265 L180,265"/>
+  <path class="wire" d="M380,230 L460,230"/>
+  <path class="wire" d="M460,265 L380,265"/>
+  <path class="wire" d="M600,160 L600,105 L690,105"/>
+  <path class="wire" d="M640,205 L690,205"/>
+  <path class="wire" d="M640,230 L665,230 L665,315 L690,315"/>
+  <path class="wire" d="M690,330 L652,330 L652,265 L640,265"/>
+  <path class="wire" d="M690,410 L560,410 L560,330"/>
+  <text class="small" x="390" y="222">asks for new</text>
+  <text class="small" x="390" y="284">messages</text>
+  <text class="small" x="608" y="98">paired?</text>
+
+  <path id="telegram-message" class="hidden-path" d="M105,230 L180,230 L230,230 L380,230 L460,230 L640,230 L665,230 L665,315 L690,315 L815,315"/>
+  <path id="telegram-answer" class="hidden-path" d="M815,330 L690,330 L652,330 L652,265 L640,265 L460,265 L380,265 L230,265 L180,265 L105,265"/>
+  <path id="telegram-notification" class="hidden-path" d="M815,410 L690,410 L560,410 L560,330 L560,265 L460,265 L380,265 L230,265 L180,265 L105,265"/>
+
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.28;1" keyPoints="0;1;1"><mpath href="#telegram-message"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.34;0.6;1" keyPoints="0;0;1;1"><mpath href="#telegram-answer"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.66;0.94;1" keyPoints="0;0;1;1"><mpath href="#telegram-notification"/></animateMotion></circle>
+
+  <rect class="box" x="30" y="170" width="150" height="150" rx="8"/>
+  <text class="title" x="105" y="198" text-anchor="middle">Your phone</text>
+  <text class="small" x="105" y="292" text-anchor="middle">a stranger gets only</text>
+  <text class="small" x="105" y="306" text-anchor="middle">a pairing code</text>
+
+  <rect class="store" x="230" y="170" width="150" height="150" rx="8"/>
+  <text class="title" x="305" y="198" text-anchor="middle">Telegram</text>
+  <text class="small" x="305" y="220" text-anchor="middle">your bot, made</text>
+  <text class="small" x="305" y="234" text-anchor="middle">with BotFather</text>
+
+  <rect class="accent-box" x="460" y="160" width="180" height="170" rx="8"/>
+  <text class="title" x="550" y="188" text-anchor="middle">Telegram channel</text>
+  <text class="small" x="550" y="212" text-anchor="middle">each request waits up to</text>
+  <text class="small" x="550" y="226" text-anchor="middle">30 s for a message</text>
+  <text class="small" x="550" y="292" text-anchor="middle">answers go back to the</text>
+  <text class="small" x="550" y="306" text-anchor="middle">chat that asked</text>
+
+  <rect class="store" x="690" y="75" width="260" height="60" rx="8"/>
+  <text class="title" x="820" y="100" text-anchor="middle">Pairing</text>
+  <text class="small" x="820" y="120" text-anchor="middle">codes you approve; expire in an hour</text>
+
+  <rect class="box" x="690" y="175" width="260" height="60" rx="8"/>
+  <text class="mono" x="820" y="200" text-anchor="middle">/status /pnl /positions /pause</text>
+  <text class="small" x="820" y="220" text-anchor="middle">answered by code, no model; /kill CONFIRM</text>
+
+  <rect class="box" x="690" y="285" width="260" height="60" rx="8"/>
+  <text class="title" x="820" y="310" text-anchor="middle">The chat's desk</text>
+  <text class="small" x="820" y="330" text-anchor="middle">main at first; /desk intraday to switch</text>
+
+  <rect class="box" x="690" y="385" width="260" height="50" rx="8"/>
+  <text class="title" x="820" y="408" text-anchor="middle">Event bus</text>
+  <text class="small" x="820" y="424" text-anchor="middle">fills, halts, reports, daily summaries</text>
+
+  <circle cx="230" cy="485" r="6" class="dot"/>
+  <text x="244" y="485" dominant-baseline="middle">your message</text>
+  <circle cx="470" cy="485" r="6" class="dot alt"/>
+  <text x="484" y="485" dominant-baseline="middle">an answer or a notification to your phone</text>
+</svg>

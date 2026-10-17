@@ -1,0 +1,59 @@
+<svg class="ta-svg" viewBox="0 0 1000 630" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="order-path-title order-path-description">
+  <title id="order-path-title">The path of an order</title>
+  <desc id="order-path-description">An order from a desk is checked, judged by the risk engine, sent to UBI tagged with the desk, recorded in the desk order book and published.</desc>
+  <rect class="container" x="235" y="70" width="400" height="420" rx="10"/>
+  <text class="small" x="255" y="90">Inside every order tool, such as place_order or flatten_desk</text>
+  <path class="wire" d="M115,240 L115,40 L620,40 L620,470 L60,470 L60,340"/>
+  <path class="wire" d="M595,128 L620,128"/>
+  <path class="wire" d="M595,203 L620,203"/>
+  <path class="wire" d="M595,278 L620,278"/>
+  <path class="wire" d="M595,353 L620,353"/>
+  <path class="wire" d="M595,428 L620,428"/>
+  <path class="wire" d="M620,203 L680,190"/>
+  <path class="wire" d="M620,278 L680,280"/>
+  <path class="wire" d="M620,353 L680,365"/>
+  <path class="wire" d="M620,428 L680,450"/>
+  <path id="order-path-order-path" class="hidden-path" d="M115,240 L115,40 L620,40 L620,128 L620,203 L680,190 L620,203 L620,278 L680,280 L620,278 L620,353 L680,365 L620,353 L620,428 L680,450 L820,450"/>
+  <path id="order-path-answer-path" class="hidden-path" d="M820,450 L680,450 L620,428 L620,470 L60,470 L60,340 L60,300"/>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.6;1" keyPoints="0;1;1"><mpath href="#order-path-order-path"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.62;0.95;1" keyPoints="0;0;1;1"><mpath href="#order-path-answer-path"/></animateMotion></circle>
+  <rect class="box" x="30" y="240" width="170" height="100" rx="8"/>
+  <text class="title" x="115" y="270" text-anchor="middle">Desk's model</text>
+  <text class="small" x="115" y="290" text-anchor="middle">Claude · Qwen · Gemma</text>
+  <text class="mono" x="115" y="314" text-anchor="middle">place_order(…)</text>
+  <text class="small answer" x="75" y="370">the answer: parent_id,</text>
+  <text class="small answer" x="75" y="386">UBI's reply, or every</text>
+  <text class="small answer" x="75" y="402">reason it was refused</text>
+  <rect class="box" x="255" y="100" width="340" height="56" rx="6"/>
+  <text class="title" x="272" y="123">1  Check the arguments</text>
+  <text class="small" x="272" y="143">price fits the order type · whole lots · a reason</text>
+  <rect class="accent-box" x="255" y="175" width="340" height="56" rx="6"/>
+  <text class="title" x="272" y="198">2  Ask the risk engine</text>
+  <text class="small" x="272" y="218">refused → nothing is sent; every reason goes back</text>
+  <rect class="box" x="255" y="250" width="340" height="56" rx="6"/>
+  <text class="title" x="272" y="273">3  Send to UBI, tagged with the desk</text>
+  <text class="small" x="272" y="293">dry_run mode → UBI checks it; no broker sees it</text>
+  <rect class="box" x="255" y="325" width="340" height="56" rx="6"/>
+  <text class="title" x="272" y="348">4  Record it in the desk order book</text>
+  <text class="small" x="272" y="368">only this desk can change or cancel it</text>
+  <rect class="box" x="255" y="400" width="340" height="56" rx="6"/>
+  <text class="title" x="272" y="423">5  Publish an order event</text>
+  <text class="small" x="272" y="443">the journal keeps it with the model's reason</text>
+  <rect class="accent-box" x="680" y="150" width="290" height="80" rx="8"/>
+  <text class="title" x="825" y="180" text-anchor="middle">Risk engine</text>
+  <text class="small" x="825" y="200" text-anchor="middle">one engine shared by every desk</text>
+  <text class="mono" x="825" y="218" text-anchor="middle">evaluate(order_request)</text>
+  <rect class="store" x="680" y="245" width="290" height="70" rx="8"/>
+  <text class="title" x="825" y="272" text-anchor="middle">UBI</text>
+  <text class="mono" x="825" y="294" text-anchor="middle">tag=main · dry_run=True</text>
+  <rect class="store" x="680" y="330" width="290" height="70" rx="8"/>
+  <text class="title" x="825" y="357" text-anchor="middle">Desk order book</text>
+  <text class="mono" x="825" y="379" text-anchor="middle">desk_orders.db</text>
+  <rect class="store" x="680" y="415" width="290" height="70" rx="8"/>
+  <text class="title" x="825" y="442" text-anchor="middle">Journal</text>
+  <text class="mono" x="825" y="464" text-anchor="middle">journal/2026-10-17.jsonl</text>
+  <circle cx="268" cy="560" r="6" class="dot"/>
+  <text x="282" y="560" dominant-baseline="middle">the order going out</text>
+  <circle cx="468" cy="560" r="6" class="dot alt"/>
+  <text x="482" y="560" dominant-baseline="middle">the answer coming back</text>
+</svg>

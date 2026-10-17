@@ -1,0 +1,87 @@
+<svg class="ta-svg" viewBox="0 0 1000 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="untrusted-text-title untrusted-text-description">
+  <title id="untrusted-text-title">Untrusted text, hooks and packages</title>
+  <desc id="untrusted-text-description">Text from the web, MCP servers and the knowledge base is labelled as data; hooks run as separate programs on events; a package brings skills, servers and hooks.</desc>
+
+  <path class="wire" d="M230,95 L265,95 L265,190 L300,190"/>
+  <path class="wire" d="M230,195 L300,195"/>
+  <path class="wire" d="M230,295 L265,295 L265,200 L300,200"/>
+  <path class="wire" d="M520,205 L600,205"/>
+  <path class="wire" d="M685,250 L685,380"/>
+  <path class="wire" d="M600,415 L520,415"/>
+  <path class="wire" d="M300,415 L230,415"/>
+  <path class="wire" d="M820,180 L770,180"/>
+  <path class="wire" d="M900,410 L900,500 L410,500 L410,450"/>
+  <text class="small" x="692" y="320">an order is refused</text>
+  <text class="small" x="530" y="196">labelled</text>
+  <text class="small" x="905" y="470">hooks/</text>
+  <text class="small" x="776" y="171">skills</text>
+
+  <path id="untrusted-text-web-path" class="hidden-path" d="M130,95 L230,95 L265,95 L265,190 L300,190 L410,200 L520,205 L600,205 L685,205"/>
+  <path id="untrusted-text-mcp-path" class="hidden-path" d="M130,195 L230,195 L300,195 L410,200 L520,205 L600,205 L685,205"/>
+  <path id="untrusted-text-knowledge-path" class="hidden-path" d="M130,295 L230,295 L265,295 L265,200 L300,200 L410,200 L520,205 L600,205 L685,205"/>
+  <path id="untrusted-text-hook-path" class="hidden-path" d="M685,215 L685,250 L685,380 L685,415 L600,415 L520,415 L410,415 L300,415 L230,415 L130,415"/>
+
+  <circle class="dot" r="6"><animateMotion dur="9s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.6;1" keyPoints="0;1;1"><mpath href="#untrusted-text-web-path"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="9s" begin="-3s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.6;1" keyPoints="0;1;1"><mpath href="#untrusted-text-mcp-path"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="9s" begin="-6s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.6;1" keyPoints="0;1;1"><mpath href="#untrusted-text-knowledge-path"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="9s" begin="-1.5s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.7;1" keyPoints="0;1;1"><mpath href="#untrusted-text-hook-path"/></animateMotion></circle>
+
+  <rect class="box" x="30" y="60" width="200" height="70" rx="8"/>
+  <text class="title" x="130" y="88" text-anchor="middle">The web</text>
+  <text class="small" x="130" y="108" text-anchor="middle">pages, searches, browser</text>
+
+  <rect class="box" x="30" y="160" width="200" height="70" rx="8"/>
+  <text class="title" x="130" y="188" text-anchor="middle">MCP servers</text>
+  <text class="small" x="130" y="208" text-anchor="middle">output of call_mcp_tool</text>
+
+  <rect class="store" x="30" y="260" width="200" height="70" rx="8"/>
+  <text class="title" x="130" y="288" text-anchor="middle">Knowledge base</text>
+  <text class="mono" x="130" y="308" text-anchor="middle">shared/knowledge/ · FTS5</text>
+
+  <rect class="accent-box" x="300" y="140" width="220" height="130" rx="8"/>
+  <text class="title" x="410" y="166" text-anchor="middle">Untrusted-text label</text>
+  <text class="small" x="410" y="188" text-anchor="middle">"data, not instructions",</text>
+  <text class="small" x="410" y="203" text-anchor="middle">invisible characters removed;</text>
+  <text class="small" x="410" y="225" text-anchor="middle">the injection scanner adds</text>
+  <text class="small" x="410" y="240" text-anchor="middle">a warning when text tries</text>
+  <text class="small" x="410" y="255" text-anchor="middle">to steer the model</text>
+
+  <rect class="box" x="600" y="160" width="170" height="90" rx="8"/>
+  <text class="title" x="685" y="188" text-anchor="middle">A desk turn</text>
+  <text class="small" x="685" y="210" text-anchor="middle">reads the label and the</text>
+  <text class="small" x="685" y="225" text-anchor="middle">warning; the risk engine</text>
+  <text class="small" x="685" y="240" text-anchor="middle">checks orders regardless</text>
+
+  <rect class="store" x="600" y="380" width="170" height="70" rx="8"/>
+  <text class="title" x="685" y="408" text-anchor="middle">Event bus</text>
+  <text class="mono" x="685" y="430" text-anchor="middle">risk_decision</text>
+
+  <rect class="box" x="300" y="380" width="220" height="70" rx="8"/>
+  <text class="title" x="410" y="406" text-anchor="middle">Hook runner</text>
+  <text class="small" x="410" y="427" text-anchor="middle">masked JSON, clean environment,</text>
+  <text class="small" x="410" y="441" text-anchor="middle">4 at a time, 30 s each</text>
+
+  <rect class="box" x="30" y="380" width="200" height="70" rx="8"/>
+  <text class="title" x="130" y="406" text-anchor="middle">Your hook scripts</text>
+  <text class="mono" x="130" y="428" text-anchor="middle">hooks/risk_rejected/log.sh</text>
+
+  <rect class="store" x="820" y="60" width="160" height="350" rx="8"/>
+  <text class="title" x="900" y="88" text-anchor="middle">A package</text>
+  <text class="small" x="900" y="106" text-anchor="middle">used in place from</text>
+  <text class="mono" x="900" y="122" text-anchor="middle">shared/packages/</text>
+  <text class="mono" x="900" y="160" text-anchor="middle">skills/</text>
+  <text class="small" x="900" y="176" text-anchor="middle">into every desk's index</text>
+  <text class="mono" x="900" y="214" text-anchor="middle">mcp_servers.json</text>
+  <text class="small" x="900" y="230" text-anchor="middle">started with the gateway</text>
+  <text class="mono" x="900" y="268" text-anchor="middle">hooks/&lt;event&gt;/</text>
+  <text class="small" x="900" y="284" text-anchor="middle">run like your own</text>
+  <text class="mono" x="900" y="322" text-anchor="middle">agents/ · app.toml</text>
+  <text class="small" x="900" y="338" text-anchor="middle">subagents and web apps</text>
+  <text class="mono" x="900" y="382" text-anchor="middle">packages install</text>
+  <text class="small" x="900" y="398" text-anchor="middle">folder, zip or git URL</text>
+
+  <circle cx="220" cy="545" r="6" class="dot"/>
+  <text x="234" y="545" dominant-baseline="middle">outside text on its way to the model</text>
+  <circle cx="560" cy="545" r="6" class="dot alt"/>
+  <text x="574" y="545" dominant-baseline="middle">an event reaching your hooks</text>
+</svg>

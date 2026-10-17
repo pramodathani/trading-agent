@@ -1,0 +1,64 @@
+<svg class="ta-svg" viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="steering-title steering-description">
+  <title id="steering-title">Steering and stopping a turn</title>
+  <desc id="steering-description">A message sent while a desk works waits in the steering inbox and is handed to the turn at its next tool round; /stop skips the queue.</desc>
+
+  <path class="wire" d="M200,215 L245,215 L245,140 L290,140"/>
+  <path class="wire" d="M200,245 L230,245 L230,95 L290,95"/>
+  <path class="wire" d="M400,200 L400,250"/>
+  <path class="wire" d="M510,295 L620,295"/>
+  <path class="wire" d="M510,95 L620,95"/>
+  <path class="wire" d="M300,200 L300,230 L262,230 L262,425 L290,425"/>
+  <path class="wire" d="M400,340 L400,390"/>
+  <text class="small" x="522" y="86">/stop, at once</text>
+  <text class="small" x="518" y="286">next tool round</text>
+  <text class="small" x="410" y="368">turn ended first: it</text>
+  <text class="small" x="410" y="381">becomes the next turn</text>
+  <text class="small" x="120" y="420">commands and other</text>
+  <text class="small" x="120" y="434">wake-ups wait here</text>
+
+  <path id="steering-message" class="hidden-path" d="M150,215 L200,215 L245,215 L245,140 L290,140 L400,140 L400,200 L400,250 L400,295"/>
+  <path id="steering-handover" class="hidden-path" d="M400,295 L510,295 L620,295 L700,295"/>
+  <path id="steering-stop" class="hidden-path" d="M150,245 L200,245 L230,245 L230,95 L290,95 L510,95 L620,95 L700,95"/>
+
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.3;1" keyPoints="0;1;1"><mpath href="#steering-message"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.36;0.56;1" keyPoints="0;0;1;1"><mpath href="#steering-handover"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.64;0.9;1" keyPoints="0;0;1;1"><mpath href="#steering-stop"/></animateMotion></circle>
+
+  <rect class="box" x="30" y="170" width="170" height="110" rx="8"/>
+  <text class="title" x="115" y="198" text-anchor="middle">You, in Chat</text>
+  <text class="small" x="115" y="220" text-anchor="middle">"Change of plan: end</text>
+  <text class="small" x="115" y="234" text-anchor="middle">with BANANA"</text>
+  <text class="small" x="115" y="262" text-anchor="middle">or the Stop button</text>
+
+  <rect class="accent-box" x="290" y="60" width="220" height="140" rx="8"/>
+  <text class="title" x="400" y="88" text-anchor="middle">The desk</text>
+  <text class="small" x="400" y="112" text-anchor="middle">a message from you while</text>
+  <text class="small" x="400" y="126" text-anchor="middle">a model turn runs is steering</text>
+  <text class="small" x="400" y="156" text-anchor="middle">/stop cancels the turn at once;</text>
+  <text class="small" x="400" y="170" text-anchor="middle">tools already run are not undone</text>
+
+  <rect class="store" x="290" y="250" width="220" height="90" rx="8"/>
+  <text class="title" x="400" y="280" text-anchor="middle">Steering inbox</text>
+  <text class="small" x="400" y="302" text-anchor="middle">one per desk; subagents</text>
+  <text class="small" x="400" y="316" text-anchor="middle">have none</text>
+
+  <rect class="store" x="290" y="390" width="220" height="70" rx="8"/>
+  <text class="title" x="400" y="420" text-anchor="middle">Queue</text>
+  <text class="small" x="400" y="440" text-anchor="middle">one turn at a time</text>
+
+  <rect class="box" x="620" y="60" width="340" height="300" rx="8"/>
+  <text class="title" x="790" y="88" text-anchor="middle">The running turn</text>
+  <text x="645" y="122">1. model call</text>
+  <text x="645" y="152">2. tool call, such as get_time</text>
+  <text x="645" y="182">3. its result comes back</text>
+  <text class="accent" x="645" y="212">4. your message is added here</text>
+  <text x="645" y="242">5. next model call sees it</text>
+  <text class="small" x="645" y="290">Qwen and Gemma: the agent loop adds it</text>
+  <text class="small" x="645" y="306">Claude: a PostToolUse hook hands it over</text>
+  <text class="small" x="645" y="336">Text appears in Chat as it is written</text>
+
+  <circle cx="230" cy="490" r="6" class="dot"/>
+  <text x="244" y="490" dominant-baseline="middle">your message, or /stop</text>
+  <circle cx="520" cy="490" r="6" class="dot alt"/>
+  <text x="534" y="490" dominant-baseline="middle">handed into the running turn</text>
+</svg>

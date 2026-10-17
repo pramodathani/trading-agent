@@ -1,0 +1,72 @@
+<svg class="ta-svg" viewBox="0 0 1000 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="mcp-title mcp-description">
+  <title id="mcp-title">MCP servers and tool search</title>
+  <desc id="mcp-description">A desk finds an MCP tool with tool_search and calls it with call_mcp_tool; the client manager keeps one connection per server.</desc>
+  <rect class="container" x="225" y="60" width="480" height="335" rx="10"/>
+  <text class="small" x="245" y="82">The gateway</text>
+
+  <path class="wire" d="M200,265 L230,265 L230,210 L255,210"/>
+  <path class="wire" d="M455,210 L480,210"/>
+  <path class="wire" d="M200,305 L240,305 L240,325 L255,325"/>
+  <path class="wire" d="M455,325 L480,325"/>
+  <path class="wire" d="M680,220 L710,220 L710,200 L740,200"/>
+  <path class="wire" d="M680,345 L740,345"/>
+
+  <path id="mcp-search-path" class="hidden-path" d="M200,265 L230,265 L230,210 L255,210 L455,210 L480,210 L580,210"/>
+  <path id="mcp-search-answer-path" class="hidden-path" d="M580,210 L480,210 L455,210 L255,210 L230,210 L230,265 L200,265 L140,265"/>
+  <path id="mcp-call-path" class="hidden-path" d="M200,305 L240,305 L240,325 L255,325 L455,325 L480,325 L580,325 L580,220 L680,220 L710,220 L710,200 L740,200 L820,200"/>
+  <path id="mcp-call-answer-path" class="hidden-path" d="M820,200 L740,200 L710,200 L710,220 L680,220 L580,220 L580,325 L480,325 L455,325 L255,325 L240,325 L240,305 L200,305 L140,305"/>
+
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.16;1" keyPoints="0;1;1"><mpath href="#mcp-search-path"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.18;0.36;1" keyPoints="0;0;1;1"><mpath href="#mcp-search-answer-path"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.4;0.64;1" keyPoints="0;0;1;1"><mpath href="#mcp-call-path"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.66;0.92;1" keyPoints="0;0;1;1"><mpath href="#mcp-call-answer-path"/></animateMotion></circle>
+
+  <rect class="box" x="30" y="230" width="170" height="110" rx="8"/>
+  <text class="title" x="115" y="262" text-anchor="middle">A desk turn</text>
+  <text class="small" x="115" y="284" text-anchor="middle">Claude, Qwen or Gemma:</text>
+  <text class="small" x="115" y="299" text-anchor="middle">every backend reaches</text>
+  <text class="small" x="115" y="314" text-anchor="middle">MCP the same way</text>
+
+  <rect class="store" x="255" y="95" width="425" height="55" rx="6"/>
+  <text class="small" x="270" y="116">The prompt lists tool names only, so many servers fit Gemma's window:</text>
+  <text class="mono" x="270" y="136">everything: echo, get-sum, …   deepwiki: ask_wiki_question, …</text>
+
+  <rect class="box" x="255" y="175" width="200" height="75" rx="6"/>
+  <text class="title" x="272" y="199">1  tool_search</text>
+  <text class="small" x="272" y="219">returns the matching tools'</text>
+  <text class="small" x="272" y="234">descriptions and schemas</text>
+
+  <rect class="box" x="255" y="280" width="200" height="90" rx="6"/>
+  <text class="title" x="272" y="304">2  call_mcp_tool</text>
+  <text class="small" x="272" y="324">through the tool executor:</text>
+  <text class="small" x="272" y="339">journal, loop guard, redaction;</text>
+  <text class="small" x="272" y="354">output marked as outside data</text>
+
+  <rect class="accent-box" x="480" y="175" width="200" height="195" rx="8"/>
+  <text class="title" x="580" y="200" text-anchor="middle">MCP client manager</text>
+  <text class="small" x="580" y="222" text-anchor="middle">one connection per server,</text>
+  <text class="small" x="580" y="237" text-anchor="middle">shared by every desk</text>
+  <text class="small" x="580" y="262" text-anchor="middle">a failed server is retried</text>
+  <text class="small" x="580" y="277" text-anchor="middle">after 30 s, 1 min, 5 min;</text>
+  <text class="small" x="580" y="292" text-anchor="middle">the others carry on</text>
+  <text class="mono" x="580" y="322" text-anchor="middle">mcp_servers.json</text>
+  <text class="small" x="580" y="340" text-anchor="middle">Claude Code's format,</text>
+  <text class="small" x="580" y="355" text-anchor="middle">${NAME} from .env</text>
+
+  <rect class="box" x="740" y="150" width="230" height="110" rx="8"/>
+  <text class="title" x="855" y="177" text-anchor="middle">everything (stdio)</text>
+  <text class="small" x="855" y="199" text-anchor="middle">a program the gateway starts;</text>
+  <text class="small" x="855" y="214" text-anchor="middle">it sees only HOME, PATH, USER …</text>
+  <text class="small" x="855" y="229" text-anchor="middle">plus the env you list for it,</text>
+  <text class="small" x="855" y="244" text-anchor="middle">never your tokens</text>
+
+  <rect class="box" x="740" y="300" width="230" height="90" rx="8"/>
+  <text class="title" x="855" y="327" text-anchor="middle">deepwiki (http)</text>
+  <text class="mono" x="855" y="349" text-anchor="middle">mcp.deepwiki.com/mcp</text>
+  <text class="small" x="855" y="369" text-anchor="middle">a server on the internet</text>
+
+  <circle cx="230" cy="525" r="6" class="dot"/>
+  <text x="244" y="525" dominant-baseline="middle">a search, then a call going out</text>
+  <circle cx="540" cy="525" r="6" class="dot alt"/>
+  <text x="554" y="525" dominant-baseline="middle">the schemas, then the tool's output</text>
+</svg>
