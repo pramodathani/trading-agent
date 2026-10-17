@@ -167,6 +167,34 @@ class OpenAICompatibleBackend(backend.ModelBackend):
         if delta_call.function.arguments:
             parts.argument_fragments.append(delta_call.function.arguments)
 
+    def _content(self, message: messages.ConversationMessage) -> Any:
+        """A user or assistant message's content: its text, or its text and pictures.
+
+        Args:
+            message (messages.ConversationMessage): The message.
+
+        Returns:
+            Any: The text alone, or a list of a text part and one image part per picture.
+        """
+        if not message.images:
+            return message.text
+        content = [
+            {
+                'type': 'text',
+                'text': message.text,
+            },
+        ]
+        for image in message.images:
+            content.append(
+                {
+                    'type': 'image_url',
+                    'image_url': {
+                        'url': f'data:{image.media_type};base64,{image.base64_data()}',
+                    },
+                }
+            )
+        return content
+
     def _wire_messages(
         self,
         conversation: conversation_module.Conversation,
@@ -200,7 +228,7 @@ class OpenAICompatibleBackend(backend.ModelBackend):
                 continue
             wire_message = {
                 'role': str(message.role),
-                'content': message.text,
+                'content': self._content(message),
             }
             if message.tool_calls:
                 wire_calls = []

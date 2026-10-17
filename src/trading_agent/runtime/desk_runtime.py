@@ -150,11 +150,12 @@ class DeskRuntime:
             trigger (trigger_module.Trigger): The new trigger.
 
         Returns:
-            bool: True for a user message, not a command, while a model turn runs.
+            bool: True for a user message without attachments, not a command, while a model turn runs. A message with pictures or documents becomes its own turn, because pictures cannot be handed to a turn already running.
         """
         return (
             trigger.source == trigger_module.TriggerSource.USER_MESSAGE
             and self._running_trigger_id is not None
+            and not trigger.attachments
             and not self._commands.is_command(trigger.text)
         )
 
@@ -336,22 +337,26 @@ class DeskRuntime:
         self,
         trigger: trigger_module.Trigger,
     ) -> trigger_module.Trigger:
-        """Puts the India time and the trigger's source in front of its text.
+        """Puts the India time and the trigger's source in front of its text, and a note for each attachment after it.
 
         Args:
             trigger (trigger_module.Trigger): The trigger.
 
         Returns:
-            trigger_module.Trigger: A copy whose text starts with the context line.
+            trigger_module.Trigger: A copy whose text starts with the context line and ends with the attachment notes.
         """
         now = trigger.created_at.astimezone(_INDIA)
         market = ''
         if self._market_status is not None:
             market = f' · market: {self._market_status.describe(now)}'
         context_line = f'[India time: {now:%A %Y-%m-%d %H:%M:%S} IST · woken by: {trigger.source}{market}]'
-        return dataclasses.replace(
-            trigger, text=f'{context_line}\n{trigger.text}'
-        )
+        lines = [
+            context_line,
+            trigger.text,
+        ]
+        for attachment in trigger.attachments:
+            lines.append(attachment.describe_for_model())
+        return dataclasses.replace(trigger, text='\n'.join(lines))
 
     def _publish(
         self,

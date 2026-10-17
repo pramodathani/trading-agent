@@ -15,6 +15,7 @@ import asyncio
 from trading_agent.agent import context_compressor as context_compressor_module
 from trading_agent.agent import conversation as conversation_module
 from trading_agent.agent import messages
+from trading_agent.attachments import image_preparer as image_preparer_module
 from trading_agent.backends import backend as backend_module
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
@@ -40,6 +41,7 @@ class AgentLoop:
         maximum_rounds: int,
         compressor: context_compressor_module.ContextCompressor | None = None,
         steering_inbox: steering_inbox_module.SteeringInbox | None = None,
+        image_preparer: image_preparer_module.ImagePreparer | None = None,
     ):
         """Creates the loop.
 
@@ -51,6 +53,7 @@ class AgentLoop:
             maximum_rounds (int): The most model calls one turn may make.
             compressor (context_compressor_module.ContextCompressor | None): Compresses the conversation when it gets too full, or None to let it grow.
             steering_inbox (steering_inbox_module.SteeringInbox | None): The desk's mid-turn messages, added to the conversation after each tool round, or None for a loop that cannot be steered, such as a subagent's.
+            image_preparer (image_preparer_module.ImagePreparer | None): Sizes the pictures sent with a message for the model; None for a new one.
         """
         self._desk_name = desk_name
         self.backend = backend
@@ -59,6 +62,9 @@ class AgentLoop:
         self._maximum_rounds = maximum_rounds
         self._compressor = compressor
         self._steering_inbox = steering_inbox
+        self._image_preparer = (
+            image_preparer or image_preparer_module.ImagePreparer()
+        )
 
     async def run_turn(
         self,
@@ -149,12 +155,35 @@ class AgentLoop:
             turn_runner.TurnResult: The model's final text.
         """
         self._executor.start_turn()
-        conversation.append(messages.ConversationMessage.user(trigger.text))
+        conversation.append(
+            messages.ConversationMessage.user(
+                trigger.text, self._prepared_images(trigger)
+            )
+        )
         try:
             return await self._rounds(conversation, trigger)
         except asyncio.CancelledError:
             self._answer_unanswered_calls(conversation)
             raise
+
+    def _prepared_images(
+        self,
+        trigger: trigger_module.Trigger,
+    ) -> tuple[messages.MessageImage, ...]:
+        """Sizes the pictures sent with a trigger for the model.
+
+        Args:
+            trigger (trigger_module.Trigger): The trigger.
+
+        Returns:
+            tuple[messages.MessageImage, ...]: One prepared picture for each picture attachment that can still be read.
+        """
+        prepared = []
+        for attachment in trigger.images:
+            image = self._image_preparer.prepare(attachment.stored_file())
+            if image is not None:
+                prepared.append(image)
+        return tuple(prepared)
 
     async def _rounds(
         self,

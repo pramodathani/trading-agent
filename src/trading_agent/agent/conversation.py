@@ -15,6 +15,7 @@ from collections.abc import Sequence
 from trading_agent.agent import messages
 
 _CHARACTERS_PER_TOKEN = 3
+_TOKENS_PER_IMAGE = 1500
 
 
 class Conversation:
@@ -61,17 +62,25 @@ class Conversation:
     def estimated_tokens(self) -> int:
         """How many tokens the next call will send, as closely as can be told now.
 
-        It is the last measured count plus an estimate of three characters per token for the messages added since, such as tool results.
+        It is the last measured count plus an estimate for the messages added since, such as tool results: three characters per token of text, and 1500 tokens for each picture.
 
         Returns:
             int: The estimate.
         """
         added_characters = 0
+        added_images = 0
         for message in self._messages[self._measured_message_count :]:
             added_characters += len(message.text)
             for call in message.tool_calls:
                 added_characters += len(call.name) + len(str(call.arguments))
-        return self.measured_tokens + added_characters // _CHARACTERS_PER_TOKEN
+            added_images += len(message.images)
+            if message.image_png is not None:
+                added_images += 1
+        return (
+            self.measured_tokens
+            + added_characters // _CHARACTERS_PER_TOKEN
+            + added_images * _TOKENS_PER_IMAGE
+        )
 
     def restart(
         self,

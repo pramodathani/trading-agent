@@ -11,6 +11,8 @@ import enum
 import uuid
 from typing import Any, Self
 
+from trading_agent.attachments import attachment as attachment_module
+
 
 class TriggerSource(enum.StrEnum):
     """Where a trigger came from."""
@@ -35,6 +37,7 @@ class Trigger:
         desk: The desk that should handle it.
         text: What the desk is asked or told.
         created_at: When the trigger was created, in UTC.
+        attachments: The pictures and documents the user sent with a message.
     """
 
     trigger_id: str
@@ -42,15 +45,23 @@ class Trigger:
     desk: str
     text: str
     created_at: datetime.datetime
+    attachments: tuple[attachment_module.Attachment, ...] = ()
 
     @classmethod
-    def now(cls, source: TriggerSource, desk: str, text: str) -> Self:
+    def now(
+        cls,
+        source: TriggerSource,
+        desk: str,
+        text: str,
+        attachments: tuple[attachment_module.Attachment, ...] = (),
+    ) -> Self:
         """Creates a trigger with a new identifier and the current time.
 
         Args:
             source (TriggerSource): Where the trigger came from.
             desk (str): The desk that should handle it.
             text (str): What the desk is asked or told.
+            attachments (tuple[attachment_module.Attachment, ...]): The pictures and documents sent with it.
 
         Returns:
             Trigger: The new trigger.
@@ -61,18 +72,34 @@ class Trigger:
             desk=desk,
             text=text,
             created_at=datetime.datetime.now(datetime.UTC),
+            attachments=attachments,
         )
 
     def to_json_dictionary(self) -> dict[str, Any]:
         """Converts the trigger to a dictionary that json.dumps can write.
 
         Returns:
-            dict[str, Any]: The trigger's fields, with the time as an ISO 8601 string.
+            dict[str, Any]: The trigger's fields, with the time as an ISO 8601 string; attachments only when there are some.
         """
-        return {
+        dictionary = {
             'trigger_id': self.trigger_id,
             'source': str(self.source),
             'desk': self.desk,
             'text': self.text,
             'created_at': self.created_at.isoformat(),
         }
+        if self.attachments:
+            described = []
+            for attachment in self.attachments:
+                described.append(attachment.to_json_dictionary())
+            dictionary['attachments'] = described
+        return dictionary
+
+    @property
+    def images(self) -> tuple[attachment_module.Attachment, ...]:
+        """The attachments that are pictures."""
+        pictures = []
+        for attachment in self.attachments:
+            if attachment.is_image:
+                pictures.append(attachment)
+        return tuple(pictures)

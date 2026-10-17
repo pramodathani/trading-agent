@@ -50,3 +50,9 @@ The model turn runs as its own asyncio task so it can be cancelled without cance
 Stopping does not undo tools that already ran, such as an order already placed; the reply says so.
 
 After every model turn, messages the turn never picked up are queued as their own turns.
+
+## Attachments, since 2026-10-17
+
+`_with_context` adds one note line per attachment after the message text, from `Attachment.describe_for_model`. The notes go into the turn's text, which every backend sends, so a document's location reaches Claude, Ollama and OpenAI the same way; the pictures themselves are added by each backend.
+
+`_can_steer` is False for a message with attachments. Steering hands a running turn text only (for Claude through a hook's `additionalContext`, which cannot carry pictures), so a picture sent mid-turn would be lost. Such a message becomes its own turn instead.

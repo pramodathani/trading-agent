@@ -7,3 +7,9 @@ Streamed tool calls arrive in pieces keyed by their index in the reply: the firs
 `max_retries=0` because the model router does the retrying, with its own waiting periods, across backends. `stream_options={'include_usage': True}` makes the server send token counts in the final chunk.
 
 Local servers that need no key are given a placeholder, because the client refuses an empty key.
+
+## Pictures, since 2026-10-17
+
+A user message with pictures is sent with `content` as a list: one `text` part, then one `image_url` part per picture as a `data:` address. This is the Chat Completions format for vision input, which OpenAI and llama.cpp's server both accept. A message without pictures still sends `content` as a plain string, as before.
+
+Tool results still cannot carry pictures in Chat Completions, so a tool's screenshot still gets the "cannot be shown to this model" note.

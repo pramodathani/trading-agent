@@ -139,6 +139,11 @@ class OllamaBackend(backend.ModelBackend):
                 'role': str(message.role),
                 'content': message.text,
             }
+            if message.images:
+                encoded = []
+                for image in message.images:
+                    encoded.append(image.base64_data())
+                wire_message['images'] = encoded
             if message.tool_calls:
                 wire_calls = []
                 for call in message.tool_calls:
