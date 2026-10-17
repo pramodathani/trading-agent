@@ -19,6 +19,7 @@ from trading_agent.channels import pairing_store
 from trading_agent.channels import telegram_api
 from trading_agent.channels import telegram_channel
 from trading_agent.channels import telegram_commands
+from trading_agent.client import app_commands
 from trading_agent.client import checkpoint_commands
 from trading_agent.client import mcp_commands
 from trading_agent.client import message_client
@@ -31,14 +32,17 @@ from trading_agent.configuration import agent_configuration
 from trading_agent.configuration import configuration_loader
 from trading_agent.configuration import secrets as secrets_module
 from trading_agent.doctor import doctor
+from trading_agent.extensions import app_catalog
 from trading_agent.extensions import hook_runner
 from trading_agent.extensions import installed_packages
 from trading_agent.extensions import mcp_client_manager
 from trading_agent.extensions import mcp_server_configuration
+from trading_agent.extensions import systemd_user_units
 from trading_agent.gateway import access_guard
 from trading_agent.gateway import gateway_application
 from trading_agent.gateway import token_redacting_filter
 from trading_agent.gateway.routes import account_routes
+from trading_agent.gateway.routes import app_routes
 from trading_agent.gateway.routes import channel_routes
 from trading_agent.gateway.routes import desk_routes
 from trading_agent.gateway.routes import extension_routes
@@ -169,6 +173,18 @@ class Application:
                     vars(arguments).get('replace', False),
                 )
             )
+        if arguments.command == 'apps':
+            commands = app_commands.AppCommands(
+                app_catalog.AppCatalog(
+                    packages,
+                    systemd_user_units.SystemdUserUnits(),
+                )
+            )
+            if arguments.app_action == 'enable':
+                sys.exit(asyncio.run(commands.enable(arguments.package)))
+            if arguments.app_action == 'disable':
+                sys.exit(asyncio.run(commands.disable(arguments.package)))
+            sys.exit(asyncio.run(commands.list()))
         if arguments.command == 'pairing':
             commands = pairing_commands.PairingCommands(
                 pairing_store.PairingStore(layout.telegram_pairing_file),
@@ -387,6 +403,13 @@ class Application:
                 configuration.telegram,
                 telegram_token_present,
                 telegram,
+            ),
+            app_routes.AppRoutes(
+                guard,
+                app_catalog.AppCatalog(
+                    shared.packages,
+                    systemd_user_units.SystemdUserUnits(),
+                ),
             ),
         ]
 

@@ -13,6 +13,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
+from trading_agent.extensions import app_manifest
 from trading_agent.extensions import injection_scanner
 from trading_agent.extensions import (
     installed_packages as installed_packages_module,
@@ -152,7 +153,7 @@ class PackageInstaller:
             folder (Path): The fetched folder.
 
         Raises:
-            PackageError: It holds no package part, or its mcp_servers.json is invalid.
+            PackageError: It holds no package part, or its mcp_servers.json or app.toml is invalid.
         """
         found = False
         for part in installed_packages_module.PARTS:
@@ -169,6 +170,12 @@ class PackageInstaller:
                     servers_file
                 ).read()
             except mcp_server_configuration.McpConfigurationError as error:
+                raise PackageError(str(error)) from error
+        app_file = folder / app_manifest.APP_FILE_NAME
+        if app_file.is_file():
+            try:
+                app_manifest.AppManifestReader().read(app_file)
+            except app_manifest.AppManifestError as error:
                 raise PackageError(str(error)) from error
 
     def _warnings(self, target: Path) -> list[str]:

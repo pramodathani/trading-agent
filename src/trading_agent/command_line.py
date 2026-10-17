@@ -192,6 +192,32 @@ class CommandLine:
             'list',
             help='List every subagent with its model, tools and limits.',
         )
+        apps_parser = subparsers.add_parser(
+            'apps',
+            help="List the packages' web apps, and set up their systemd units.",
+        )
+        app_actions = apps_parser.add_subparsers(
+            dest='app_action',
+            required=True,
+        )
+        app_actions.add_parser(
+            'list',
+            help='List each app, whether it answers and its unit state.',
+        )
+        enable_parser = app_actions.add_parser(
+            'enable',
+            help="Link, enable and start an app's systemd user unit.",
+        )
+        enable_parser.add_argument(
+            'package', help='The package whose app to enable.'
+        )
+        disable_parser = app_actions.add_parser(
+            'disable',
+            help="Stop an app's unit and stop it starting at login.",
+        )
+        disable_parser.add_argument(
+            'package', help='The package whose app to disable.'
+        )
         pairing_parser = subparsers.add_parser(
             'pairing',
             help='Manage the Telegram chats allowed to command the desks.',

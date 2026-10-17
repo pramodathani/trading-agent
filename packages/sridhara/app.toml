@@ -1,0 +1,9 @@
+[app]
+title = "Sridhara"
+description = "A Kite-style trading terminal on UBI: watchlists, charts, option chains and orders."
+url = "http://127.0.0.1:8095/"
+open_in = "frame"
+
+[service]
+unit = "sridhara.service"
+unit_file = "%h/Projects/sridhara/services/sridhara.service"

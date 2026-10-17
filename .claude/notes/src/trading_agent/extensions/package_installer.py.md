@@ -14,3 +14,7 @@
 ## Verified on 2026-10-17
 
 A demo package with a skill, an MCP server (a copy of the test server, run as `python server.py` from the package folder) and two hooks installed, showed up in `packages list` and `skills list`, its server connected with 3 tools, and Claude called it to add 19 and 23. It was removed afterwards.
+
+## app.toml (milestone 20)
+
+An invalid app.toml makes the install fail, like an invalid mcp_servers.json, so a broken app never appears in the sidebar.

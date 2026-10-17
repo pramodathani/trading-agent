@@ -75,6 +75,10 @@ class PackageCommands:
         self._print(
             'Skills and hooks take effect at once; restart the gateway to start its MCP servers.'
         )
+        if report.summary.has_app:
+            self._print(
+                f"Its app appears in the web page's sidebar under Apps. If its service is not set up yet, run: trading-agent apps enable {report.summary.name}"
+            )
 
     def _list(self) -> None:
         """Prints one line per installed package."""

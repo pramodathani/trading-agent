@@ -1,0 +1,4 @@
+[package]
+name = "sridhara"
+description = "Sridhara, the Kite-style trading terminal on UBI, as an app in trading-agent's sidebar."
+version = "0.1.0"
