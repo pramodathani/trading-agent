@@ -60,6 +60,7 @@ class PromptBuilder:
         """
         sections = [
             self._header(),
+            self._memory_guide(),
             self._section('Agents.md', self._layout.agents_file),
             self._section(
                 'Persona.md', self._layout.persona_file(self._desk_name)
@@ -97,7 +98,24 @@ class PromptBuilder:
             [
                 f'You are the "{self._desk_name}" desk of trading-agent.',
                 mode_line,
-                'The files below are your instructions, in this order: how every desk works, your persona, the user, the trading rules, and your own memory.',
+                'After a note on how your memory works, the files below are your instructions, in this order: how every desk works, your persona, the user, the trading rules, and your own memory.',
+            ]
+        )
+
+    def _memory_guide(self) -> str:
+        """Explains how the desk's memory works, which is part of the code rather than of any file.
+
+        Returns:
+            str: The section.
+        """
+        return '\n'.join(
+            [
+                '===== How your memory works =====',
+                '- This conversation is one session. Each India trading day starts a fresh session, whose first message carries the summary of your previous session. After a restart you continue the same session.',
+                "- When a session ends you are asked to fold the day's notes into Memory.md and to summarise the session. Memory.md is your lasting knowledge: keep it short, organised and true, and remove lessons that proved wrong.",
+                "- After a turn in which you learned something worth keeping, about the market, your strategy, a tool, a mistake or the user's wishes, record one to three short notes with add_note. Skip routine turns.",
+                '- search_sessions finds what happened before: earlier exchanges, daily summaries, notes, and the journal of your orders and tool calls.',
+                '- Every change to Memory.md, memory/ and notes/ is snapshotted first, so the user can undo it.',
             ]
         )
 

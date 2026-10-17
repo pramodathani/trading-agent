@@ -77,6 +77,42 @@ class CommandLine:
             action_parser.add_argument(
                 'proposal_id', help='The proposal id from the list.'
             )
+        checkpoints_parser = subparsers.add_parser(
+            'checkpoints',
+            help="List or restore snapshots of a desk's own files.",
+        )
+        checkpoint_actions = checkpoints_parser.add_subparsers(
+            dest='checkpoint_action',
+            required=True,
+        )
+        list_parser = checkpoint_actions.add_parser(
+            'list',
+            help='List the most recent checkpoints, newest first.',
+        )
+        list_parser.add_argument(
+            '--desk',
+            default='main',
+            help='The desk (default: main).',
+        )
+        list_parser.add_argument(
+            '--limit',
+            type=int,
+            default=20,
+            help='The most checkpoints to list (default: 20).',
+        )
+        restore_parser = checkpoint_actions.add_parser(
+            'restore',
+            help="Put the desk's Memory.md, memory/ and notes/ back as they were at a checkpoint.",
+        )
+        restore_parser.add_argument(
+            'checkpoint_id',
+            help='The checkpoint id from the list.',
+        )
+        restore_parser.add_argument(
+            '--desk',
+            default='main',
+            help='The desk (default: main).',
+        )
         arguments = parser.parse_args(argument_list)
         if arguments.command is None:
             arguments.command = 'serve'

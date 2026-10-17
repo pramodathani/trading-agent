@@ -14,6 +14,7 @@ import uvicorn
 
 from trading_agent import command_line
 from trading_agent import desk_builder
+from trading_agent.client import checkpoint_commands
 from trading_agent.client import message_client
 from trading_agent.client import proposal_commands
 from trading_agent.configuration import agent_configuration
@@ -25,6 +26,7 @@ from trading_agent.gateway import gateway_application
 from trading_agent.gateway import token_redacting_filter
 from trading_agent.journal import secret_redactor
 from trading_agent.journal import trade_journal
+from trading_agent.memory import checkpoints as checkpoints_module
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.workspace import proposal_store
 from trading_agent.workspace import workspace_layout
@@ -46,7 +48,7 @@ class Application:
     def run(self) -> None:
         """Reads the configuration and runs the chosen command until it ends.
 
-        The process exits with status 2 when the configuration is invalid, and with the command's own status after `doctor`, `send` and `proposals`.
+        The process exits with status 2 when the configuration is invalid, and with the command's own status after `doctor`, `send`, `proposals` and `checkpoints`.
         """
         arguments = command_line.CommandLine().parse(self._argument_list)
         log_level = logging.INFO
@@ -86,6 +88,23 @@ class Application:
                 commands.run(
                     arguments.proposal_action,
                     vars(arguments).get('proposal_id'),
+                )
+            )
+        if arguments.command == 'checkpoints':
+            if arguments.desk not in desk_names:
+                print(f'No desk named {arguments.desk!r}', file=sys.stderr)
+                sys.exit(1)
+            commands = checkpoint_commands.CheckpointCommands(
+                checkpoints_module.Checkpoints(
+                    layout.checkpoint_repository(arguments.desk),
+                    layout.desk_directory(arguments.desk),
+                )
+            )
+            sys.exit(
+                commands.run(
+                    arguments.checkpoint_action,
+                    vars(arguments).get('checkpoint_id'),
+                    vars(arguments).get('limit', 20),
                 )
             )
         self._serve(configuration, secrets)

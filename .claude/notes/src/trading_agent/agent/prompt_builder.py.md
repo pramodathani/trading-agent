@@ -5,3 +5,7 @@ The prompt is rebuilt before every turn, so an edit to a workspace file reaches 
 The order is Agents.md, Persona.md, User.md, TradingRules.md, Memory.md: general rules first, then the desk's own style, then the user and the hard limits, then lessons. The caps (20,000 characters per file, 60,000 in total) come from OpenClaw's bootstrap-file limits, and keep a runaway Memory.md from filling Gemma's 32,768-token context.
 
 The fingerprint is the first 16 hex digits of the text's SHA-256. The Claude runner compares it with the fingerprint its Claude Code process was started with, and restarts the process (resuming the same session) when they differ, because Claude Code takes its system prompt only at start.
+
+## How your memory works (milestone 11)
+
+A fixed section after the header explains sessions, the rollover, `add_note`, `search_sessions` and checkpoints. It lives in code rather than in `Agents.md` because it describes how the program works, which the user should not have to keep in step with the code. The header line now mentions it. Changing it changed every desk's prompt fingerprint once, so Claude received the new instructions inside its next message.

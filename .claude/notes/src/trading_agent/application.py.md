@@ -7,3 +7,7 @@ The server is started with `uvicorn.Config` and `uvicorn.Server` rather than `uv
 From milestone 5 the application creates any missing workspace files before every command, so the doctor, `send` and `proposals` all see a complete workspace. Commands other than `serve` log warnings only, to keep their output readable.
 
 From milestone 8 the application builds the secret redactor and the trade journal and hands them to the gateway.
+
+## checkpoints command (milestone 11)
+
+`trading-agent checkpoints list|restore` is handled before the gateway is built, like `proposals`. An unknown `--desk` exits with status 1 rather than creating an empty checkpoint repository for a desk that does not exist.
