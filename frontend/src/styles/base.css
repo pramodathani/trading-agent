@@ -11,16 +11,26 @@ body,
   margin: 0;
 }
 
+html {
+  zoom: var(--interface-zoom);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar) transparent;
+}
+
 body {
   background: var(--color-bg-page);
   color: var(--color-text);
   font-family: var(--font-family);
   font-size: var(--font-size-body);
-  line-height: 1.45;
+  line-height: var(--line-height-body);
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
-  color: var(--color-accent);
+  color: var(--color-blue);
   text-decoration: none;
 }
 
@@ -32,7 +42,8 @@ h3 {
 }
 
 h1 {
-  font-size: 20px;
+  font-size: 18px;
+  font-weight: 600;
 }
 
 h2 {
@@ -61,9 +72,9 @@ button {
   cursor: pointer;
   border-radius: var(--radius-small);
   border: 1px solid var(--color-border);
-  background: var(--color-bg-panel);
+  background: var(--color-fill-subtle);
   color: var(--color-text);
-  padding: 6px 12px;
+  padding: 5px 12px;
 }
 
 button:hover:not(:disabled) {
@@ -78,7 +89,7 @@ button:disabled {
 button.primary {
   background: var(--color-accent);
   border-color: var(--color-accent);
-  color: #1e2129;
+  color: var(--color-text-on-accent);
   font-weight: 500;
 }
 
@@ -93,7 +104,7 @@ button.danger {
 
 button.danger.solid {
   background: var(--color-loss);
-  color: #fff;
+  color: var(--color-text-on-accent);
 }
 
 input,
@@ -107,11 +118,16 @@ select {
   padding: 7px 10px;
 }
 
+option {
+  background: var(--color-bg-raised);
+  color: var(--color-text);
+}
+
 input:focus,
 textarea:focus,
 select:focus,
 button:focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--color-focus);
   outline-offset: 1px;
 }
 

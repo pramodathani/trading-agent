@@ -7,6 +7,7 @@ import { useConnectionState, useLiveEvents } from '../hooks/useLiveEvents';
 import { usePolled } from '../hooks/usePolled';
 import { themeController } from '../utilities/themeController';
 import { DesksContext } from './desksContext';
+import { DeskMenu } from './DeskMenu';
 import { selectedDeskStore, useSelectedDesk } from './selectedDeskStore';
 
 const DESKS_REFRESH_MILLISECONDS = 5000;
@@ -152,19 +153,10 @@ export function AppLayout() {
           </div>
         </nav>
         <header className="header">
-          <label className="desk-switcher">
+          <div className="desk-switcher">
             <span className="muted small">Desk</span>
-            <select
-              value={selectedDesk}
-              onChange={(change) => selectedDeskStore.choose(change.target.value)}
-            >
-              {deskNames.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
+            <DeskMenu desks={desks.data?.desks ?? []} selectedDesk={selectedDesk} />
+          </div>
           {mode && (
             <span className={mode === 'live' ? 'mode-badge live' : 'mode-badge'}>
               {mode === 'live' ? 'LIVE ORDERS' : 'DRY RUN'}
