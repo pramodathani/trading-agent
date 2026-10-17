@@ -7,7 +7,7 @@ host = "127.0.0.1"
 port = 8120
 
 [[desks]]
-name = "main"
+name = "general"
 backend_order = [
     "claude",
     "deepseek",
@@ -113,7 +113,7 @@ off_peak_price_factor = 0.5
 
 [telegram]
 enabled = true
-default_desk = "main"
+default_desk = "general"
 
 [approvals]
 tools = [

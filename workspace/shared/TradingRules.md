@@ -26,7 +26,7 @@ maximum_order_value_percent = 25
 trading_window = "exchange_hours"
 allow_option_writing = false
 
-[desks.main]
+[desks.general]
 allowed_products = []
 allowed_instruments = []
 
@@ -55,7 +55,7 @@ Not yet enforced by the risk engine: today the desks can place only plain orders
   - Execution: `marketable_limit`, `chaser`, `peg`, `post_only`, `good_till_time`, `freeze_slicer`.
 - intraday: everything the scalper may use, plus `scheduled`, `discretionary`, `iceberg`, `twap`, `vwap`, `ladder`, `basket`, `oca`, `strategy_stop`, `underlying_peg`, `volatility`.
 - positional (multi-day): `bracket`, `cover`, `scale_out`, `oco`, `oto`, `trailing_stop`, `atr_trail`, `stepped_stop`, `gtt`, `daily_stop`, `limit_if_touched`, `market_if_touched`, `cross_instrument`, `scheduled`, `opening_auction`, `closing_price`, `iceberg`, `twap`, `vwap`, `implementation_shortfall`, `participation`, `liquidity_seeking`, `accumulation`, `ladder`, `basket`, `oca`, `legged_spread`, `strategy_stop`, `attached_hedge`, `exposure_hedge`, `freeze_slicer`.
-- main: every type, subject to the two "never" rules above.
+- general: every type, subject to the two "never" rules above.
 
 ## Strategies
 

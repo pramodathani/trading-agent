@@ -26,7 +26,7 @@ A file larger than 20 MB, or of any other type, is refused with the reason. A pi
 Every file is kept in the desk's `uploads/` folder, in its own folder under the date it arrived:
 
 ```text
-desks/main/uploads/2026-10-17/3f9a1c2b7d4e/
+desks/general/uploads/2026-10-17/3f9a1c2b7d4e/
 ├── report.pdf        the file as you sent it
 ├── text.txt          a document's text, labelled as data from outside trading-agent
 └── attachment.json   what the store knows about it
@@ -62,7 +62,7 @@ Whenever a tool shows the model a picture saved in the desk's folder, Chat shows
 
 A picture sent with `send_image` appears in Chat as a large bubble from the desk. On Telegram it arrives as a photo, in the chat whose message started the turn. A picture the desk sends on its own, for example from a scheduled job, is pushed to every paired chat only when `messages` is in the [notifications list](../telegram_setup.md#7-choose-what-is-pushed-to-you). Telegram refuses photos with extreme proportions, such as a very tall table, so such a picture is sent as a file instead.
 
-On 17 October 2026, the main desk was asked for a picture of a formatted table of three stocks. Claude rendered the HTML with headless Chrome, checked the result with `view_image`, and sent it with `send_image`. The whole turn took 16 seconds.
+On 17 October 2026, the general desk (then called main) was asked for a picture of a formatted table of three stocks. Claude rendered the HTML with headless Chrome, checked the result with `view_image`, and sent it with `send_image`. The whole turn took 16 seconds.
 
 ## Which models see pictures
 

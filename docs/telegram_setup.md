@@ -70,7 +70,7 @@ Still in the BotFather chat:
    ```toml
    [telegram]
    enabled = true
-   default_desk = "main"
+   default_desk = "general"
    ```
 
    Set `enabled = true`. `default_desk` is the desk a new chat talks to.
@@ -108,7 +108,7 @@ Send these to the bot:
 | `/status` | Every desk's state and the account's balance and day, answered by code without a model, so it works even when every model is down |
 | `/pnl` | Today's and this week's profit or loss, and each desk's share |
 | `/positions` | Open positions and which desk owns each |
-| `What is your plan for Monday?` | The message goes to your desk (main at first), and its answer comes back |
+| `What is your plan for Monday?` | The message goes to your desk (general at first), and its answer comes back |
 | `/desk intraday` | Later messages go to the intraday desk |
 | `/pause all` | Every desk stops asking its models; `/resume all` starts them again |
 | `/stop` | The desk's running turn stops at once |

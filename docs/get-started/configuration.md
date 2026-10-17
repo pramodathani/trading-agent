@@ -99,7 +99,7 @@ One table per desk. The four desks of this machine are in the [desks section](..
 | Setting | Default | Meaning |
 |---|---|---|
 | `enabled` | `false` | Whether the gateway talks to Telegram |
-| `default_desk` | `"main"` | The desk a paired chat talks to at first |
+| `default_desk` | the first desk | The desk a paired chat talks to at first |
 | `notifications` | all ten kinds | What is pushed to your phone; see [Telegram](../telegram_setup.md#7-choose-what-is-pushed-to-you) |
 | `poll_seconds` | `30` | How long one request to Telegram waits for a message |
 

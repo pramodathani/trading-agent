@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
 const STORAGE_KEY = 'trading-agent.desk';
-const DEFAULT_DESK = 'main';
+const DEFAULT_DESK = 'general';
 
 type Listener = () => void;
 

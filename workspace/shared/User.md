@@ -25,7 +25,7 @@ All amounts are percentages of the total account balance across all brokers, rea
 - Instruments to focus on or avoid: all instruments are allowed; nothing is excluded.
 - Options: long positions only. No option writing without his explicit permission.
 - Preferred holding periods: intraday, overnight and multi-day are all allowed.
-- Desks: "main" is general-purpose for now; intraday, scalper and positional desks will be created in a later milestone.
+- Desks: "general" is the general-purpose desk; intraday, scalper and positional are the specialised desks.
 
 ## Schedule and contact
 

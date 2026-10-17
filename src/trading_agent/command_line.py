@@ -51,8 +51,8 @@ class CommandLine:
         )
         send_parser.add_argument(
             '--desk',
-            default='main',
-            help='The desk to send it to (default: main).',
+            default='general',
+            help='The desk to send it to (default: general).',
         )
         proposals_parser = subparsers.add_parser(
             'proposals',
@@ -91,8 +91,8 @@ class CommandLine:
         )
         list_parser.add_argument(
             '--desk',
-            default='main',
-            help='The desk (default: main).',
+            default='general',
+            help='The desk (default: general).',
         )
         list_parser.add_argument(
             '--limit',
@@ -110,8 +110,8 @@ class CommandLine:
         )
         restore_parser.add_argument(
             '--desk',
-            default='main',
-            help='The desk (default: main).',
+            default='general',
+            help='The desk (default: general).',
         )
         skills_parser = subparsers.add_parser(
             'skills',

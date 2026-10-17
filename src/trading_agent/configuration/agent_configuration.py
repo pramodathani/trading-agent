@@ -314,7 +314,7 @@ class TelegramConfiguration(pydantic.BaseModel):
 
     Attributes:
         enabled: Whether the gateway talks to Telegram; it also needs TRADING_AGENT_TELEGRAM_BOT_TOKEN in .env.
-        default_desk: The desk a paired chat talks to until it chooses another with /desk.
+        default_desk: The desk a paired chat talks to until it chooses another with /desk; when left out, the first desk in the configuration.
         notifications: What is pushed to every paired chat without being asked: fills, rejections, model_switches, job_results, desk_reports, messages, alerts, halts, errors and daily_summaries.
         poll_seconds: How long one long-poll request to Telegram waits for new messages before asking again.
     """
@@ -322,7 +322,7 @@ class TelegramConfiguration(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(extra='forbid')
 
     enabled: bool = False
-    default_desk: str = 'main'
+    default_desk: str | None = None
     notifications: list[str] = list(TELEGRAM_NOTIFICATIONS)
     poll_seconds: int = pydantic.Field(default=30, ge=1, le=50)
 
@@ -393,14 +393,16 @@ class AgentConfiguration(pydantic.BaseModel):
 
     @pydantic.model_validator(mode='after')
     def _require_known_telegram_desk(self) -> AgentConfiguration:
-        """Checks that Telegram's default desk is one of the desks.
+        """Fills in Telegram's default desk with the first desk when it is left out, and checks that it is one of the desks.
 
         Returns:
-            AgentConfiguration: This configuration, unchanged.
+            AgentConfiguration: This configuration, with the default desk filled in.
 
         Raises:
             ValueError: The default desk does not exist.
         """
+        if self.telegram.default_desk is None and self.desks:
+            self.telegram.default_desk = self.desks[0].name
         for desk in self.desks:
             if desk.name == self.telegram.default_desk:
                 return self

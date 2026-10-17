@@ -22,7 +22,7 @@
   <text class="title" x="272" y="143">1  Check the access token</text>
   <text class="small" x="272" y="163">wrong or missing token → 401 · desk that does not exist → 404</text>
   <rect class="box" x="255" y="190" width="420" height="56" rx="6"/>
-  <text class="title" x="272" y="213">2  Queue a trigger for desk "main"</text>
+  <text class="title" x="272" y="213">2  Queue a trigger for desk "general"</text>
   <text class="small" x="272" y="233">the POST returns at once: 202 and the new trigger_id</text>
   <rect class="accent-box" x="255" y="260" width="420" height="56" rx="6"/>
   <text class="title" x="272" y="283">3  The desk takes its next trigger</text>
@@ -38,7 +38,7 @@
   <text class="small" x="272" y="513">/ws/events notices when you hang up; the token is hidden in logs</text>
   <rect class="box" x="320" y="12" width="290" height="56" rx="28"/>
   <text class="title" x="465" y="36" text-anchor="middle">You</text>
-  <text class="mono" x="465" y="55" text-anchor="middle">POST /api/desks/main/messages</text>
+  <text class="mono" x="465" y="55" text-anchor="middle">POST /api/desks/general/messages</text>
   <text class="small answer" x="30" y="28">events arrive live, as JSON:</text>
   <text class="mono answer" x="30" y="46">trigger_received</text>
   <text class="mono answer" x="30" y="62">turn_started</text>
