@@ -25,3 +25,7 @@ The `Agents.md` template's line "Notes and memory tools arrive in later mileston
 ## agents_directory (milestone 14)
 
 `workspace/shared/agents/`, the user's subagent definitions. `create_missing` copies the starter subagents only when the folder does not exist yet.
+
+## cron_directory (milestone 15)
+
+`desks/<desk>/cron/`, ignored by git.

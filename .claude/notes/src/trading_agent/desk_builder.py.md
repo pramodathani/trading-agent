@@ -47,3 +47,7 @@ Every desk gets `search_knowledge`, over one knowledge base shared by all desks,
 ## Milestone 14: subagents
 
 `backend_runner` (public now) takes the prompt builder and round limit as arguments, so the subagent runner builds its turn runners with the same code as the desk, through `functools.partial(self.backend_runner, desk_configuration)`. Each desk gets a `SubagentRunner` and `delegate_task`; the toolbox is built from the desk's tools before delegate_task is added, so it can never reach a subagent. The prompt builder gets the subagent library for the Subagents section.
+
+## Milestone 15: scheduling
+
+The builder owns one `MarketCalendar` and one `ExchangeHours` built on it, shared by the risk engine and the scheduler. Each desk gets a `CronJobStore`, its built-in jobs, and the tools cron_create, cron_list, cron_delete, schedule_wakeup and send_message. `desk_schedule` returns what the scheduler needs for a built desk: its store, built-in jobs, a command runner on its sandbox, and its subagent runner.

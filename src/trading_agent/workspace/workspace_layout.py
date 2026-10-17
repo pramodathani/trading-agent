@@ -181,6 +181,17 @@ class WorkspaceLayout:
         """
         return self.desk_directory(desk_name) / 'notes'
 
+    def cron_directory(self, desk_name: str) -> Path:
+        """Where the desk's scheduled jobs and their run record are kept.
+
+        Args:
+            desk_name (str): The desk's name.
+
+        Returns:
+            Path: The desk's cron folder.
+        """
+        return self.desk_directory(desk_name) / 'cron'
+
     def sessions_directory(self, desk_name: str) -> Path:
         """Where the desk's session logs, session state and daily summaries are kept.
 

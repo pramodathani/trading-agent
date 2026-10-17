@@ -27,4 +27,5 @@ workspace/shared/desk_orders.db
 workspace/shared/knowledge.db
 workspace/desks/*/sessions/
 workspace/desks/*/skills/
+workspace/desks/*/cron/
 workspace/.checkpoints/

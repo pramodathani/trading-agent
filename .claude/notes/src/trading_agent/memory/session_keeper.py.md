@@ -29,3 +29,7 @@ The state file was backdated to 2026-10-16 and the gateway restarted. The first 
 ## Skill review (milestone 13)
 
 With a curator, the rollover runs `_review_skills` after writing the summary: the code archives idle skills, then the review turn runs in the old session. See `skills/skill_curator.py.md`.
+
+## roll_over returns the new session (milestone 15)
+
+So `/rollover` can name it.

@@ -29,6 +29,7 @@ from trading_agent.tools import tool_registry as tool_registry_module
 
 _LOGGER = logging.getLogger(__name__)
 _INDIA = zoneinfo.ZoneInfo('Asia/Kolkata')
+_NOTHING_TO_DO = 'NOTHING_TO_DO'
 _PAUSED_REPLY = 'This desk is paused and did not ask any model. Send /resume to start it again.'
 
 
@@ -158,6 +159,7 @@ class DeskRuntime:
                 {
                     'trigger_id': trigger.trigger_id,
                     'text': text,
+                    'silent': self._is_silent(trigger, text),
                 },
             )
         finally:
@@ -168,6 +170,35 @@ class DeskRuntime:
                     'trigger_id': trigger.trigger_id,
                 },
             )
+
+    async def roll_over(self) -> str:
+        """Ends the desk's session with a summary and starts a fresh one, for /rollover.
+
+        Returns:
+            str: What happened, for the reply.
+        """
+        if self._session_keeper is None:
+            return (
+                'This desk keeps no sessions, so there is nothing to roll over.'
+            )
+        session_id = await self._session_keeper.roll_over()
+        return f'Rolled over: the day is summarised and session {session_id} has started.'
+
+    def _is_silent(self, trigger: trigger_module.Trigger, text: str) -> bool:
+        """Says whether an answer needs no message to the user.
+
+        Args:
+            trigger (trigger_module.Trigger): The trigger answered.
+            text (str): The answer.
+
+        Returns:
+            bool: True for a heartbeat or scheduled job answered with exactly NOTHING_TO_DO.
+        """
+        scheduled = trigger.source in (
+            trigger_module.TriggerSource.HEARTBEAT,
+            trigger_module.TriggerSource.CRON,
+        )
+        return scheduled and text.strip() == _NOTHING_TO_DO
 
     async def _answer(self, trigger: trigger_module.Trigger) -> str:
         """Answers a trigger with a command, the paused reply, or a model turn.

@@ -17,3 +17,7 @@ Commands that belong to later milestones (`/compact`, `/usage`, `/think`, `/stop
 ## /<skill-name> (milestone 13)
 
 `skill_request` turns `/breakout NIFTY` into a model turn asking the desk to load and follow that skill, with the rest of the line as its input. Built-in commands win over a skill of the same name, so a skill called `status` can never take over `/status`.
+
+## /rollover (milestone 15)
+
+Summarises the day and starts a fresh session now; the built-in after-close job sends it at 15:45 on trading days.

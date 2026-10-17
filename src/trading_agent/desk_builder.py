@@ -44,6 +44,12 @@ from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import no_model_turn_runner
 from trading_agent.runtime import turn_runner
+from trading_agent.scheduling import built_in_jobs
+from trading_agent.scheduling import command_job_runner
+from trading_agent.scheduling import cron_job
+from trading_agent.scheduling import cron_job_store
+from trading_agent.scheduling import cron_scheduler
+from trading_agent.scheduling import market_calendar
 from trading_agent.skills import skill_curator
 from trading_agent.skills import skill_library
 from trading_agent.skills import skill_usage
@@ -69,6 +75,9 @@ from trading_agent.tools import browser_tabs_tool
 from trading_agent.tools import browser_type_tool
 from trading_agent.tools import call_mcp_tool_tool
 from trading_agent.tools import cancel_order_tool
+from trading_agent.tools import cron_create_tool
+from trading_agent.tools import cron_delete_tool
+from trading_agent.tools import cron_list_tool
 from trading_agent.tools import delegate_task_tool
 from trading_agent.tools import edit_file_tool
 from trading_agent.tools import flatten_desk_tool
@@ -85,9 +94,11 @@ from trading_agent.tools import place_bracket_order_tool
 from trading_agent.tools import place_order_tool
 from trading_agent.tools import propose_file_change_tool
 from trading_agent.tools import read_file_tool
+from trading_agent.tools import schedule_wakeup_tool
 from trading_agent.tools import search_instruments_tool
 from trading_agent.tools import search_knowledge_tool
 from trading_agent.tools import search_sessions_tool
+from trading_agent.tools import send_message_tool
 from trading_agent.tools import skill_archive_tool
 from trading_agent.tools import skill_create_tool
 from trading_agent.tools import skill_patch_tool
@@ -136,6 +147,11 @@ class DeskBuilder:
             configuration.tradingmachine_environment_file
         )
         self._result_formatter = result_formatter.ResultFormatter()
+        self.calendar = market_calendar.MarketCalendar(
+            configuration.market_calendar_directory
+        )
+        self.hours = exchange_hours.ExchangeHours(self.calendar)
+        self._schedule_parts: dict[str, tuple] = {}
         self._order_services = self._build_order_services()
         self._skill_libraries: dict[str, skill_library.SkillLibrary] = {}
         self._packages = installed_packages.InstalledPackages(
@@ -176,7 +192,7 @@ class DeskBuilder:
             margin_estimator=margin_estimator.MarginEstimator(
                 risk_settings.margin_rates
             ),
-            exchange_hours=exchange_hours.ExchangeHours(),
+            exchange_hours=self.hours,
         )
         engine = risk_engine.RiskEngine(
             services,
@@ -232,12 +248,21 @@ class DeskBuilder:
             checkpoints,
             self._layout.skill_ledger_file(desk_name),
         )
+        jobs = cron_job_store.CronJobStore(
+            self._layout.cron_directory(desk_name)
+        )
+        built_ins = built_in_jobs.BuiltInJobs().jobs(
+            desk_configuration.heartbeat_minutes,
+            desk_configuration.rollover_time,
+        )
         executor = self._executor(
             desk_configuration,
             checkpoints,
             sandbox,
             library,
             writer,
+            jobs,
+            built_ins,
         )
         runner = self._turn_runner(desk_configuration, executor, store)
         keeper = None
@@ -265,6 +290,30 @@ class DeskBuilder:
             executor.tool_registry,
             keeper,
             library,
+        )
+
+    def desk_schedule(
+        self,
+        desk: desk_runtime.DeskRuntime,
+    ) -> cron_scheduler.DeskSchedule:
+        """What the cron scheduler needs for a desk that build() made.
+
+        Args:
+            desk (desk_runtime.DeskRuntime): The desk.
+
+        Returns:
+            cron_scheduler.DeskSchedule: Its jobs, built-in jobs, command runner and subagent runner.
+        """
+        jobs, built_ins, sandbox, subagents = self._schedule_parts[desk.name]
+        return cron_scheduler.DeskSchedule(
+            desk=desk,
+            store=jobs,
+            built_in_jobs=built_ins,
+            command_runner=command_job_runner.CommandJobRunner(
+                sandbox,
+                self._configuration.sandbox.command_timeout_seconds,
+            ),
+            subagent_runner=subagents,
         )
 
     def _turn_runner(
@@ -368,6 +417,8 @@ class DeskBuilder:
         sandbox: bash_sandbox.BashSandbox,
         library: skill_library.SkillLibrary,
         writer: skill_writer.SkillWriter,
+        jobs: cron_job_store.CronJobStore,
+        built_ins: list[cron_job.CronJob],
     ) -> tool_call_executor.ToolCallExecutor:
         """Builds the desk's tools and the executor that runs them.
 
@@ -377,6 +428,8 @@ class DeskBuilder:
             sandbox (bash_sandbox.BashSandbox): The desk's bash sandbox.
             library (skill_library.SkillLibrary): The desk's skills, for load_skill.
             writer (skill_writer.SkillWriter): Changes the desk's own skills.
+            jobs (cron_job_store.CronJobStore): The desk's scheduled jobs.
+            built_ins (list[cron_job.CronJob]): The desk's heartbeat and rollover jobs.
 
         Returns:
             tool_call_executor.ToolCallExecutor: The executor.
@@ -423,6 +476,19 @@ class DeskBuilder:
             ),
             load_skill_tool.LoadSkillTool(library),
             search_knowledge_tool.SearchKnowledgeTool(self._knowledge_base),
+            cron_create_tool.CronCreateTool(jobs, self.calendar, self.hours),
+            cron_list_tool.CronListTool(
+                jobs,
+                built_ins,
+                self.calendar,
+                self.hours,
+            ),
+            cron_delete_tool.CronDeleteTool(jobs),
+            schedule_wakeup_tool.ScheduleWakeupTool(jobs),
+            send_message_tool.SendMessageTool(
+                self._event_bus,
+                desk_configuration.name,
+            ),
             skill_create_tool.SkillCreateTool(writer),
             skill_patch_tool.SkillPatchTool(writer),
             skill_archive_tool.SkillArchiveTool(writer),
@@ -493,10 +559,13 @@ class DeskBuilder:
         if self._mcp_manager is not None and self._mcp_manager.connections:
             tools.append(tool_search_tool.ToolSearchTool(self._mcp_manager))
             tools.append(call_mcp_tool_tool.CallMcpToolTool(self._mcp_manager))
-        tools.append(
-            delegate_task_tool.DelegateTaskTool(
-                self._subagent_runner(desk_configuration, sandbox, tools)
-            )
+        subagents = self._subagent_runner(desk_configuration, sandbox, tools)
+        tools.append(delegate_task_tool.DelegateTaskTool(subagents))
+        self._schedule_parts[desk_configuration.name] = (
+            jobs,
+            built_ins,
+            sandbox,
+            subagents,
         )
         registry = tool_registry.ToolRegistry(
             tools,

@@ -25,3 +25,7 @@ When the desk has a session keeper, `run` calls `keeper.start()` before the firs
 ## /<skill-name> (milestone 13)
 
 A slash message is first offered to `skill_request`; if it names a usable skill, the trigger's text is replaced and the message goes down the normal model path, paused check and session keeper included. Otherwise it is handled as a command, as before.
+
+## NOTHING_TO_DO and /rollover (milestone 15)
+
+Every `text` event now carries `silent`: true when a heartbeat or scheduled job was answered with exactly NOTHING_TO_DO. The journal still records it; the web interface and Telegram will skip it, so an all-quiet heartbeat sends no message. `roll_over` serves `/rollover`.

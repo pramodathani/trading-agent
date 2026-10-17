@@ -469,11 +469,10 @@ class TestSubagentRunner:
         assert reports[1].text == 'claude:sonnet reports on: write'
         assert reports[2].notes == ('model gpt-9 matches no backend',)
         assert reports[2].text == 'claude:opus reports on: find'
-        poet_prompt = [
-            runner.prompt_text
-            for runner in setup.runners
-            if '"poet"' in runner.prompt_text
-        ][0]
+        poet_prompt = ''
+        for runner in setup.runners:
+            if '"poet"' in runner.prompt_text:
+                poet_prompt = runner.prompt_text
         assert poet_prompt.startswith(
             'You are the subagent "poet", working for the "main" desk'
         )

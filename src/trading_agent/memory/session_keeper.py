@@ -91,8 +91,12 @@ class SessionKeeper:
         )
         return dataclasses.replace(trigger, text=text)
 
-    async def roll_over(self) -> None:
-        """Ends the current session with a summary and starts a fresh one for today."""
+    async def roll_over(self) -> str | None:
+        """Ends the current session with a summary and starts a fresh one for today.
+
+        Returns:
+            str | None: The new session's identifier.
+        """
         previous_session_id = self._router.session_id
         previous_date = self._router.trading_date
         summary_path = None
@@ -106,6 +110,7 @@ class SessionKeeper:
             previous_session_id,
             summary_path,
         )
+        return self._router.session_id
 
     async def _summary(self, trading_date: datetime.date) -> str:
         """Asks the desk to summarise its session, or lists the exchanges when no model can.

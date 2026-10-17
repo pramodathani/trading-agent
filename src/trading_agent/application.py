@@ -36,6 +36,7 @@ from trading_agent.journal import secret_redactor
 from trading_agent.journal import trade_journal
 from trading_agent.memory import checkpoints as checkpoints_module
 from trading_agent.runtime import event_bus as event_bus_module
+from trading_agent.scheduling import cron_scheduler
 from trading_agent.skills import skill_usage
 from trading_agent.subagents import subagent_library
 from trading_agent.tools import bash_sandbox
@@ -209,6 +210,16 @@ class Application:
         layout = workspace_layout.WorkspaceLayout(
             configuration.workspace_directory
         )
+        schedules = {}
+        for name, desk in desks.items():
+            schedules[name] = builder.desk_schedule(desk)
+        scheduler = cron_scheduler.CronScheduler(
+            schedules,
+            builder.calendar,
+            builder.hours,
+            event_bus,
+            redactor,
+        )
         hooks = hook_runner.HookRunner(
             event_bus,
             layout.hooks_directory,
@@ -228,6 +239,7 @@ class Application:
                 usage_tracker,
                 manager,
                 hooks,
+                scheduler,
             ],
             redactor,
         )

@@ -47,6 +47,7 @@ class SlashCommands:
             '/status': self._status,
             '/new': self._new,
             '/compact': self._compact,
+            '/rollover': self._rollover,
             '/model': self._model,
             '/pause': self._pause,
             '/resume': self._resume,
@@ -126,6 +127,7 @@ class SlashCommands:
                 '/model auto          go back to the configured order',
                 '/new                 forget this conversation and start a fresh one',
                 '/compact             save what matters, then compress the conversation into a summary',
+                '/rollover            summarise the day and start a fresh session now',
                 '/pause               stop answering until /resume (commands still work)',
                 '/resume              start answering again',
                 '/<skill-name> ...    ask the desk to follow one of its skills',
@@ -192,6 +194,18 @@ class SlashCommands:
             '/compact',
         )
         return await self._desk.turn_runner.compact(trigger)
+
+    async def _rollover(self, argument: str) -> str:
+        """Rolls the desk's session over now.
+
+        Args:
+            argument (str): Ignored.
+
+        Returns:
+            str: What happened.
+        """
+        del argument
+        return await self._desk.roll_over()
 
     async def _model(self, argument: str) -> str:
         """Shows or changes which model is tried first.

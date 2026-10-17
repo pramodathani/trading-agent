@@ -27,3 +27,7 @@ From milestone 8 the application builds the secret redactor and the trade journa
 ## subagents command (milestone 14)
 
 `trading-agent subagents list` runs before the gateway is built, over the user's and packages' definitions.
+
+## Scheduler (milestone 15)
+
+`serve` builds a `CronScheduler` over every desk's schedule and runs it as a fifth background worker.
