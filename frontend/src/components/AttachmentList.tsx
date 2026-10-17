@@ -1,18 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { apiClient } from '../api/apiClient';
 import type { Attachment } from '../api/types';
 import { formatter } from '../utilities/formatter';
+import { PictureThumbnail } from './PictureThumbnail';
 
 /** What an attachment list shows. */
 interface AttachmentListProperties {
   deskName: string;
   attachments: Attachment[];
+  large?: boolean;
 }
 
 /**
  * The pictures and documents sent with a message: pictures as thumbnails, documents as labels that open the file.
- * @param properties The desk and its attachments.
+ * @param properties The desk, its attachments, and whether pictures are shown large, as for a picture the desk sent.
  * @returns The list, or nothing when there are none.
  */
 export function AttachmentList(properties: AttachmentListProperties) {
@@ -20,7 +22,7 @@ export function AttachmentList(properties: AttachmentListProperties) {
     return null;
   }
   return (
-    <div className="attachment-list">
+    <div className={properties.large === true ? 'attachment-list large' : 'attachment-list'}>
       {properties.attachments.map((attachment) =>
         attachment.kind === 'image' ? (
           <AttachmentPicture key={attachment.attachment_id} deskName={properties.deskName} attachment={attachment} />
@@ -39,54 +41,14 @@ interface AttachmentProperties {
 }
 
 /**
- * One picture, fetched with the access token and shown as a thumbnail that opens full size.
+ * One uploaded picture, shown as a thumbnail that opens full size.
  * @param properties The desk and the picture.
  * @returns The thumbnail.
  */
 function AttachmentPicture(properties: AttachmentProperties) {
-  const [address, setAddress] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
   const deskName = properties.deskName;
   const attachmentId = properties.attachment.attachment_id;
-
-  useEffect(() => {
-    let cancelled = false;
-    let created: string | null = null;
-    apiClient
-      .attachmentFile(deskName, attachmentId)
-      .then((blob) => {
-        if (!cancelled) {
-          created = URL.createObjectURL(blob);
-          setAddress(created);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setFailed(true);
-        }
-      });
-    return () => {
-      cancelled = true;
-      if (created !== null) {
-        URL.revokeObjectURL(created);
-      }
-    };
-  }, [
-    deskName,
-    attachmentId,
-  ]);
-
-  if (failed) {
-    return <span className="attachment-document muted small">{properties.attachment.file_name} (the picture is no longer there)</span>;
-  }
-  if (address === null) {
-    return <span className="attachment-picture loading muted small">Loading {properties.attachment.file_name}…</span>;
-  }
-  return (
-    <a className="attachment-picture" href={address} target="_blank" rel="noreferrer" title={`${properties.attachment.file_name}: open full size`}>
-      <img src={address} alt={properties.attachment.file_name} />
-    </a>
-  );
+  return <PictureThumbnail fileName={properties.attachment.file_name} loadKey={`${deskName}/${attachmentId}`} load={() => apiClient.attachmentFile(deskName, attachmentId)} />;
 }
 
 /**

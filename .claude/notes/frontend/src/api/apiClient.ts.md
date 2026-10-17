@@ -7,3 +7,5 @@ One method per API route the pages use. Errors become `ApiError` with FastAPI's 
 ## Attachments, since 2026-10-17
 
 `uploadAttachment` sends a `FormData` body; `request` leaves the `Content-Type` header unset for it, so the browser writes the multipart boundary itself. `attachmentFile` fetches a stored file with the token, for pictures and documents shown through `blob:` addresses. `sendMessage` takes the attachment identifiers.
+
+`deskPicture` encodes each part of the path separately, so the slashes between folders stay as they are while spaces and other characters in file names are escaped.

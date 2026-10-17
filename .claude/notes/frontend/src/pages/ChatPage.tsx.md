@@ -19,3 +19,7 @@ Files can be added three ways: the Attach button (a hidden file input), dropping
 The chips are cleared when the user switches desk, because an upload belongs to one desk and cannot be sent to another. Picture previews in the chips use `blob:` addresses of the local file, revoked when the chip goes.
 
 In the history, the user's bubble shows its attachments through `AttachmentList`, and the text block is left out when a message was only files.
+
+## Pictures from the desk
+
+A tool card's picture is drawn below the folded card, not inside it, because a screenshot hidden behind a click is easy to miss. A `message` event, whether inside a turn or loose, is drawn by `DeskMessageView` as a desk bubble with its text and pictures; before part 2 a message inside a turn showed only the word "Message", hiding its text.

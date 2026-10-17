@@ -3,6 +3,7 @@ import { type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent
 import { apiClient } from '../api/apiClient';
 import type { AgentEvent, Attachment } from '../api/types';
 import { AttachmentList } from '../components/AttachmentList';
+import { PictureThumbnail } from '../components/PictureThumbnail';
 import { useLiveEvents, useStreamingTexts } from '../hooks/useLiveEvents';
 import { useDesks } from '../layout/desksContext';
 import { useSelectedDesk } from '../layout/selectedDeskStore';
@@ -273,7 +274,7 @@ export function ChatPage() {
         {loadError !== null && <p className="error-text">Could not read today&apos;s journal: {loadError}</p>}
         {items.length === 0 && loadError === null && <p className="muted">Nothing today yet. Say hello, or try /status.</p>}
         {items.map((item) =>
-          item.type === 'turn' ? <TurnView key={itemKey(item)} deskName={deskName} turn={item} streamingText={streams.get(item.triggerId) ?? ''} /> : <LooseEventView key={itemKey(item)} event={item.event} />,
+          item.type === 'turn' ? <TurnView key={itemKey(item)} deskName={deskName} turn={item} streamingText={streams.get(item.triggerId) ?? ''} /> : <LooseEventView key={itemKey(item)} deskName={deskName} event={item.event} />,
         )}
         <div ref={bottomReference} />
       </div>
@@ -428,10 +429,13 @@ function TurnView(properties: TurnViewProperties) {
         <div className="steps">
           {turn.steps.map((step, index) => {
             if (step.type === 'tool') {
-              return <ToolCard key={step.callId || index} step={step} />;
+              return <ToolCard key={step.callId || index} deskName={properties.deskName} step={step} />;
             }
             if (step.type === 'steering') {
               return <SteeringView key={step.message.triggerId} step={step} />;
+            }
+            if (step.event.kind === 'message') {
+              return <DeskMessageView key={eventMerger.key(step.event)} deskName={properties.deskName} event={step.event} />;
             }
             return (
               <div key={eventMerger.key(step.event)} className={`step-line tone-${eventDescriber.describe(step.event).tone}`}>
@@ -483,42 +487,83 @@ function SteeringView(properties: { step: SteeringStep }) {
 }
 
 /**
- * One tool call, folded, with its arguments and result inside.
- * @param properties The step.
+ * One tool call, folded, with its arguments and result inside, and any picture it showed the model beneath.
+ * @param properties The desk and the step.
  * @returns The card.
  */
-function ToolCard(properties: { step: ToolStep }) {
+function ToolCard(properties: { deskName: string; step: ToolStep }) {
   const step = properties.step;
+  const deskName = properties.deskName;
+  const picturePath = step.picturePath;
   let state = 'running…';
   if (step.resultText !== null) {
     state = step.isError ? 'failed' : 'done';
   }
   return (
-    <details className={step.isError ? 'tool-card failed' : 'tool-card'}>
-      <summary>
-        <span className="mono">{step.name}</span>
-        <span className="muted small">{state}</span>
-      </summary>
-      <div className="tool-card-body">
-        <span className="muted small">Arguments</span>
-        <pre>{step.argumentsText}</pre>
-        {step.resultText !== null && (
-          <>
-            <span className="muted small">Result</span>
-            <pre>{step.resultText}</pre>
-          </>
-        )}
+    <div className="tool-step">
+      <details className={step.isError ? 'tool-card failed' : 'tool-card'}>
+        <summary>
+          <span className="mono">{step.name}</span>
+          <span className="muted small">{state}</span>
+        </summary>
+        <div className="tool-card-body">
+          <span className="muted small">Arguments</span>
+          <pre>{step.argumentsText}</pre>
+          {step.resultText !== null && (
+            <>
+              <span className="muted small">Result</span>
+              <pre>{step.resultText}</pre>
+            </>
+          )}
+        </div>
+      </details>
+      {picturePath !== null && (
+        <div className="tool-card-picture">
+          <PictureThumbnail fileName={picturePath} loadKey={`${deskName}/${picturePath}`} load={() => apiClient.deskPicture(deskName, picturePath)} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A message the desk sent with send_message or send_image: its text and any pictures, shown large.
+ * @param properties The desk and the message event.
+ * @returns The bubble.
+ */
+function DeskMessageView(properties: { deskName: string; event: AgentEvent }) {
+  const payload = properties.event.payload;
+  const text = typeof payload.text === 'string' ? payload.text : '';
+  const attachments = Array.isArray(payload.attachments) ? (payload.attachments as Attachment[]) : [];
+  const urgent = payload.urgent === true;
+  let label = 'Message from the desk';
+  if (attachments.length > 0) {
+    label = 'Picture from the desk';
+  }
+  if (urgent) {
+    label = 'Urgent message from the desk';
+  }
+  return (
+    <div className={urgent ? 'bubble answer desk-message urgent' : 'bubble answer desk-message'}>
+      <div className="bubble-meta">
+        <span>{label}</span>
+        <span className="mono">{formatter.time(properties.event.created_at)}</span>
       </div>
-    </details>
+      {text.length > 0 && <pre>{text}</pre>}
+      <AttachmentList deskName={properties.deskName} attachments={attachments} large />
+    </div>
   );
 }
 
 /**
  * An event that happened outside any turn.
- * @param properties The event.
- * @returns A one-line view.
+ * @param properties The desk and the event.
+ * @returns A one-line view, or a message bubble for a message the desk sent.
  */
-function LooseEventView(properties: { event: AgentEvent }) {
+function LooseEventView(properties: { deskName: string; event: AgentEvent }) {
+  if (properties.event.kind === 'message') {
+    return <DeskMessageView deskName={properties.deskName} event={properties.event} />;
+  }
   const description = eventDescriber.describe(properties.event);
   return (
     <div className={`loose-event tone-${description.tone}`}>

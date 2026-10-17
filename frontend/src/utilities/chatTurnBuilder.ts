@@ -9,6 +9,7 @@ export interface ToolStep {
   argumentsText: string;
   resultText: string | null;
   isError: boolean;
+  picturePath: string | null;
 }
 
 /** Any other event inside a turn, such as a risk decision or a model switch. */
@@ -180,6 +181,7 @@ export class ChatTurnBuilder {
         argumentsText: JSON.stringify(payload.arguments ?? {}, null, 2),
         resultText: null,
         isError: false,
+        picturePath: null,
       });
       return;
     }
@@ -188,6 +190,7 @@ export class ChatTurnBuilder {
         if (step.type === 'tool' && step.callId === payload.call_id) {
           step.resultText = String(payload.text ?? '');
           step.isError = payload.is_error === true;
+          step.picturePath = typeof payload.picture_path === 'string' ? payload.picture_path : null;
         }
       }
       return;

@@ -13,3 +13,5 @@ A trigger_received event with `steering_into` belongs inside the running turn, s
 ## Attachments, since 2026-10-17
 
 A turn's `attachments` come from the `trigger_received` event's payload, where the gateway writes them with the trigger, so pictures reappear after a reload or a restart without another request.
+
+`ToolStep.picturePath` comes from the `picture_path` key of a `tool_result` event, set when the tool showed the model a picture saved in the desk folder.

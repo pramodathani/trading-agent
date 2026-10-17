@@ -113,6 +113,25 @@ export class ApiClient {
   }
 
   /**
+   * Fetches a picture in a desk's folder, such as a screenshot shown in a tool's card.
+   * @param deskName The desk.
+   * @param picturePath The picture's path relative to the desk folder.
+   * @returns The picture.
+   */
+  async deskPicture(deskName: string, picturePath: string): Promise<Blob> {
+    const encodedPath = picturePath.split('/').map(encodeURIComponent).join('/');
+    const response = await fetch(`/api/desks/${deskName}/pictures/${encodedPath}`, {
+      headers: {
+        Authorization: `Bearer ${tokenStore.current() ?? ''}`,
+      },
+    });
+    if (!response.ok) {
+      throw new ApiError(response.status, await this.explain(response));
+    }
+    return response.blob();
+  }
+
+  /**
    * Pauses a desk.
    * @param deskName The desk.
    * @returns The desk's new state.

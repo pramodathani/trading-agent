@@ -553,3 +553,23 @@
   border: 1px solid var(--color-accent);
   border-radius: var(--radius-small);
 }
+
+.tool-step {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tool-card-picture .attachment-picture img {
+  max-width: min(100%, 420px);
+  max-height: 260px;
+}
+
+.bubble.desk-message.urgent {
+  border-color: var(--color-warning);
+}
+
+.attachment-list.large .attachment-picture img {
+  max-width: min(100%, 640px);
+  max-height: 560px;
+}
