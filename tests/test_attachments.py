@@ -612,18 +612,20 @@ class _StandInDesk:
 
 
 def _client(
-    store: attachment_store_module.AttachmentStore,
+    directory: Path,
     desk: _StandInDesk,
 ) -> fastapi.testclient.TestClient:
     """Mounts the desk and attachment routes for one stand-in desk.
 
     Args:
-        store (attachment_store_module.AttachmentStore): The upload store.
+        directory (Path): The scratch workspace.
         desk (_StandInDesk): The desk.
 
     Returns:
         fastapi.testclient.TestClient: A client sending the token.
     """
+    layout = workspace_layout.WorkspaceLayout(directory)
+    store = attachment_store_module.AttachmentStore(layout)
     guard = access_guard.AccessGuard(_TOKEN)
     desks = {
         'main': desk,
@@ -633,7 +635,7 @@ def _client(
         desk_routes.DeskRoutes(desks, guard, attachment_store=store).router()
     )
     application.include_router(
-        attachment_routes.AttachmentRoutes(desks, store, guard).router()
+        attachment_routes.AttachmentRoutes(desks, store, layout, guard).router()
     )
     return fastapi.testclient.TestClient(
         application,
@@ -649,7 +651,7 @@ class TestAttachmentRoutes:
     def test_upload_then_send_with_the_message(self, tmp_path: Path) -> None:
         """An uploaded picture is named in the message and reaches the desk with it."""
         desk = _StandInDesk()
-        client = _client(_store(tmp_path), desk)
+        client = _client(tmp_path, desk)
 
         uploaded = client.post(
             '/api/desks/main/attachments',
@@ -680,7 +682,7 @@ class TestAttachmentRoutes:
         """The chat page can fetch an uploaded picture to show it."""
         store = _store(tmp_path)
         attachment = store.save('main', 'chart.png', _picture())
-        client = _client(store, _StandInDesk())
+        client = _client(tmp_path, _StandInDesk())
 
         answer = client.get(
             f'/api/desks/main/attachments/{attachment.attachment_id}'
@@ -692,7 +694,7 @@ class TestAttachmentRoutes:
 
     def test_refused_upload_explains_why(self, tmp_path: Path) -> None:
         """A program is refused with 422 and the reason."""
-        client = _client(_store(tmp_path), _StandInDesk())
+        client = _client(tmp_path, _StandInDesk())
 
         answer = client.post(
             '/api/desks/main/attachments',
@@ -713,7 +715,7 @@ class TestAttachmentRoutes:
     ) -> None:
         """A message with neither text nor files, or naming an upload that does not exist, is refused."""
         desk = _StandInDesk()
-        client = _client(_store(tmp_path), desk)
+        client = _client(tmp_path, desk)
 
         empty = client.post('/api/desks/main/messages', json={'text': '  '})
         unknown = client.post(
@@ -734,7 +736,7 @@ class TestAttachmentRoutes:
         """Uploads cannot be fetched without the access token."""
         store = _store(tmp_path)
         attachment = store.save('main', 'chart.png', _picture())
-        client = _client(store, _StandInDesk())
+        client = _client(tmp_path, _StandInDesk())
 
         answer = client.get(
             f'/api/desks/main/attachments/{attachment.attachment_id}',

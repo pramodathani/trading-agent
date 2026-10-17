@@ -10,14 +10,17 @@ Typical usage example:
   await api.start()
   messages = await api.messages()
   await api.send(chat_id, 'Hello')
+  await api.send_photo(chat_id, Path('chart.png'), 'Today')
 """
 
 import dataclasses
+from pathlib import Path
 
 import telegram
 import telegram.error
 
 _MESSAGE_LIMIT = 4000
+_CAPTION_LIMIT = 1024
 _EXTRA_READ_SECONDS = 10
 
 
@@ -211,6 +214,44 @@ class TelegramApi:
                 raise TelegramApiError(
                     f'{type(error).__name__}: {error}'
                 ) from error
+
+    async def send_photo(self, chat_id: int, path: Path, caption: str) -> None:
+        """Sends a picture with a caption.
+
+        Telegram shows a photo inline but refuses one over 10 MB or with very long or thin proportions, such as a tall table; such a picture is sent as a file instead. A caption longer than Telegram allows follows as its own message.
+
+        Args:
+            chat_id (int): The chat.
+            path (Path): The picture.
+            caption (str): The text shown with it; may be empty.
+
+        Raises:
+            TelegramApiError: Telegram could not be reached or refused the picture both ways.
+        """
+        data = path.read_bytes()
+        shown_caption = caption if len(caption) <= _CAPTION_LIMIT else ''
+        try:
+            await self._bot.send_photo(
+                chat_id, data, caption=shown_caption or None
+            )
+        except telegram.error.BadRequest:
+            try:
+                await self._bot.send_document(
+                    chat_id,
+                    data,
+                    filename=path.name,
+                    caption=shown_caption or None,
+                )
+            except telegram.error.TelegramError as error:
+                raise TelegramApiError(
+                    f'{type(error).__name__}: {error}'
+                ) from error
+        except telegram.error.TelegramError as error:
+            raise TelegramApiError(
+                f'{type(error).__name__}: {error}'
+            ) from error
+        if caption and not shown_caption:
+            await self.send(chat_id, caption)
 
     async def close(self) -> None:
         """Closes the connection."""

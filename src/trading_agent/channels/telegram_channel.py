@@ -18,6 +18,7 @@ Typical usage example:
 import asyncio
 import logging
 from collections.abc import Mapping
+from pathlib import Path
 
 from trading_agent.attachments import attachment as attachment_module
 from trading_agent.attachments import (
@@ -93,6 +94,7 @@ class TelegramChannel:
         self._subscription = event_bus.subscribe(maximum_queued=_QUEUE_SIZE)
         self._reply_chats: dict[str, set[int]] = {}
         self._trigger_sources: dict[str, tuple[str, str]] = {}
+        self._running_triggers: dict[str, str] = {}
         self.state = _STATE_OFF
         self.error = ''
         self.username = ''
@@ -305,8 +307,17 @@ class TelegramChannel:
         if kind == event_module.EventKind.STEERING:
             await self._forward_steering(payload)
             return
+        if kind == event_module.EventKind.TURN_STARTED:
+            self._running_triggers[published_event.desk or ''] = trigger_id
+            return
         if kind == event_module.EventKind.TURN_FINISHED:
             self._reply_chats.pop(trigger_id, None)
+            self._running_triggers.pop(published_event.desk or '', None)
+            return
+        if kind == event_module.EventKind.MESSAGE and payload.get(
+            'attachments'
+        ):
+            await self._forward_pictures(published_event)
             return
         waiting_chats = self._reply_chats.get(trigger_id, set())
         if waiting_chats and kind in (
@@ -335,6 +346,53 @@ class TelegramChannel:
         )
         if notification is not None:
             await self._broadcast(notification)
+
+    async def _forward_pictures(
+        self,
+        published_event: event_module.Event,
+    ) -> None:
+        """Sends the pictures a desk showed with send_image.
+
+        They go to the chats waiting for the desk's running turn, so a picture asked for on Telegram comes back there. A picture sent while no chat is waiting, such as from a scheduled job, is pushed to every paired chat when messages are pushed.
+
+        Args:
+            published_event (event_module.Event): The message event carrying the pictures.
+        """
+        payload = published_event.payload
+        running = self._running_triggers.get(published_event.desk or '')
+        chats = set(self._reply_chats.get(running, set()))
+        caption = str(payload.get('text', ''))
+        if not chats:
+            notification = self._formatter.format(published_event, None, None)
+            if notification is None:
+                return
+            caption = notification
+            for chat in self._pairing.paired_chats():
+                chats.add(chat.chat_id)
+        for chat_id in chats:
+            shown_caption = caption
+            for attachment in payload.get('attachments', []):
+                await self._send_photo(
+                    chat_id, Path(attachment['path']), shown_caption
+                )
+                shown_caption = ''
+
+    async def _send_photo(self, chat_id: int, path: Path, caption: str) -> None:
+        """Sends a picture, logging a failure instead of raising it.
+
+        Args:
+            chat_id (int): The chat.
+            path (Path): The picture.
+            caption (str): The text shown with it; may be empty.
+        """
+        try:
+            await self._api.send_photo(chat_id, path, caption)
+        except (telegram_api_module.TelegramApiError, OSError) as error:
+            _LOGGER.warning(
+                'Could not send a picture to Telegram chat %s: %s',
+                chat_id,
+                error,
+            )
 
     async def _forward_steering(self, payload: dict) -> None:
         """Tells a chat that its message reached the running turn, and sends it that turn's answer too.

@@ -75,8 +75,12 @@ class NotificationFormatter:
         if kind == event_module.EventKind.TEXT and self._wants('desk_reports'):
             return self._report(desk, payload, trigger_source, trigger_text)
         if kind == event_module.EventKind.MESSAGE and self._wants('messages'):
-            prefix = 'URGENT from' if payload.get('urgent') else 'Message from'
-            return f'{prefix} {desk}:\n{payload.get("text", "")}'
+            prefix = 'Message from'
+            if payload.get('attachments'):
+                prefix = 'Picture from'
+            if payload.get('urgent'):
+                prefix = 'URGENT from'
+            return f'{prefix} {desk}:\n{payload.get("text", "")}'.strip()
         if kind == event_module.EventKind.PRICE_ALERT and self._wants('alerts'):
             note = f' Note: {payload["note"]}' if payload.get('note') else ''
             return f'{desk}: {payload.get("symbol")} traded at {payload.get("last_price")}, {payload.get("condition")} the alert at {payload.get("price")}.{note}'

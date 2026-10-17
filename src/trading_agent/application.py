@@ -389,6 +389,7 @@ class Application:
             attachment_routes.AttachmentRoutes(
                 desks,
                 shared.attachments,
+                shared.layout,
                 guard,
             ),
             account_routes.AccountRoutes(guard, shared, desk_names),

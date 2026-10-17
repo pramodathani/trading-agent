@@ -15,3 +15,5 @@ When a desk wakes on its own (a scheduled check, a heartbeat, a price alert, a w
 ## Fills
 
 The market watcher's fill event did not name the stock, so milestone 19 added the symbol, side and quantity to it. A fill reads like "intraday: COMPLETE buy 10 INFY, 10 filled at 1501.2".
+
+A message with `attachments` begins "Picture from <desk>:" instead of "Message from", and the text is stripped so a picture with no caption does not end in a blank line. "URGENT from" still wins.
