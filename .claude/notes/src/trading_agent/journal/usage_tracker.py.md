@@ -19,3 +19,7 @@ An OpenAI-compatible backend can have `rupees_per_million_prompt_tokens` and `ru
 ## Verified on 2026-10-17
 
 /usage showed the whole day read back from the journal: Claude 19 turns, 594,578 cache-read tokens, an API-equivalent $2.67; Qwen 54 calls with 397,175 prompt tokens; Gemma 3 calls; and Claude's five-hour limit "allowed", resetting at 15:20.
+
+## Rate limits for the API (milestone 17)
+
+`rate_limits` returns copies of the latest reports so the API cannot change the tracker's own dictionaries.

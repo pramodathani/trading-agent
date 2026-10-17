@@ -247,6 +247,46 @@ class RiskLedger:
             return None
         return row[0]
 
+    def owners(self) -> dict[str, str]:
+        """Every instrument a desk owns now.
+
+        Returns:
+            dict[str, str]: Desk names keyed by instrument id.
+        """
+        with self._lock:
+            rows = self._connection.execute(
+                'SELECT instrument_id, desk FROM ownership'
+            ).fetchall()
+        owners = {}
+        for instrument_id, desk in rows:
+            owners[instrument_id] = desk
+        return owners
+
+    def halts_in_force(self, today: datetime.date) -> list[dict[str, str]]:
+        """Every halt still in force, the account's and the desks'.
+
+        Args:
+            today (datetime.date): Today, in India time.
+
+        Returns:
+            list[dict[str, str]]: Each halt's scope, reason and the first day trading is allowed again, newest first.
+        """
+        with self._lock:
+            rows = self._connection.execute(
+                'SELECT scope, reason, until_date FROM halts WHERE until_date > ? ORDER BY created_at DESC',
+                (today.isoformat(),),
+            ).fetchall()
+        halts = []
+        for scope, reason, until_date in rows:
+            halts.append(
+                {
+                    'scope': scope,
+                    'reason': reason,
+                    'until_date': until_date,
+                }
+            )
+        return halts
+
     def close(self) -> None:
         """Closes the database."""
         with self._lock:

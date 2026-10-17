@@ -59,3 +59,7 @@ Each desk gets a `PriceAlertStore` and the tools set_price_alert and cancel_pric
 ## Milestone 16: several desks
 
 Desks were already built one per `[[desks]]` entry, each with its own queue, router, session store, tools and memory. The builder now passes each desk's scheduled checks to its built-in jobs, the other enabled desks' names to its prompt, and a `MarketStatus` to its runtime.
+
+## Milestone 17: parts for the API
+
+While building each desk, the builder records its stores and tools in a `DeskParts`, and `shared_parts()` returns the shared objects in a `SharedParts`. The gateway's API reads both. The kill switch is kept on the builder for this reason.

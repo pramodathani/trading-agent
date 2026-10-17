@@ -170,6 +170,25 @@ class CronScheduler:
                     soonest = due
         return soonest
 
+    async def run_now(self, desk_name: str, job_id: str) -> bool:
+        """Starts one job at once, as if its time had come.
+
+        Args:
+            desk_name (str): The desk.
+            job_id (str): The job.
+
+        Returns:
+            bool: True when the job was found and started, False when the desk or job is unknown.
+        """
+        schedule = self._schedules.get(desk_name)
+        if schedule is None:
+            return False
+        for job in schedule.all_jobs():
+            if job.job_id == job_id:
+                await self._start(schedule, job, self.now(), catching_up=False)
+                return True
+        return False
+
     def upcoming(
         self,
         job: cron_job_module.CronJob,

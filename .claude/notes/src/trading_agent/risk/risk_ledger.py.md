@@ -7,3 +7,7 @@ A halt lasts until `until_date`: the next day for the daily limit, the next Mond
 ## day_owners (milestone 16)
 
 `claim` also records which desk owned the instrument that day, in `day_owners`. Ownership itself is released when the desk is flat, so without this record a loss realised on a closed trade could not be put down to the desk that made it. The last desk to claim an instrument that day gets it.
+
+## Owners and halts for the API (milestone 17)
+
+`owners` lists every stock a desk owns now, and `halts_in_force` lists the halts that still apply today, for the Trading page.

@@ -281,6 +281,58 @@ class SessionStore:
                 _LOGGER.warning('Skipped a damaged line in %s', path)
         return exchanges
 
+    def session_ids(self) -> list[str]:
+        """Every session that has a log, newest first.
+
+        Returns:
+            list[str]: The session identifiers.
+        """
+        if not self.directory.is_dir():
+            return []
+        ids = []
+        for path in self.directory.glob('*.jsonl'):
+            ids.append(path.stem)
+        ids.sort(key=self._session_sort_key, reverse=True)
+        return ids
+
+    def summaries(self) -> list[DailySummary]:
+        """Every daily summary, newest first.
+
+        Returns:
+            list[DailySummary]: The summaries.
+        """
+        folder = self.directory / _SUMMARIES_FOLDER_NAME
+        if not folder.is_dir():
+            return []
+        summaries = []
+        for path in folder.glob('*.md'):
+            try:
+                summary_date = datetime.date.fromisoformat(path.stem)
+            except ValueError:
+                continue
+            summaries.append(
+                DailySummary(
+                    trading_date=summary_date,
+                    text=path.read_text(encoding='utf-8').strip(),
+                )
+            )
+        summaries.sort(key=lambda summary: summary.trading_date, reverse=True)
+        return summaries
+
+    def _session_sort_key(self, session_id: str) -> tuple[str, int]:
+        """Orders session identifiers by date, then by number.
+
+        Args:
+            session_id (str): Such as "2026-10-19-2".
+
+        Returns:
+            tuple[str, int]: A tuple (date, number), where date is the identifier's date part and number its count within the day.
+        """
+        day, _, number = session_id.rpartition('-')
+        if number.isdigit():
+            return day, int(number)
+        return session_id, 0
+
     def write_summary(self, trading_date: datetime.date, text: str) -> Path:
         """Saves the summary of a day's session.
 

@@ -160,6 +160,17 @@ class UsageTracker:
                 usage[backend_name] = counts
         return usage
 
+    def rate_limits(self) -> dict[str, dict[str, Any]]:
+        """The latest rate-limit report from each backend that sends them, such as Claude's.
+
+        Returns:
+            dict[str, dict[str, Any]]: Each report, keyed by backend name.
+        """
+        reports = {}
+        for backend_name, status in self._rate_limits.items():
+            reports[backend_name] = dict(status)
+        return reports
+
     def summary_text(self, desk_name: str) -> str:
         """The /usage reply for a desk.
 

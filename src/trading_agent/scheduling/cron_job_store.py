@@ -135,6 +135,28 @@ class CronJobStore:
         with self._runs_file.open('a', encoding='utf-8') as runs:
             runs.write(line + '\n')
 
+    def recent_runs(self, limit: int) -> list[dict[str, Any]]:
+        """The latest runs and skips, newest first.
+
+        Args:
+            limit (int): The most runs.
+
+        Returns:
+            list[dict[str, Any]]: Each run's time, job id, name, outcome and detail.
+        """
+        if not self._runs_file.is_file():
+            return []
+        runs = []
+        for line in self._runs_file.read_text(encoding='utf-8').splitlines()[
+            -limit:
+        ]:
+            try:
+                runs.append(json.loads(line))
+            except ValueError:
+                continue
+        runs.reverse()
+        return runs
+
     def forget_run(self, job_id: str) -> None:
         """Drops a job's last-run time, after the job is deleted.
 

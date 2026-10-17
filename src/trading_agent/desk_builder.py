@@ -29,6 +29,7 @@ from trading_agent.configuration import agent_configuration
 from trading_agent.configuration import secrets as secrets_module
 from trading_agent.extensions import installed_packages
 from trading_agent.extensions import mcp_client_manager
+from trading_agent.gateway import gateway_parts
 from trading_agent.journal import usage_tracker as usage_tracker_module
 from trading_agent.knowledge import knowledge_base
 from trading_agent.memory import checkpoints as checkpoints_module
@@ -150,6 +151,7 @@ class DeskBuilder:
         self._mcp_manager = mcp_manager
         self._usage_tracker = usage_tracker
         self._alert_stores: dict[str, price_alert_store.PriceAlertStore] = {}
+        self._desk_parts: dict[str, gateway_parts.DeskParts] = {}
         self._layout = workspace_layout.WorkspaceLayout(
             configuration.workspace_directory
         )
@@ -188,18 +190,19 @@ class DeskBuilder:
             self._broker_reader
         )
         risk_settings = self._configuration.risk
+        self._kill_switch = kill_switch.KillSwitch(
+            self._broker_reader,
+            ledger,
+            self._event_bus,
+            self._configuration.mode,
+        )
         services = risk_engine.RiskServices(
             limits_reader=trading_limits.TradingLimitsReader(
                 self._layout.trading_rules_file
             ),
             snapshot_reader=snapshot_reader,
             ledger=ledger,
-            kill_switch=kill_switch.KillSwitch(
-                self._broker_reader,
-                ledger,
-                self._event_bus,
-                self._configuration.mode,
-            ),
+            kill_switch=self._kill_switch,
             margin_estimator=margin_estimator.MarginEstimator(
                 risk_settings.margin_rates
             ),
@@ -281,6 +284,15 @@ class DeskBuilder:
             built_ins,
             alerts,
         )
+        self._desk_parts[desk_name] = gateway_parts.DeskParts(
+            sessions=store,
+            jobs=jobs,
+            built_in_jobs=built_ins,
+            alerts=alerts,
+            skills=library,
+            checkpoints=checkpoints,
+            tools=executor.tool_registry,
+        )
         runner = self._turn_runner(desk_configuration, executor, store)
         keeper = None
         if isinstance(runner, model_router.ModelRouter):
@@ -309,6 +321,34 @@ class DeskBuilder:
             library,
             self._usage_tracker,
             market_status.MarketStatus(self.calendar, self.hours),
+        )
+
+    def desk_parts(self) -> dict[str, gateway_parts.DeskParts]:
+        """The stores and tools of every desk build() made, for the gateway's API.
+
+        Returns:
+            dict[str, gateway_parts.DeskParts]: The parts, keyed by desk name.
+        """
+        return dict(self._desk_parts)
+
+    def shared_parts(self) -> gateway_parts.SharedParts:
+        """The parts every desk shares, for the gateway's API.
+
+        Returns:
+            gateway_parts.SharedParts: The shared parts.
+        """
+        return gateway_parts.SharedParts(
+            layout=self._layout,
+            reader=self._broker_reader,
+            snapshot_reader=self._order_services.snapshot_reader,
+            risk_engine=self._order_services.risk_engine,
+            ledger=self._order_services.ledger,
+            kill_switch=self._kill_switch,
+            order_book=self._order_services.order_book,
+            proposals=self._proposal_store,
+            subagents=self._subagent_library,
+            packages=self._packages,
+            calendar=self.calendar,
         )
 
     def market_watcher(

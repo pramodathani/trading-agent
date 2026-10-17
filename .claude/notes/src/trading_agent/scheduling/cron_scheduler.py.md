@@ -23,3 +23,7 @@ At start, a job with `catch_up` whose previous scheduled run was within 24 hours
 ## Events
 
 `cron_fired` (job, kind, target, scheduled time, whether catching up) and `cron_result`. Hooks can react to both.
+
+## Run now (milestone 17)
+
+`run_now` starts a job through the same `_start` the timer uses, with `catching_up` false, so a run started from the web page is recorded and reported exactly like a scheduled one.

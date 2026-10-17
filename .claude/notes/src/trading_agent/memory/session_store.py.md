@@ -24,3 +24,7 @@ Everything lives in `workspace/desks/<desk>/sessions/`, which is code-owned: the
 ## Why the agent-loop conversations are not saved
 
 The local and OpenAI backends keep their full conversation, tool calls and screenshots included, only in memory. Saving and replaying it would mean serialising images and every tool result, and the replayed history would immediately blow past Gemma's 32,000-token window. Instead, after a restart those backends start empty and the router's existing hand-over gives them the session's last 10 exchanges. Claude is different because Claude Code already persists its own session on disk, so only its id needs saving.
+
+## Listing sessions (milestone 17)
+
+`session_ids` and `summaries` list what is on disk for the Sessions page, newest first.
