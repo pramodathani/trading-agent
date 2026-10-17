@@ -29,7 +29,7 @@ class TestWorkspaceLayout:
     def test_create_missing_writes_every_template_once(
         self, tmp_path: Path
     ) -> None:
-        """The first call writes five files; a second call writes none and keeps edits.
+        """The first call writes five files and four starter subagents; a second call writes none, keeps edits, and does not bring back a deleted subagent.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
@@ -38,9 +38,21 @@ class TestWorkspaceLayout:
 
         created = layout.create_missing(['main'])
         layout.user_file.write_text('edited by the user', encoding='utf-8')
+        (layout.agents_directory / 'news_reader.md').unlink()
         created_again = layout.create_missing(['main'])
 
-        assert len(created) == 5
+        agent_names = sorted(
+            path.name
+            for path in created
+            if path.parent == layout.agents_directory
+        )
+        assert agent_names == [
+            'market_researcher.md',
+            'news_reader.md',
+            'strategy_tester.md',
+            'trade_reviewer.md',
+        ]
+        assert len(created) == 9
         assert created_again == []
         assert (
             layout.user_file.read_text(encoding='utf-8') == 'edited by the user'

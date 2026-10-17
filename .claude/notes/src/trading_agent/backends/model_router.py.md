@@ -29,3 +29,7 @@ Verified on 2026-10-17: after a restart Claude resumed its saved session and rec
 ## /compact (milestone 12)
 
 `compact` asks the backend that answered last to compact its own conversation, because that is the conversation in use. A failure is reported as text, not raised, because `/compact` is a command and should always get an answer.
+
+## last_backend_name (milestone 14)
+
+A read-only property so the subagent runner can say which backend wrote a report.

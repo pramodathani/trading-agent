@@ -21,3 +21,7 @@ The `Agents.md` template's line "Notes and memory tools arrive in later mileston
 ## Knowledge, hooks and packages (milestone 13, part 3)
 
 `knowledge_directory` (created at start-up so the user can find it), `knowledge_index_file` (ignored by git), `hooks_directory` and `packages_directory`.
+
+## agents_directory (milestone 14)
+
+`workspace/shared/agents/`, the user's subagent definitions. `create_missing` copies the starter subagents only when the folder does not exist yet.

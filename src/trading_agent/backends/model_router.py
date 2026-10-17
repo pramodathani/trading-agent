@@ -246,6 +246,11 @@ class ModelRouter(turn_runner.TurnRunner):
         return [route.name for route in self._routes]
 
     @property
+    def last_backend_name(self) -> str | None:
+        """The backend that answered the last turn, or None before any turn."""
+        return self._last_backend_name
+
+    @property
     def preferred_backend_name(self) -> str | None:
         """The backend tried first because of /model, or None for the configured order."""
         return self._preferred_backend_name

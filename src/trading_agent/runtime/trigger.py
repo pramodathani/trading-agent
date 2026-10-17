@@ -22,6 +22,7 @@ class TriggerSource(enum.StrEnum):
     WEBHOOK = 'webhook'
     ROLLOVER = 'rollover'
     COMPRESSION = 'compression'
+    SUBAGENT = 'subagent'
 
 
 @dataclasses.dataclass(frozen=True)

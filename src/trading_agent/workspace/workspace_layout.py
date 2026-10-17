@@ -6,6 +6,7 @@ The workspace has a shared part that belongs to the user, and one folder per des
     shared/   Agents.md  User.md  TradingRules.md
     shared/skills/installed/   the user's imported skills
     shared/knowledge/   the user's documents, searched with search_knowledge
+    shared/agents/   the user's subagent definitions, starting with four starters
     shared/hooks/<event>/   the user's hook scripts
     shared/packages/<package>/   installed packages
     desks/<desk>/   Persona.md  Memory.md  notes/  sessions/  skills/  proposals/  scratch/
@@ -105,6 +106,11 @@ class WorkspaceLayout:
             Path: The desk's Memory.md.
         """
         return self.desk_directory(desk_name) / 'Memory.md'
+
+    @property
+    def agents_directory(self) -> Path:
+        """The user's subagent definitions, one Markdown file each."""
+        return self.shared_directory / 'agents'
 
     @property
     def hooks_directory(self) -> Path:
@@ -241,7 +247,7 @@ class WorkspaceLayout:
     def create_missing(self, desk_names: Sequence[str]) -> list[Path]:
         """Creates the folders, and writes each missing file from its template.
 
-        Existing files are never overwritten.
+        Existing files are never overwritten. The starter subagents are written only when the agents folder does not exist yet, so one the user deleted stays deleted.
 
         Args:
             desk_names (Sequence[str]): The desks to prepare.
@@ -256,6 +262,8 @@ class WorkspaceLayout:
             target = self.shared_directory / file_name
             if self._write_template_if_missing(target, file_name):
                 created.append(target)
+        if not self.agents_directory.exists():
+            created.extend(self._write_starter_agents())
         for desk_name in desk_names:
             self.proposals_directory(desk_name).mkdir(
                 parents=True, exist_ok=True
@@ -267,6 +275,29 @@ class WorkspaceLayout:
                 if self._write_template_if_missing(target, file_name):
                     created.append(target)
         return created
+
+    def _write_starter_agents(self) -> list[Path]:
+        """Copies the starter subagent definitions into the new agents folder.
+
+        Returns:
+            list[Path]: The files written.
+        """
+        templates = (
+            importlib.resources.files('trading_agent.workspace')
+            / 'templates'
+            / 'agents'
+        )
+        self.agents_directory.mkdir(parents=True)
+        written = []
+        for template in sorted(templates.iterdir(), key=lambda item: item.name):
+            if not template.name.endswith('.md'):
+                continue
+            target = self.agents_directory / template.name
+            target.write_text(
+                template.read_text(encoding='utf-8'), encoding='utf-8'
+            )
+            written.append(target)
+        return written
 
     def template_text(self, template_name: str) -> str:
         """Reads one of the templates shipped with the package.

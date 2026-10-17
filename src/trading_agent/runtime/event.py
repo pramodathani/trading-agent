@@ -30,6 +30,8 @@ class EventKind(enum.StrEnum):
     ORDER = 'order'
     SESSION_STARTED = 'session_started'
     CONTEXT_COMPRESSED = 'context_compressed'
+    SUBAGENT_STARTED = 'subagent_started'
+    SUBAGENT_FINISHED = 'subagent_finished'
     TEXT = 'text'
     TURN_FINISHED = 'turn_finished'
     ERROR = 'error'
