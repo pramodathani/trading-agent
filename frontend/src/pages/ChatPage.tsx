@@ -4,17 +4,20 @@ import { apiClient } from '../api/apiClient';
 import type { AgentEvent, Attachment } from '../api/types';
 import { AttachmentList } from '../components/AttachmentList';
 import { PictureThumbnail } from '../components/PictureThumbnail';
+import { elapsedText, TurnProgress } from '../components/TurnProgress';
 import { useLiveEvents, useStreamingTexts } from '../hooks/useLiveEvents';
 import { useDesks } from '../layout/desksContext';
 import { useSelectedDesk } from '../layout/selectedDeskStore';
 import { SidePanel } from '../sidePanel/SidePanel';
 import { useSidePanelOpen } from '../sidePanel/sidePanelStore';
-import { chatTurnBuilder, type ChatItem, type ChatTurn, type SteeringStep, type ToolStep } from '../utilities/chatTurnBuilder';
+import { chatTurnBuilder, type ChatItem, type ChatTurn, type SteeringStep, type ToolStep, type TurnStep } from '../utilities/chatTurnBuilder';
 import { eventDescriber } from '../utilities/eventDescriber';
 import { eventMerger } from '../utilities/eventMerger';
 import { formatter } from '../utilities/formatter';
+import { toolDescriber } from '../utilities/toolDescriber';
 
 const JOURNAL_LIMIT = 1500;
+const BOTTOM_SLACK_PIXELS = 48;
 const ACCEPTED_FILES = '.png,.jpg,.jpeg,.webp,.gif,.pdf,.docx,.xlsx,.csv,.tsv,.txt,.md,.json';
 const SLASH_COMMANDS = [
   '/status',
@@ -55,7 +58,9 @@ export function ChatPage() {
   const [sendError, setSendError] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingFile[]>([]);
   const [dragging, setDragging] = useState(false);
-  const bottomReference = useRef<HTMLDivElement>(null);
+  const scrollReference = useRef<HTMLDivElement>(null);
+  const columnReference = useRef<HTMLDivElement>(null);
+  const stuckToBottom = useRef(true);
   const fileInput = useRef<HTMLInputElement>(null);
   const pendingReference = useRef<PendingFile[]>([]);
   pendingReference.current = pending;
@@ -115,14 +120,55 @@ export function ChatPage() {
   const lastSize = lastTurn !== null && lastTurn.type === 'turn' ? lastTurn.steps.length + (lastTurn.answer ?? '').length + (streams.get(lastTurn.triggerId) ?? '').length : 0;
 
   useEffect(() => {
-    bottomReference.current?.scrollIntoView({
-      block: 'end',
-    });
+    stuckToBottom.current = true;
+  }, [
+    deskName,
+  ]);
+
+  useEffect(() => {
+    if (stuckToBottom.current) {
+      scrollToBottom();
+    }
   }, [
     lastItemKey,
     lastSize,
     deskName,
   ]);
+
+  useEffect(() => {
+    const scroller = scrollReference.current;
+    const column = columnReference.current;
+    if (scroller === null || column === null) {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      if (stuckToBottom.current) {
+        scrollToBottom();
+      }
+    });
+    observer.observe(scroller);
+    observer.observe(column);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  /** Scrolls the chat to its newest line. */
+  function scrollToBottom(): void {
+    const scroller = scrollReference.current;
+    if (scroller !== null) {
+      scroller.scrollTop = scroller.scrollHeight;
+    }
+  }
+
+  /** Remembers whether the user is reading the newest lines, so the chat follows new ones only then. */
+  function handleScroll(): void {
+    const scroller = scrollReference.current;
+    if (scroller === null) {
+      return;
+    }
+    stuckToBottom.current = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < BOTTOM_SLACK_PIXELS;
+  }
 
   const readyFiles = pending.filter((item) => item.status === 'ready');
   const uploading = pending.some((item) => item.status === 'uploading');
@@ -230,6 +276,7 @@ export function ChatPage() {
     }
     setSending(true);
     setSendError(null);
+    stuckToBottom.current = true;
     try {
       const attachmentIds = readyFiles.map((item) => (item.attachment as Attachment).attachment_id);
       await apiClient.sendMessage(deskName, text, attachmentIds);
@@ -267,8 +314,8 @@ export function ChatPage() {
 
   return (
     <div className={panelOpen ? 'chat-page with-panel' : 'chat-page'}>
-      <div className="chat-scroll">
-        <div className="chat-column">
+      <div className="chat-scroll" ref={scrollReference} onScroll={handleScroll}>
+        <div className="chat-column" ref={columnReference}>
           <div className="chat-header">
             <h1>Chat with {deskName}</h1>
             {desk !== null && (
@@ -285,7 +332,6 @@ export function ChatPage() {
             {items.map((item) =>
               item.type === 'turn' ? <TurnView key={itemKey(item)} deskName={deskName} turn={item} streamingText={streams.get(item.triggerId) ?? ''} /> : <LooseEventView key={itemKey(item)} deskName={deskName} event={item.event} />,
             )}
-            <div ref={bottomReference} />
           </div>
         </div>
       </div>
@@ -317,7 +363,7 @@ export function ChatPage() {
           <textarea
             rows={1}
             value={draft}
-            placeholder={`Message ${deskName}, or type / for commands`}
+            placeholder={desk !== null && desk.state !== 'idle' ? `${deskName} is working. A message now is handed to it at its next tool call.` : `Message ${deskName}, or type / for commands`}
             title="Enter sends; Shift and Enter adds a line. Drop or paste pictures and documents here."
             onChange={(change) => setDraft(change.target.value)}
             onKeyDown={handleKey}
@@ -354,7 +400,6 @@ export function ChatPage() {
           </div>
         </form>
         {sendError !== null && <p className="error-text small composer-note">{sendError}</p>}
-        {desk !== null && desk.state !== 'idle' && <p className="muted small composer-note">The desk is working. A message you send now is handed to it at its next tool call; if the turn ends first, it becomes the next turn.</p>}
       </div>
       {panelOpen && <SidePanel deskName={deskName} desk={desk} events={deskEvents} />}
     </div>
@@ -434,6 +479,12 @@ function TurnView(properties: TurnViewProperties) {
   const turn = properties.turn;
   const fromUser = turn.source === 'user_message';
   const status = turnStatus(turn);
+  const inProgress = !turn.finished && !turn.stopped && turn.error === null && (turn.started || turn.steeringOutcome === null);
+  let finishedStatus = status;
+  if (turn.startedAt !== null && turn.finishedAt !== null) {
+    const seconds = Math.max(0, Math.round((Date.parse(turn.finishedAt) - Date.parse(turn.startedAt)) / 1000));
+    finishedStatus = `${status} · ${elapsedText(seconds)}`;
+  }
   const showStream = turn.answer === null && !turn.finished && properties.streamingText.length > 0;
   return (
     <section className="turn">
@@ -447,12 +498,16 @@ function TurnView(properties: TurnViewProperties) {
       </div>
       {turn.steps.length > 0 && (
         <div className="steps">
-          {turn.steps.map((step, index) => {
-            if (step.type === 'tool') {
-              return <ToolCard key={step.callId || index} deskName={properties.deskName} step={step} />;
+          {stepSegments(turn.steps).map((segment, index) => {
+            if (segment.type === 'tools') {
+              return <ToolGroup key={segment.steps[0].callId || index} deskName={properties.deskName} steps={segment.steps} />;
             }
+            const step = segment.step;
             if (step.type === 'steering') {
               return <SteeringView key={step.message.triggerId} step={step} />;
+            }
+            if (step.type === 'tool') {
+              return null;
             }
             if (step.event.kind === 'message') {
               return <DeskMessageView key={eventMerger.key(step.event)} deskName={properties.deskName} event={step.event} />;
@@ -482,7 +537,7 @@ function TurnView(properties: TurnViewProperties) {
         </div>
       )}
       {turn.error !== null && <div className="bubble failed">The turn failed: {turn.error}</div>}
-      <div className={turn.finished || turn.steeringOutcome === 'delivered' ? 'turn-status muted small' : 'turn-status working small'}>{status}</div>
+      {inProgress ? <TurnProgress turn={turn} streamingText={properties.streamingText} /> : <div className="turn-status muted small">{finishedStatus}</div>}
     </section>
   );
 }
@@ -502,6 +557,71 @@ function SteeringView(properties: { step: SteeringStep }) {
       </div>
       <pre>{message.text}</pre>
       <div className="muted small">{turnStatus(message)}</div>
+    </div>
+  );
+}
+
+/** A run of tool calls shown as one folded line, or any other step shown on its own. */
+type StepSegment = { type: 'tools'; steps: ToolStep[] } | { type: 'single'; step: TurnStep };
+
+/**
+ * Groups a turn's steps so that tool calls in a row become one segment.
+ * @param steps The turn's steps, in order.
+ * @returns The segments, in order.
+ */
+function stepSegments(steps: TurnStep[]): StepSegment[] {
+  const segments: StepSegment[] = [];
+  for (const step of steps) {
+    const last = segments.length > 0 ? segments[segments.length - 1] : null;
+    if (step.type === 'tool' && last !== null && last.type === 'tools') {
+      last.steps.push(step);
+    } else if (step.type === 'tool') {
+      segments.push({
+        type: 'tools',
+        steps: [
+          step,
+        ],
+      });
+    } else {
+      segments.push({
+        type: 'single',
+        step,
+      });
+    }
+  }
+  return segments;
+}
+
+/**
+ * Tool calls in a row, folded into one summary line as Claude Code shows them; pictures the tools showed the model stay visible.
+ * @param properties The desk and the tool calls.
+ * @returns The group.
+ */
+function ToolGroup(properties: { deskName: string; steps: ToolStep[] }) {
+  const [open, setOpen] = useState(false);
+  const steps = properties.steps;
+  const pictures = steps.filter((step) => step.picturePath !== null);
+  return (
+    <div className="tool-group">
+      <button type="button" className={open ? 'tool-group-summary open' : 'tool-group-summary'} aria-expanded={open} onClick={() => setOpen(!open)}>
+        {toolDescriber.summary(steps)}
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && (
+        <div className="tool-group-body">
+          {steps.map((step, index) => (
+            <ToolCard key={step.callId || index} deskName={properties.deskName} step={step} />
+          ))}
+        </div>
+      )}
+      {!open &&
+        pictures.map((step) => (
+          <div key={step.callId} className="tool-card-picture">
+            <PictureThumbnail fileName={step.picturePath as string} loadKey={`${properties.deskName}/${step.picturePath}`} load={() => apiClient.deskPicture(properties.deskName, step.picturePath as string)} />
+          </div>
+        ))}
     </div>
   );
 }

@@ -34,6 +34,8 @@ export interface ChatTurn {
   text: string;
   attachments: Attachment[];
   receivedAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
   started: boolean;
   finished: boolean;
   steps: TurnStep[];
@@ -126,9 +128,11 @@ export class ChatTurnBuilder {
       }
       if (event.kind === 'turn_started') {
         turn.started = true;
+        turn.startedAt = event.created_at;
         openTurn = turn;
       } else if (event.kind === 'turn_finished') {
         turn.finished = true;
+        turn.finishedAt = event.created_at;
         if (openTurn === turn) {
           openTurn = null;
         }
@@ -153,6 +157,8 @@ export class ChatTurnBuilder {
       text: String(event.payload.text ?? ''),
       attachments: Array.isArray(event.payload.attachments) ? (event.payload.attachments as Attachment[]) : [],
       receivedAt: event.created_at,
+      startedAt: null,
+      finishedAt: null,
       started: false,
       finished: false,
       steps: [],
