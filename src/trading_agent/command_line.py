@@ -138,6 +138,18 @@ class CommandLine:
             action='store_true',
             help='Replace installed skills that have the same name.',
         )
+        mcp_parser = subparsers.add_parser(
+            'mcp',
+            help='Check the MCP servers in mcp_servers.json.',
+        )
+        mcp_actions = mcp_parser.add_subparsers(
+            dest='mcp_action',
+            required=True,
+        )
+        mcp_actions.add_parser(
+            'list',
+            help='Connect to every MCP server once and list its tools.',
+        )
         arguments = parser.parse_args(argument_list)
         if arguments.command is None:
             arguments.command = 'serve'

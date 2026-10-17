@@ -15,3 +15,7 @@ From milestone 8 the application builds the secret redactor and the trade journa
 ## Skills (milestone 13)
 
 `trading-agent skills list|import` runs before the gateway is built. The gateway runs `SkillUsageTracker` as a second background worker beside the journal.
+
+## MCP (milestone 13)
+
+`mcp_servers.json` is read once at start-up, before any command that needs it; an invalid file exits with status 2. `trading-agent mcp list` checks the servers on its own. `serve` passes the manager to the desk builder and runs it as a third background worker.

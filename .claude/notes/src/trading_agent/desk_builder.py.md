@@ -35,3 +35,7 @@ Each agent-loop runner gets its own `ContextCompressor`, sized by its backend's 
 ## Milestone 13: skills
 
 `build` now makes the bash sandbox itself, with `[sandbox] passed_environment`, so the skill library can check needs against what the sandbox passes. Each desk gets a `SkillLibrary`, a `SkillWriter` (with the desk's checkpoints and ledger), a `SkillCurator` handed to the session keeper, and the tools `load_skill`, `skill_create`, `skill_patch` and `skill_archive`. The library is kept per desk in `_skill_libraries` so `_prompt_builder` can add the index without threading the library through every backend-building method.
+
+## MCP (milestone 13)
+
+The builder receives the gateway's one `McpClientManager`. When at least one server is configured, every desk gets `tool_search` and `call_mcp_tool`, and the prompt builder gets the manager for the tool-name index. With no servers, neither tool is offered, so models are not tempted by tools that cannot work.

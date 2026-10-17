@@ -25,6 +25,7 @@ from trading_agent.backends import ollama_backend
 from trading_agent.backends import openai_compatible_backend
 from trading_agent.configuration import agent_configuration
 from trading_agent.configuration import secrets as secrets_module
+from trading_agent.extensions import mcp_client_manager
 from trading_agent.memory import checkpoints as checkpoints_module
 from trading_agent.memory import session_keeper
 from trading_agent.memory import session_search
@@ -60,6 +61,7 @@ from trading_agent.tools import browser_session
 from trading_agent.tools import browser_snapshot_tool
 from trading_agent.tools import browser_tabs_tool
 from trading_agent.tools import browser_type_tool
+from trading_agent.tools import call_mcp_tool_tool
 from trading_agent.tools import cancel_order_tool
 from trading_agent.tools import edit_file_tool
 from trading_agent.tools import flatten_desk_tool
@@ -83,6 +85,7 @@ from trading_agent.tools import skill_create_tool
 from trading_agent.tools import skill_patch_tool
 from trading_agent.tools import tool_call_executor
 from trading_agent.tools import tool_registry
+from trading_agent.tools import tool_search_tool
 from trading_agent.tools import web_fetch_tool
 from trading_agent.tools import web_search_tool
 from trading_agent.tools import write_file_tool
@@ -103,6 +106,7 @@ class DeskBuilder:
         configuration: agent_configuration.AgentConfiguration,
         secrets: secrets_module.Secrets,
         event_bus: event_bus_module.EventBus,
+        mcp_manager: mcp_client_manager.McpClientManager | None = None,
     ):
         """Creates the builder.
 
@@ -110,10 +114,12 @@ class DeskBuilder:
             configuration (agent_configuration.AgentConfiguration): The agent's configuration.
             secrets (secrets_module.Secrets): The secrets read from the environment and .env.
             event_bus (event_bus_module.EventBus): The bus every desk publishes on.
+            mcp_manager (mcp_client_manager.McpClientManager | None): The gateway's MCP connections, shared by every desk, or None.
         """
         self._configuration = configuration
         self._secrets = secrets
         self._event_bus = event_bus
+        self._mcp_manager = mcp_manager
         self._layout = workspace_layout.WorkspaceLayout(
             configuration.workspace_directory
         )
@@ -363,95 +369,99 @@ class DeskBuilder:
             address_guard.AddressGuard(),
             self._configuration.browser,
         )
+        tools = [
+            get_time_tool.GetTimeTool(),
+            propose_file_change_tool.ProposeFileChangeTool(
+                self._proposal_store,
+                desk_configuration.name,
+            ),
+            bash_run_tool.BashRunTool(session),
+            bash_restart_tool.BashRestartTool(session),
+            bash_background_tool.BashBackgroundTool(session),
+            bash_check_tool.BashCheckTool(session),
+            read_file_tool.ReadFileTool(policy),
+            write_file_tool.WriteFileTool(policy, checkpoints),
+            edit_file_tool.EditFileTool(policy, checkpoints),
+            add_note_tool.AddNoteTool(
+                self._layout.notes_directory(desk_configuration.name),
+                checkpoints,
+            ),
+            search_sessions_tool.SearchSessionsTool(
+                session_search.SessionSearch(desk_directory)
+            ),
+            load_skill_tool.LoadSkillTool(library),
+            skill_create_tool.SkillCreateTool(writer),
+            skill_patch_tool.SkillPatchTool(writer),
+            skill_archive_tool.SkillArchiveTool(writer),
+            web_search_tool.WebSearchTool(
+                web_settings.searxng_base_url,
+                web_settings.search_result_limit,
+            ),
+            web_fetch_tool.WebFetchTool(
+                web_settings.fetch_timeout_seconds,
+                web_settings.maximum_page_characters,
+            ),
+            browser_open_tool.BrowserOpenTool(browser),
+            browser_snapshot_tool.BrowserSnapshotTool(browser),
+            browser_click_tool.BrowserClickTool(browser),
+            browser_type_tool.BrowserTypeTool(browser),
+            browser_screenshot_tool.BrowserScreenshotTool(
+                browser,
+                desk_directory,
+            ),
+            browser_back_tool.BrowserBackTool(browser),
+            browser_tabs_tool.BrowserTabsTool(browser),
+            search_instruments_tool.SearchInstrumentsTool(
+                self._broker_reader,
+                self._result_formatter,
+            ),
+            get_quote_tool.GetQuoteTool(
+                self._broker_reader,
+                self._result_formatter,
+            ),
+            get_candles_tool.GetCandlesTool(
+                self._broker_reader,
+                self._result_formatter,
+            ),
+            get_portfolio_tool.GetPortfolioTool(
+                self._broker_reader,
+                self._result_formatter,
+            ),
+            get_orders_tool.GetOrdersTool(
+                self._broker_reader,
+                self._result_formatter,
+            ),
+            place_order_tool.PlaceOrderTool(
+                self._order_services,
+                desk_configuration.name,
+                self._configuration.mode,
+            ),
+            place_bracket_order_tool.PlaceBracketOrderTool(
+                self._order_services,
+                desk_configuration.name,
+                self._configuration.mode,
+            ),
+            modify_order_tool.ModifyOrderTool(
+                self._order_services,
+                desk_configuration.name,
+                self._configuration.mode,
+            ),
+            cancel_order_tool.CancelOrderTool(
+                self._order_services,
+                desk_configuration.name,
+                self._configuration.mode,
+            ),
+            flatten_desk_tool.FlattenDeskTool(
+                self._order_services,
+                desk_configuration.name,
+                self._configuration.mode,
+            ),
+        ]
+        if self._mcp_manager is not None and self._mcp_manager.connections:
+            tools.append(tool_search_tool.ToolSearchTool(self._mcp_manager))
+            tools.append(call_mcp_tool_tool.CallMcpToolTool(self._mcp_manager))
         registry = tool_registry.ToolRegistry(
-            [
-                get_time_tool.GetTimeTool(),
-                propose_file_change_tool.ProposeFileChangeTool(
-                    self._proposal_store,
-                    desk_configuration.name,
-                ),
-                bash_run_tool.BashRunTool(session),
-                bash_restart_tool.BashRestartTool(session),
-                bash_background_tool.BashBackgroundTool(session),
-                bash_check_tool.BashCheckTool(session),
-                read_file_tool.ReadFileTool(policy),
-                write_file_tool.WriteFileTool(policy, checkpoints),
-                edit_file_tool.EditFileTool(policy, checkpoints),
-                add_note_tool.AddNoteTool(
-                    self._layout.notes_directory(desk_configuration.name),
-                    checkpoints,
-                ),
-                search_sessions_tool.SearchSessionsTool(
-                    session_search.SessionSearch(desk_directory)
-                ),
-                load_skill_tool.LoadSkillTool(library),
-                skill_create_tool.SkillCreateTool(writer),
-                skill_patch_tool.SkillPatchTool(writer),
-                skill_archive_tool.SkillArchiveTool(writer),
-                web_search_tool.WebSearchTool(
-                    web_settings.searxng_base_url,
-                    web_settings.search_result_limit,
-                ),
-                web_fetch_tool.WebFetchTool(
-                    web_settings.fetch_timeout_seconds,
-                    web_settings.maximum_page_characters,
-                ),
-                browser_open_tool.BrowserOpenTool(browser),
-                browser_snapshot_tool.BrowserSnapshotTool(browser),
-                browser_click_tool.BrowserClickTool(browser),
-                browser_type_tool.BrowserTypeTool(browser),
-                browser_screenshot_tool.BrowserScreenshotTool(
-                    browser,
-                    desk_directory,
-                ),
-                browser_back_tool.BrowserBackTool(browser),
-                browser_tabs_tool.BrowserTabsTool(browser),
-                search_instruments_tool.SearchInstrumentsTool(
-                    self._broker_reader,
-                    self._result_formatter,
-                ),
-                get_quote_tool.GetQuoteTool(
-                    self._broker_reader,
-                    self._result_formatter,
-                ),
-                get_candles_tool.GetCandlesTool(
-                    self._broker_reader,
-                    self._result_formatter,
-                ),
-                get_portfolio_tool.GetPortfolioTool(
-                    self._broker_reader,
-                    self._result_formatter,
-                ),
-                get_orders_tool.GetOrdersTool(
-                    self._broker_reader,
-                    self._result_formatter,
-                ),
-                place_order_tool.PlaceOrderTool(
-                    self._order_services,
-                    desk_configuration.name,
-                    self._configuration.mode,
-                ),
-                place_bracket_order_tool.PlaceBracketOrderTool(
-                    self._order_services,
-                    desk_configuration.name,
-                    self._configuration.mode,
-                ),
-                modify_order_tool.ModifyOrderTool(
-                    self._order_services,
-                    desk_configuration.name,
-                    self._configuration.mode,
-                ),
-                cancel_order_tool.CancelOrderTool(
-                    self._order_services,
-                    desk_configuration.name,
-                    self._configuration.mode,
-                ),
-                flatten_desk_tool.FlattenDeskTool(
-                    self._order_services,
-                    desk_configuration.name,
-                    self._configuration.mode,
-                ),
-            ],
+            tools,
             timeout_seconds=agent_settings.tool_timeout_seconds,
         )
         return tool_call_executor.ToolCallExecutor(
@@ -567,4 +577,5 @@ class DeskBuilder:
             desk_configuration.name,
             self._configuration.mode,
             self._skill_libraries.get(desk_configuration.name),
+            self._mcp_manager,
         )

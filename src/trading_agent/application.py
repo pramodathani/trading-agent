@@ -15,6 +15,7 @@ import uvicorn
 from trading_agent import command_line
 from trading_agent import desk_builder
 from trading_agent.client import checkpoint_commands
+from trading_agent.client import mcp_commands
 from trading_agent.client import message_client
 from trading_agent.client import proposal_commands
 from trading_agent.client import skill_commands
@@ -22,6 +23,8 @@ from trading_agent.configuration import agent_configuration
 from trading_agent.configuration import configuration_loader
 from trading_agent.configuration import secrets as secrets_module
 from trading_agent.doctor import doctor
+from trading_agent.extensions import mcp_client_manager
+from trading_agent.extensions import mcp_server_configuration
 from trading_agent.gateway import access_guard
 from trading_agent.gateway import gateway_application
 from trading_agent.gateway import token_redacting_filter
@@ -51,7 +54,7 @@ class Application:
     def run(self) -> None:
         """Reads the configuration and runs the chosen command until it ends.
 
-        The process exits with status 2 when the configuration is invalid, and with the command's own status after `doctor`, `send`, `proposals`, `checkpoints` and `skills`.
+        The process exits with status 2 when the configuration is invalid, and with the command's own status after `doctor`, `send`, `proposals`, `checkpoints`, `skills` and `mcp`.
         """
         arguments = command_line.CommandLine().parse(self._argument_list)
         log_level = logging.INFO
@@ -128,21 +131,38 @@ class Application:
                     vars(arguments).get('replace', False),
                 )
             )
-        self._serve(configuration, secrets)
+        try:
+            mcp_servers = mcp_server_configuration.McpConfigurationReader(
+                configuration.mcp_servers_file
+            ).read()
+        except mcp_server_configuration.McpConfigurationError as error:
+            print(error, file=sys.stderr)
+            sys.exit(2)
+        manager = mcp_client_manager.McpClientManager(mcp_servers)
+        if arguments.command == 'mcp':
+            sys.exit(asyncio.run(mcp_commands.McpCommands(manager).list()))
+        self._serve(configuration, secrets, manager)
 
     def _serve(
         self,
         configuration: agent_configuration.AgentConfiguration,
         secrets: secrets_module.Secrets,
+        manager: mcp_client_manager.McpClientManager,
     ) -> None:
         """Builds the desks and the gateway and serves until stopped.
 
         Args:
             configuration (agent_configuration.AgentConfiguration): The agent's configuration.
             secrets (secrets_module.Secrets): The secrets read from the environment and .env.
+            manager (mcp_client_manager.McpClientManager): The MCP connections, run beside the desks.
         """
         event_bus = event_bus_module.EventBus()
-        builder = desk_builder.DeskBuilder(configuration, secrets, event_bus)
+        builder = desk_builder.DeskBuilder(
+            configuration,
+            secrets,
+            event_bus,
+            manager,
+        )
         desks = {}
         for desk_configuration in configuration.desks:
             if not desk_configuration.enabled:
@@ -169,6 +189,7 @@ class Application:
             [
                 journal,
                 usage_tracker,
+                manager,
             ],
             redactor,
         )
