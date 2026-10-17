@@ -16,6 +16,7 @@ import { eventDescriber } from '../utilities/eventDescriber';
 import { eventMerger } from '../utilities/eventMerger';
 import { formatter } from '../utilities/formatter';
 import { toolDescriber } from '../utilities/toolDescriber';
+import { VoiceInput } from '../utilities/voiceInput';
 
 const JOURNAL_LIMIT = 1500;
 const BOTTOM_SLACK_PIXELS = 48;
@@ -62,6 +63,10 @@ export function ChatPage() {
   const scrollReference = useRef<HTMLDivElement>(null);
   const columnReference = useRef<HTMLDivElement>(null);
   const stuckToBottom = useRef(true);
+  const voiceInput = useMemo(() => new VoiceInput(), []);
+  const voiceBase = useRef('');
+  const [listening, setListening] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const pendingReference = useRef<PendingFile[]>([]);
   pendingReference.current = pending;
@@ -122,9 +127,31 @@ export function ChatPage() {
 
   useEffect(() => {
     stuckToBottom.current = true;
+    return () => {
+      voiceInput.stop();
+    };
   }, [
     deskName,
+    voiceInput,
   ]);
+
+  /** Starts turning speech into text in the message box, or stops when already listening. */
+  function toggleListening(): void {
+    if (listening) {
+      voiceInput.stop();
+      return;
+    }
+    setVoiceError(null);
+    voiceBase.current = draft.trim();
+    setListening(true);
+    voiceInput.start({
+      onText: (text) => {
+        setDraft(voiceBase.current.length > 0 ? `${voiceBase.current} ${text}` : text);
+      },
+      onEnd: () => setListening(false),
+      onError: (message) => setVoiceError(message),
+    });
+  }
 
   useEffect(() => {
     if (stuckToBottom.current) {
@@ -171,6 +198,8 @@ export function ChatPage() {
     stuckToBottom.current = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < BOTTOM_SLACK_PIXELS;
   }
 
+  const busy = desk !== null && desk.state !== 'idle';
+  const modeWords = desk !== null && desk.mode === 'live' ? 'Live orders' : 'Dry run';
   const readyFiles = pending.filter((item) => item.status === 'ready');
   const uploading = pending.some((item) => item.status === 'uploading');
   const canSend = !sending && !uploading && (draft.trim().length > 0 || readyFiles.length > 0);
@@ -278,6 +307,7 @@ export function ChatPage() {
     setSending(true);
     setSendError(null);
     stuckToBottom.current = true;
+    voiceInput.stop();
     try {
       const attachmentIds = readyFiles.map((item) => (item.attachment as Attachment).attachment_id);
       await apiClient.sendMessage(deskName, text, attachmentIds);
@@ -361,45 +391,68 @@ export function ChatPage() {
               ))}
             </div>
           )}
-          <textarea
-            rows={1}
-            value={draft}
-            placeholder={desk !== null && desk.state !== 'idle' ? `${deskName} is working. A message now is handed to it at its next tool call.` : `Message ${deskName}, or type / for commands`}
-            title="Enter sends; Shift and Enter adds a line. Drop or paste pictures and documents here."
-            onChange={(change) => setDraft(change.target.value)}
-            onKeyDown={handleKey}
-            onPaste={handlePaste}
-          />
-          <input
-            ref={fileInput}
-            type="file"
-            multiple
-            accept={ACCEPTED_FILES}
-            hidden
-            onChange={(change) => {
-              addFiles(Array.from(change.target.files ?? []));
-              change.target.value = '';
-            }}
-          />
           <div className="composer-row">
             <button type="button" className="icon-button" onClick={() => fileInput.current?.click()} aria-label="Attach files" title="Attach pictures or documents: PNG, JPEG, WebP, GIF, PDF, Word, Excel, CSV, text, Markdown or JSON, up to 20 MB each">
               <svg viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </button>
-            <span className="spacer" />
-            {desk !== null && desk.state !== 'idle' && (
-              <button className="danger" type="button" onClick={stop} title="Cancel the running turn at once">
-                Stop
+            <textarea
+              rows={1}
+              value={draft}
+              placeholder={busy ? `Enter to hand a message to ${deskName} at its next tool call` : 'Enter to send, Shift+Enter for a new line, / for commands'}
+              title="Enter sends; Shift and Enter adds a line. Drop or paste pictures and documents here."
+              onChange={(change) => setDraft(change.target.value)}
+              onKeyDown={handleKey}
+              onPaste={handlePaste}
+            />
+            <input
+              ref={fileInput}
+              type="file"
+              multiple
+              accept={ACCEPTED_FILES}
+              hidden
+              onChange={(change) => {
+                addFiles(Array.from(change.target.files ?? []));
+                change.target.value = '';
+              }}
+            />
+            {busy && (
+              <button type="button" className="icon-button stop-button" onClick={stop} aria-label="Stop the running turn" title="Stop the running turn at once">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" strokeWidth="1.4" />
+                  <rect x="5.75" y="5.75" width="4.5" height="4.5" rx="0.8" fill="currentColor" />
+                </svg>
               </button>
             )}
-            <button className="primary send-button" type="submit" disabled={!canSend} aria-label="Send">
+            <button
+              type="button"
+              className={listening ? 'icon-button mic-button listening' : 'icon-button mic-button'}
+              onClick={toggleListening}
+              disabled={!voiceInput.isSupported()}
+              aria-pressed={listening}
+              aria-label={listening ? 'Stop voice input' : 'Speak your message'}
+              title={voiceInput.isSupported() ? (listening ? 'Listening. Press again to stop.' : 'Speak your message') : 'This browser cannot turn speech into text. Chrome and Edge can.'}
+            >
               <svg viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                <rect x="5.75" y="2" width="4.5" height="7.5" rx="2.25" fill="none" stroke="currentColor" strokeWidth="1.4" />
+                <path d="M3.5 7.75a4.5 4.5 0 0 0 9 0M8 12.25V14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
               </svg>
             </button>
+            {canSend && (
+              <button className="primary send-button" type="submit" aria-label="Send">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            )}
           </div>
         </form>
+        <div className="composer-footer">
+          <span className={listening ? 'composer-hint listening' : 'composer-hint'}>{listening ? 'Listening… press the microphone again to stop' : modeWords}</span>
+          <span className="spacer" />
+        </div>
+        {voiceError !== null && <p className="error-text small composer-note">{voiceError}</p>}
         {sendError !== null && <p className="error-text small composer-note">{sendError}</p>}
       </div>
       {panelOpen && <SidePanel deskName={deskName} desk={desk} events={deskEvents} />}
