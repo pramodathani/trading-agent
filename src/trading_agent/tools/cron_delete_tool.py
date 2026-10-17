@@ -47,7 +47,8 @@ class CronDeleteTool(tool.Tool):
         Returns:
             tool.ToolResult: A confirmation, or why nothing was deleted.
         """
-        if arguments.job_id in ('heartbeat', 'rollover'):
+        built_in = arguments.job_id in ('heartbeat', 'rollover')
+        if built_in or arguments.job_id.startswith('check-'):
             return tool.ToolResult.error(
                 f'{arguments.job_id} is built in; the user sets it in trading_agent.toml.'
             )

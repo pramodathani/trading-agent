@@ -33,3 +33,7 @@ Every `text` event now carries `silent`: true when a heartbeat or scheduled job 
 ## usage_tracker (milestone 15)
 
 The desk holds the gateway's usage tracker so /usage can read it.
+
+## Market line (milestone 16)
+
+With a `MarketStatus`, the context line ends with " · market: ..." (see scheduling/market_status.py.md).

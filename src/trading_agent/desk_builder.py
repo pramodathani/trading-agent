@@ -52,6 +52,7 @@ from trading_agent.scheduling import cron_job
 from trading_agent.scheduling import cron_job_store
 from trading_agent.scheduling import cron_scheduler
 from trading_agent.scheduling import market_calendar
+from trading_agent.scheduling import market_status
 from trading_agent.scheduling import market_watcher
 from trading_agent.scheduling import price_alert_store
 from trading_agent.skills import skill_curator
@@ -264,6 +265,7 @@ class DeskBuilder:
         built_ins = built_in_jobs.BuiltInJobs().jobs(
             desk_configuration.heartbeat_minutes,
             desk_configuration.rollover_time,
+            desk_configuration.scheduled_checks,
         )
         alerts = price_alert_store.PriceAlertStore(
             self._layout.alerts_file(desk_name)
@@ -306,6 +308,7 @@ class DeskBuilder:
             keeper,
             library,
             self._usage_tracker,
+            market_status.MarketStatus(self.calendar, self.hours),
         )
 
     def market_watcher(
@@ -774,4 +777,20 @@ class DeskBuilder:
             self._skill_libraries.get(desk_configuration.name),
             self._mcp_manager,
             self._subagent_library,
+            self._other_desk_names(desk_configuration.name),
         )
+
+    def _other_desk_names(self, desk_name: str) -> list[str]:
+        """The enabled desks other than one.
+
+        Args:
+            desk_name (str): The desk to leave out.
+
+        Returns:
+            list[str]: The other enabled desks' names, in configuration order.
+        """
+        names = []
+        for desk in self._configuration.desks:
+            if desk.enabled and desk.name != desk_name:
+                names.append(desk.name)
+        return names

@@ -9,7 +9,7 @@ Typical usage example:
 """
 
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 import pydantic
 
@@ -37,6 +37,7 @@ class DeskConfiguration(pydantic.BaseModel):
         backend_order: The backends the desk may use, most preferred first, by their names in [backends].
         heartbeat_minutes: Minutes between heartbeats while NSE equities trade, or None for no heartbeat; each heartbeat is a model turn.
         rollover_time: The India time on trading days, as HH:MM, when the desk's session rolls over with a summary.
+        scheduled_checks: India times on trading days, as HH:MM, when the desk is woken to do what its Persona.md says for that time of day.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -49,6 +50,14 @@ class DeskConfiguration(pydantic.BaseModel):
         default='15:45',
         pattern=r'^([01][0-9]|2[0-3]):[0-5][0-9]$',
     )
+    scheduled_checks: list[
+        Annotated[
+            str,
+            pydantic.StringConstraints(
+                pattern=r'^([01][0-9]|2[0-3]):[0-5][0-9]$'
+            ),
+        ]
+    ] = []
 
 
 class AgentLoopConfiguration(pydantic.BaseModel):

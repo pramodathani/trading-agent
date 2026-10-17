@@ -21,3 +21,7 @@ With MCP servers configured, a last section lists each server's tool names (or i
 ## Subagents (milestone 14)
 
 With a subagent library, the Subagents section (names, descriptions and how delegate_task works) comes after the skills index.
+
+## Other desks (milestone 16)
+
+The header names the other enabled desks and says the risk engine gives each instrument to one desk at a time, so a desk does not plan trades in a stock another desk holds.

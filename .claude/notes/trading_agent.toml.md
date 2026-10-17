@@ -18,3 +18,7 @@ Gemma 4 31b (20 GB) and Qwen3.8 27b (17 GB) cannot both stay in the 4090's 24 GB
 ## market_calendar_directory (milestone 15)
 
 Points at UBI's exchange calendars, `unified_broker_interface/stock_brokers/instruments/ticks/utilities/calendars`, so trading-agent uses the same holidays and special sessions as UBI. A desk's `heartbeat_minutes` can be added under its `[[desks]]` entry; it is left off for now because every heartbeat is a model turn.
+
+## The desks (milestone 16)
+
+`main` stays enabled, because the conversation and memory so far live there; the plan's three desks are added beside it. Model orders follow the plan: Claude first for intraday and positional, Qwen first for the scalper, whose frequent heartbeats are free on the local GPU. Heartbeats: intraday every 10 minutes (Claude; the plan said 5, halved here to spare the Max subscription's limits), scalper every 2 minutes (Qwen), positional none. Each heartbeat or check runs only while the gateway runs.

@@ -11,6 +11,7 @@ Typical usage example:
 
 import dataclasses
 import hashlib
+from collections.abc import Sequence
 from pathlib import Path
 
 from trading_agent.extensions import mcp_client_manager
@@ -46,6 +47,7 @@ class PromptBuilder:
         skill_library: skill_library_module.SkillLibrary | None = None,
         mcp_manager: mcp_client_manager.McpClientManager | None = None,
         subagent_library: subagent_library_module.SubagentLibrary | None = None,
+        other_desks: Sequence[str] = (),
     ):
         """Creates the builder.
 
@@ -56,6 +58,7 @@ class PromptBuilder:
             skill_library (skill_library_module.SkillLibrary | None): The desk's skills, listed as an index at the end, or None for no index.
             mcp_manager (mcp_client_manager.McpClientManager | None): The MCP connections, whose tool names are listed last, or None.
             subagent_library (subagent_library_module.SubagentLibrary | None): The subagents the desk can delegate to, listed after the skills, or None.
+            other_desks (Sequence[str]): The other desks sharing the account, named in the header.
         """
         self._layout = layout
         self._desk_name = desk_name
@@ -63,6 +66,7 @@ class PromptBuilder:
         self._skill_library = skill_library
         self._mcp_manager = mcp_manager
         self._subagent_library = subagent_library
+        self._other_desks = list(other_desks)
 
     def build(self) -> SystemPrompt:
         """Reads the files and assembles the prompt.
@@ -116,10 +120,17 @@ class PromptBuilder:
             )
         else:
             mode_line = 'Mode: dry_run. Orders go to UBI as dry runs and never reach the exchange.'
+        lines = [
+            f'You are the "{self._desk_name}" desk of trading-agent.',
+            mode_line,
+        ]
+        if self._other_desks:
+            lines.append(
+                f'Other desks share the same broker account: {", ".join(self._other_desks)}. The risk engine gives each instrument to one desk at a time, so an instrument another desk holds or is trading is not yours to trade, and positions you do not own are not yours to close.'
+            )
         return '\n'.join(
             [
-                f'You are the "{self._desk_name}" desk of trading-agent.',
-                mode_line,
+                *lines,
                 'After a note on how your memory works, the files below are your instructions, in this order: how every desk works, your persona, the user, the trading rules, and your own memory. An index of your skills comes last.',
             ]
         )

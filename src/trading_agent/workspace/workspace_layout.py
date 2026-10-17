@@ -274,7 +274,7 @@ class WorkspaceLayout:
     def create_missing(self, desk_names: Sequence[str]) -> list[Path]:
         """Creates the folders, and writes each missing file from its template.
 
-        Existing files are never overwritten. The starter subagents are written only when the agents folder does not exist yet, so one the user deleted stays deleted.
+        Existing files are never overwritten. The intraday, scalper and positional desks get their own starter Persona.md; other desks get the general template. The starter subagents are written only when the agents folder does not exist yet, so one the user deleted stays deleted.
 
         Args:
             desk_names (Sequence[str]): The desks to prepare.
@@ -299,9 +299,28 @@ class WorkspaceLayout:
             self.notes_directory(desk_name).mkdir(parents=True, exist_ok=True)
             for file_name in DESK_FILE_NAMES:
                 target = self.desk_directory(desk_name) / file_name
-                if self._write_template_if_missing(target, file_name):
+                template_name = file_name
+                if file_name == 'Persona.md' and self._has_persona_template(
+                    desk_name
+                ):
+                    template_name = f'personas/{desk_name}.md'
+                if self._write_template_if_missing(target, template_name):
                     created.append(target)
         return created
+
+    def _has_persona_template(self, desk_name: str) -> bool:
+        """Says whether a starter desk has its own persona template.
+
+        Args:
+            desk_name (str): The desk's name, such as intraday.
+
+        Returns:
+            bool: True for the intraday, scalper and positional desks.
+        """
+        templates = (
+            importlib.resources.files('trading_agent.workspace') / 'templates'
+        )
+        return (templates / 'personas' / f'{desk_name}.md').is_file()
 
     def _write_starter_agents(self) -> list[Path]:
         """Copies the starter subagent definitions into the new agents folder.
@@ -338,7 +357,10 @@ class WorkspaceLayout:
         templates = (
             importlib.resources.files('trading_agent.workspace') / 'templates'
         )
-        return (templates / template_name).read_text(encoding='utf-8')
+        resource = templates
+        for part in template_name.split('/'):
+            resource = resource / part
+        return resource.read_text(encoding='utf-8')
 
     def is_template(self, path: Path) -> bool:
         """Says whether a file is still an unfilled template.

@@ -29,3 +29,7 @@ The `Agents.md` template's line "Notes and memory tools arrive in later mileston
 ## cron_directory (milestone 15)
 
 `desks/<desk>/cron/`, ignored by git.
+
+## Per-desk personas (milestone 16)
+
+`create_missing` writes `templates/personas/<desk>.md` as a desk's Persona.md when such a template exists. `template_text` accepts a path with a folder for that.

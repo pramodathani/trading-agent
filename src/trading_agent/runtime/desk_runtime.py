@@ -25,6 +25,7 @@ from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import slash_commands
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.runtime import turn_runner as turn_runner_module
+from trading_agent.scheduling import market_status as market_status_module
 from trading_agent.skills import skill_library as skill_library_module
 from trading_agent.tools import tool_registry as tool_registry_module
 
@@ -63,6 +64,7 @@ class DeskRuntime:
         session_keeper: session_keeper_module.SessionKeeper | None = None,
         skill_library: skill_library_module.SkillLibrary | None = None,
         usage_tracker: usage_tracker_module.UsageTracker | None = None,
+        market_status: market_status_module.MarketStatus | None = None,
     ):
         """Creates the desk without starting its loop.
 
@@ -75,6 +77,7 @@ class DeskRuntime:
             session_keeper (session_keeper_module.SessionKeeper | None): Keeps the desk's sessions across restarts and days, or None to keep nothing.
             skill_library (skill_library_module.SkillLibrary | None): The desk's skills, invocable as /<skill-name>, or None.
             usage_tracker (usage_tracker_module.UsageTracker | None): Today's model usage, shown by /usage, or None.
+            market_status (market_status_module.MarketStatus | None): Describes the market for the context line, or None to leave it out.
         """
         self.name = desk_configuration.name
         self.state = DeskState.STOPPED
@@ -90,6 +93,7 @@ class DeskRuntime:
         self._tool_registry = tool_registry
         self._session_keeper = session_keeper
         self.usage_tracker = usage_tracker
+        self._market_status = market_status
 
     def submit(self, trigger: trigger_module.Trigger) -> None:
         """Adds a trigger to the end of the desk's queue.
@@ -239,7 +243,10 @@ class DeskRuntime:
             trigger_module.Trigger: A copy whose text starts with the context line.
         """
         now = trigger.created_at.astimezone(_INDIA)
-        context_line = f'[India time: {now:%A %Y-%m-%d %H:%M:%S} IST · woken by: {trigger.source}]'
+        market = ''
+        if self._market_status is not None:
+            market = f' · market: {self._market_status.describe(now)}'
+        context_line = f'[India time: {now:%A %Y-%m-%d %H:%M:%S} IST · woken by: {trigger.source}{market}]'
         return dataclasses.replace(
             trigger, text=f'{context_line}\n{trigger.text}'
         )

@@ -14,6 +14,46 @@ backend_order = [
     "gemma",
 ]
 
+[[desks]]
+name = "intraday"
+backend_order = [
+    "claude",
+    "qwen",
+    "gemma",
+]
+heartbeat_minutes = 10
+scheduled_checks = [
+    "09:05",
+    "15:05",
+    "15:35",
+]
+
+[[desks]]
+name = "scalper"
+backend_order = [
+    "qwen",
+    "gemma",
+    "claude",
+]
+heartbeat_minutes = 2
+scheduled_checks = [
+    "09:10",
+    "15:05",
+]
+
+[[desks]]
+name = "positional"
+backend_order = [
+    "claude",
+    "qwen",
+    "gemma",
+]
+scheduled_checks = [
+    "08:45",
+    "12:30",
+    "15:40",
+]
+
 [backends.gemma]
 kind = "ollama"
 base_url = "http://127.0.0.1:11434"

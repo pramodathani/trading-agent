@@ -25,3 +25,7 @@ Defaults to `mcp_servers.json` beside trading_agent.toml.
 ## Backend prices (milestone 15)
 
 `rupees_per_million_prompt_tokens` and `rupees_per_million_completion_tokens` on a backend let /usage show its cost.
+
+## scheduled_checks (milestone 16)
+
+A desk's list of HH:MM times for its routine checks.

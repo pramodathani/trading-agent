@@ -55,3 +55,7 @@ The builder owns one `MarketCalendar` and one `ExchangeHours` built on it, share
 ## Milestone 15, part 2
 
 Each desk gets a `PriceAlertStore` and the tools set_price_alert and cancel_price_alert. `market_watcher` builds the watcher over the built desks, sharing the order services' order book and risk engine, the alert stores and the exchange hours. The builder takes the usage tracker and hands it to every desk.
+
+## Milestone 16: several desks
+
+Desks were already built one per `[[desks]]` entry, each with its own queue, router, session store, tools and memory. The builder now passes each desk's scheduled checks to its built-in jobs, the other enabled desks' names to its prompt, and a `MarketStatus` to its runtime.
