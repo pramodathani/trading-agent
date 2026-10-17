@@ -192,6 +192,10 @@ class CommandLine:
             'list',
             help='List every subagent with its model, tools and limits.',
         )
+        subparsers.add_parser(
+            'preflight',
+            help='Run every doctor check plus the going-live checks, and say whether trading-agent is ready to trade live.',
+        )
         apps_parser = subparsers.add_parser(
             'apps',
             help="List the packages' web apps, and set up their systemd units.",

@@ -107,6 +107,10 @@ class Application:
             )
         if arguments.command == 'doctor':
             sys.exit(doctor.Doctor(configuration, secrets).run())
+        if arguments.command == 'preflight':
+            sys.exit(
+                doctor.Doctor(configuration, secrets, going_live=True).run()
+            )
         if arguments.command == 'send':
             client = message_client.MessageClient(
                 f'http://{configuration.gateway.host}:{configuration.gateway.port}',

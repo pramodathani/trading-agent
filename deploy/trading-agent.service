@@ -1,0 +1,18 @@
+[Unit]
+Description=trading-agent, an always-on multi-desk AI trading agent
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Projects/trading-agent
+ExecStart=%h/Projects/trading-agent/bin/trading-agent serve
+Environment=PYTHONUNBUFFERED=1
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+SyslogIdentifier=trading-agent
+Restart=always
+RestartSec=10
+TimeoutStopSec=60
+
+[Install]
+WantedBy=default.target

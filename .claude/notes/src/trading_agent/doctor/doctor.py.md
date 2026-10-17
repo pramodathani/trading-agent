@@ -5,3 +5,7 @@ Each check is its own class in `checks/`, following the user's rule that similar
 A check that crashes is reported as failed rather than stopping the report, because the doctor is most needed exactly when something is broken. That is the one deliberate `except Exception` in the project, marked with `# noqa: BLE001`.
 
 The exit status is 1 when any check failed, so the doctor can be used in scripts and before starting the service.
+
+## preflight (milestone 21)
+
+`trading-agent preflight` is the doctor with `going_live=True`: every ordinary check, then the service, desk limits, dry-run order, stock-sharing, Telegram pairing and trading mode checks, and a verdict line. It is the same code path as doctor, so the two never disagree about the basics.
