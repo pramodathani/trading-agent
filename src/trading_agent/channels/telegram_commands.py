@@ -17,6 +17,9 @@ from tradingmachine.unified_broker_interface import exceptions as ubi_exceptions
 
 from trading_agent.channels import pairing_store as pairing_store_module
 from trading_agent.gateway import gateway_parts
+from trading_agent.requests import user_request as user_request_module
+from trading_agent.requests import user_request_responder
+from trading_agent.requests import user_request_store
 from trading_agent.runtime import desk_runtime
 
 _INDIA = zoneinfo.ZoneInfo('Asia/Kolkata')
@@ -32,7 +35,10 @@ _COMMANDS = (
     '/pause',
     '/resume',
     '/kill',
+    '/approve',
+    '/deny',
 )
+_ALWAYS = 'always'
 _MENU = (
     (
         'status',
@@ -107,6 +113,14 @@ _MENU = (
         'Start it again: /resume [desk|all]',
     ),
     (
+        'approve',
+        'Allow a held action: /approve [id] [always]',
+    ),
+    (
+        'deny',
+        'Refuse a held action: /deny [id] [reason]',
+    ),
+    (
         'kill',
         'Halt every desk and flatten: /kill CONFIRM <reason>',
     ),
@@ -127,6 +141,8 @@ class TelegramCommands:
         pairing: pairing_store_module.PairingStore,
         mode: str,
         clock: Callable[[], datetime.datetime] | None = None,
+        request_store: user_request_store.UserRequestStore | None = None,
+        responder: user_request_responder.UserRequestResponder | None = None,
     ):
         """Creates the commands.
 
@@ -136,12 +152,16 @@ class TelegramCommands:
             pairing (pairing_store_module.PairingStore): Where each chat's desk is kept.
             mode (str): "dry_run" or "live".
             clock (Callable[[], datetime.datetime] | None): Returns the current India time; None uses the system clock.
+            request_store (user_request_store.UserRequestStore | None): The desks' requests, searched by /approve and /deny, or None.
+            responder (user_request_responder.UserRequestResponder | None): Decides permission requests for /approve and /deny, or None.
         """
         self._desks = desks
         self._shared = shared
         self._pairing = pairing
         self._mode = mode
         self._clock = clock
+        self._request_store = request_store
+        self._responder = responder
 
     def handles(self, text: str) -> bool:
         """Says whether a message is one of these commands.
@@ -150,7 +170,7 @@ class TelegramCommands:
             text (str): The message.
 
         Returns:
-            bool: True for /start, /help, /desk, /status, /positions, /pnl, /pause, /resume and /kill.
+            bool: True for /start, /help, /desk, /status, /positions, /pnl, /pause, /resume, /kill, /approve and /deny.
         """
         return self._command_name(text) in _COMMANDS
 
@@ -190,7 +210,104 @@ class TelegramCommands:
             return self._set_paused(chat, argument, False)
         if name == '/kill':
             return await self._kill(argument)
+        if name == '/approve':
+            return await self._decide(argument, True)
+        if name == '/deny':
+            return await self._decide(argument, False)
         return self._help(chat)
+
+    async def _decide(self, argument: str, allow: bool) -> str:
+        """Allows or refuses an action a desk is holding for permission.
+
+        The request id may be left out when only one permission request is waiting, and may be shortened to its last six characters.
+
+        Args:
+            argument (str): An optional request id, then "always" for /approve or a reason for /deny.
+            allow (bool): True for /approve, False for /deny.
+
+        Returns:
+            str: What was decided, or why nothing was.
+        """
+        if self._request_store is None or self._responder is None:
+            return 'Permission requests are not handled on this gateway.'
+        waiting = []
+        for request in self._request_store.pending():
+            if request.kind == user_request_module.PERMISSION:
+                waiting.append(request)
+        if not waiting:
+            return 'No action is waiting for your permission.'
+        words = argument.split(maxsplit=1)
+        request = None
+        rest = argument
+        if words:
+            request = self._matching_request(words[0], waiting)
+        if request is not None:
+            rest = argument[len(words[0]) :].strip()
+        elif len(waiting) == 1:
+            request = waiting[0]
+        else:
+            return self._waiting_list(waiting)
+        decision = 'deny'
+        reason = rest
+        if allow:
+            decision = 'allow_once'
+            reason = ''
+            if rest.lower() == _ALWAYS:
+                decision = 'always_allow'
+        try:
+            await self._responder.decide_permission(
+                request.request_id, decision, reason, 'telegram'
+            )
+        except ValueError as error:
+            return f'Could not decide request {request.request_id}: {error}'
+        tool_name = request.content.get('tool_name')
+        if decision == 'deny':
+            return f'Denied {tool_name} for the {request.desk} desk. The desk is told.'
+        if decision == 'always_allow':
+            return f'Allowed {tool_name} for the {request.desk} desk, now and from now on until you revoke it on Settings. The desk is told the result.'
+        return f'Allowed {tool_name} for the {request.desk} desk, this once. The desk is told the result.'
+
+    def _matching_request(
+        self,
+        word: str,
+        waiting: list[user_request_module.UserRequest],
+    ) -> user_request_module.UserRequest | None:
+        """Finds the waiting request a word names, by its whole id or its last six characters.
+
+        Args:
+            word (str): The word, such as "a1b2c3".
+            waiting (list[user_request_module.UserRequest]): The waiting permission requests.
+
+        Returns:
+            user_request_module.UserRequest | None: The request, or None when the word names none.
+        """
+        for request in waiting:
+            if word == request.request_id:
+                return request
+            if request.request_id.endswith(f'-{word}'):
+                return request
+        return None
+
+    def _waiting_list(
+        self, waiting: list[user_request_module.UserRequest]
+    ) -> str:
+        """Lists the waiting permission requests, for when the user must say which one.
+
+        Args:
+            waiting (list[user_request_module.UserRequest]): The waiting permission requests.
+
+        Returns:
+            str: One line per request, with the short id to use.
+        """
+        lines = [
+            'Several actions are waiting. Name one, such as /approve a1b2c3:',
+        ]
+        for request in waiting:
+            short_id = request.request_id.rsplit('-', 1)[-1]
+            lines.append(
+                f'{short_id} - {request.desk}: {request.content.get("tool_name")}'
+            )
+        return '\n'.join(lines)
 
     def _command_name(self, text: str) -> str:
         """The command word, without a @botname suffix Telegram adds in groups.
@@ -226,6 +343,8 @@ class TelegramCommands:
                 '/pause [desk|all] - stop a desk asking its models',
                 '/resume [desk|all] - start it again',
                 '/kill CONFIRM <reason> - halt every desk until tomorrow and flatten the account',
+                '/approve [id] [always] - allow an action a desk is holding for your permission',
+                '/deny [id] [reason] - refuse it',
                 '',
                 'These go to your desk:',
                 "/stop - stop the desk's running turn",

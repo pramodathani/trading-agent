@@ -497,6 +497,8 @@ class Application:
                 builder.shared_parts(),
                 pairing,
                 configuration.mode,
+                request_store=builder.user_request_store,
+                responder=responder,
             ),
             notification_formatter.NotificationFormatter(
                 settings.notifications
