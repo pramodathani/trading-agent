@@ -585,7 +585,7 @@ class SlashCommands:
         del argument
         usage = self._desk.turn_runner.context_usage()
         if usage is None:
-            return 'No turn has run in this session yet, so there is no context window to show.'
+            return 'No model has reported its context window since the gateway started. Each one reports it at the end of a turn.'
         how = 'measured by the model' if usage.measured else 'estimated'
         percent = 0
         if usage.context_window:

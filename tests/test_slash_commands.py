@@ -358,7 +358,7 @@ class TestInformationCommands:
         """/context says so when no model has reported its window yet."""
         reply = _Desk().send(['/context'])[0]
 
-        assert 'No turn has run' in reply
+        assert 'No model has reported its context window' in reply
 
     def test_context_shows_the_window_and_its_parts(self) -> None:
         """/context gives the tokens used, the percentage and each part, marking deferred ones."""
