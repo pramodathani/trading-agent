@@ -37,3 +37,5 @@ If the summary call fails, the error goes up to the router, which tries the next
 
 - `/compact` on Qwen: 6 messages (about 8,100 tokens) became a 1,726-character summary; the next prompt was 6,723 tokens, and Qwen recalled RELIANCE's 14 Oct close (₹1,174.6) from the summary alone.
 - Automatic path, with the threshold lowered to 0.22 for the test only: at the second turn Qwen was at 8,684 tokens, the flush ran, 8 messages were summarised, and the turn ran on 6,980 tokens.
+
+Pictures are never part of the summary request, because the transcript is plain text. Since attachments part 3 the transcript says where a message carried pictures ("Message to you [with 2 picture(s)]", "Tool view_image returned a picture and: …"), so the summary can mention that a picture was discussed and the desk knows to use `view_image` to see it again.

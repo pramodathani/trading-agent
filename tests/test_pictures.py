@@ -565,3 +565,70 @@ class TestTelegramPictures:
 
         assert api.photos == []
         assert api.sent == []
+
+
+class TestKeepingNewestPictures:
+    """Tests for taking older pictures out of a conversation."""
+
+    def _conversation(
+        self, picture_count: int
+    ) -> conversation_module.Conversation:
+        """Builds a conversation with one screenshot result per picture.
+
+        Args:
+            picture_count (int): How many tool results carry a picture.
+
+        Returns:
+            conversation_module.Conversation: The conversation.
+        """
+        conversation = conversation_module.Conversation('be brief')
+        conversation.append(
+            messages.ConversationMessage.user(
+                'Look at this',
+                (messages.MessageImage('image/jpeg', b'user picture'),),
+            )
+        )
+        for index in range(picture_count - 1):
+            call = messages.ToolCall(f'call-{index}', 'browser_screenshot', {})
+            conversation.append(
+                messages.ConversationMessage.assistant('', [call])
+            )
+            conversation.append(
+                messages.ConversationMessage.tool_result(
+                    call,
+                    f'Screenshot saved as scratch/screenshots/{index}.png.',
+                    False,
+                    messages.MessageImage('image/png', b'screenshot'),
+                )
+            )
+        return conversation
+
+    def test_only_the_newest_pictures_stay(self) -> None:
+        """With six pictures and four kept, the two oldest become notes and keep their text."""
+        conversation = self._conversation(6)
+
+        removed = conversation.keep_newest_pictures(4)
+
+        kept = []
+        for message in conversation.messages:
+            if message.image is not None or message.images:
+                kept.append(message)
+        first = conversation.messages[0]
+        first_screenshot = conversation.messages[2]
+        assert removed == 2
+        assert len(kept) == 4
+        assert first.images == ()
+        assert first.text.startswith('Look at this\n[The picture that was here')
+        assert first_screenshot.image is None
+        assert 'scratch/screenshots/0.png' in first_screenshot.text
+        assert 'view_image shows it again' in first_screenshot.text
+
+    def test_nothing_changes_under_the_limit(self) -> None:
+        """With no more pictures than are kept, the conversation is untouched."""
+        conversation = self._conversation(3)
+        before = conversation.messages
+
+        removed = conversation.keep_newest_pictures(4)
+
+        assert removed == 0
+        assert conversation.messages == before

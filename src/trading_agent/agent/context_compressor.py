@@ -220,10 +220,16 @@ class ContextCompressor:
             str: The text.
         """
         if message.role == messages.Role.USER:
-            return f'Message to you: {self._shorten(message.text, _USER_TEXT_CHARACTERS)}'
+            pictures = ''
+            if message.images:
+                pictures = f' [with {len(message.images)} picture(s)]'
+            return f'Message to you{pictures}: {self._shorten(message.text, _USER_TEXT_CHARACTERS)}'
         if message.role == messages.Role.TOOL:
             outcome = 'failed' if message.is_error else 'returned'
-            return f'Tool {message.tool_name} {outcome}: {self._shorten(message.text, _RESULT_CHARACTERS)}'
+            pictures = ''
+            if message.image is not None:
+                pictures = ' a picture and'
+            return f'Tool {message.tool_name} {outcome}{pictures}: {self._shorten(message.text, _RESULT_CHARACTERS)}'
         lines = []
         if message.text:
             lines.append(

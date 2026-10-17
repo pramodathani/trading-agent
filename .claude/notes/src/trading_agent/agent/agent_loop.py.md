@@ -21,3 +21,5 @@ When /stop cancels a turn during a tool round, the conversation would end with a
 ## Pictures, since 2026-10-17
 
 `_run_rounds` puts the trigger's pictures on the turn's user message, prepared by `ImagePreparer`. A picture whose file cannot be read is left out rather than failing the turn. Only the first user message of a turn carries pictures; steering messages are text, and messages with attachments never steer.
+
+Four pictures are kept (`_PICTURES_KEPT`) before every model call, including between tool rounds of one turn. Four covers a follow-up question about a chart sent in the previous turn, plus a few screenshots, while capping pictures at about 6,000 tokens. Claude's history is held by Claude Code, not by this loop, so the trimming does not apply to it; Claude Code compacts its own history.

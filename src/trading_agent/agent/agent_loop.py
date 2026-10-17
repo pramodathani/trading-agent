@@ -4,6 +4,8 @@ This is the loop at the heart of Pi and every other agent. One run of the loop i
 
 With a context compressor, a conversation that has filled 70% of the model's window is compressed before the next turn: the desk first gets a silent memory-flush turn to save what matters, then the older messages are replaced by a summary. Between the tool rounds of one long turn, a conversation past 85% is compressed at once, without the flush.
 
+Before every model call, all but the four newest pictures are taken out of the conversation, because each one would otherwise be sent again with every later call.
+
 Typical usage example:
 
   loop = AgentLoop('main', backend, executor, event_bus, maximum_rounds=20)
@@ -23,6 +25,8 @@ from trading_agent.runtime import steering_inbox as steering_inbox_module
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.runtime import turn_runner
 from trading_agent.tools import tool_call_executor as tool_call_executor_module
+
+_PICTURES_KEPT = 4
 
 
 class AgentLoop:
@@ -211,6 +215,7 @@ class AgentLoop:
                 )
                 if compressed:
                     turn_start = 1
+            conversation.keep_newest_pictures(_PICTURES_KEPT)
             reply = await self.backend.complete(
                 conversation,
                 self._executor.tool_registry.definitions(),

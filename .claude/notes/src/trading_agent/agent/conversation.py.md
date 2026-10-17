@@ -17,3 +17,15 @@ Verified on 2026-10-17: Ollama's `prompt_eval_count` reports the whole prompt ev
 `estimated_tokens` adds 1500 tokens for each picture added since the last measurement, on user messages and tool results alike. Gemma counts a picture as up to about 1120 tokens and Claude up to about 1600 at the size pictures are sent; 1500 errs towards compressing a little early rather than overflowing a local model's 32,768-token window. Once the model has answered, its reported token count replaces the estimate.
 
 Compression keeps no pictures: the summary is written from the messages' text, and the attachment notes in that text keep the files' paths, so the desk can still find an upload afterwards.
+
+## Taking older pictures out
+
+`keep_newest_pictures` breaks the old rule that messages are never edited one by one, and it is the only method that does. The reason is cost: Ollama and Chat Completions servers are sent the whole conversation with every call, so a picture left in the history is paid for again, at about 1,500 tokens, on every later call. A scalper taking a screenshot every few minutes would otherwise fill Gemma's 32,768-token window with pictures in under twenty calls.
+
+A removed picture is replaced by a note in the message's text, not dropped silently, so the model knows something was there. The tool results of `browser_screenshot` and `view_image`, and the attachment line of a user message, already name the saved file, which is why the note points at "a saved path given above" and `view_image`. An MCP tool's picture has no saved path and cannot be brought back.
+
+A message is kept whole or emptied whole: a user message with three pictures is not split, so slightly more than `count` pictures can remain. Counting from the newest backwards keeps the pictures of the current turn, which are the ones the model is working with.
+
+Editing an older message changes the conversation's prefix, which ends the model server's prompt cache from that message on. That happens only when a fifth picture arrives, and resending a cached prefix is still cheaper than carrying every picture.
+
+`measured_tokens` is not lowered when pictures are removed. The next call measures the real number, and until then the estimate errs high, which can only make compression come a little early.
