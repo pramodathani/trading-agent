@@ -51,6 +51,8 @@ class AgentLoopConfiguration(pydantic.BaseModel):
         maximum_rounds: The most model calls one turn may make before it is stopped.
         maximum_identical_tool_calls: How many times one tool may be called with the same arguments in a turn.
         tool_timeout_seconds: How long one tool call may run before it is stopped.
+        compression_threshold: The share of a model's context window at which, before the next turn, the desk saves what matters and its conversation is compressed into a summary.
+        emergency_compression_threshold: The higher share at which a conversation is compressed in the middle of a long turn, without the memory flush.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -58,6 +60,26 @@ class AgentLoopConfiguration(pydantic.BaseModel):
     maximum_rounds: int = pydantic.Field(default=20, gt=0)
     maximum_identical_tool_calls: int = pydantic.Field(default=3, gt=0)
     tool_timeout_seconds: float = pydantic.Field(default=60.0, gt=0)
+    compression_threshold: float = pydantic.Field(default=0.70, gt=0, lt=1)
+    emergency_compression_threshold: float = pydantic.Field(
+        default=0.85, gt=0, lt=1
+    )
+
+    @pydantic.model_validator(mode='after')
+    def _require_emergency_above_normal(self) -> AgentLoopConfiguration:
+        """Checks that mid-turn compression only happens above the normal threshold.
+
+        Returns:
+            AgentLoopConfiguration: This configuration, unchanged.
+
+        Raises:
+            ValueError: The emergency threshold is not above the normal one.
+        """
+        if self.emergency_compression_threshold <= self.compression_threshold:
+            raise ValueError(
+                'emergency_compression_threshold must be above compression_threshold'
+            )
+        return self
 
 
 _DEFAULT_HIDDEN_PATHS = [

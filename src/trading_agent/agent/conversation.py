@@ -1,6 +1,8 @@
 """A desk's conversation with its model: the system prompt and the messages so far.
 
-Messages are only ever appended, never edited, because Claude's preserved-thinking check rejects a history that was changed after the fact. Compression (milestone 12) starts a new conversation instead of editing this one.
+Messages are only ever appended, never edited one by one. Compression replaces the whole history at once with a summary and the current turn, which is a fresh conversation as far as the model can tell.
+
+The conversation also remembers how many tokens the model said it held at the last call, so the compressor can tell how full the context window is.
 
 Typical usage example:
 
@@ -8,7 +10,11 @@ Typical usage example:
   conversation.append(ConversationMessage.user('Hello'))
 """
 
+from collections.abc import Sequence
+
 from trading_agent.agent import messages
+
+_CHARACTERS_PER_TOKEN = 3
 
 
 class Conversation:
@@ -16,6 +22,7 @@ class Conversation:
 
     Attributes:
         system_prompt: The instructions sent before every message.
+        measured_tokens: The tokens the model reported for the conversation at its last call, or 0 before any call.
     """
 
     def __init__(self, system_prompt: str):
@@ -25,6 +32,8 @@ class Conversation:
             system_prompt (str): The instructions sent before every message.
         """
         self.system_prompt = system_prompt
+        self.measured_tokens = 0
+        self._measured_message_count = 0
         self._messages = []
 
     def append(self, message: messages.ConversationMessage) -> None:
@@ -39,3 +48,40 @@ class Conversation:
     def messages(self) -> tuple[messages.ConversationMessage, ...]:
         """The messages so far, oldest first, as a read-only tuple."""
         return tuple(self._messages)
+
+    def record_usage(self, tokens: int) -> None:
+        """Remembers how many tokens the model reported at the call that just finished.
+
+        Args:
+            tokens (int): The prompt tokens plus the reply's tokens.
+        """
+        self.measured_tokens = tokens
+        self._measured_message_count = len(self._messages)
+
+    def estimated_tokens(self) -> int:
+        """How many tokens the next call will send, as closely as can be told now.
+
+        It is the last measured count plus an estimate of three characters per token for the messages added since, such as tool results.
+
+        Returns:
+            int: The estimate.
+        """
+        added_characters = 0
+        for message in self._messages[self._measured_message_count :]:
+            added_characters += len(message.text)
+            for call in message.tool_calls:
+                added_characters += len(call.name) + len(str(call.arguments))
+        return self.measured_tokens + added_characters // _CHARACTERS_PER_TOKEN
+
+    def restart(
+        self,
+        new_messages: Sequence[messages.ConversationMessage],
+    ) -> None:
+        """Replaces the whole history at once, for compression.
+
+        Args:
+            new_messages (Sequence[messages.ConversationMessage]): The messages the conversation starts again with.
+        """
+        self._messages = list(new_messages)
+        self.measured_tokens = 0
+        self._measured_message_count = 0

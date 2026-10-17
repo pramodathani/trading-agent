@@ -2,6 +2,8 @@
 
 This is the loop at the heart of Pi and every other agent. One run of the loop is one turn: it ends when the model replies without asking for a tool, or when the round limit is reached.
 
+With a context compressor, a conversation that has filled 70% of the model's window is compressed before the next turn: the desk first gets a silent memory-flush turn to save what matters, then the older messages are replaced by a summary. Between the tool rounds of one long turn, a conversation past 85% is compressed at once, without the flush.
+
 Typical usage example:
 
   loop = AgentLoop('main', backend, executor, event_bus, maximum_rounds=20)
@@ -10,6 +12,7 @@ Typical usage example:
 
 import asyncio
 
+from trading_agent.agent import context_compressor as context_compressor_module
 from trading_agent.agent import conversation as conversation_module
 from trading_agent.agent import messages
 from trading_agent.backends import backend as backend_module
@@ -34,6 +37,7 @@ class AgentLoop:
         executor: tool_call_executor_module.ToolCallExecutor,
         event_bus: event_bus_module.EventBus,
         maximum_rounds: int,
+        compressor: context_compressor_module.ContextCompressor | None = None,
     ):
         """Creates the loop.
 
@@ -43,12 +47,14 @@ class AgentLoop:
             executor (tool_call_executor_module.ToolCallExecutor): What runs the model's tool calls.
             event_bus (event_bus_module.EventBus): Where every step is published.
             maximum_rounds (int): The most model calls one turn may make.
+            compressor (context_compressor_module.ContextCompressor | None): Compresses the conversation when it gets too full, or None to let it grow.
         """
         self._desk_name = desk_name
         self.backend = backend
         self._executor = executor
         self._event_bus = event_bus
         self._maximum_rounds = maximum_rounds
+        self._compressor = compressor
 
     async def run_turn(
         self,
@@ -67,9 +73,91 @@ class AgentLoop:
         Raises:
             backend_module.BackendUnavailableError: The model could not be reached.
         """
+        if self._compressor is not None and self._compressor.is_full(
+            conversation
+        ):
+            await self._flush_and_compress(conversation, trigger, 'threshold')
+        return await self._run_rounds(conversation, trigger)
+
+    async def compact(
+        self,
+        conversation: conversation_module.Conversation,
+        trigger: trigger_module.Trigger,
+    ) -> bool:
+        """Flushes and compresses the conversation now, for the /compact command.
+
+        Args:
+            conversation (conversation_module.Conversation): The desk's conversation.
+            trigger (trigger_module.Trigger): The command's trigger, used to tag events.
+
+        Returns:
+            bool: True when the conversation was compressed, False when there is no compressor or nothing to compress.
+
+        Raises:
+            backend_module.BackendUnavailableError: The model could not be reached.
+        """
+        if self._compressor is None or not conversation.messages:
+            return False
+        return await self._flush_and_compress(conversation, trigger, 'command')
+
+    async def _flush_and_compress(
+        self,
+        conversation: conversation_module.Conversation,
+        trigger: trigger_module.Trigger,
+        reason: str,
+    ) -> bool:
+        """Gives the desk a memory-flush turn, then compresses everything said so far.
+
+        Args:
+            conversation (conversation_module.Conversation): The desk's conversation.
+            trigger (trigger_module.Trigger): The trigger that caused it, used to tag events.
+            reason (str): "threshold" or "command", for the event.
+
+        Returns:
+            bool: True when the conversation was compressed.
+        """
+        flush_trigger = trigger_module.Trigger.now(
+            trigger_module.TriggerSource.COMPRESSION,
+            trigger.desk,
+            context_compressor_module.FLUSH_REQUEST,
+        )
+        await self._run_rounds(conversation, flush_trigger)
+        return await self._compressor.compress(
+            conversation,
+            self.backend,
+            len(conversation.messages),
+            reason,
+            trigger.trigger_id,
+        )
+
+    async def _run_rounds(
+        self,
+        conversation: conversation_module.Conversation,
+        trigger: trigger_module.Trigger,
+    ) -> turn_runner.TurnResult:
+        """Runs the rounds of one turn: model call, tool calls, and again.
+
+        Args:
+            conversation (conversation_module.Conversation): The desk's conversation, which grows by this turn's messages.
+            trigger (trigger_module.Trigger): The reason for the turn.
+
+        Returns:
+            turn_runner.TurnResult: The model's final text.
+        """
         self._executor.start_turn()
         conversation.append(messages.ConversationMessage.user(trigger.text))
+        turn_start = len(conversation.messages) - 1
         for round_number in range(1, self._maximum_rounds + 1):
+            if round_number > 1 and self._is_overflowing(conversation):
+                compressed = await self._compressor.compress(
+                    conversation,
+                    self.backend,
+                    turn_start,
+                    'emergency',
+                    trigger.trigger_id,
+                )
+                if compressed:
+                    turn_start = 1
             reply = await self.backend.complete(
                 conversation,
                 self._executor.tool_registry.definitions(),
@@ -92,6 +180,10 @@ class AgentLoop:
                     reply.tool_calls,
                 )
             )
+            if reply.prompt_tokens:
+                conversation.record_usage(
+                    reply.prompt_tokens + reply.completion_tokens
+                )
             if not reply.tool_calls:
                 return turn_runner.TurnResult(text=reply.text)
             results = await asyncio.gather(
@@ -112,6 +204,22 @@ class AgentLoop:
         return turn_runner.TurnResult(
             text=f'Stopped after {self._maximum_rounds} rounds of tool calls without a final answer.'
         )
+
+    def _is_overflowing(
+        self,
+        conversation: conversation_module.Conversation,
+    ) -> bool:
+        """Says whether the conversation must be compressed before the next model call.
+
+        Args:
+            conversation (conversation_module.Conversation): The conversation.
+
+        Returns:
+            bool: True when there is a compressor and the emergency threshold is reached.
+        """
+        if self._compressor is None:
+            return False
+        return self._compressor.is_overflowing(conversation)
 
     def _publish_text_delta(
         self,

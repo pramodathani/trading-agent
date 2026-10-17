@@ -21,6 +21,7 @@ class TriggerSource(enum.StrEnum):
     MARKET_WATCHER = 'market_watcher'
     WEBHOOK = 'webhook'
     ROLLOVER = 'rollover'
+    COMPRESSION = 'compression'
 
 
 @dataclasses.dataclass(frozen=True)

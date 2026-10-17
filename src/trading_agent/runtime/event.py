@@ -29,6 +29,7 @@ class EventKind(enum.StrEnum):
     KILL_SWITCH = 'kill_switch'
     ORDER = 'order'
     SESSION_STARTED = 'session_started'
+    CONTEXT_COMPRESSED = 'context_compressed'
     TEXT = 'text'
     TURN_FINISHED = 'turn_finished'
     ERROR = 'error'
