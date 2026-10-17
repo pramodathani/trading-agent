@@ -13,3 +13,7 @@ Local servers that need no key are given a placeholder, because the client refus
 A user message with pictures is sent with `content` as a list: one `text` part, then one `image_url` part per picture as a `data:` address. This is the Chat Completions format for vision input, which OpenAI and llama.cpp's server both accept. A message without pictures still sends `content` as a plain string, as before.
 
 Tool results still cannot carry pictures in Chat Completions, so a tool's screenshot still gets the "cannot be shown to this model" note.
+
+## Pictures from tools
+
+Chat Completions allows only text in a `tool` message. Before attachments part 2 a tool's picture was dropped with a note, so Qwen could not use `browser_screenshot` or `view_image` even though it can see pictures. Now the tool message says the picture is in the next user message, and `_add_tool_pictures` adds one user message after each run of tool results holding every picture from that run, named in order. Grouping them keeps the rule that all tool results follow their assistant message directly, which servers enforce; a user message between two tool results would be refused. Checked live on 17 October 2026: qwen3.8:27b on llama.cpp read the word and number in a test picture through `view_image`.

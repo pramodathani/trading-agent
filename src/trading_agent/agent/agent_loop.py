@@ -251,7 +251,7 @@ class AgentLoop:
                         call,
                         result.text,
                         result.is_error,
-                        result.image_png,
+                        result.image,
                     )
                 )
             self._add_steering(conversation)

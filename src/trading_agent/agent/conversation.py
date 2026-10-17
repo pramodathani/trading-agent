@@ -74,7 +74,7 @@ class Conversation:
             for call in message.tool_calls:
                 added_characters += len(call.name) + len(str(call.arguments))
             added_images += len(message.images)
-            if message.image_png is not None:
+            if message.image is not None:
                 added_images += 1
         return (
             self.measured_tokens

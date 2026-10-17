@@ -78,16 +78,16 @@ class ToolCallExecutor:
             result = tool_module.ToolResult.error(
                 self._loop_guard.refusal_text(call)
             )
-        self._publish(
-            event_module.EventKind.TOOL_RESULT,
-            {
-                'trigger_id': trigger.trigger_id,
-                'call_id': call.call_id,
-                'name': call.name,
-                'is_error': result.is_error,
-                'text': result.text,
-            },
-        )
+        payload = {
+            'trigger_id': trigger.trigger_id,
+            'call_id': call.call_id,
+            'name': call.name,
+            'is_error': result.is_error,
+            'text': result.text,
+        }
+        if result.picture_desk_path is not None:
+            payload['picture_path'] = result.picture_desk_path
+        self._publish(event_module.EventKind.TOOL_RESULT, payload)
         return result
 
     def _publish(self, kind: event_module.EventKind, payload: dict) -> None:
