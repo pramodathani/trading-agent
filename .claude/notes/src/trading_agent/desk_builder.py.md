@@ -43,3 +43,7 @@ The builder receives the gateway's one `McpClientManager`. When at least one ser
 ## Milestone 13, part 3
 
 Every desk gets `search_knowledge`, over one knowledge base shared by all desks, and its skill library includes the skills of installed packages.
+
+## Milestone 14: subagents
+
+`backend_runner` (public now) takes the prompt builder and round limit as arguments, so the subagent runner builds its turn runners with the same code as the desk, through `functools.partial(self.backend_runner, desk_configuration)`. Each desk gets a `SubagentRunner` and `delegate_task`; the toolbox is built from the desk's tools before delegate_task is added, so it can never reach a subagent. The prompt builder gets the subagent library for the Subagents section.

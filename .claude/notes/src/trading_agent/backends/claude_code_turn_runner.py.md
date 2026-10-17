@@ -64,3 +64,7 @@ The plan's `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` is in the binary and described as l
 On a 1,000,000-token window, 70% is 700,000 tokens per request. In practice Claude reaches the daily rollover long before that, so this mostly matters for a very busy day; compacting earlier also uses less of the Max subscription's limits per turn.
 
 Verified on 2026-10-17: `/compact` ran a flush turn (Claude saved a preference to Memory.md), then Claude Code compacted and recalled the preference afterwards. The size went from 16,792 to 16,885 tokens, because about 15,000 of a small session are the fixed instructions and tool descriptions, which compaction cannot remove.
+
+## MCP_TOOL_TIMEOUT (milestone 14)
+
+Claude Code limits how long one MCP tool call may take, and its default is not documented in the binary. delegate_task can wait up to 30 minutes for subagents, so the runner sets `MCP_TOOL_TIMEOUT` to 2,000,000 ms. trading-agent's own registry still applies each tool's shorter limit.

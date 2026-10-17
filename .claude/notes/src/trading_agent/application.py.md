@@ -23,3 +23,7 @@ From milestone 8 the application builds the secret redactor and the trade journa
 ## Packages and hooks (milestone 13, part 3)
 
 `trading-agent packages install|list|remove` runs before the MCP file is read, so a package with a broken MCP file can always be removed. The MCP server list includes installed packages' servers, and `serve` runs the hook runner as a fourth background worker.
+
+## subagents command (milestone 14)
+
+`trading-agent subagents list` runs before the gateway is built, over the user's and packages' definitions.

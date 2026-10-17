@@ -180,6 +180,18 @@ class CommandLine:
             'name',
             help='The package name from the list.',
         )
+        subagents_parser = subparsers.add_parser(
+            'subagents',
+            help='Check the subagent definitions in workspace/shared/agents and packages.',
+        )
+        subagent_actions = subagents_parser.add_subparsers(
+            dest='subagent_action',
+            required=True,
+        )
+        subagent_actions.add_parser(
+            'list',
+            help='List every subagent with its model, tools and limits.',
+        )
         arguments = parser.parse_args(argument_list)
         if arguments.command is None:
             arguments.command = 'serve'

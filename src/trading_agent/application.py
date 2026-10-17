@@ -20,6 +20,7 @@ from trading_agent.client import message_client
 from trading_agent.client import package_commands
 from trading_agent.client import proposal_commands
 from trading_agent.client import skill_commands
+from trading_agent.client import subagent_commands
 from trading_agent.configuration import agent_configuration
 from trading_agent.configuration import configuration_loader
 from trading_agent.configuration import secrets as secrets_module
@@ -36,6 +37,7 @@ from trading_agent.journal import trade_journal
 from trading_agent.memory import checkpoints as checkpoints_module
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.skills import skill_usage
+from trading_agent.subagents import subagent_library
 from trading_agent.tools import bash_sandbox
 from trading_agent.workspace import proposal_store
 from trading_agent.workspace import workspace_layout
@@ -57,7 +59,7 @@ class Application:
     def run(self) -> None:
         """Reads the configuration and runs the chosen command until it ends.
 
-        The process exits with status 2 when the configuration is invalid, and with the command's own status after `doctor`, `send`, `proposals`, `checkpoints`, `skills`, `packages` and `mcp`.
+        The process exits with status 2 when the configuration is invalid, and with the command's own status after `doctor`, `send`, `proposals`, `checkpoints`, `skills`, `packages`, `subagents` and `mcp`.
         """
         arguments = command_line.CommandLine().parse(self._argument_list)
         log_level = logging.INFO
@@ -149,6 +151,12 @@ class Application:
                     vars(arguments).get('replace', False),
                 )
             )
+        if arguments.command == 'subagents':
+            library = subagent_library.SubagentLibrary(
+                layout.agents_directory,
+                packages.agent_roots,
+            )
+            sys.exit(subagent_commands.SubagentCommands(library).list())
         try:
             mcp_servers = mcp_server_configuration.McpConfigurationReader(
                 configuration.mcp_servers_file

@@ -17,3 +17,7 @@ With a skill library, the index of usable skills comes last in the prompt, after
 ## MCP tool names (milestone 13)
 
 With MCP servers configured, a last section lists each server's tool names (or its state when not ready) and how to use `tool_search` and `call_mcp_tool`. It changes when a server connects or fails, which changes the prompt's fingerprint; Claude then receives the updated instructions inside its next message.
+
+## Subagents (milestone 14)
+
+With a subagent library, the Subagents section (names, descriptions and how delegate_task works) comes after the skills index.

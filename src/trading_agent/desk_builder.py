@@ -8,6 +8,7 @@ Typical usage example:
 """
 
 import datetime
+import functools
 import logging
 import os
 from pathlib import Path
@@ -47,6 +48,9 @@ from trading_agent.skills import skill_curator
 from trading_agent.skills import skill_library
 from trading_agent.skills import skill_usage
 from trading_agent.skills import skill_writer
+from trading_agent.subagents import subagent_library
+from trading_agent.subagents import subagent_runner
+from trading_agent.subagents import subagent_toolbox
 from trading_agent.tools import add_note_tool
 from trading_agent.tools import address_guard
 from trading_agent.tools import bash_background_tool
@@ -65,6 +69,7 @@ from trading_agent.tools import browser_tabs_tool
 from trading_agent.tools import browser_type_tool
 from trading_agent.tools import call_mcp_tool_tool
 from trading_agent.tools import cancel_order_tool
+from trading_agent.tools import delegate_task_tool
 from trading_agent.tools import edit_file_tool
 from trading_agent.tools import flatten_desk_tool
 from trading_agent.tools import get_candles_tool
@@ -133,6 +138,13 @@ class DeskBuilder:
         self._result_formatter = result_formatter.ResultFormatter()
         self._order_services = self._build_order_services()
         self._skill_libraries: dict[str, skill_library.SkillLibrary] = {}
+        self._packages = installed_packages.InstalledPackages(
+            self._layout.packages_directory
+        )
+        self._subagent_library = subagent_library.SubagentLibrary(
+            self._layout.agents_directory,
+            self._packages.agent_roots,
+        )
         self._knowledge_base = knowledge_base.KnowledgeBase(
             self._layout.knowledge_directory,
             self._layout.knowledge_index_file,
@@ -212,9 +224,7 @@ class DeskBuilder:
             self._layout.installed_skills_directory,
             self._layout.agent_skills_directory(desk_name),
             environment=sandbox.passed_environment(),
-            package_skill_roots=installed_packages.InstalledPackages(
-                self._layout.packages_directory
-            ).skill_roots,
+            package_skill_roots=self._packages.skill_roots,
         )
         self._skill_libraries[desk_name] = library
         writer = skill_writer.SkillWriter(
@@ -276,11 +286,13 @@ class DeskBuilder:
         routes = []
         for backend_name in desk_configuration.backend_order:
             backend_configuration = self._configuration.backends[backend_name]
-            runner = self._backend_runner(
+            runner = self.backend_runner(
                 desk_configuration,
                 backend_name,
                 backend_configuration,
                 executor,
+                self._prompt_builder(desk_configuration),
+                self._configuration.agent.maximum_rounds,
             )
             routes.append(model_router.BackendRoute(backend_name, runner))
         if not routes:
@@ -296,20 +308,26 @@ class DeskBuilder:
             session_store=store,
         )
 
-    def _backend_runner(
+    def backend_runner(
         self,
         desk_configuration: agent_configuration.DeskConfiguration,
         backend_name: str,
         backend_configuration: agent_configuration.BackendConfiguration,
         executor: tool_call_executor.ToolCallExecutor,
+        prompt: prompt_builder.PromptBuilder,
+        maximum_rounds: int,
     ) -> turn_runner.TurnRunner:
         """Builds the turn runner for one backend, according to its kind.
+
+        The desk's own runners and its subagents' runners are both built here.
 
         Args:
             desk_configuration (agent_configuration.DeskConfiguration): The desk's settings.
             backend_name (str): The backend's name in trading_agent.toml.
             backend_configuration (agent_configuration.BackendConfiguration): Its settings.
-            executor (tool_call_executor.ToolCallExecutor): The desk's tool executor.
+            executor (tool_call_executor.ToolCallExecutor): The tool executor the runner calls tools through.
+            prompt (prompt_builder.PromptBuilder): Builds the instructions; anything with a build() method returning a SystemPrompt.
+            maximum_rounds (int): The most model calls one turn may make.
 
         Returns:
             turn_runner.TurnRunner: The runner.
@@ -320,6 +338,8 @@ class DeskBuilder:
                 backend_name,
                 backend_configuration,
                 executor,
+                prompt,
+                maximum_rounds,
             )
         if backend_configuration.kind == 'openai_compatible':
             model_backend = openai_compatible_backend.OpenAICompatibleBackend(
@@ -337,6 +357,8 @@ class DeskBuilder:
             model_backend,
             backend_configuration,
             executor,
+            prompt,
+            maximum_rounds,
         )
 
     def _executor(
@@ -471,6 +493,11 @@ class DeskBuilder:
         if self._mcp_manager is not None and self._mcp_manager.connections:
             tools.append(tool_search_tool.ToolSearchTool(self._mcp_manager))
             tools.append(call_mcp_tool_tool.CallMcpToolTool(self._mcp_manager))
+        tools.append(
+            delegate_task_tool.DelegateTaskTool(
+                self._subagent_runner(desk_configuration, sandbox, tools)
+            )
+        )
         registry = tool_registry.ToolRegistry(
             tools,
             timeout_seconds=agent_settings.tool_timeout_seconds,
@@ -482,20 +509,64 @@ class DeskBuilder:
             loop_guard.LoopGuard(agent_settings.maximum_identical_tool_calls),
         )
 
+    def _subagent_runner(
+        self,
+        desk_configuration: agent_configuration.DeskConfiguration,
+        sandbox: bash_sandbox.BashSandbox,
+        desk_tools: list,
+    ) -> subagent_runner.SubagentRunner:
+        """Builds the runner that carries out the desk's delegated tasks.
+
+        Args:
+            desk_configuration (agent_configuration.DeskConfiguration): The desk's settings.
+            sandbox (bash_sandbox.BashSandbox): The desk's sandbox, in which each task gets a fresh bash session.
+            desk_tools (list): The desk's tools, which subagents share; delegate_task is not among them yet, so it can never be given to a subagent.
+
+        Returns:
+            subagent_runner.SubagentRunner: The runner.
+        """
+        agent_settings = self._configuration.agent
+        sandbox_settings = self._configuration.sandbox
+        toolbox = subagent_toolbox.SubagentToolbox(
+            list(desk_tools),
+            functools.partial(
+                bash_session.BashSession,
+                sandbox,
+                sandbox_settings.command_timeout_seconds,
+                sandbox_settings.maximum_output_characters,
+            ),
+            agent_settings.tool_timeout_seconds,
+        )
+        return subagent_runner.SubagentRunner(
+            desk_configuration.name,
+            self._configuration.mode,
+            self._subagent_library,
+            toolbox,
+            functools.partial(self.backend_runner, desk_configuration),
+            desk_configuration.backend_order,
+            self._configuration.backends,
+            self._event_bus,
+            agent_settings.maximum_identical_tool_calls,
+        )
+
     def _claude_code_runner(
         self,
         desk_configuration: agent_configuration.DeskConfiguration,
         backend_name: str,
         backend_configuration: agent_configuration.BackendConfiguration,
         executor: tool_call_executor.ToolCallExecutor,
+        prompt: prompt_builder.PromptBuilder,
+        maximum_rounds: int,
     ) -> claude_code_turn_runner.ClaudeCodeTurnRunner:
-        """Builds a desk's Claude Code session.
+        """Builds a Claude Code session for a desk or one of its subagents.
 
         Args:
             desk_configuration (agent_configuration.DeskConfiguration): The desk's settings.
             backend_name (str): The backend's name in trading_agent.toml.
             backend_configuration (agent_configuration.BackendConfiguration): Its settings.
-            executor (tool_call_executor.ToolCallExecutor): The desk's tool executor.
+            executor (tool_call_executor.ToolCallExecutor): The tool executor.
+            prompt (prompt_builder.PromptBuilder): Builds the instructions.
+            maximum_rounds (int): The most model calls one turn may make.
 
         Returns:
             claude_code_turn_runner.ClaudeCodeTurnRunner: The runner.
@@ -504,10 +575,10 @@ class DeskBuilder:
             desk_configuration.name
         )
         settings = claude_code_turn_runner.ClaudeCodeSettings(
-            prompt_builder=self._prompt_builder(desk_configuration),
+            prompt_builder=prompt,
             oauth_token=self._secrets.claude_code_oauth_token,
             working_directory=working_directory.resolve(),
-            maximum_rounds=self._configuration.agent.maximum_rounds,
+            maximum_rounds=maximum_rounds,
             sessions_directory=self._claude_sessions_directory(),
             compression_threshold=self._configuration.agent.compression_threshold,
             emergency_compression_threshold=self._configuration.agent.emergency_compression_threshold,
@@ -538,6 +609,8 @@ class DeskBuilder:
         model_backend: backend_module.ModelBackend,
         backend_configuration: agent_configuration.BackendConfiguration,
         executor: tool_call_executor.ToolCallExecutor,
+        prompt: prompt_builder.PromptBuilder,
+        maximum_rounds: int,
     ) -> agent_turn_runner.AgentTurnRunner:
         """Builds an agent loop, with its own conversation and compressor, on a model backend.
 
@@ -545,7 +618,9 @@ class DeskBuilder:
             desk_configuration (agent_configuration.DeskConfiguration): The desk's settings.
             model_backend (backend_module.ModelBackend): The model the loop asks.
             backend_configuration (agent_configuration.BackendConfiguration): Its settings, for the context window.
-            executor (tool_call_executor.ToolCallExecutor): The desk's tool executor.
+            executor (tool_call_executor.ToolCallExecutor): The tool executor.
+            prompt (prompt_builder.PromptBuilder): Builds the instructions.
+            maximum_rounds (int): The most model calls one turn may make.
 
         Returns:
             agent_turn_runner.AgentTurnRunner: The runner.
@@ -563,13 +638,10 @@ class DeskBuilder:
             model_backend,
             executor,
             self._event_bus,
-            agent_settings.maximum_rounds,
+            maximum_rounds,
             compressor,
         )
-        return agent_turn_runner.AgentTurnRunner(
-            loop,
-            self._prompt_builder(desk_configuration),
-        )
+        return agent_turn_runner.AgentTurnRunner(loop, prompt)
 
     def _prompt_builder(
         self,
@@ -589,4 +661,5 @@ class DeskBuilder:
             self._configuration.mode,
             self._skill_libraries.get(desk_configuration.name),
             self._mcp_manager,
+            self._subagent_library,
         )

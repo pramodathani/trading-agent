@@ -38,6 +38,7 @@ _LOGGER = logging.getLogger(__name__)
 _API_KEY_VARIABLE = 'ANTHROPIC_API_KEY'
 _REJECTED = 'rejected'
 _TRADINGMACHINE_PREFIX = 'TRADINGMACHINE_'
+_MCP_TOOL_TIMEOUT_MILLISECONDS = 2_000_000
 
 
 @dataclasses.dataclass(frozen=True)
@@ -373,8 +374,10 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
 
         CLAUDE_CODE_AUTO_COMPACT_WINDOW makes Claude Code measure its automatic compaction against a smaller window; it compacts 33,000 tokens below that window, so 850,000 of 1,000,000 fires at 817,000. CLAUDE_AUTOCOMPACT_PCT_OVERRIDE, which the plan named, did not change the threshold Claude Code reports, so it is not used.
 
+        MCP_TOOL_TIMEOUT gives one call of trading-agent's tools up to 2,000 seconds, because delegate_task can wait for a subagent for up to 30 minutes; Claude Code's own default is not documented. Each tool still has its own, shorter limit inside trading-agent.
+
         Returns:
-            dict[str, str]: The subscription token, the automatic compaction window, and an empty value for each tradingmachine setting.
+            dict[str, str]: The subscription token, the automatic compaction window, the tool timeout, and an empty value for each tradingmachine setting.
         """
         compaction_window = int(
             self._settings.emergency_compression_threshold
@@ -383,6 +386,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         environment = {
             'CLAUDE_CODE_OAUTH_TOKEN': self._settings.oauth_token,
             'CLAUDE_CODE_AUTO_COMPACT_WINDOW': str(compaction_window),
+            'MCP_TOOL_TIMEOUT': str(_MCP_TOOL_TIMEOUT_MILLISECONDS),
         }
         for name in os.environ:
             if name.startswith(_TRADINGMACHINE_PREFIX):

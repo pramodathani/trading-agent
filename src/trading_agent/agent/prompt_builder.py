@@ -15,6 +15,7 @@ from pathlib import Path
 
 from trading_agent.extensions import mcp_client_manager
 from trading_agent.skills import skill_library as skill_library_module
+from trading_agent.subagents import subagent_library as subagent_library_module
 from trading_agent.workspace import workspace_layout
 
 MAXIMUM_FILE_CHARACTERS = 20000
@@ -44,6 +45,7 @@ class PromptBuilder:
         mode: str,
         skill_library: skill_library_module.SkillLibrary | None = None,
         mcp_manager: mcp_client_manager.McpClientManager | None = None,
+        subagent_library: subagent_library_module.SubagentLibrary | None = None,
     ):
         """Creates the builder.
 
@@ -53,12 +55,14 @@ class PromptBuilder:
             mode (str): "dry_run" or "live", stated in the prompt.
             skill_library (skill_library_module.SkillLibrary | None): The desk's skills, listed as an index at the end, or None for no index.
             mcp_manager (mcp_client_manager.McpClientManager | None): The MCP connections, whose tool names are listed last, or None.
+            subagent_library (subagent_library_module.SubagentLibrary | None): The subagents the desk can delegate to, listed after the skills, or None.
         """
         self._layout = layout
         self._desk_name = desk_name
         self._mode = mode
         self._skill_library = skill_library
         self._mcp_manager = mcp_manager
+        self._subagent_library = subagent_library
 
     def build(self) -> SystemPrompt:
         """Reads the files and assembles the prompt.
@@ -81,6 +85,10 @@ class PromptBuilder:
         ]
         if self._skill_library is not None:
             sections.append(self._skill_library.index_text())
+        if self._subagent_library is not None:
+            subagent_index = self._subagent_library.index_text()
+            if subagent_index:
+                sections.append(subagent_index)
         if self._mcp_manager is not None:
             mcp_index = self._mcp_manager.index_text()
             if mcp_index:
