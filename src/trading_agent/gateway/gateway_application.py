@@ -11,6 +11,7 @@ Typical usage example:
 import asyncio
 import contextlib
 from collections.abc import AsyncIterator, Mapping, Sequence
+from pathlib import Path
 from typing import Protocol
 
 import fastapi
@@ -18,6 +19,7 @@ import fastapi
 from trading_agent.gateway import access_guard
 from trading_agent.gateway.routes import desk_routes
 from trading_agent.gateway.routes import event_routes
+from trading_agent.gateway.routes import frontend_routes
 from trading_agent.gateway.routes import health_routes
 from trading_agent.gateway.routes import route_group
 from trading_agent.gateway.routes import webhook_routes
@@ -45,6 +47,7 @@ class GatewayApplication:
         redactor: secret_redactor.SecretRedactor | None = None,
         webhook_token: str = '',
         route_groups: Sequence[route_group.RouteGroup] = (),
+        frontend_directory: Path | None = None,
     ):
         """Creates the gateway without starting anything.
 
@@ -56,6 +59,7 @@ class GatewayApplication:
             redactor (secret_redactor.SecretRedactor | None): Masks secrets in the live event stream, or None to send events unchanged.
             webhook_token (str): The token incoming webhooks must present, or an empty string to switch them off.
             route_groups (Sequence[route_group.RouteGroup]): The API's route groups; when empty, only the basic desk routes are offered.
+            frontend_directory (Path | None): The built web page to serve at every other address, or None to serve no page.
         """
         self._event_bus = event_bus
         self._desks = desks
@@ -64,6 +68,7 @@ class GatewayApplication:
         self._redactor = redactor
         self._webhook_token = webhook_token
         self._route_groups = list(route_groups)
+        self._frontend_directory = frontend_directory
 
     def build(self) -> fastapi.FastAPI:
         """Builds the FastAPI application with every route.
@@ -98,6 +103,12 @@ class GatewayApplication:
                 self._redactor,
             ).router()
         )
+        if self._frontend_directory is not None:
+            application.include_router(
+                frontend_routes.FrontendRoutes(
+                    self._frontend_directory
+                ).router()
+            )
         return application
 
     @contextlib.asynccontextmanager

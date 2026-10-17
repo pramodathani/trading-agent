@@ -29,3 +29,7 @@ Defaults to `mcp_servers.json` beside trading_agent.toml.
 ## scheduled_checks (milestone 16)
 
 A desk's list of HH:MM times for its routine checks.
+
+## gateway.frontend_directory (milestone 18)
+
+The built web page's folder, `frontend/dist` by default. It is relative to the project folder, because `bin/trading-agent` changes to the project folder before starting.

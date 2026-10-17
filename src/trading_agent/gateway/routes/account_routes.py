@@ -99,8 +99,14 @@ class AccountRoutes(route_group.RouteGroup):
             ) from error
         today = self._now().date()
         positions = []
+        symbols = {}
         for row in snapshot.positions:
-            positions.append(dataclasses.asdict(row))
+            entry = dataclasses.asdict(row)
+            entry['day_pnl'] = snapshot.day_pnl_by_instrument.get(
+                row.instrument_id
+            )
+            positions.append(entry)
+            symbols[row.instrument_id] = row.symbol
         return {
             'total_balance': snapshot.total_balance,
             'margin_utilized': snapshot.margin_utilized,
@@ -109,7 +115,7 @@ class AccountRoutes(route_group.RouteGroup):
             'desk_pnl': self._shared.risk_engine.desk_day_pnl(snapshot),
             'positions': positions,
             'holdings': snapshot.held_quantities,
-            'owners': self._shared.ledger.owners(),
+            'owners': self._owners(symbols),
             'halts': self._shared.ledger.halts_in_force(today),
         }
 
@@ -177,6 +183,34 @@ class AccountRoutes(route_group.RouteGroup):
             now.date() + datetime.timedelta(days=1),
             now,
         )
+
+    def _owners(self, symbols: dict[str, str]) -> list[dict[str, str]]:
+        """Every stock a desk owns now, with its symbol.
+
+        The ledger knows only UBI's instrument ids, so the symbol comes from the open positions, or else from the desk's orders.
+
+        Args:
+            symbols (dict[str, str]): Symbols already known from the positions, keyed by instrument id.
+
+        Returns:
+            list[dict[str, str]]: Each owned instrument's id, symbol and desk; the symbol is the id when neither source knows it.
+        """
+        owners = []
+        for instrument_id, desk_name in self._shared.ledger.owners().items():
+            symbol = symbols.get(instrument_id)
+            if symbol is None:
+                for record in self._shared.order_book.open_orders(desk_name):
+                    if record.instrument_id == instrument_id:
+                        symbol = record.symbol
+                        break
+            owners.append(
+                {
+                    'instrument_id': instrument_id,
+                    'symbol': symbol or instrument_id,
+                    'desk': desk_name,
+                }
+            )
+        return owners
 
     def _now(self) -> datetime.datetime:
         """The current time in India.

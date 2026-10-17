@@ -276,6 +276,7 @@ class Application:
                 manager,
                 redactor,
             ),
+            configuration.gateway.frontend_directory,
         )
         server_configuration = uvicorn.Config(
             gateway.build(),

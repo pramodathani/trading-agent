@@ -13,3 +13,7 @@ The gateway includes the webhook route, which carries no gateway-token dependenc
 ## Route groups (milestone 17)
 
 The application builds every API route group and passes them in as `route_groups`. When none are given, the gateway offers only the basic desk routes, which keeps the older tests and small test setups working without the full set of parts.
+
+## The web page (milestone 18)
+
+When `frontend_directory` is given, the frontend route is added after every other route, because it matches every address.
