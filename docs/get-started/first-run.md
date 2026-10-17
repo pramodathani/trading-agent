@@ -35,7 +35,7 @@ Choose a desk in the header, open **Chat**, and send `/status`, which is answere
 The tool call appears as a card, and the answer as the text is written. The same works from a terminal:
 
 ```bash
-bin/trading-agent send --desk main "What time is it in India?"
+bin/trading-agent send --desk general "What time is it in India?"
 ```
 
 When this works, stop the gateway with Ctrl+C and set it up as [the service](service.md).

@@ -30,8 +30,10 @@ workspace/desks/*/sessions/
 workspace/desks/*/skills/
 workspace/desks/*/cron/
 workspace/desks/*/alerts.json
+workspace/desks/*/requests/
 workspace/shared/market_watcher.json
 workspace/shared/telegram_pairing.json
+workspace/shared/permission_grants.json
 workspace/shared/packages/
 workspace/.checkpoints/
 

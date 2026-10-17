@@ -1,6 +1,6 @@
 # trading-agent
 
-An always-on, multi-desk AI trading agent on the `tradingmachine` library and UBI. Four desks (main, intraday, scalper and positional) each run their own agent with their own persona, models, schedule and memory, and every order from every desk goes through one risk engine that enforces the hard limits in `workspace/shared/TradingRules.md`. Models are Claude through the Max subscription, and Gemma and Qwen on Ollama, with automatic fallback.
+An always-on, multi-desk AI trading agent on the `tradingmachine` library and UBI. Four desks (general, intraday, scalper and positional) each run their own agent with their own persona, models, schedule and memory, and every order from every desk goes through one risk engine that enforces the hard limits in `workspace/shared/TradingRules.md`. Models are Claude through the Max subscription, and Gemma and Qwen on Ollama, with automatic fallback.
 
 ## Using it
 

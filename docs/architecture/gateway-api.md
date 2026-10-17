@@ -109,7 +109,7 @@ curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8120/api/desks
 `/ws/events?token=<token>` is a WebSocket that sends every event as JSON as it happens: its `kind`, its `desk`, its `payload` and its `created_at`. Add `&desk=intraday` to receive one desk's events and the events that belong to no desk, such as the kill switch. A wrong token closes the connection with code 1008.
 
 ```json
-{"kind": "tool_call", "desk": "main", "payload": {"trigger_id": "c38a67fb...", "call_id": "f60067d3...", "name": "get_portfolio", "arguments": {"kind": "funds"}}, "created_at": "2026-10-16T19:35:41.662832+00:00"}
+{"kind": "tool_call", "desk": "general", "payload": {"trigger_id": "c38a67fb...", "call_id": "f60067d3...", "name": "get_portfolio", "arguments": {"kind": "funds"}}, "created_at": "2026-10-16T19:35:41.662832+00:00"}
 ```
 
 Every other address that is not under `/api`, `/ws` or `/hooks` is answered with the web page.

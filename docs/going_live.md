@@ -14,7 +14,7 @@ In `dry_run` mode, UBI checks every order the desks place and sends none to a br
 | Weekly loss | 35% | TradingRules.md |
 | One order's margin | at most 25% of the account | TradingRules.md |
 | Option writing | forbidden | TradingRules.md |
-| Each desk's products | intraday and scalper `mis`, positional `cnc` and `nrml`, main any | TradingRules.md |
+| Each desk's products | intraday and scalper `mis`, positional `cnc` and `nrml`, general any | TradingRules.md |
 | Desk loss limits | none; only the account limits apply (your choice on 17 October 2026) | TradingRules.md |
 | One stock, one desk | a desk cannot trade a stock another desk holds | the risk engine |
 
@@ -36,19 +36,19 @@ Change any of these on the Files page or in `workspace/shared/TradingRules.md` b
 
 ## 2. The trading-day checks, in dry run (09:15 to 10:00)
 
-1. **A dry-run order through UBI.** In Chat, choose the **main** desk and send:
+1. **A dry-run order through UBI.** In Chat, choose the **general** desk and send:
 
    > Place a dry-run limit order to buy 1 share of IDEA at the current price, product mis, then tell me what UBI answered.
 
-   The Trading page should show the order under "Desks' open orders", and main as the owner of IDEA.
+   The Trading page should show the order under "Desks' open orders", and general as the owner of IDEA.
 
 2. **Two desks cannot share a stock.** Choose the **intraday** desk and send:
 
    > Try to buy 1 share of IDEA, product mis, as a dry run, and tell me exactly what the risk engine said.
 
-   The risk engine must refuse it with "IDEA belongs to the main desk; one desk trades an instrument at a time." The Activity page shows the refusal.
+   The risk engine must refuse it with "IDEA belongs to the general desk; one desk trades an instrument at a time." The Activity page shows the refusal.
 
-3. **A fill report.** Dry runs reach no broker, so they never fill; the first real fill report is seen in the live session. Ask main to flatten itself afterwards:
+3. **A fill report.** Dry runs reach no broker, so they never fill; the first real fill report is seen in the live session. Ask general to flatten itself afterwards:
 
    > Flatten your desk: cancel your open orders and close your positions.
 
