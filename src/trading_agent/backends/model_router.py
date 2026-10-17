@@ -331,6 +331,29 @@ class ModelRouter(turn_runner.TurnRunner):
             )
         self._preferred_backend_name = backend_name
 
+    def set_thinking(self, level: str | None) -> None:
+        """Changes the thinking level of every backend that has one, from its next turn on.
+
+        Args:
+            level (str | None): One of turn_runner.THINKING_LEVELS, or None for each backend's level in trading_agent.toml.
+        """
+        for route in self._routes:
+            route.turn_runner.set_thinking(level)
+
+    def thinking_lines(self) -> list[str]:
+        """Describes each backend's thinking level for /think.
+
+        Returns:
+            list[str]: One line per backend, in the order they will be tried.
+        """
+        lines = []
+        for route in self._ordered_routes():
+            level = route.turn_runner.thinking()
+            if level is None:
+                level = 'set by the provider'
+            lines.append(f'{route.name}: {level}')
+        return lines
+
     def status_lines(self) -> list[str]:
         """Describes each backend's state for /status.
 

@@ -46,3 +46,11 @@ These copy what Claude Code, OpenClaw and Hermes offer under the same names, and
 - `/tools` shows the first sentence of each description, because the full descriptions of about 40 tools would fill several Telegram messages. `/tools full` gives them whole.
 - `/skills` groups skills by `Skill.origin`, so the user can see which skills the desk wrote for itself. Skills hidden for a missing program or variable are listed with what they lack.
 - `/subagents` reads today's `subagent_started` and `subagent_finished` events from the journal, because no run list is kept in memory. A start without a matching finish is shown as running; after a restart mid-run it would stay "running" for the rest of the day, which is acceptable for a read-out.
+
+## /think, since 2026-10-18
+
+`/think` copies OpenClaw's `/think` and Claude Code's `/effort`. It replaced the "later milestone" placeholder. The levels are the effort levels Claude Code accepts (low, medium, high, xhigh, max) plus `off`, and `default` goes back to `trading_agent.toml`.
+
+The level applies to every backend of this desk, because a fallback model should think about as hard as the model it replaces. Each desk builds its own turn runners, so other desks are not affected, even when they share a backend entry in `trading_agent.toml`.
+
+It lasts until the gateway restarts. That matches `/model`, and it keeps `trading_agent.toml` as the place where lasting settings live. `/think` is queued like other commands that change the desk, so it never lands in the middle of a turn.

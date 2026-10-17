@@ -13,6 +13,15 @@ from typing import Any
 from trading_agent.agent import context_usage as context_usage_module
 from trading_agent.runtime import trigger as trigger_module
 
+THINKING_LEVELS = (
+    'off',
+    'low',
+    'medium',
+    'high',
+    'xhigh',
+    'max',
+)
+
 
 @dataclasses.dataclass(frozen=True)
 class TurnResult:
@@ -110,6 +119,30 @@ class TurnRunner:
         """
         if model is not None:
             raise ValueError('This desk runs without a model')
+
+    def thinking(self) -> str | None:
+        """The thinking level the runner uses now, for /think.
+
+        Runners without a thinking setting keep this default.
+
+        Returns:
+            str | None: The level, such as "medium" or "off", or None when the runner has no thinking setting.
+        """
+        return None
+
+    def set_thinking(self, level: str | None) -> bool:
+        """Changes how hard the model thinks from the next turn on, keeping the conversation.
+
+        Runners without a thinking setting keep this default.
+
+        Args:
+            level (str | None): One of THINKING_LEVELS, or None for the level in trading_agent.toml.
+
+        Returns:
+            bool: True when the level was applied, False when the runner has no thinking setting.
+        """
+        del level
+        return False
 
     def context_usage(self) -> context_usage_module.ContextUsage | None:
         """How full the runner's context window is, as of its last turn.

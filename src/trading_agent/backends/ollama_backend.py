@@ -38,6 +38,34 @@ class OllamaBackend(backend.ModelBackend):
         self._client = ollama.AsyncClient(host=backend_configuration.base_url)
         self._context_window = backend_configuration.context_window
         self._thinking = backend_configuration.thinking
+        self._configured_thinking = backend_configuration.thinking
+
+    def thinking(self) -> str | None:
+        """Whether the model thinks before answering.
+
+        Returns:
+            str | None: "on" or "off".
+        """
+        if self._thinking:
+            return 'on'
+        return 'off'
+
+    def set_thinking(self, level: str | None) -> bool:
+        """Turns thinking off for "off", on for any other level, or back to trading_agent.toml for None.
+
+        Ollama's thinking is on or off for most models, so the levels between low and max all mean on.
+
+        Args:
+            level (str | None): One of turn_runner.THINKING_LEVELS, or None for the configured setting.
+
+        Returns:
+            bool: Always True.
+        """
+        if level is None:
+            self._thinking = self._configured_thinking
+        else:
+            self._thinking = level != 'off'
+        return True
 
     async def complete(
         self,

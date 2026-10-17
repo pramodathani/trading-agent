@@ -80,3 +80,11 @@ The PostToolUse hook list holds the steering hook when the desk has an inbox. A 
 `_one_message` is an async generator because `query` iterates its argument with `async for`. It yields no `session_id`; `query` fills it in.
 
 Checked on 2026-10-17: the main desk (opus) described a test picture exactly, and a picture dropped on the chat page ("9035" on green) came back correctly.
+
+## /think, since 2026-10-18
+
+Claude Code reads `effort` and `thinking` only when its process starts; the SDK has `set_model` for a running client but nothing for effort. So `set_thinking` only records the wish, and `_connected_client` compares the wanted pair (effort, thinking off) with the pair the running client was started with. When they differ, it disconnects and connects again. The new process resumes the same session (`resume=self.session_id`), so the conversation is kept, at the cost of one process restart (a few seconds) on the next turn.
+
+`_applied_thinking` starts as the configured pair, so a client set up any other way, such as in tests, is not restarted for no reason.
+
+`/think off` sends `thinking={'type': 'disabled'}` and keeps the effort as it was, so `/think high` after `/think off` turns thinking back on at high.

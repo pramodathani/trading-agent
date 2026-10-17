@@ -3,6 +3,7 @@
 import asyncio
 import dataclasses
 from pathlib import Path
+from typing import ClassVar
 
 import claude_agent_sdk
 import pytest
@@ -511,3 +512,83 @@ class TestClaudeSessionRestore:
         assert not resumed
         assert runner.session_id is None
         assert runner.saved_state() is None
+
+
+class _ConnectingClient:
+    """Stands in for ClaudeSDKClient when the runner connects, recording each client made.
+
+    Attributes:
+        made: Every client created, oldest first.
+        options: The options this client was created with.
+        disconnected: Whether disconnect was called.
+    """
+
+    made: ClassVar[list] = []
+
+    def __init__(self, options: claude_agent_sdk.ClaudeAgentOptions):
+        """Records the client and its options.
+
+        Args:
+            options (claude_agent_sdk.ClaudeAgentOptions): The session's options.
+        """
+        self.options = options
+        self.disconnected = False
+        _ConnectingClient.made.append(self)
+
+    async def connect(self) -> None:
+        """Does nothing."""
+
+    async def disconnect(self) -> None:
+        """Records the disconnection."""
+        self.disconnected = True
+
+
+class TestClaudeThinking:
+    """Tests for /think on the Claude runner."""
+
+    def test_levels_set_effort_or_switch_thinking_off(self) -> None:
+        """A level becomes the effort, off disables thinking, and None goes back to the configured effort."""
+        runner = _runner(event_bus_module.EventBus())
+
+        assert runner.thinking() == 'default'
+        runner.set_thinking('high')
+        high = runner._options('prompt')
+        runner.set_thinking('off')
+        off = runner._options('prompt')
+        runner.set_thinking(None)
+
+        assert high.effort == 'high'
+        assert high.thinking is None
+        assert off.thinking == {
+            'type': 'disabled',
+        }
+        assert runner.thinking() == 'default'
+        assert runner._options('prompt').effort is None
+
+    def test_changed_level_restarts_claude_code_at_the_next_turn(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Claude Code is restarted with the new effort only when the level changed, and keeps the client otherwise.
+
+        Args:
+            monkeypatch (pytest.MonkeyPatch): Replaces ClaudeSDKClient for this test only.
+        """
+        monkeypatch.setattr(
+            claude_code_turn_runner.claude_agent_sdk,
+            'ClaudeSDKClient',
+            _ConnectingClient,
+        )
+        _ConnectingClient.made = []
+        runner = _runner(event_bus_module.EventBus())
+        prompt = _FixedPromptBuilder().build()
+
+        first = asyncio.run(runner._connected_client(prompt))
+        again = asyncio.run(runner._connected_client(prompt))
+        runner.set_thinking('low')
+        after_change = asyncio.run(runner._connected_client(prompt))
+
+        assert again is first
+        assert after_change is not first
+        assert first.disconnected
+        assert after_change.options.effort == 'low'
+        assert len(_ConnectingClient.made) == 2

@@ -92,6 +92,25 @@ class AgentTurnRunner(turn_runner.TurnRunner):
         """
         self._agent_loop.backend.use_model(model)
 
+    def thinking(self) -> str | None:
+        """The thinking level of the loop's backend.
+
+        Returns:
+            str | None: The level, or None when the backend has no thinking setting.
+        """
+        return self._agent_loop.backend.thinking()
+
+    def set_thinking(self, level: str | None) -> bool:
+        """Changes the thinking level of the loop's backend, keeping the conversation.
+
+        Args:
+            level (str | None): One of turn_runner.THINKING_LEVELS, or None for the configured setting.
+
+        Returns:
+            bool: True when the backend applied it, False when it has no thinking setting.
+        """
+        return self._agent_loop.backend.set_thinking(level)
+
     def context_usage(self) -> context_usage_module.ContextUsage | None:
         """Estimates how full the model's context window is.
 

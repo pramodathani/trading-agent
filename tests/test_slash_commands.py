@@ -32,6 +32,7 @@ class _RecordingRunner(turn_runner.TurnRunner):
         received_texts: The trigger texts it was given.
         reset_count: How many times reset was called.
         snapshot: The context window snapshot it reports, or None.
+        thinking_level: The thinking level it reports, changed by set_thinking.
     """
 
     def __init__(self, name: str):
@@ -44,6 +45,7 @@ class _RecordingRunner(turn_runner.TurnRunner):
         self.received_texts = []
         self.reset_count = 0
         self.snapshot: context_usage_module.ContextUsage | None = None
+        self.thinking_level = 'medium'
 
     async def run_turn(
         self,
@@ -63,6 +65,26 @@ class _RecordingRunner(turn_runner.TurnRunner):
     async def reset(self) -> None:
         """Counts the reset."""
         self.reset_count += 1
+
+    def thinking(self) -> str | None:
+        """Reports the thinking level.
+
+        Returns:
+            str | None: The level.
+        """
+        return self.thinking_level
+
+    def set_thinking(self, level: str | None) -> bool:
+        """Records the level, with "medium" standing for the configured one.
+
+        Args:
+            level (str | None): The level, or None for the configured one.
+
+        Returns:
+            bool: Always True.
+        """
+        self.thinking_level = level or 'medium'
+        return True
 
     def context_usage(self) -> context_usage_module.ContextUsage | None:
         """Reports the snapshot the test set.
@@ -233,17 +255,32 @@ class TestSlashCommands:
         assert 'Usage is not being tracked on this gateway.' in replies
         assert any('1. gemma' in reply for reply in replies)
 
-    def test_later_and_unknown_commands_explain_themselves(self) -> None:
-        """Commands from later milestones say when they arrive; unknown ones point to /help."""
-        replies = _Desk().send(
+    def test_unknown_command_points_to_help(self) -> None:
+        """A command the desk does not know points to /help."""
+        reply = _Desk().send(['/frobnicate'])[0]
+
+        assert reply == 'Unknown command /frobnicate. Type /help for the list.'
+
+    def test_think_shows_sets_and_restores_each_backends_level(self) -> None:
+        """/think lists each backend's level, /think high sets every backend, /think default restores them, and a wrong level is refused."""
+        setup = _Desk()
+
+        replies = setup.send(
             [
                 '/think',
-                '/frobnicate',
+                '/think high',
+                '/think banana',
+                '/think default',
             ]
         )
 
-        assert 'later milestone' in replies[0]
-        assert '/help' in replies[1]
+        assert 'claude: medium' in replies[0]
+        assert 'gemma: medium' in replies[0]
+        assert 'claude: high' in replies[1]
+        assert 'from the next turn' in replies[1]
+        assert "Unknown thinking level 'banana'" in replies[2]
+        assert 'claude: medium' in replies[3]
+        assert setup.gemma.thinking_level == 'medium'
 
     def test_model_sees_the_india_time_and_trigger_source(self) -> None:
         """The message the model receives starts with the context line."""

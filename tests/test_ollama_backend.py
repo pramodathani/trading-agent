@@ -57,3 +57,26 @@ class TestOllamaBackend:
                 'tool_name': 'get_time',
             },
         ]
+
+    def test_thinking_is_on_or_off(self) -> None:
+        """off turns thinking off, any other level turns it on, and None goes back to the configured setting."""
+        backend = ollama_backend.OllamaBackend(
+            'qwen',
+            agent_configuration.BackendConfiguration(
+                kind='ollama',
+                base_url='http://127.0.0.1:11434',
+                model='qwen3.8:27b',
+                context_window=32768,
+            ),
+        )
+
+        backend.set_thinking('off')
+        after_off = backend.thinking()
+        backend.set_thinking('low')
+        after_low = backend.thinking()
+        backend.set_thinking('off')
+        backend.set_thinking(None)
+
+        assert after_off == 'off'
+        assert after_low == 'on'
+        assert backend.thinking() == 'on'

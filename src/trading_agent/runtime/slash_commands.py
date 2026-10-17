@@ -16,6 +16,7 @@ from trading_agent.backends import model_router
 from trading_agent.journal import journal_reader as journal_reader_module
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import trigger as trigger_module
+from trading_agent.runtime import turn_runner as turn_runner_module
 from trading_agent.skills import skill_library as skill_library_module
 from trading_agent.subagents import subagent_library as subagent_library_module
 from trading_agent.tools import tool_registry as tool_registry_module
@@ -23,9 +24,6 @@ from trading_agent.tools import tool_registry as tool_registry_module
 if TYPE_CHECKING:
     from trading_agent.runtime import desk_runtime
 
-_LATER_COMMANDS = {
-    '/think': 'a later milestone, with per-desk thinking settings',
-}
 _INSTANT_COMMANDS = (
     '/help',
     '/status',
@@ -37,6 +35,7 @@ _INSTANT_COMMANDS = (
 )
 _INDIA = zoneinfo.ZoneInfo('Asia/Kolkata')
 _FULL = 'full'
+_DEFAULT = 'default'
 
 
 @dataclasses.dataclass(frozen=True)
@@ -86,6 +85,7 @@ class SlashCommands:
             '/model': self._model,
             '/pause': self._pause,
             '/resume': self._resume,
+            '/think': self._think,
             '/context': self._context,
             '/tools': self._tools,
             '/skills': self._skills,
@@ -168,8 +168,6 @@ class SlashCommands:
         command = self._commands.get(name)
         if command is not None:
             return await command(self._argument(text))
-        if name in _LATER_COMMANDS:
-            return f'{name} is not available yet; it arrives in {_LATER_COMMANDS[name]}.'
         return f'Unknown command {name}. Type /help for the list.'
 
     def _argument(self, text: str) -> str:
@@ -199,6 +197,9 @@ class SlashCommands:
         return '\n'.join(
             [
                 '/status              what the desk is doing and which models are ready',
+                '/think               show how hard each model thinks',
+                '/think <level>       off, low, medium, high, xhigh or max, from the next turn',
+                '/think default       go back to the configured thinking',
                 '/model               show the model order',
                 '/model <name>        try that model first from now on',
                 '/model auto          go back to the configured order',
@@ -331,6 +332,37 @@ class SlashCommands:
                 *router.status_lines(),
             ]
         )
+
+    async def _think(self, argument: str) -> str:
+        """Shows or changes how hard the desk's models think.
+
+        Args:
+            argument (str): Empty to show, a level from THINKING_LEVELS to set it, or "default" for trading_agent.toml's settings.
+
+        Returns:
+            str: Each backend's thinking level now in effect, or why the level was refused.
+        """
+        router = self._router()
+        if router is None:
+            return 'This desk has no models connected.'
+        level = argument.lower()
+        if level:
+            levels = ', '.join(turn_runner_module.THINKING_LEVELS)
+            if level == _DEFAULT:
+                router.set_thinking(None)
+            elif level in turn_runner_module.THINKING_LEVELS:
+                router.set_thinking(level)
+            else:
+                return f'Unknown thinking level {argument!r}. Use one of {levels}, or default.'
+        lines = [
+            'Thinking, in the order the models will be tried:',
+            *router.thinking_lines(),
+        ]
+        if level:
+            lines.append(
+                'This applies from the next turn and lasts until the gateway restarts.'
+            )
+        return '\n'.join(lines)
 
     async def _pause(self, argument: str) -> str:
         """Pauses the desk.

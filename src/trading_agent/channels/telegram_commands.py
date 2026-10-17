@@ -79,6 +79,10 @@ _MENU = (
         'Show or change the model order',
     ),
     (
+        'think',
+        'Show or set how hard the models think: /think [level]',
+    ),
+    (
         'compact',
         "Compress the desk's conversation",
     ),
@@ -221,6 +225,7 @@ class TelegramCommands:
                 "/context - how full the desk's context window is",
                 '/tools, /skills, /subagents - what the desk can use',
                 '/model [name|auto] - show or change the model order',
+                '/think [off|low|medium|high|xhigh|max|default] - how hard the models think',
                 "/compact - compress the desk's conversation",
                 '/new - start a fresh conversation',
                 '/rollover - summarise the day and start a fresh session',
