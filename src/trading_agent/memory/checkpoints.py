@@ -1,6 +1,6 @@
 """Snapshots of a desk's own files, so any change the desk makes can be undone.
 
-Each desk gets its own git repository in `workspace/.checkpoints/<desk>.git`, kept apart from the project's git. Its working tree is the desk folder, but only Memory.md, memory/ and notes/ are tracked; everything else in the folder is ignored. A snapshot is taken before every write the desk makes, so each checkpoint is the state just before one change.
+Each desk gets its own git repository in `workspace/.checkpoints/<desk>.git`, kept apart from the project's git. Its working tree is the desk folder, but only Memory.md, memory/, notes/ and skills/agent/ are tracked; everything else in the folder is ignored. A snapshot is taken before every write the desk makes, so each checkpoint is the state just before one change.
 
 Typical usage example:
 
@@ -21,12 +21,16 @@ TRACKED_PATHS = (
     'Memory.md',
     'memory',
     'notes',
+    'skills/agent',
 )
 _EXCLUDE_LINES = (
     '/*',
     '!/Memory.md',
     '!/memory/',
     '!/notes/',
+    '!/skills/',
+    '/skills/*',
+    '!/skills/agent/',
 )
 _FIELD_SEPARATOR = '\x1f'
 
@@ -121,7 +125,7 @@ class Checkpoints:
     def restore(self, checkpoint_id: str) -> str:
         """Puts the desk's files back as they were at a checkpoint.
 
-        The current files are snapshotted first, so a restore can itself be undone. Files created after the checkpoint are removed; files outside Memory.md, memory/ and notes/ are never touched.
+        The current files are snapshotted first, so a restore can itself be undone. Files created after the checkpoint are removed; files outside Memory.md, memory/, notes/ and skills/agent/ are never touched.
 
         Args:
             checkpoint_id (str): The checkpoint to return to.
@@ -182,17 +186,23 @@ class Checkpoints:
         return self._git('rev-parse', '--short', 'HEAD').strip()
 
     def _ensure_repository(self) -> None:
-        """Creates the repository and its ignore rules the first time."""
-        if (self.repository_directory / 'HEAD').is_file():
-            return
-        self.repository_directory.parent.mkdir(parents=True, exist_ok=True)
-        self.desk_directory.mkdir(parents=True, exist_ok=True)
-        self._git('init', '--quiet')
+        """Creates the repository the first time, and keeps its ignore rules current.
+
+        The ignore rules are rewritten whenever they differ, so a repository created before skills/agent/ was tracked starts tracking it.
+        """
+        if not (self.repository_directory / 'HEAD').is_file():
+            self.repository_directory.parent.mkdir(parents=True, exist_ok=True)
+            self.desk_directory.mkdir(parents=True, exist_ok=True)
+            self._git('init', '--quiet')
         exclude_file = self.repository_directory / 'info' / 'exclude'
+        wanted = '\n'.join(_EXCLUDE_LINES) + '\n'
+        current = ''
+        if exclude_file.is_file():
+            current = exclude_file.read_text(encoding='utf-8')
+        if current == wanted:
+            return
         exclude_file.parent.mkdir(parents=True, exist_ok=True)
-        exclude_file.write_text(
-            '\n'.join(_EXCLUDE_LINES) + '\n', encoding='utf-8'
-        )
+        exclude_file.write_text(wanted, encoding='utf-8')
 
     def _has_commits(self) -> bool:
         """Says whether any snapshot has been taken.

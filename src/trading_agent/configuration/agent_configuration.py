@@ -108,6 +108,7 @@ class SandboxConfiguration(pydantic.BaseModel):
         command_timeout_seconds: How long one bash command may run before the session is restarted.
         maximum_output_characters: How much of a command's output is returned to the model.
         hidden_paths: Files and folders replaced by empty ones inside the sandbox, so their contents cannot be read. "~" and "*" are expanded.
+        passed_environment: Names of environment variables passed from the gateway into the sandbox, which otherwise starts with an empty environment. A skill that needs a variable is shown only when it is passed here.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -115,6 +116,7 @@ class SandboxConfiguration(pydantic.BaseModel):
     command_timeout_seconds: float = pydantic.Field(default=120.0, gt=0)
     maximum_output_characters: int = pydantic.Field(default=20000, gt=0)
     hidden_paths: list[str] = _DEFAULT_HIDDEN_PATHS
+    passed_environment: list[str] = []
 
 
 class WebConfiguration(pydantic.BaseModel):
@@ -169,6 +171,18 @@ class RiskConfiguration(pydantic.BaseModel):
 
     ownership_grace_minutes: float = pydantic.Field(default=30.0, gt=0)
     margin_rates: MarginRatesConfiguration = MarginRatesConfiguration()
+
+
+class SkillsConfiguration(pydantic.BaseModel):
+    """How the desks' skills are kept.
+
+    Attributes:
+        archive_after_days: How many days a desk's own skill may go unused before the daily curator archives it.
+    """
+
+    model_config = pydantic.ConfigDict(extra='forbid')
+
+    archive_after_days: int = pydantic.Field(default=30, gt=0)
 
 
 class BrowserConfiguration(pydantic.BaseModel):
@@ -238,6 +252,7 @@ class AgentConfiguration(pydantic.BaseModel):
         web: Where web search goes and how pages are fetched.
         browser: How each desk's Chrome browser runs.
         risk: How the risk engine works, apart from the limits in TradingRules.md.
+        skills: How the desks' skills are kept.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -253,6 +268,7 @@ class AgentConfiguration(pydantic.BaseModel):
     web: WebConfiguration = WebConfiguration()
     browser: BrowserConfiguration = BrowserConfiguration()
     risk: RiskConfiguration = RiskConfiguration()
+    skills: SkillsConfiguration = SkillsConfiguration()
 
     @pydantic.model_validator(mode='after')
     def _require_known_backends(self) -> AgentConfiguration:

@@ -29,16 +29,32 @@ class BashSandbox:
         self,
         scratch_directory: Path,
         hidden_path_patterns: Sequence[str],
+        passed_variable_names: Sequence[str] = (),
     ):
         """Describes the sandbox without starting anything.
 
         Args:
             scratch_directory (Path): The desk's scratch folder.
             hidden_path_patterns (Sequence[str]): Files and folders to hide; "~" and "*" are expanded.
+            passed_variable_names (Sequence[str]): Environment variables the user chose to pass from the gateway into the sandbox, such as an API key a skill's script needs.
         """
         self.scratch_directory = scratch_directory.resolve()
         self.home_directory = self.scratch_directory / 'home'
         self._hidden_path_patterns = list(hidden_path_patterns)
+        self._passed_variable_names = list(passed_variable_names)
+
+    def passed_environment(self) -> dict[str, str]:
+        """The environment variables passed into the sandbox that are set in the gateway.
+
+        Returns:
+            dict[str, str]: Each passed variable that has a value, with that value.
+        """
+        environment = {}
+        for name in self._passed_variable_names:
+            value = os.environ.get(name)
+            if value:
+                environment[name] = value
+        return environment
 
     def hidden_paths(self) -> list[Path]:
         """Expands the hidden path patterns into the paths that exist now.
@@ -124,6 +140,14 @@ class BashSandbox:
                 str(self.scratch_directory),
             ]
         )
+        for name, value in self.passed_environment().items():
+            arguments.extend(
+                [
+                    '--setenv',
+                    name,
+                    value,
+                ]
+            )
         arguments.extend(program)
         return arguments
 

@@ -13,3 +13,7 @@ The templates ship inside the package (`workspace/templates/`) and are read with
 `notes_directory`, `sessions_directory` and `checkpoint_repository` were added; `create_missing` now also creates `notes/`. The checkpoint repositories live at `workspace/.checkpoints/<desk>.git`, outside the desk folder, so the desk's file tools cannot reach them and a checkpoint restore cannot rewrite its own history.
 
 The `Agents.md` template's line "Notes and memory tools arrive in later milestones" was replaced with a pointer to the memory section of the prompt. The user's `workspace/shared/Agents.md` was still identical to the template, so the same one-line change was made there.
+
+## Skills (milestone 13)
+
+`installed_skills_directory` (`shared/skills/installed/`, the user's, tracked by the project's git like the other shared files), `agent_skills_directory`, `skill_usage_file` and `skill_ledger_file` (all under `desks/<desk>/skills/`, which `.gitignore` leaves out like the desk's other working files).

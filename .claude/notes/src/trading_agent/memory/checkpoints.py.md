@@ -23,3 +23,7 @@ The bash sandbox mounts the desk folder read-only except `scratch/` (`bash_sandb
 ## Verified on 2026-10-17
 
 The live test took `fdcf6c1 before add_note notes/2026-10-17.md` and `378531b before write_file Memory.md`, then `trading-agent checkpoints restore fdcf6c1` returned Memory.md to its template and removed the day's notes file, while `notes/tool-test.md`, which already existed at that checkpoint, stayed.
+
+## skills/agent/ (milestone 13)
+
+`skills/agent/` is now tracked, through ignore rules that un-ignore `/skills/` and then ignore everything in it except `agent/`. `_ensure_repository` rewrites the ignore rules whenever they differ from the current ones, so a repository created by milestone 11 starts tracking skills without being recreated.

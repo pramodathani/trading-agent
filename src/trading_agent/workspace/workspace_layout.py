@@ -4,7 +4,8 @@ The workspace has a shared part that belongs to the user, and one folder per des
 
   workspace/
     shared/   Agents.md  User.md  TradingRules.md
-    desks/<desk>/   Persona.md  Memory.md  notes/  sessions/  proposals/  scratch/
+    shared/skills/installed/   the user's imported skills
+    desks/<desk>/   Persona.md  Memory.md  notes/  sessions/  skills/  proposals/  scratch/
     .checkpoints/<desk>.git   snapshots of each desk's own files
 
 Typical usage example:
@@ -101,6 +102,44 @@ class WorkspaceLayout:
             Path: The desk's Memory.md.
         """
         return self.desk_directory(desk_name) / 'Memory.md'
+
+    @property
+    def installed_skills_directory(self) -> Path:
+        """The user's imported skills, shared by every desk and read-only to them."""
+        return self.shared_directory / 'skills' / 'installed'
+
+    def agent_skills_directory(self, desk_name: str) -> Path:
+        """The skills the desk wrote for itself.
+
+        Args:
+            desk_name (str): The desk's name.
+
+        Returns:
+            Path: The desk's skills/agent folder.
+        """
+        return self.desk_directory(desk_name) / 'skills' / 'agent'
+
+    def skill_usage_file(self, desk_name: str) -> Path:
+        """The record of each time the desk loaded a skill.
+
+        Args:
+            desk_name (str): The desk's name.
+
+        Returns:
+            Path: The desk's skills/usage.jsonl.
+        """
+        return self.desk_directory(desk_name) / 'skills' / 'usage.jsonl'
+
+    def skill_ledger_file(self, desk_name: str) -> Path:
+        """The record of every change to the desk's own skills.
+
+        Args:
+            desk_name (str): The desk's name.
+
+        Returns:
+            Path: The desk's skills/ledger.jsonl.
+        """
+        return self.desk_directory(desk_name) / 'skills' / 'ledger.jsonl'
 
     def notes_directory(self, desk_name: str) -> Path:
         """Where the desk records its daily improvement notes.

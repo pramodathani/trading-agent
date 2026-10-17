@@ -9,3 +9,7 @@ The `base_url` rule is a validator rather than a separate model per backend kind
 ## Compression settings (milestone 12)
 
 `[agent] compression_threshold` (0.70) and `emergency_compression_threshold` (0.85), with a check that the emergency one is higher. They apply to every backend: the local backends through `ContextCompressor`, Claude through the runner's own check and Claude Code's compaction window.
+
+## Skills settings (milestone 13)
+
+`[skills] archive_after_days` (30) and `[sandbox] passed_environment` (empty).
