@@ -115,6 +115,7 @@ class DeskRuntime:
         self._turn_task: asyncio.Task | None = None
         self._stop_requested = False
         self._beside_tasks: set[asyncio.Task] = set()
+        self._loop: asyncio.AbstractEventLoop | None = None
 
     def submit(self, trigger: trigger_module.Trigger) -> None:
         """Adds a trigger to the end of the desk's queue.
@@ -131,6 +132,30 @@ class DeskRuntime:
             raise ValueError(
                 f'Trigger for desk {trigger.desk!r} was sent to desk {self.name!r}'
             )
+        if self._called_from_another_thread():
+            self._loop.call_soon_threadsafe(self._accept, trigger)
+            return
+        self._accept(trigger)
+
+    def _called_from_another_thread(self) -> bool:
+        """Says whether submit was called outside the desk's event loop, such as from a web route running in a worker thread.
+
+        Returns:
+            bool: True when the desk's loop is running and the caller is not on it.
+        """
+        if self._loop is None or not self._loop.is_running():
+            return False
+        try:
+            return asyncio.get_running_loop() is not self._loop
+        except RuntimeError:
+            return True
+
+    def _accept(self, trigger: trigger_module.Trigger) -> None:
+        """Answers, steers or queues a trigger, on the desk's event loop when it runs.
+
+        Args:
+            trigger (trigger_module.Trigger): The trigger, already checked to be for this desk.
+        """
         if self._commands.command_name(trigger.text) == _STOP_COMMAND:
             self._publish(
                 event_module.EventKind.TRIGGER_RECEIVED,
@@ -287,6 +312,7 @@ class DeskRuntime:
     async def run(self) -> None:
         """Handles triggers one at a time until the task is cancelled."""
         self.state = DeskState.IDLE
+        self._loop = asyncio.get_running_loop()
         self._publish(event_module.EventKind.DESK_STARTED, {})
         try:
             if self._session_keeper is not None:

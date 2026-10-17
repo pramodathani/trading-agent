@@ -70,3 +70,11 @@ The task publishes started, text and finished events for the command's trigger, 
 ## Background commands, since 2026-10-18
 
 `/btw` takes the same path as the instant commands: answered in its own task, beside the running turn. The difference, one background command at a time per desk, is enforced in `SlashCommands`, because that is where the commands know what they are doing. The plan put this mechanism in the first phase; it was added with `/btw`, its first user, so it was tested against a real command.
+
+## Submits from other threads, since 2026-10-18
+
+The gateway's web routes, such as `POST /api/desks/{desk}/messages`, are plain `def` functions, so FastAPI runs them in a worker thread. Until this change `submit` then ran in that thread: asyncio's queue and `Task.cancel` were touched from outside the event loop, which asyncio does not support, and the answer-beside path found no running loop and queued the command. A live check on a scratch gateway showed `/status` from the web waiting ten seconds for the turn to end.
+
+`run` now records the desk's loop, and `submit`, when called from another thread while that loop runs, hands the trigger over with `call_soon_threadsafe` and returns. `_accept` does the real work on the loop. The trigger id is created before the hand-over, so the route still returns it at once. Before the loop starts, as in tests that submit first, `submit` works directly as before.
+
+This also makes `/stop` from the web page cancel the turn from the loop's own thread.

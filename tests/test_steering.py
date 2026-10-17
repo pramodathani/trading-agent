@@ -191,17 +191,24 @@ class _DeskScenario:
             self.state_after = self.desk.state
             task.cancel()
 
-    async def ask_during_turn(self, command: str) -> None:
+    async def ask_during_turn(
+        self, command: str, from_thread: bool = False
+    ) -> None:
         """Starts a turn, sends a command while it runs, and waits for both answers, releasing the turn after the command's answer when the command was not queued.
 
         Args:
             command (str): The command to send, such as "/status".
+            from_thread (bool): True to submit from a worker thread, as the gateway's web routes do.
         """
         with self.event_bus.subscribe() as subscription:
             task = asyncio.create_task(self.desk.run())
             self.desk.submit(_message('scan the market'))
             await self.runner.started.wait()
-            self.desk.submit(_message(command))
+            if from_thread:
+                await asyncio.to_thread(self.desk.submit, _message(command))
+                await asyncio.sleep(0)
+            else:
+                self.desk.submit(_message(command))
             self.queued_while_busy = self.desk.queued_count
             finished_before_release = 0
             if self.queued_while_busy == 0:
@@ -492,6 +499,16 @@ class TestInstantCommands:
             == '/btw is still running. Wait for its answer, then ask again.'
         )
         assert texts[1].endswith('side: first')
+
+    def test_status_from_a_web_route_thread_answers_at_once(self) -> None:
+        """/status submitted from a worker thread, as a web route does, is handed to the desk's loop and still answered before the turn ends."""
+        scenario = _DeskScenario()
+
+        asyncio.run(scenario.ask_during_turn('/status', from_thread=True))
+
+        texts = scenario.texts()
+        assert 'State: busy' in texts[0]
+        assert texts[1] == 'done'
 
     def test_changing_commands_still_wait_for_the_turn(self) -> None:
         """/new changes the desk, so it waits in the queue until the running turn ends."""
