@@ -7,7 +7,15 @@ import { AppLayout } from './layout/AppLayout';
 import { eventSocket } from './live/eventSocket';
 import { ActivityPage } from './pages/ActivityPage';
 import { ChatPage } from './pages/ChatPage';
+import { CheckpointsPage } from './pages/CheckpointsPage';
+import { CronPage } from './pages/CronPage';
 import { DesksPage } from './pages/DesksPage';
+import { ExtensionsPage } from './pages/ExtensionsPage';
+import { FilesPage } from './pages/FilesPage';
+import { ModelsPage } from './pages/ModelsPage';
+import { SessionsPage } from './pages/SessionsPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { SkillsPage } from './pages/SkillsPage';
 import { TradingPage } from './pages/TradingPage';
 
 /**
@@ -42,6 +50,14 @@ export function App() {
           <Route path="chat" element={<ChatPage />} />
           <Route path="activity" element={<ActivityPage />} />
           <Route path="trading" element={<TradingPage />} />
+          <Route path="sessions" element={<SessionsPage />} />
+          <Route path="files" element={<FilesPage />} />
+          <Route path="checkpoints" element={<CheckpointsPage />} />
+          <Route path="cron" element={<CronPage />} />
+          <Route path="skills" element={<SkillsPage />} />
+          <Route path="extensions" element={<ExtensionsPage />} />
+          <Route path="models" element={<ModelsPage />} />
+          <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/desks" replace />} />
         </Route>
       </Routes>

@@ -269,3 +269,145 @@
 .kill-panel p {
   margin: 0;
 }
+
+.bubble.streaming {
+  border-style: dashed;
+  border-color: var(--color-accent);
+}
+
+.chat-input .button-row {
+  align-self: end;
+}
+
+.search-hits {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.search-hit pre {
+  margin-top: 4px;
+  font-family: var(--font-family);
+  font-size: var(--font-size-small);
+}
+
+.sessions-layout {
+  grid-template-columns: minmax(240px, 320px) 1fr;
+}
+
+.session-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 520px;
+  overflow: auto;
+}
+
+.exchange {
+  border-top: 1px solid var(--color-border);
+  padding: 10px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.exchange pre {
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+}
+
+.exchange-question {
+  color: var(--color-accent);
+}
+
+.files-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) 1fr;
+  gap: 16px;
+}
+
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.editor-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.file-editor {
+  min-height: 480px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.proposal {
+  border-top: 1px solid var(--color-border);
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.proposal p {
+  margin: 0;
+}
+
+.job-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.job-text {
+  white-space: normal;
+  max-width: 480px;
+}
+
+.run-line,
+.alert-line,
+.server-line {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.alert-line {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+@media (max-width: 760px) {
+  .sessions-layout,
+  .files-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.steering-message {
+  align-self: flex-end;
+  margin-right: -10px;
+  max-width: 80%;
+  background: var(--color-accent-tint);
+  border: 1px dashed var(--color-accent);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+}
+
+.steering-message pre {
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+}

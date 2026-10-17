@@ -100,6 +100,33 @@ export function AppLayout() {
           <NavLink className="nav-link" to="/trading">
             Trading
           </NavLink>
+          <div className="nav-section">Memory</div>
+          <NavLink className="nav-link" to="/sessions">
+            Sessions
+          </NavLink>
+          <NavLink className="nav-link" to="/files">
+            Files
+          </NavLink>
+          <NavLink className="nav-link" to="/checkpoints">
+            Checkpoints
+          </NavLink>
+          <div className="nav-section">Automation</div>
+          <NavLink className="nav-link" to="/cron">
+            Schedule
+          </NavLink>
+          <NavLink className="nav-link" to="/skills">
+            Skills
+          </NavLink>
+          <NavLink className="nav-link" to="/extensions">
+            Extensions
+          </NavLink>
+          <div className="nav-section">System</div>
+          <NavLink className="nav-link" to="/models">
+            Models
+          </NavLink>
+          <NavLink className="nav-link" to="/settings">
+            Settings
+          </NavLink>
           <div className="sidebar-footer">
             <button
               type="button"

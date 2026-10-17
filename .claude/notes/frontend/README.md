@@ -12,9 +12,16 @@ React 19, TypeScript and Vite 8, laid out like sridhara's frontend, with the sam
 
 Logic lives in classes, one instance each: `ApiClient` (every API call), `TokenStore` (the access token), `EventSocket` (the one live connection), `EventDescriber` (an event in words), `ChatTurnBuilder` (events grouped into chat turns), `EventMerger` (journal and live events without duplicates), `Formatter` (money and India times), `ThemeController` and `SelectedDeskStore`. React components are function components that read these through small hooks.
 
-## Pages in part 1 of milestone 18
+## Pages
 
-Desks (the home page), Chat, Activity and Trading. The other pages come in part 2.
+| Section | Pages |
+|---|---|
+| Trade | Desks (the home page), Chat, Activity, Trading |
+| Memory | Sessions, Files, Checkpoints |
+| Automation | Schedule, Skills, Extensions |
+| System | Models, Settings |
+
+Desk-specific pages follow the desk chosen in the header. The plan's Terminal and Browser, Channels and Apps pages belong to later milestones (Telegram in 19, apps in 20). Logs are covered by the Activity page for now.
 
 ## Things that are easy to get wrong
 

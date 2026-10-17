@@ -133,6 +133,13 @@ export class EventDescriber {
         return this.make(payload.urgent === true ? 'Urgent message' : 'Message', this.text(payload.text), payload.urgent === true ? 'warning' : 'normal');
       case 'error':
         return this.make('The turn failed', this.text(payload.error), 'bad');
+      case 'steering':
+        if (payload.delivered === true) {
+          return this.make('Your message was handed to the running turn', '', 'good');
+        }
+        return this.make('The turn ended before your message reached it, so it is the next turn', '', 'normal');
+      case 'stopped':
+        return this.make('Turn stopped by you', '', 'warning');
       case 'desk_started':
         return this.make('Desk started', '', 'quiet');
       case 'desk_stopped':

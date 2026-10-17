@@ -14,6 +14,7 @@ type Listener = () => void;
 export class EventSocket {
   private socket: WebSocket | null = null;
   private events: AgentEvent[] = [];
+  private streams: ReadonlyMap<string, string> = new Map();
   private state: ConnectionState = 'closed';
   private retryMilliseconds = FIRST_RETRY_MILLISECONDS;
   private retryTimer: number | null = null;
@@ -46,6 +47,14 @@ export class EventSocket {
    */
   received(): AgentEvent[] {
     return this.events;
+  }
+
+  /**
+   * The text each running turn has streamed so far, before its final answer.
+   * @returns The text, keyed by trigger id; the same map until it changes.
+   */
+  streamingTexts(): ReadonlyMap<string, string> {
+    return this.streams;
   }
 
   /**
@@ -107,6 +116,21 @@ export class EventSocket {
       event = JSON.parse(text) as AgentEvent;
     } catch {
       return;
+    }
+    const triggerId = typeof event.payload.trigger_id === 'string' ? event.payload.trigger_id : null;
+    if (event.kind === 'text_delta') {
+      if (triggerId !== null) {
+        const streams = new Map(this.streams);
+        streams.set(triggerId, (streams.get(triggerId) ?? '') + String(event.payload.text ?? ''));
+        this.streams = streams;
+        this.notify();
+      }
+      return;
+    }
+    if (triggerId !== null && this.streams.has(triggerId) && (event.kind === 'text' || event.kind === 'tool_call')) {
+      const streams = new Map(this.streams);
+      streams.delete(triggerId);
+      this.streams = streams;
     }
     const events = [
       ...this.events,

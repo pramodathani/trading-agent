@@ -5,3 +5,5 @@ Every event kind the gateway publishes gets a short title, an optional detail, a
 A model switch away from a model that was in use is a warning, because it means a model failed or hit a limit. The first choice of a model in a turn is routine.
 
 Trigger sources are named in plain words, such as "Message from you" instead of `user_message`.
+
+`steering` and `stopped` events, added in part 2, say whether a mid-turn message reached the running turn and that the user stopped a turn.

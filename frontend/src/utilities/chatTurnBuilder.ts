@@ -17,7 +17,13 @@ export interface EventStep {
   event: AgentEvent;
 }
 
-export type TurnStep = ToolStep | EventStep;
+/** A message the user sent while this turn was running. */
+export interface SteeringStep {
+  type: 'steering';
+  message: ChatTurn;
+}
+
+export type TurnStep = ToolStep | EventStep | SteeringStep;
 
 /** One trigger and everything the desk did about it. */
 export interface ChatTurn {
@@ -33,6 +39,9 @@ export interface ChatTurn {
   silent: boolean;
   error: string | null;
   backend: string | null;
+  steeringInto: string | null;
+  steeringOutcome: 'waiting' | 'delivered' | 'queued' | null;
+  stopped: boolean;
 }
 
 /** An event that belongs to no turn, such as a fill reported while the desk was idle. */
@@ -76,6 +85,7 @@ export class ChatTurnBuilder {
    */
   build(events: AgentEvent[]): ChatItem[] {
     const items: ChatItem[] = [];
+    const shown = new Set<string>();
     const turns = new Map<string, ChatTurn>();
     let openTurn: ChatTurn | null = null;
     for (const event of events) {
@@ -83,8 +93,24 @@ export class ChatTurnBuilder {
       if (event.kind === 'trigger_received' && triggerId !== null) {
         const turn = this.newTurn(event, triggerId);
         turns.set(triggerId, turn);
-        items.push(turn);
+        const running = turn.steeringInto !== null ? turns.get(turn.steeringInto) : undefined;
+        if (running !== undefined) {
+          running.steps.push({
+            type: 'steering',
+            message: turn,
+          });
+        } else {
+          items.push(turn);
+          shown.add(triggerId);
+        }
         continue;
+      }
+      if (event.kind === 'turn_started' && triggerId !== null && !shown.has(triggerId)) {
+        const queuedMessage = turns.get(triggerId);
+        if (queuedMessage !== undefined) {
+          items.push(queuedMessage);
+          shown.add(triggerId);
+        }
       }
       const turn: ChatTurn | null = triggerId !== null ? turns.get(triggerId) ?? null : openTurn;
       if (turn === null) {
@@ -131,6 +157,9 @@ export class ChatTurnBuilder {
       silent: false,
       error: null,
       backend: null,
+      steeringInto: typeof event.payload.steering_into === 'string' ? event.payload.steering_into : null,
+      steeringOutcome: typeof event.payload.steering_into === 'string' ? 'waiting' : null,
+      stopped: false,
     };
   }
 
@@ -168,6 +197,14 @@ export class ChatTurnBuilder {
     }
     if (event.kind === 'error') {
       turn.error = String(payload.error ?? '');
+      return;
+    }
+    if (event.kind === 'steering') {
+      turn.steeringOutcome = payload.delivered === true ? 'delivered' : 'queued';
+      return;
+    }
+    if (event.kind === 'stopped') {
+      turn.stopped = true;
       return;
     }
     if (event.kind === 'backend_switch' && typeof payload.to === 'string') {

@@ -2,10 +2,10 @@ import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useStat
 
 import { apiClient } from '../api/apiClient';
 import type { AgentEvent } from '../api/types';
-import { useLiveEvents } from '../hooks/useLiveEvents';
+import { useLiveEvents, useStreamingTexts } from '../hooks/useLiveEvents';
 import { useDesks } from '../layout/desksContext';
 import { useSelectedDesk } from '../layout/selectedDeskStore';
-import { chatTurnBuilder, type ChatItem, type ChatTurn, type ToolStep } from '../utilities/chatTurnBuilder';
+import { chatTurnBuilder, type ChatItem, type ChatTurn, type SteeringStep, type ToolStep } from '../utilities/chatTurnBuilder';
 import { eventDescriber } from '../utilities/eventDescriber';
 import { eventMerger } from '../utilities/eventMerger';
 import { formatter } from '../utilities/formatter';
@@ -31,6 +31,7 @@ export function ChatPage() {
   const deskName = useSelectedDesk();
   const desks = useDesks();
   const liveEvents = useLiveEvents();
+  const streams = useStreamingTexts();
   const [loaded, setLoaded] = useState<AgentEvent[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -73,7 +74,7 @@ export function ChatPage() {
 
   const lastItemKey = items.length > 0 ? itemKey(items[items.length - 1]) : '';
   const lastTurn = items.length > 0 ? items[items.length - 1] : null;
-  const lastSize = lastTurn !== null && lastTurn.type === 'turn' ? lastTurn.steps.length + (lastTurn.answer ?? '').length : 0;
+  const lastSize = lastTurn !== null && lastTurn.type === 'turn' ? lastTurn.steps.length + (lastTurn.answer ?? '').length + (streams.get(lastTurn.triggerId) ?? '').length : 0;
 
   useEffect(() => {
     bottomReference.current?.scrollIntoView({
@@ -107,6 +108,16 @@ export function ChatPage() {
     }
   }
 
+  /** Stops the desk's running turn. */
+  async function stop(): Promise<void> {
+    setSendError(null);
+    try {
+      await apiClient.sendMessage(deskName, '/stop');
+    } catch (failure) {
+      setSendError(failure instanceof Error ? failure.message : String(failure));
+    }
+  }
+
   /**
    * Sends on Enter; Shift and Enter starts a new line.
    * @param event The key event.
@@ -135,7 +146,9 @@ export function ChatPage() {
       <div className="chat-log">
         {loadError !== null && <p className="error-text">Could not read today&apos;s journal: {loadError}</p>}
         {items.length === 0 && loadError === null && <p className="muted">Nothing today yet. Say hello, or try /status.</p>}
-        {items.map((item) => (item.type === 'turn' ? <TurnView key={itemKey(item)} turn={item} /> : <LooseEventView key={itemKey(item)} event={item.event} />))}
+        {items.map((item) =>
+          item.type === 'turn' ? <TurnView key={itemKey(item)} turn={item} streamingText={streams.get(item.triggerId) ?? ''} /> : <LooseEventView key={itemKey(item)} event={item.event} />,
+        )}
         <div ref={bottomReference} />
       </div>
       <form className="chat-input" onSubmit={send}>
@@ -155,11 +168,18 @@ export function ChatPage() {
           onChange={(change) => setDraft(change.target.value)}
           onKeyDown={handleKey}
         />
-        <button className="primary" type="submit" disabled={sending || !draft.trim()}>
-          Send
-        </button>
+        <span className="button-row">
+          {desk !== null && desk.state !== 'idle' && (
+            <button className="danger" type="button" onClick={stop} title="Cancel the running turn at once">
+              Stop
+            </button>
+          )}
+          <button className="primary" type="submit" disabled={sending || !draft.trim()}>
+            Send
+          </button>
+        </span>
         {sendError !== null && <p className="error-text small">{sendError}</p>}
-        {desk !== null && desk.state !== 'idle' && <p className="muted small">The desk is busy, so a new message waits until the current turn ends.</p>}
+        {desk !== null && desk.state !== 'idle' && <p className="muted small">The desk is working. A message you send now is handed to it at its next tool call; if the turn ends first, it becomes the next turn.</p>}
       </form>
     </div>
   );
@@ -178,19 +198,48 @@ function itemKey(item: ChatItem): string {
 }
 
 /**
- * One turn: what woke the desk, its steps, and its answer.
- * @param properties The turn.
+ * Describes where a turn has got to.
+ * @param turn The turn.
+ * @returns A short status line.
+ */
+function turnStatus(turn: ChatTurn): string {
+  if (turn.stopped) {
+    return 'stopped by you';
+  }
+  if (turn.finished) {
+    return turn.backend !== null ? `answered by ${turn.backend}` : 'finished';
+  }
+  if (turn.started) {
+    return 'working…';
+  }
+  if (turn.steeringOutcome === 'waiting') {
+    return 'waiting for the running turn to pick it up at its next tool call';
+  }
+  if (turn.steeringOutcome === 'delivered') {
+    return 'handed to the running turn';
+  }
+  if (turn.steeringOutcome === 'queued') {
+    return 'the running turn ended first, so this is the next turn';
+  }
+  return 'waiting in the queue';
+}
+
+/** What a turn view shows. */
+interface TurnViewProperties {
+  turn: ChatTurn;
+  streamingText: string;
+}
+
+/**
+ * One turn: what woke the desk, its steps, the text it is writing, and its answer.
+ * @param properties The turn and its streamed text.
  * @returns The turn's view.
  */
-function TurnView(properties: { turn: ChatTurn }) {
+function TurnView(properties: TurnViewProperties) {
   const turn = properties.turn;
   const fromUser = turn.source === 'user_message';
-  let status = 'waiting in the queue';
-  if (turn.finished) {
-    status = turn.backend !== null ? `answered by ${turn.backend}` : 'finished';
-  } else if (turn.started) {
-    status = 'working…';
-  }
+  const status = turnStatus(turn);
+  const showStream = turn.answer === null && !turn.finished && properties.streamingText.length > 0;
   return (
     <section className="turn">
       <div className={fromUser ? 'bubble user' : 'bubble trigger'}>
@@ -202,15 +251,27 @@ function TurnView(properties: { turn: ChatTurn }) {
       </div>
       {turn.steps.length > 0 && (
         <div className="steps">
-          {turn.steps.map((step, index) =>
-            step.type === 'tool' ? (
-              <ToolCard key={step.callId || index} step={step} />
-            ) : (
+          {turn.steps.map((step, index) => {
+            if (step.type === 'tool') {
+              return <ToolCard key={step.callId || index} step={step} />;
+            }
+            if (step.type === 'steering') {
+              return <SteeringView key={step.message.triggerId} step={step} />;
+            }
+            return (
               <div key={eventMerger.key(step.event)} className={`step-line tone-${eventDescriber.describe(step.event).tone}`}>
                 {eventDescriber.describe(step.event).title}
               </div>
-            ),
-          )}
+            );
+          })}
+        </div>
+      )}
+      {showStream && (
+        <div className="bubble answer streaming">
+          <div className="bubble-meta">
+            <span>Writing…</span>
+          </div>
+          <pre>{properties.streamingText}</pre>
         </div>
       )}
       {turn.answer !== null && (
@@ -222,8 +283,27 @@ function TurnView(properties: { turn: ChatTurn }) {
         </div>
       )}
       {turn.error !== null && <div className="bubble failed">The turn failed: {turn.error}</div>}
-      <div className={turn.finished ? 'turn-status muted small' : 'turn-status working small'}>{status}</div>
+      <div className={turn.finished || turn.steeringOutcome === 'delivered' ? 'turn-status muted small' : 'turn-status working small'}>{status}</div>
     </section>
+  );
+}
+
+/**
+ * A message the user sent while the turn was running, at the point it arrived.
+ * @param properties The steering step.
+ * @returns The view.
+ */
+function SteeringView(properties: { step: SteeringStep }) {
+  const message = properties.step.message;
+  return (
+    <div className="steering-message">
+      <div className="bubble-meta">
+        <span>You, while it worked</span>
+        <span className="mono">{formatter.time(message.receivedAt)}</span>
+      </div>
+      <pre>{message.text}</pre>
+      <div className="muted small">{turnStatus(message)}</div>
+    </div>
   );
 }
 

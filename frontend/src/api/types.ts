@@ -96,3 +96,178 @@ export interface ToolActionResult {
   text: string;
   is_error: boolean;
 }
+
+/** One session in a desk's list. */
+export interface SessionEntry {
+  session_id: string;
+  exchanges: number;
+}
+
+/** One finished turn in a session's log. */
+export interface Exchange {
+  trigger_text: string;
+  answer: string;
+  backend_name: string;
+  finished_at: string;
+}
+
+/** One day's summary, written at the rollover. */
+export interface DailySummary {
+  date: string;
+  text: string;
+}
+
+/** One of the desk's notes files. */
+export interface NotesFile {
+  file: string;
+  text: string;
+}
+
+/** One session search hit. */
+export interface SearchHit {
+  day: string;
+  kind: string;
+  snippet: string;
+}
+
+/** One file the user may edit. */
+export interface EditableFile {
+  name: string;
+  desk: string | null;
+  exists: boolean;
+  characters: number;
+}
+
+/** One proposed change to a user file, with the difference it would make. */
+export interface Proposal {
+  proposal_id: string;
+  desk: string;
+  file_name: string;
+  content: string;
+  reason: string;
+  created_at: string;
+  status: string;
+  difference: string;
+}
+
+/** One scheduled job, with its next runs. */
+export interface CronJob {
+  job_id: string;
+  name: string;
+  kind: string;
+  schedule: string | null;
+  run_at: string | null;
+  text: string;
+  target: string;
+  trading_days_only: boolean;
+  market_hours_only: boolean;
+  deliver_url: string | null;
+  created_by: string;
+  created_at: string;
+  description: string;
+  next_runs: string[];
+  last_run?: string | null;
+}
+
+/** One recorded run or skip of a job. */
+export interface CronRun {
+  at: string;
+  job_id: string;
+  name: string;
+  outcome: string;
+  detail: string;
+}
+
+/** The body of a new job. */
+export interface NewJob {
+  name: string;
+  schedule: string | null;
+  run_at: string | null;
+  instructions: string | null;
+  command: string | null;
+  trading_days_only: boolean;
+  market_hours_only: boolean;
+}
+
+/** One price alert. */
+export interface PriceAlert {
+  alert_id: string;
+  symbol: string;
+  condition: string;
+  price: number;
+  note: string;
+  created_at: string;
+  description: string;
+}
+
+/** One skill the desk can use, with how often it was used. */
+export interface SkillEntry {
+  name: string;
+  description: string;
+  origin: string;
+  uses: number;
+  troubled_uses: number;
+  last_used: string | null;
+}
+
+/** One skill hidden because something it needs is missing. */
+export interface HiddenSkillEntry {
+  name: string;
+  description: string;
+  origin: string;
+  missing: string[];
+}
+
+/** One subagent definition. */
+export interface SubagentEntry {
+  name: string;
+  description: string;
+  tools: string[] | null;
+  models: string[] | null;
+  maximum_turns: number;
+  timeout_seconds: number;
+  path: string;
+}
+
+/** One MCP server's state. */
+export interface McpServerEntry {
+  name: string;
+  type: string;
+  state: string;
+  error: string;
+  tools: string[];
+}
+
+/** One installed package. */
+export interface PackageEntry {
+  name: string;
+  version: string;
+  description: string;
+  skills: string[];
+  agents: string[];
+  mcp_servers: string[];
+  hooks: string[];
+  has_app: boolean;
+}
+
+/** One checkpoint of a desk's own files. */
+export interface CheckpointEntry {
+  checkpoint_id: string;
+  created_at: string;
+  reason: string;
+}
+
+/** One backend's usage today on one desk. */
+export interface BackendUsage {
+  calls: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  cache_read_tokens: number;
+  api_equivalent_cost_usd: number;
+}
+
+/** The answer of GET /api/usage. */
+export interface UsageDocument {
+  desks: Record<string, Record<string, BackendUsage>>;
+  rate_limits: Record<string, Record<string, unknown>>;
+}

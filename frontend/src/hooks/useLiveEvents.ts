@@ -16,6 +16,17 @@ export function useLiveEvents(): AgentEvent[] {
 }
 
 /**
+ * The text each running turn has streamed so far.
+ * @returns The text, keyed by trigger id.
+ */
+export function useStreamingTexts(): ReadonlyMap<string, string> {
+  return useSyncExternalStore(
+    (listener) => eventSocket.subscribe(listener),
+    () => eventSocket.streamingTexts(),
+  );
+}
+
+/**
  * The live connection's state.
  * @returns "connecting", "open" or "closed".
  */
