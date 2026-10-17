@@ -8,6 +8,10 @@ Typical usage example:
   token = secrets.gateway_access_token
 """
 
+import os
+from pathlib import Path
+
+import dotenv
 import pydantic_settings
 
 
@@ -33,3 +37,22 @@ class Secrets(pydantic_settings.BaseSettings):
     openai_api_key: str = ''
     webhook_token: str = ''
     telegram_bot_token: str = ''
+
+    def named(self, variable: str) -> str:
+        """Reads a secret by its own name, such as DEEPSEEK_API_KEY, from the environment or the .env file.
+
+        It serves backends whose key is named in trading_agent.toml with api_key_variable.
+
+        Args:
+            variable (str): The variable's full name.
+
+        Returns:
+            str: The value, or an empty string when it is not set.
+        """
+        value = os.environ.get(variable)
+        if value:
+            return value
+        env_file = Path('.env')
+        if not env_file.is_file():
+            return ''
+        return dotenv.dotenv_values(env_file).get(variable) or ''

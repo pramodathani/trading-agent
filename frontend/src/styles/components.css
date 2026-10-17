@@ -13,6 +13,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  background: var(--color-bg-raised);
   box-shadow: var(--shadow);
 }
 
@@ -161,7 +162,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  background: var(--color-bg-panel);
+  background: transparent;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   padding: 12px 14px;
@@ -211,9 +212,13 @@
   padding: 7px 10px;
 }
 
+.list-item:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+}
+
 .list-item.selected {
-  background: var(--color-accent-tint);
-  color: var(--color-accent);
+  background: var(--color-bg-selected);
+  color: var(--color-text);
 }
 
 .folded {
@@ -236,7 +241,7 @@
   margin-left: 6px;
   border-radius: 999px;
   background: var(--color-accent);
-  color: #1e2129;
+  color: var(--color-text-on-accent);
   font-size: var(--font-size-tiny);
   font-weight: 700;
   text-align: center;
@@ -282,7 +287,7 @@
 
 .state-badge.server-ready,
 .state-badge.proposal-accepted {
-  background: rgba(102, 187, 106, 0.15);
+  background: var(--color-profit-tint);
   color: var(--color-profit);
 }
 

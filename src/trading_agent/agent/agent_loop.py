@@ -13,6 +13,7 @@ Typical usage example:
 """
 
 import asyncio
+from typing import Any
 
 from trading_agent.agent import context_compressor as context_compressor_module
 from trading_agent.agent import conversation as conversation_module
@@ -69,6 +70,14 @@ class AgentLoop:
         self._image_preparer = (
             image_preparer or image_preparer_module.ImagePreparer()
         )
+
+    def tool_definitions(self) -> list[dict[str, Any]]:
+        """The tools the model is offered on every call.
+
+        Returns:
+            list[dict[str, Any]]: One function-calling definition per tool.
+        """
+        return self._executor.tool_registry.definitions()
 
     async def run_turn(
         self,
@@ -230,12 +239,15 @@ class AgentLoop:
                     'round': round_number,
                     'prompt_tokens': reply.prompt_tokens,
                     'completion_tokens': reply.completion_tokens,
+                    'cache_read_tokens': reply.cache_read_tokens,
+                    'cost_usd': reply.cost_usd,
                 },
             )
             conversation.append(
                 messages.ConversationMessage.assistant(
                     reply.text,
                     reply.tool_calls,
+                    reply.reasoning,
                 )
             )
             if reply.prompt_tokens:

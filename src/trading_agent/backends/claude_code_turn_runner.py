@@ -18,6 +18,7 @@ import asyncio
 import dataclasses
 import logging
 import os
+import time
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,7 @@ from typing import Any
 import claude_agent_sdk
 
 from trading_agent.agent import context_compressor
+from trading_agent.agent import context_usage as context_usage_module
 from trading_agent.agent import prompt_builder as prompt_builder_module
 from trading_agent.attachments import image_preparer as image_preparer_module
 from trading_agent.backends import backend as backend_module
@@ -100,6 +102,9 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         self._desk_name = desk_name
         self._backend_name = backend_name
         self._model = backend_configuration.model
+        self._model_override: str | None = None
+        self._applied_model: str | None = None
+        self._effort = backend_configuration.effort
         self._context_window = backend_configuration.context_window
         self._bridge = bridge
         self._event_bus = event_bus
@@ -108,6 +113,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         self._client = None
         self._session_prompt_fingerprint = None
         self._image_preparer = image_preparer_module.ImagePreparer()
+        self._context_usage = None
         self.session_id: str | None = None
 
     async def run_turn(
@@ -134,7 +140,9 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
             await self._compact_if_full(client, trigger)
             await client.query(self._query(prompt, trigger))
             self._session_prompt_fingerprint = prompt.fingerprint
-            return await self._read_response(client, trigger)
+            result = await self._read_response(client, trigger)
+            await self._record_context_usage(client)
+            return result
         except asyncio.CancelledError:
             await self._disconnect()
             raise
@@ -173,6 +181,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
                 'command',
                 usage['totalTokens'],
             )
+            await self._record_context_usage(client)
         except backend_module.BackendUnavailableError:
             await self._disconnect()
             raise
@@ -182,6 +191,53 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
                 f'Claude Code failed: {error!r}'
             ) from error
         return f"Compacted Claude's session from {usage['totalTokens']:,} to {after:,} tokens, after a memory-flush turn."
+
+    def active_model(self) -> str | None:
+        """The Claude model the session uses now: the user's choice from the model menu, or the configured one.
+
+        Returns:
+            str | None: The model's name or alias.
+        """
+        return self._model_override or self._model
+
+    def use_model(self, model: str | None) -> None:
+        """Switches the session to another Claude model at its next turn, keeping the conversation, as /model does in Claude Code.
+
+        Args:
+            model (str | None): The model's name, or None for the configured model.
+        """
+        if model == self._model:
+            model = None
+        self._model_override = model
+
+    def context_usage(self) -> context_usage_module.ContextUsage | None:
+        """How full Claude's context window was at the end of the last turn, as Claude Code measured it.
+
+        Returns:
+            context_usage_module.ContextUsage | None: The snapshot, or None before the first turn of the session.
+        """
+        return self._context_usage
+
+    async def _record_context_usage(
+        self,
+        client: claude_agent_sdk.ClaudeSDKClient,
+    ) -> None:
+        """Asks Claude Code how full the window is and keeps the answer for context_usage.
+
+        A failure only leaves the previous snapshot in place, because the turn itself has already succeeded.
+
+        Args:
+            client (claude_agent_sdk.ClaudeSDKClient): The connected client.
+        """
+        try:
+            report = await client.get_context_usage()
+        except claude_agent_sdk.ClaudeSDKError as error:
+            _LOGGER.warning('Could not read the context usage: %r', error)
+            return
+        self._context_usage = context_usage_module.ContextUsage.from_claude(
+            self._backend_name,
+            report,
+        )
 
     def note_compaction(self) -> None:
         """Remembers that the session was compacted, so the next turn sends the instruction files again.
@@ -295,6 +351,10 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
             )
             await client.connect()
             self._client = client
+            self._applied_model = self.active_model()
+        if self._applied_model != self.active_model():
+            await self._client.set_model(self.active_model())
+            self._applied_model = self.active_model()
         return self._client
 
     def _query(
@@ -408,7 +468,8 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         )
         return claude_agent_sdk.ClaudeAgentOptions(
             system_prompt=prompt_text,
-            model=self._model,
+            model=self.active_model(),
+            effort=self._effort,
             tools=[],
             mcp_servers={
                 claude_tool_bridge.SERVER_NAME: self._bridge.build_server(),
@@ -575,8 +636,12 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
             },
         )
         if rate_limit_info.status == _REJECTED:
+            retry_after = None
+            if rate_limit_info.resets_at is not None:
+                retry_after = max(rate_limit_info.resets_at - time.time(), 0.0)
             raise backend_module.BackendUnavailableError(
-                f'The Max subscription {rate_limit_info.rate_limit_type} limit is reached; it resets at {rate_limit_info.resets_at}.'
+                f'The Max subscription {rate_limit_info.rate_limit_type} limit is reached; it resets at {rate_limit_info.resets_at}.',
+                retry_after,
             )
 
     def _publish_usage(
@@ -598,7 +663,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
             {
                 'trigger_id': trigger.trigger_id,
                 'backend': self._backend_name,
-                'model': self._model,
+                'model': self.active_model(),
                 'rounds': result.num_turns,
                 'prompt_tokens': usage.get('input_tokens', 0),
                 'cache_read_tokens': usage.get('cache_read_input_tokens', 0),
@@ -687,6 +752,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         await self._disconnect()
         self.session_id = None
         self._session_prompt_fingerprint = None
+        self._context_usage = None
 
     async def close(self) -> None:
         """Stops the desk's Claude Code process when the desk stops."""

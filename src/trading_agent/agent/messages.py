@@ -85,6 +85,7 @@ class ConversationMessage:
         is_error: For a tool message, whether the tool failed.
         image: For a tool message, a picture the tool returned, or None.
         images: For a user message, the pictures sent with it.
+        reasoning: For an assistant message, the model's visible thinking, which some servers, such as DeepSeek's, require to be sent back with the message.
     """
 
     role: Role
@@ -95,6 +96,7 @@ class ConversationMessage:
     is_error: bool = False
     image: MessageImage | None = None
     images: tuple[MessageImage, ...] = ()
+    reasoning: str = ''
 
     @classmethod
     def user(
@@ -114,17 +116,28 @@ class ConversationMessage:
         return cls(role=Role.USER, text=text, images=images)
 
     @classmethod
-    def assistant(cls, text: str, tool_calls: list[ToolCall]) -> Self:
+    def assistant(
+        cls,
+        text: str,
+        tool_calls: list[ToolCall],
+        reasoning: str = '',
+    ) -> Self:
         """Creates an assistant message.
 
         Args:
             text (str): The model's text.
             tool_calls (list[ToolCall]): The tools it asks to run.
+            reasoning (str): The model's visible thinking, or empty.
 
         Returns:
             ConversationMessage: The message.
         """
-        return cls(role=Role.ASSISTANT, text=text, tool_calls=tuple(tool_calls))
+        return cls(
+            role=Role.ASSISTANT,
+            text=text,
+            tool_calls=tuple(tool_calls),
+            reasoning=reasoning,
+        )
 
     @classmethod
     def tool_result(

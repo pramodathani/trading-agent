@@ -10,6 +10,7 @@ Typical usage example:
 import dataclasses
 from typing import Any
 
+from trading_agent.agent import context_usage as context_usage_module
 from trading_agent.runtime import trigger as trigger_module
 
 
@@ -87,6 +88,38 @@ class TurnRunner:
         """
         del state
         return False
+
+    def active_model(self) -> str | None:
+        """The model the runner uses now.
+
+        Runners without a model keep this default.
+
+        Returns:
+            str | None: The model's name, or None.
+        """
+        return None
+
+    def use_model(self, model: str | None) -> None:
+        """Switches to another model of the same provider, or back to the configured one.
+
+        Args:
+            model (str | None): The model's name, or None for the configured model.
+
+        Raises:
+            ValueError: Always, because this runner has no model to switch.
+        """
+        if model is not None:
+            raise ValueError('This desk runs without a model')
+
+    def context_usage(self) -> context_usage_module.ContextUsage | None:
+        """How full the runner's context window is, as of its last turn.
+
+        Runners that keep no conversation keep this default.
+
+        Returns:
+            context_usage_module.ContextUsage | None: The latest snapshot, or None when there is none.
+        """
+        return None
 
     async def close(self) -> None:
         """Releases anything the runner started, such as a Claude Code process.

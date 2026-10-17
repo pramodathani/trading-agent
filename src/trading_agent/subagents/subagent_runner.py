@@ -20,6 +20,7 @@ from trading_agent.agent import loop_guard
 from trading_agent.backends import backend as backend_module
 from trading_agent.backends import model_router
 from trading_agent.configuration import agent_configuration
+from trading_agent.requests import permission_gate as permission_gate_module
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import trigger as trigger_module
@@ -97,6 +98,7 @@ class SubagentRunner:
         backends: Mapping[str, agent_configuration.BackendConfiguration],
         event_bus: event_bus_module.EventBus,
         maximum_identical_tool_calls: int,
+        permission_gate: permission_gate_module.PermissionGate | None = None,
     ):
         """Creates the runner.
 
@@ -110,6 +112,7 @@ class SubagentRunner:
             backends (Mapping[str, agent_configuration.BackendConfiguration]): Every configured backend.
             event_bus (event_bus_module.EventBus): Where each task's events are published.
             maximum_identical_tool_calls (int): The loop guard's limit for each task.
+            permission_gate (permission_gate_module.PermissionGate | None): Holds the tasks' calls that need the user's permission, or None when none do.
         """
         self._desk_name = desk_name
         self._mode = mode
@@ -120,6 +123,7 @@ class SubagentRunner:
         self._backends = backends
         self._event_bus = event_bus
         self._maximum_identical_tool_calls = maximum_identical_tool_calls
+        self._permission_gate = permission_gate
 
     async def run_all(
         self,
@@ -172,6 +176,7 @@ class SubagentRunner:
             prepared.registry,
             self._event_bus,
             loop_guard.LoopGuard(self._maximum_identical_tool_calls),
+            self._permission_gate,
         )
         prompt = subagent_prompt_builder.SubagentPromptBuilder(
             definition,
@@ -204,7 +209,7 @@ class SubagentRunner:
             },
         )
         outcome, text, backend_name = await self._run(
-            routes, trigger, definition
+            routes, trigger, definition, executor
         )
         if prepared.bash_session is not None:
             await prepared.bash_session.close()
@@ -234,6 +239,7 @@ class SubagentRunner:
         routes: list[model_router.BackendRoute],
         trigger: trigger_module.Trigger,
         definition: definition_module.SubagentDefinition,
+        executor: tool_call_executor.ToolCallExecutor,
     ) -> tuple[str, str, str | None]:
         """Runs the task's turn with its time limit, and always closes its runners.
 
@@ -241,12 +247,16 @@ class SubagentRunner:
             routes (list[model_router.BackendRoute]): The task's backends.
             trigger (trigger_module.Trigger): The task.
             definition (definition_module.SubagentDefinition): The subagent, for its time limit.
+            executor (tool_call_executor.ToolCallExecutor): The task's executor, whose record of calls keeps a backend taking over from repeating them.
 
         Returns:
             tuple[str, str, str | None]: A tuple (outcome, text, backend_name), where outcome is "answered", "timed out" or "failed", text the report or the reason, and backend_name the backend that answered, if any.
         """
         router = model_router.ModelRouter(
-            self._desk_name, routes, self._event_bus
+            self._desk_name,
+            routes,
+            self._event_bus,
+            completed_calls=executor.completed_calls,
         )
         try:
             result = await asyncio.wait_for(

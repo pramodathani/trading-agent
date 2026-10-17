@@ -23,6 +23,7 @@ from trading_agent.attachments import attachment_store
 from trading_agent.backends import backend as backend_module
 from trading_agent.backends import claude_code_turn_runner
 from trading_agent.backends import claude_tool_bridge
+from trading_agent.backends import deepseek_backend
 from trading_agent.backends import model_router
 from trading_agent.backends import ollama_backend
 from trading_agent.backends import openai_compatible_backend
@@ -37,6 +38,9 @@ from trading_agent.memory import checkpoints as checkpoints_module
 from trading_agent.memory import session_keeper
 from trading_agent.memory import session_search
 from trading_agent.memory import session_store
+from trading_agent.requests import permission_gate
+from trading_agent.requests import permission_grants
+from trading_agent.requests import user_request_store
 from trading_agent.risk import account_snapshot
 from trading_agent.risk import exchange_hours
 from trading_agent.risk import kill_switch
@@ -67,6 +71,7 @@ from trading_agent.subagents import subagent_runner
 from trading_agent.subagents import subagent_toolbox
 from trading_agent.tools import add_note_tool
 from trading_agent.tools import address_guard
+from trading_agent.tools import ask_user_tool
 from trading_agent.tools import bash_background_tool
 from trading_agent.tools import bash_check_tool
 from trading_agent.tools import bash_restart_tool
@@ -101,6 +106,7 @@ from trading_agent.tools import order_tool
 from trading_agent.tools import path_policy
 from trading_agent.tools import place_bracket_order_tool
 from trading_agent.tools import place_order_tool
+from trading_agent.tools import present_plan_tool
 from trading_agent.tools import propose_file_change_tool
 from trading_agent.tools import read_file_tool
 from trading_agent.tools import schedule_wakeup_tool
@@ -163,6 +169,19 @@ class DeskBuilder:
             configuration.workspace_directory
         )
         self._proposal_store = proposal_store.ProposalStore(self._layout)
+        self.user_request_store = user_request_store.UserRequestStore(
+            self._layout
+        )
+        self.permission_grants = permission_grants.PermissionGrants(
+            self._layout
+        )
+        self._permission_gate = permission_gate.PermissionGate(
+            configuration.approvals.tools,
+            configuration.approvals.expiry_minutes,
+            self.user_request_store,
+            self.permission_grants,
+            event_bus,
+        )
         self._attachment_store = attachment_store.AttachmentStore(self._layout)
         self._broker_reader = broker_reader.BrokerReader(
             configuration.tradingmachine_environment_file
@@ -452,6 +471,7 @@ class DeskBuilder:
             routes,
             self._event_bus,
             session_store=store,
+            completed_calls=executor.completed_calls,
         )
 
     def backend_runner(
@@ -490,11 +510,20 @@ class DeskBuilder:
                 maximum_rounds,
                 steering_inbox,
             )
-        if backend_configuration.kind == 'openai_compatible':
+        api_key = self._secrets.openai_api_key
+        if backend_configuration.api_key_variable is not None:
+            api_key = self._secrets.named(backend_configuration.api_key_variable)
+        if backend_configuration.kind == 'deepseek':
+            model_backend = deepseek_backend.DeepSeekBackend(
+                backend_name,
+                backend_configuration,
+                api_key,
+            )
+        elif backend_configuration.kind == 'openai_compatible':
             model_backend = openai_compatible_backend.OpenAICompatibleBackend(
                 backend_name,
                 backend_configuration,
-                self._secrets.openai_api_key,
+                api_key,
             )
         else:
             model_backend = ollama_backend.OllamaBackend(
@@ -673,6 +702,20 @@ class DeskBuilder:
             tools.append(call_mcp_tool_tool.CallMcpToolTool(self._mcp_manager))
         subagents = self._subagent_runner(desk_configuration, sandbox, tools)
         tools.append(delegate_task_tool.DelegateTaskTool(subagents))
+        tools.append(
+            ask_user_tool.AskUserTool(
+                self.user_request_store,
+                self._event_bus,
+                desk_configuration.name,
+            )
+        )
+        tools.append(
+            present_plan_tool.PresentPlanTool(
+                self.user_request_store,
+                self._event_bus,
+                desk_configuration.name,
+            )
+        )
         self._schedule_parts[desk_configuration.name] = (
             jobs,
             built_ins,
@@ -688,6 +731,7 @@ class DeskBuilder:
             registry,
             self._event_bus,
             loop_guard.LoopGuard(agent_settings.maximum_identical_tool_calls),
+            self._permission_gate,
         )
 
     def _subagent_runner(
@@ -728,6 +772,7 @@ class DeskBuilder:
             self._configuration.backends,
             self._event_bus,
             agent_settings.maximum_identical_tool_calls,
+            self._permission_gate,
         )
 
     def _claude_code_runner(
@@ -828,7 +873,11 @@ class DeskBuilder:
             compressor,
             steering_inbox,
         )
-        return agent_turn_runner.AgentTurnRunner(loop, prompt)
+        return agent_turn_runner.AgentTurnRunner(
+            loop,
+            prompt,
+            backend_configuration.context_window,
+        )
 
     def _prompt_builder(
         self,

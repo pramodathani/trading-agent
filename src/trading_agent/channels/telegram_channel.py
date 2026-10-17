@@ -30,7 +30,9 @@ from trading_agent.channels import (
 from trading_agent.channels import pairing_store as pairing_store_module
 from trading_agent.channels import telegram_api as telegram_api_module
 from trading_agent.channels import telegram_commands as telegram_commands_module
+from trading_agent.channels import telegram_requests as telegram_requests_module
 from trading_agent.gateway import gateway_parts
+from trading_agent.requests import user_request as user_request_module
 from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
@@ -68,6 +70,7 @@ class TelegramChannel:
         event_bus: event_bus_module.EventBus,
         default_desk: str,
         attachments: attachment_store_module.AttachmentStore | None = None,
+        requests: telegram_requests_module.TelegramRequests | None = None,
     ):
         """Creates the channel without contacting Telegram.
 
@@ -81,6 +84,7 @@ class TelegramChannel:
             event_bus (event_bus_module.EventBus): Where the desks' events arrive.
             default_desk (str): The desk a newly paired chat talks to.
             attachments (attachment_store_module.AttachmentStore | None): Where photos and files sent to the bot are kept, or None to refuse them.
+            requests (telegram_requests_module.TelegramRequests | None): Shows the desks' questions and plans with buttons, or None to leave them to the web page.
         """
         self._api = api
         self._pairing = pairing
@@ -91,6 +95,7 @@ class TelegramChannel:
         self._event_bus = event_bus
         self._default_desk = default_desk
         self._attachments = attachments
+        self._requests = requests
         self._subscription = event_bus.subscribe(maximum_queued=_QUEUE_SIZE)
         self._reply_chats: dict[str, set[int]] = {}
         self._trigger_sources: dict[str, tuple[str, str]] = {}
@@ -181,16 +186,28 @@ class TelegramChannel:
                 await self._handle(message)
 
     async def _handle(
-        self, message: telegram_api_module.IncomingMessage
+        self,
+        message: telegram_api_module.IncomingMessage | telegram_api_module.IncomingButton,
     ) -> None:
-        """Handles one message: pairing for strangers, commands and desk messages for paired chats.
+        """Handles one message or button press: pairing for strangers; commands, replies to requests and desk messages for paired chats.
 
         Args:
-            message (telegram_api_module.IncomingMessage): The message.
+            message (telegram_api_module.IncomingMessage | telegram_api_module.IncomingButton): The message or press.
         """
         chat = self._pairing.paired_chat(message.chat_id)
+        if isinstance(message, telegram_api_module.IncomingButton):
+            if chat is not None and self._requests is not None:
+                await self._requests.press(message)
+            return
         if chat is None:
             await self._handle_stranger(message)
+            return
+        if (
+            self._requests is not None
+            and not message.files
+            and self._requests.wants_text(chat.chat_id)
+        ):
+            await self._requests.receive_text(chat.chat_id, message.text)
             return
         if not message.files and self._commands.handles(message.text):
             reply = await self._commands.answer(chat, message.text)
@@ -300,6 +317,16 @@ class TelegramChannel:
         payload = published_event.payload
         trigger_id = payload.get('trigger_id')
         if kind == event_module.EventKind.TEXT_DELTA:
+            return
+        if kind == event_module.EventKind.USER_REQUEST:
+            if self._requests is not None:
+                await self._requests.show(
+                    user_request_module.UserRequest.from_json_dictionary(payload)
+                )
+            return
+        if kind == event_module.EventKind.USER_RESPONSE:
+            if self._requests is not None:
+                await self._requests.close(payload)
             return
         if kind == event_module.EventKind.TRIGGER_RECEIVED:
             self._remember_trigger(payload)

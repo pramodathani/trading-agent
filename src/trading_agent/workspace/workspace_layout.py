@@ -9,7 +9,7 @@ The workspace has a shared part that belongs to the user, and one folder per des
     shared/agents/   the user's subagent definitions, starting with four starters
     shared/hooks/<event>/   the user's hook scripts
     shared/packages/<package>/   installed packages
-    desks/<desk>/   Persona.md  Memory.md  notes/  sessions/  skills/  proposals/  scratch/  uploads/
+    desks/<desk>/   Persona.md  Memory.md  notes/  sessions/  skills/  proposals/  requests/  scratch/  uploads/
     .checkpoints/<desk>.git   snapshots of each desk's own files
 
 Typical usage example:
@@ -245,6 +245,17 @@ class WorkspaceLayout:
             Path: The desk's proposals folder.
         """
         return self.desk_directory(desk_name) / 'proposals'
+
+    def requests_directory(self, desk_name: str) -> Path:
+        """Where the desk's questions, plans and permission requests to the user are kept.
+
+        Args:
+            desk_name (str): The desk's name.
+
+        Returns:
+            Path: The desk's requests folder.
+        """
+        return self.desk_directory(desk_name) / 'requests'
 
     def scratch_directory(self, desk_name: str) -> Path:
         """The desk's working folder for temporary files.

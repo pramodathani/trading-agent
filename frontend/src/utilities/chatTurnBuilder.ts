@@ -1,4 +1,4 @@
-import type { AgentEvent, Attachment } from '../api/types';
+import type { AgentEvent, Attachment, UserRequest } from '../api/types';
 import { eventDescriber } from './eventDescriber';
 
 /** One tool call inside a turn, with its result once it arrives. */
@@ -24,7 +24,13 @@ export interface SteeringStep {
   message: ChatTurn;
 }
 
-export type TurnStep = ToolStep | EventStep | SteeringStep;
+/** A question, plan or permission request the desk made during the turn, with its latest status. */
+export interface RequestStep {
+  type: 'request';
+  request: UserRequest;
+}
+
+export type TurnStep = ToolStep | EventStep | SteeringStep | RequestStep;
 
 /** One trigger and everything the desk did about it. */
 export interface ChatTurn {
@@ -34,6 +40,8 @@ export interface ChatTurn {
   text: string;
   attachments: Attachment[];
   receivedAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
   started: boolean;
   finished: boolean;
   steps: TurnStep[];
@@ -44,6 +52,7 @@ export interface ChatTurn {
   steeringInto: string | null;
   steeringOutcome: 'waiting' | 'delivered' | 'queued' | null;
   stopped: boolean;
+  requestId: string | null;
 }
 
 /** An event that belongs to no turn, such as a fill reported while the desk was idle. */
@@ -90,7 +99,20 @@ export class ChatTurnBuilder {
     const shown = new Set<string>();
     const turns = new Map<string, ChatTurn>();
     let openTurn: ChatTurn | null = null;
+    const requestSteps = new Map<string, RequestStep>();
     for (const event of events) {
+      if (event.kind === 'user_response') {
+        const step = requestSteps.get(String(event.payload.request_id ?? ''));
+        if (step !== undefined) {
+          step.request = {
+            ...step.request,
+            status: event.payload.status as UserRequest['status'],
+            response: (event.payload.response as UserRequest['response']) ?? null,
+            responded_via: typeof event.payload.via === 'string' ? event.payload.via : null,
+          };
+        }
+        continue;
+      }
       const triggerId = typeof event.payload.trigger_id === 'string' ? event.payload.trigger_id : null;
       if (event.kind === 'trigger_received' && triggerId !== null) {
         const turn = this.newTurn(event, triggerId);
@@ -115,6 +137,17 @@ export class ChatTurnBuilder {
         }
       }
       const turn: ChatTurn | null = triggerId !== null ? turns.get(triggerId) ?? null : openTurn;
+      if (event.kind === 'user_request') {
+        const step: RequestStep = {
+          type: 'request',
+          request: event.payload as unknown as UserRequest,
+        };
+        requestSteps.set(step.request.request_id, step);
+        if (turn !== null) {
+          turn.steps.push(step);
+        }
+        continue;
+      }
       if (turn === null) {
         if (TURN_LESS_KINDS_SHOWN.has(event.kind) && eventDescriber.describe(event).tone !== 'quiet') {
           items.push({
@@ -126,9 +159,11 @@ export class ChatTurnBuilder {
       }
       if (event.kind === 'turn_started') {
         turn.started = true;
+        turn.startedAt = event.created_at;
         openTurn = turn;
       } else if (event.kind === 'turn_finished') {
         turn.finished = true;
+        turn.finishedAt = event.created_at;
         if (openTurn === turn) {
           openTurn = null;
         }
@@ -153,6 +188,8 @@ export class ChatTurnBuilder {
       text: String(event.payload.text ?? ''),
       attachments: Array.isArray(event.payload.attachments) ? (event.payload.attachments as Attachment[]) : [],
       receivedAt: event.created_at,
+      startedAt: null,
+      finishedAt: null,
       started: false,
       finished: false,
       steps: [],
@@ -163,6 +200,7 @@ export class ChatTurnBuilder {
       steeringInto: typeof event.payload.steering_into === 'string' ? event.payload.steering_into : null,
       steeringOutcome: typeof event.payload.steering_into === 'string' ? 'waiting' : null,
       stopped: false,
+      requestId: typeof event.payload.request_id === 'string' ? event.payload.request_id : null,
     };
   }
 

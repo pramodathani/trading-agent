@@ -1,0 +1,7 @@
+# ModelMenu.tsx
+
+Copies Claude Code's model menu under the prompt box: the button names the model tried first, and the list opens upward with each backend, its model in muted text and its number key, and a tick on the current choice. "Auto" returns to the configured order. A choice calls POST /api/desks/{desk}/model, which runs the same `ModelRouter.prefer` as the /model command, so it does not add a turn to the chat. The other backends keep their order behind the chosen one, so fallback still works.
+
+Keys are heard on the whole page while the menu is open, not only inside it, because a click does not move focus to a button in every browser.
+
+On 2026-10-18 the menu gained "Claude (other models) ›" and "DeepSeek (other models) ›" submenus, listing each backend's `other_models` from trading_agent.toml. Choosing one prefers that provider's first backend offering it and switches that backend's model: a running Claude Code session switches with `ClaudeSDKClient.set_model` before its next turn, as /model does in Claude Code, so the conversation continues; an agent-loop backend such as DeepSeek simply sends the other model name. Every other backend goes back to its configured model, and choosing a regular model or Auto clears the choice. Like the preferred backend, the choice lives in memory and a restart returns to the configured models. DeepSeek reports no cost for a model whose prices are not configured, rather than costing it at V4 Pro's prices.

@@ -225,22 +225,40 @@ class BackendConfiguration(pydantic.BaseModel):
     """One model backend that a desk can use.
 
     Attributes:
-        kind: How the model is reached: "ollama", "openai_compatible" or "claude_code".
-        base_url: The server address, needed by the ollama and openai_compatible kinds.
+        kind: How the model is reached: "ollama", "openai_compatible", "deepseek" or "claude_code".
+        base_url: The server address, needed by the ollama, openai_compatible and deepseek kinds.
         model: The model name the server knows the model by.
         context_window: How many tokens of context the model is given.
         thinking: Whether the model reasons before answering, for models that support it.
+        effort: How hard Claude thinks ("low", "medium", "high", "xhigh" or "max") for the claude_code kind, or None for Claude Code's default.
+        api_key_variable: The environment variable, or .env entry, holding this backend's API key, such as "DEEPSEEK_API_KEY"; None uses TRADING_AGENT_OPENAI_API_KEY.
+        vision: Whether the model can read pictures; when False, pictures are left out of what it is sent and it is told so.
+        other_models: Other models of the same provider that the chat page's model menu offers for this backend, such as "claude-haiku-5-5".
         rupees_per_million_prompt_tokens: The price of a million prompt tokens, for /usage to show costs, or None.
         rupees_per_million_completion_tokens: The price of a million completion tokens, or None.
+        usd_per_million_cache_hit_tokens: For the deepseek kind, the peak-hour price of a million prompt tokens read from the cache, or None.
+        usd_per_million_cache_miss_tokens: For the deepseek kind, the peak-hour price of a million other prompt tokens, or None.
+        usd_per_million_completion_tokens: For the deepseek kind, the peak-hour price of a million completion tokens, or None.
+        peak_hours_utc: The peak-price periods on weekdays, such as "01:00-04:00", in UTC; outside them the off-peak factor applies.
+        off_peak_price_factor: What off-peak prices are as a share of peak prices, such as 0.5.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
 
-    kind: Literal['ollama', 'openai_compatible', 'claude_code']
+    kind: Literal['ollama', 'openai_compatible', 'deepseek', 'claude_code']
     base_url: str | None = None
     model: str
     context_window: int = pydantic.Field(gt=0)
     thinking: bool = True
+    effort: Literal['low', 'medium', 'high', 'xhigh', 'max'] | None = None
+    api_key_variable: str | None = None
+    vision: bool = True
+    other_models: list[str] = []
+    usd_per_million_cache_hit_tokens: float | None = pydantic.Field(default=None, ge=0)
+    usd_per_million_cache_miss_tokens: float | None = pydantic.Field(default=None, ge=0)
+    usd_per_million_completion_tokens: float | None = pydantic.Field(default=None, ge=0)
+    peak_hours_utc: list[str] = []
+    off_peak_price_factor: float = pydantic.Field(default=1.0, gt=0, le=1)
     rupees_per_million_prompt_tokens: float | None = pydantic.Field(
         default=None, ge=0
     )
@@ -275,6 +293,20 @@ TELEGRAM_NOTIFICATIONS = (
     'errors',
     'daily_summaries',
 )
+
+
+class ApprovalConfiguration(pydantic.BaseModel):
+    """Which of the desks' actions wait for the user's permission.
+
+    Attributes:
+        tools: The tools whose every call by a desk or subagent waits for the user's permission, such as "flatten_desk"; empty for none.
+        expiry_minutes: How long a permission request stays open before it lapses and the action is not run.
+    """
+
+    model_config = pydantic.ConfigDict(extra='forbid')
+
+    tools: list[str] = []
+    expiry_minutes: int = pydantic.Field(default=5, ge=1, le=1440)
 
 
 class TelegramConfiguration(pydantic.BaseModel):
@@ -337,6 +369,7 @@ class AgentConfiguration(pydantic.BaseModel):
         risk: How the risk engine works, apart from the limits in TradingRules.md.
         skills: How the desks' skills are kept.
         telegram: The Telegram channel.
+        approvals: Which actions wait for the user's permission.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -356,6 +389,7 @@ class AgentConfiguration(pydantic.BaseModel):
     risk: RiskConfiguration = RiskConfiguration()
     skills: SkillsConfiguration = SkillsConfiguration()
     telegram: TelegramConfiguration = TelegramConfiguration()
+    approvals: ApprovalConfiguration = ApprovalConfiguration()
 
     @pydantic.model_validator(mode='after')
     def _require_known_telegram_desk(self) -> AgentConfiguration:

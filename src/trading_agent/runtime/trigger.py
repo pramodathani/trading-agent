@@ -38,6 +38,7 @@ class Trigger:
         text: What the desk is asked or told.
         created_at: When the trigger was created, in UTC.
         attachments: The pictures and documents the user sent with a message.
+        request_id: The desk's question, plan or permission request this message answers, or None.
     """
 
     trigger_id: str
@@ -46,6 +47,7 @@ class Trigger:
     text: str
     created_at: datetime.datetime
     attachments: tuple[attachment_module.Attachment, ...] = ()
+    request_id: str | None = None
 
     @classmethod
     def now(
@@ -54,6 +56,7 @@ class Trigger:
         desk: str,
         text: str,
         attachments: tuple[attachment_module.Attachment, ...] = (),
+        request_id: str | None = None,
     ) -> Self:
         """Creates a trigger with a new identifier and the current time.
 
@@ -62,6 +65,7 @@ class Trigger:
             desk (str): The desk that should handle it.
             text (str): What the desk is asked or told.
             attachments (tuple[attachment_module.Attachment, ...]): The pictures and documents sent with it.
+            request_id (str | None): The request this message answers, or None.
 
         Returns:
             Trigger: The new trigger.
@@ -73,6 +77,7 @@ class Trigger:
             text=text,
             created_at=datetime.datetime.now(datetime.UTC),
             attachments=attachments,
+            request_id=request_id,
         )
 
     def to_json_dictionary(self) -> dict[str, Any]:
@@ -93,6 +98,8 @@ class Trigger:
             for attachment in self.attachments:
                 described.append(attachment.to_json_dictionary())
             dictionary['attachments'] = described
+        if self.request_id is not None:
+            dictionary['request_id'] = self.request_id
         return dictionary
 
     @property

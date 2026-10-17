@@ -19,6 +19,7 @@ from trading_agent.channels import pairing_store
 from trading_agent.channels import telegram_api
 from trading_agent.channels import telegram_channel
 from trading_agent.channels import telegram_commands
+from trading_agent.channels import telegram_requests
 from trading_agent.client import app_commands
 from trading_agent.client import checkpoint_commands
 from trading_agent.client import mcp_commands
@@ -40,7 +41,6 @@ from trading_agent.extensions import mcp_server_configuration
 from trading_agent.extensions import systemd_user_units
 from trading_agent.gateway import access_guard
 from trading_agent.gateway import gateway_application
-from trading_agent.gateway import token_redacting_filter
 from trading_agent.gateway.routes import account_routes
 from trading_agent.gateway.routes import app_routes
 from trading_agent.gateway.routes import attachment_routes
@@ -49,13 +49,17 @@ from trading_agent.gateway.routes import desk_routes
 from trading_agent.gateway.routes import extension_routes
 from trading_agent.gateway.routes import file_routes
 from trading_agent.gateway.routes import memory_routes
+from trading_agent.gateway.routes import request_routes
 from trading_agent.gateway.routes import route_group
 from trading_agent.gateway.routes import schedule_routes
 from trading_agent.gateway.routes import system_routes
+from trading_agent.gateway import token_redacting_filter
 from trading_agent.journal import secret_redactor
 from trading_agent.journal import trade_journal
 from trading_agent.journal import usage_tracker as usage_tracker_module
 from trading_agent.memory import checkpoints as checkpoints_module
+from trading_agent.requests import request_expiry_watcher
+from trading_agent.requests import user_request_responder
 from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.scheduling import cron_scheduler
@@ -257,6 +261,16 @@ class Application:
                 continue
             desks[desk_configuration.name] = builder.build(desk_configuration)
         guard = access_guard.AccessGuard(secrets.gateway_access_token)
+        tool_registries = {}
+        for desk_name, desk_parts in builder.desk_parts().items():
+            tool_registries[desk_name] = desk_parts.tools
+        responder = user_request_responder.UserRequestResponder(
+            builder.user_request_store,
+            event_bus,
+            desks,
+            tool_registries,
+            builder.permission_grants,
+        )
         redactor = secret_redactor.SecretRedactor.from_files(
             secrets,
             configuration.tradingmachine_environment_file,
@@ -297,6 +311,7 @@ class Application:
             desks,
             event_bus,
             pairing,
+            responder,
         )
         workers = [
             journal,
@@ -306,6 +321,10 @@ class Application:
             hooks,
             scheduler,
             builder.market_watcher(desks),
+            request_expiry_watcher.RequestExpiryWatcher(
+                builder.user_request_store,
+                responder,
+            ),
         ]
         if telegram is not None:
             workers.append(telegram)
@@ -328,6 +347,7 @@ class Application:
                 pairing,
                 bool(secrets.telegram_bot_token),
                 telegram,
+                responder,
             ),
             configuration.gateway.frontend_directory,
         )
@@ -355,6 +375,7 @@ class Application:
         pairing: pairing_store.PairingStore,
         telegram_token_present: bool,
         telegram: telegram_channel.TelegramChannel | None,
+        responder: user_request_responder.UserRequestResponder,
     ) -> list[route_group.RouteGroup]:
         """Creates every route group of the gateway's API.
 
@@ -370,6 +391,7 @@ class Application:
             pairing (pairing_store.PairingStore): The Telegram pairing file.
             telegram_token_present (bool): Whether a Telegram bot token is set.
             telegram (telegram_channel.TelegramChannel | None): The running Telegram channel, or None.
+            responder (user_request_responder.UserRequestResponder): Records the user's responses to the desks' requests.
 
         Returns:
             list[route_group.RouteGroup]: The route groups.
@@ -385,6 +407,7 @@ class Application:
                 shared.layout,
                 configuration.mode,
                 shared.attachments,
+                configuration.backends,
             ),
             attachment_routes.AttachmentRoutes(
                 desks,
@@ -423,6 +446,12 @@ class Application:
                     systemd_user_units.SystemdUserUnits(),
                 ),
             ),
+            request_routes.RequestRoutes(
+                guard,
+                builder.user_request_store,
+                responder,
+                builder.permission_grants,
+            ),
         ]
 
     def _telegram_channel(
@@ -433,6 +462,7 @@ class Application:
         desks: Mapping[str, desk_runtime.DeskRuntime],
         event_bus: event_bus_module.EventBus,
         pairing: pairing_store.PairingStore,
+        responder: user_request_responder.UserRequestResponder,
     ) -> telegram_channel.TelegramChannel | None:
         """Builds the Telegram channel, when it is switched on and has a token.
 
@@ -443,6 +473,7 @@ class Application:
             desks (Mapping[str, desk_runtime.DeskRuntime]): The running desks.
             event_bus (event_bus_module.EventBus): The event bus.
             pairing (pairing_store.PairingStore): The pairing file.
+            responder (user_request_responder.UserRequestResponder): Records answers given with Telegram's buttons.
 
         Returns:
             telegram_channel.TelegramChannel | None: The channel, or None when Telegram is off or has no token.
@@ -455,10 +486,11 @@ class Application:
                 '[telegram] is enabled but TRADING_AGENT_TELEGRAM_BOT_TOKEN is not set; Telegram stays off'
             )
             return None
+        api = telegram_api.TelegramApi(
+            secrets.telegram_bot_token, settings.poll_seconds
+        )
         return telegram_channel.TelegramChannel(
-            telegram_api.TelegramApi(
-                secrets.telegram_bot_token, settings.poll_seconds
-            ),
+            api,
             pairing,
             telegram_commands.TelegramCommands(
                 desks,
@@ -474,4 +506,10 @@ class Application:
             event_bus,
             settings.default_desk,
             builder.shared_parts().attachments,
+            telegram_requests.TelegramRequests(
+                api,
+                pairing,
+                builder.user_request_store,
+                responder,
+            ),
         )

@@ -10,6 +10,7 @@ port = 8120
 name = "main"
 backend_order = [
     "claude",
+    "deepseek",
     "qwen",
     "gemma",
 ]
@@ -18,6 +19,7 @@ backend_order = [
 name = "intraday"
 backend_order = [
     "claude",
+    "deepseek",
     "qwen",
     "gemma",
 ]
@@ -31,9 +33,10 @@ scheduled_checks = [
 [[desks]]
 name = "scalper"
 backend_order = [
+    "claude_sonnet",
+    "deepseek",
     "qwen",
     "gemma",
-    "claude",
 ]
 heartbeat_minutes = 2
 scheduled_checks = [
@@ -45,6 +48,7 @@ scheduled_checks = [
 name = "positional"
 backend_order = [
     "claude",
+    "deepseek",
     "qwen",
     "gemma",
 ]
@@ -69,8 +73,50 @@ context_window = 32768
 [backends.claude]
 kind = "claude_code"
 model = "opus"
+effort = "medium"
 context_window = 1000000
+other_models = [
+    "claude-fable-5-1",
+    "claude-sonnet-5-5",
+    "claude-haiku-5-5",
+]
+
+[backends.claude_sonnet]
+kind = "claude_code"
+model = "sonnet"
+effort = "low"
+context_window = 200000
+other_models = [
+    "claude-opus-5-5",
+    "claude-fable-5-1",
+    "claude-haiku-5-5",
+]
+
+[backends.deepseek]
+kind = "deepseek"
+base_url = "https://api.deepseek.com"
+model = "deepseek-v4-pro"
+context_window = 1000000
+api_key_variable = "DEEPSEEK_API_KEY"
+vision = false
+other_models = [
+    "deepseek-flash",
+]
+usd_per_million_cache_hit_tokens = 0.044
+usd_per_million_cache_miss_tokens = 1.32
+usd_per_million_completion_tokens = 3.96
+peak_hours_utc = [
+    "01:00-04:00",
+    "06:00-10:00",
+]
+off_peak_price_factor = 0.5
 
 [telegram]
 enabled = true
 default_desk = "main"
+
+[approvals]
+tools = [
+    "flatten_desk",
+]
+expiry_minutes = 5

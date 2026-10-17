@@ -3,16 +3,32 @@ import { type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent
 import { apiClient } from '../api/apiClient';
 import type { AgentEvent, Attachment } from '../api/types';
 import { AttachmentList } from '../components/AttachmentList';
+import { MarkdownText } from '../components/MarkdownText';
+import { ModelMenu } from '../components/ModelMenu';
 import { PictureThumbnail } from '../components/PictureThumbnail';
+import { RequestDock } from '../components/requests/RequestDock';
+import { RequestSummary } from '../components/requests/RequestSummary';
+import { elapsedText, TurnProgress } from '../components/TurnProgress';
 import { useLiveEvents, useStreamingTexts } from '../hooks/useLiveEvents';
+import { usePolled } from '../hooks/usePolled';
 import { useDesks } from '../layout/desksContext';
 import { useSelectedDesk } from '../layout/selectedDeskStore';
-import { chatTurnBuilder, type ChatItem, type ChatTurn, type SteeringStep, type ToolStep } from '../utilities/chatTurnBuilder';
+import { SidePanel } from '../sidePanel/SidePanel';
+import { useSidePanelOpen } from '../sidePanel/sidePanelStore';
+import { chatTurnBuilder, type ChatItem, type ChatTurn, type SteeringStep, type ToolStep, type TurnStep } from '../utilities/chatTurnBuilder';
 import { eventDescriber } from '../utilities/eventDescriber';
 import { eventMerger } from '../utilities/eventMerger';
 import { formatter } from '../utilities/formatter';
+import { toolDescriber } from '../utilities/toolDescriber';
+import { VoiceInput } from '../utilities/voiceInput';
 
 const JOURNAL_LIMIT = 1500;
+const BOTTOM_SLACK_PIXELS = 48;
+const REQUESTS_REFRESH_MILLISECONDS = 30000;
+const REQUEST_EVENT_KINDS = new Set([
+  'user_request',
+  'user_response',
+]);
 const ACCEPTED_FILES = '.png,.jpg,.jpeg,.webp,.gif,.pdf,.docx,.xlsx,.csv,.tsv,.txt,.md,.json';
 const SLASH_COMMANDS = [
   '/status',
@@ -43,7 +59,11 @@ interface PendingFile {
 export function ChatPage() {
   const deskName = useSelectedDesk();
   const desks = useDesks();
+  const panelOpen = useSidePanelOpen();
   const liveEvents = useLiveEvents();
+  const requests = usePolled(() => apiClient.requests('pending'), REQUESTS_REFRESH_MILLISECONDS);
+  const refreshRequests = requests.refresh;
+  const lastLiveEvent = liveEvents.length > 0 ? liveEvents[liveEvents.length - 1] : null;
   const streams = useStreamingTexts();
   const [loaded, setLoaded] = useState<AgentEvent[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -52,7 +72,13 @@ export function ChatPage() {
   const [sendError, setSendError] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingFile[]>([]);
   const [dragging, setDragging] = useState(false);
-  const bottomReference = useRef<HTMLDivElement>(null);
+  const scrollReference = useRef<HTMLDivElement>(null);
+  const columnReference = useRef<HTMLDivElement>(null);
+  const stuckToBottom = useRef(true);
+  const voiceInput = useMemo(() => new VoiceInput(), []);
+  const voiceBase = useRef('');
+  const [listening, setListening] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const pendingReference = useRef<PendingFile[]>([]);
   pendingReference.current = pending;
@@ -94,13 +120,28 @@ export function ChatPage() {
     deskName,
   ]);
 
-  const items = useMemo(() => {
+  const deskEvents = useMemo(() => {
     const deskLive = liveEvents.filter((event) => event.desk === deskName);
-    return chatTurnBuilder.build(eventMerger.merge(loaded, deskLive));
+    return eventMerger.merge(loaded, deskLive);
   }, [
     loaded,
     liveEvents,
     deskName,
+  ]);
+
+  useEffect(() => {
+    if (lastLiveEvent !== null && REQUEST_EVENT_KINDS.has(lastLiveEvent.kind)) {
+      refreshRequests();
+    }
+  }, [
+    lastLiveEvent,
+    refreshRequests,
+  ]);
+
+  const deskRequests = (requests.data ?? []).filter((request) => request.desk === deskName);
+
+  const items = useMemo(() => chatTurnBuilder.build(deskEvents), [
+    deskEvents,
   ]);
 
   const lastItemKey = items.length > 0 ? itemKey(items[items.length - 1]) : '';
@@ -108,15 +149,80 @@ export function ChatPage() {
   const lastSize = lastTurn !== null && lastTurn.type === 'turn' ? lastTurn.steps.length + (lastTurn.answer ?? '').length + (streams.get(lastTurn.triggerId) ?? '').length : 0;
 
   useEffect(() => {
-    bottomReference.current?.scrollIntoView({
-      block: 'end',
+    stuckToBottom.current = true;
+    return () => {
+      voiceInput.stop();
+    };
+  }, [
+    deskName,
+    voiceInput,
+  ]);
+
+  /** Starts turning speech into text in the message box, or stops when already listening. */
+  function toggleListening(): void {
+    if (listening) {
+      voiceInput.stop();
+      return;
+    }
+    setVoiceError(null);
+    voiceBase.current = draft.trim();
+    setListening(true);
+    voiceInput.start({
+      onText: (text) => {
+        setDraft(voiceBase.current.length > 0 ? `${voiceBase.current} ${text}` : text);
+      },
+      onEnd: () => setListening(false),
+      onError: (message) => setVoiceError(message),
     });
+  }
+
+  useEffect(() => {
+    if (stuckToBottom.current) {
+      scrollToBottom();
+    }
   }, [
     lastItemKey,
     lastSize,
     deskName,
   ]);
 
+  useEffect(() => {
+    const scroller = scrollReference.current;
+    const column = columnReference.current;
+    if (scroller === null || column === null) {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      if (stuckToBottom.current) {
+        scrollToBottom();
+      }
+    });
+    observer.observe(scroller);
+    observer.observe(column);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  /** Scrolls the chat to its newest line. */
+  function scrollToBottom(): void {
+    const scroller = scrollReference.current;
+    if (scroller !== null) {
+      scroller.scrollTop = scroller.scrollHeight;
+    }
+  }
+
+  /** Remembers whether the user is reading the newest lines, so the chat follows new ones only then. */
+  function handleScroll(): void {
+    const scroller = scrollReference.current;
+    if (scroller === null) {
+      return;
+    }
+    stuckToBottom.current = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < BOTTOM_SLACK_PIXELS;
+  }
+
+  const busy = desk !== null && desk.state !== 'idle';
+  const modeWords = desk !== null && desk.mode === 'live' ? 'Live orders' : 'Dry run';
   const readyFiles = pending.filter((item) => item.status === 'ready');
   const uploading = pending.some((item) => item.status === 'uploading');
   const canSend = !sending && !uploading && (draft.trim().length > 0 || readyFiles.length > 0);
@@ -223,6 +329,8 @@ export function ChatPage() {
     }
     setSending(true);
     setSendError(null);
+    stuckToBottom.current = true;
+    voiceInput.stop();
     try {
       const attachmentIds = readyFiles.map((item) => (item.attachment as Attachment).attachment_id);
       await apiClient.sendMessage(deskName, text, attachmentIds);
@@ -259,84 +367,120 @@ export function ChatPage() {
   const suggestions = draft.startsWith('/') && !draft.includes(' ') ? SLASH_COMMANDS.filter((command) => command.startsWith(draft)) : [];
 
   return (
-    <div className="chat-page">
-      <div className="chat-header">
-        <h1>Chat with {deskName}</h1>
-        {desk !== null && (
-          <span className="muted small">
-            {desk.state}
-            {desk.paused ? ', paused' : ''}
-            {desk.queued > 0 ? `, ${desk.queued} waiting` : ''} · session <span className="mono">{desk.session_id ?? '—'}</span>
-          </span>
-        )}
-      </div>
-      <div className="chat-log">
-        {loadError !== null && <p className="error-text">Could not read today&apos;s journal: {loadError}</p>}
-        {items.length === 0 && loadError === null && <p className="muted">Nothing today yet. Say hello, or try /status.</p>}
-        {items.map((item) =>
-          item.type === 'turn' ? <TurnView key={itemKey(item)} deskName={deskName} turn={item} streamingText={streams.get(item.triggerId) ?? ''} /> : <LooseEventView key={itemKey(item)} deskName={deskName} event={item.event} />,
-        )}
-        <div ref={bottomReference} />
-      </div>
-      <form className={dragging ? 'chat-input dragging' : 'chat-input'} onSubmit={send} onDragOver={handleDragOver} onDragLeave={() => setDragging(false)} onDrop={handleDrop}>
-        {pending.length > 0 && (
-          <div className="pending-files">
-            {pending.map((item) => (
-              <span key={item.localId} className={`pending-file ${item.status}`} title={item.error ?? item.fileName}>
-                {item.previewAddress !== null ? <img src={item.previewAddress} alt="" /> : <span className="attachment-badge">{item.fileName.split('.').pop()?.toUpperCase() ?? 'FILE'}</span>}
-                <span className="pending-file-name">{item.fileName}</span>
-                <span className="small muted">{pendingStatus(item)}</span>
-                <button type="button" className="pending-remove" onClick={() => removePending(item.localId)} aria-label={`Remove ${item.fileName}`}>
-                  ×
-                </button>
+    <div className={panelOpen ? 'chat-page with-panel' : 'chat-page'}>
+      <div className="chat-scroll" ref={scrollReference} onScroll={handleScroll}>
+        <div className="chat-column" ref={columnReference}>
+          <div className="chat-header">
+            <h1>Chat with {deskName}</h1>
+            {desk !== null && (
+              <span className="muted small">
+                {desk.state}
+                {desk.paused ? ', paused' : ''}
+                {desk.queued > 0 ? `, ${desk.queued} waiting` : ''}
               </span>
-            ))}
+            )}
           </div>
-        )}
-        {suggestions.length > 0 && (
-          <div className="slash-suggestions">
-            {suggestions.map((command) => (
-              <button key={command} type="button" onClick={() => setDraft(`${command} `)}>
-                {command}
-              </button>
-            ))}
+          <div className="chat-log">
+            {loadError !== null && <p className="error-text">Could not read today&apos;s journal: {loadError}</p>}
+            {items.length === 0 && loadError === null && <p className="muted">Nothing today yet. Say hello, or try /status.</p>}
+            {items.map((item) =>
+              item.type === 'turn' ? <TurnView key={itemKey(item)} deskName={deskName} turn={item} streamingText={streams.get(item.triggerId) ?? ''} /> : <LooseEventView key={itemKey(item)} deskName={deskName} event={item.event} />,
+            )}
           </div>
-        )}
-        <textarea
-          rows={2}
-          value={draft}
-          placeholder={`Message ${deskName}, or type / for commands. Enter sends; Shift and Enter adds a line. Drop or paste pictures and documents here.`}
-          onChange={(change) => setDraft(change.target.value)}
-          onKeyDown={handleKey}
-          onPaste={handlePaste}
-        />
-        <input
-          ref={fileInput}
-          type="file"
-          multiple
-          accept={ACCEPTED_FILES}
-          hidden
-          onChange={(change) => {
-            addFiles(Array.from(change.target.files ?? []));
-            change.target.value = '';
-          }}
-        />
-        <span className="button-row">
-          <button type="button" onClick={() => fileInput.current?.click()} title="Attach pictures or documents: PNG, JPEG, WebP, GIF, PDF, Word, Excel, CSV, text, Markdown or JSON, up to 20 MB each">
-            Attach
-          </button>
-          {desk !== null && desk.state !== 'idle' && (
-            <button className="danger" type="button" onClick={stop} title="Cancel the running turn at once">
-              Stop
-            </button>
+        </div>
+      </div>
+      <div className="composer-area">
+        <RequestDock requests={deskRequests} onDone={refreshRequests} />
+        <form className={dragging ? 'composer dragging' : 'composer'} onSubmit={send} onDragOver={handleDragOver} onDragLeave={() => setDragging(false)} onDrop={handleDrop}>
+          {pending.length > 0 && (
+            <div className="pending-files">
+              {pending.map((item) => (
+                <span key={item.localId} className={`pending-file ${item.status}`} title={item.error ?? item.fileName}>
+                  {item.previewAddress !== null ? <img src={item.previewAddress} alt="" /> : <span className="attachment-badge">{item.fileName.split('.').pop()?.toUpperCase() ?? 'FILE'}</span>}
+                  <span className="pending-file-name">{item.fileName}</span>
+                  <span className="small muted">{pendingStatus(item)}</span>
+                  <button type="button" className="pending-remove" onClick={() => removePending(item.localId)} aria-label={`Remove ${item.fileName}`}>
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
           )}
-          <button className="primary" type="submit" disabled={!canSend}>
-            Send
-          </button>
-        </span>
-        {sendError !== null && <p className="error-text small">{sendError}</p>}
-        {desk !== null && desk.state !== 'idle' && <p className="muted small">The desk is working. A message you send now is handed to it at its next tool call; if the turn ends first, it becomes the next turn.</p>}
-      </form>
+          {suggestions.length > 0 && (
+            <div className="slash-suggestions">
+              {suggestions.map((command) => (
+                <button key={command} type="button" onClick={() => setDraft(`${command} `)}>
+                  {command}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="composer-row">
+            <button type="button" className="icon-button" onClick={() => fileInput.current?.click()} aria-label="Attach files" title="Attach pictures or documents: PNG, JPEG, WebP, GIF, PDF, Word, Excel, CSV, text, Markdown or JSON, up to 20 MB each">
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+            <textarea
+              rows={1}
+              value={draft}
+              placeholder={busy ? `Enter to hand a message to ${deskName} at its next tool call` : 'Enter to send, Shift+Enter for a new line, / for commands'}
+              title="Enter sends; Shift and Enter adds a line. Drop or paste pictures and documents here."
+              onChange={(change) => setDraft(change.target.value)}
+              onKeyDown={handleKey}
+              onPaste={handlePaste}
+            />
+            <input
+              ref={fileInput}
+              type="file"
+              multiple
+              accept={ACCEPTED_FILES}
+              hidden
+              onChange={(change) => {
+                addFiles(Array.from(change.target.files ?? []));
+                change.target.value = '';
+              }}
+            />
+            {busy && (
+              <button type="button" className="icon-button stop-button" onClick={stop} aria-label="Stop the running turn" title="Stop the running turn at once">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" strokeWidth="1.4" />
+                  <rect x="5.75" y="5.75" width="4.5" height="4.5" rx="0.8" fill="currentColor" />
+                </svg>
+              </button>
+            )}
+            <button
+              type="button"
+              className={listening ? 'icon-button mic-button listening' : 'icon-button mic-button'}
+              onClick={toggleListening}
+              disabled={!voiceInput.isSupported()}
+              aria-pressed={listening}
+              aria-label={listening ? 'Stop voice input' : 'Speak your message'}
+              title={voiceInput.isSupported() ? (listening ? 'Listening. Press again to stop.' : 'Speak your message') : 'This browser cannot turn speech into text. Chrome and Edge can.'}
+            >
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <rect x="5.75" y="2" width="4.5" height="7.5" rx="2.25" fill="none" stroke="currentColor" strokeWidth="1.4" />
+                <path d="M3.5 7.75a4.5 4.5 0 0 0 9 0M8 12.25V14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+              </svg>
+            </button>
+            {canSend && (
+              <button className="primary send-button" type="submit" aria-label="Send">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </form>
+        <div className="composer-footer">
+          <span className={listening ? 'composer-hint listening' : 'composer-hint'}>{listening ? 'Listening… press the microphone again to stop' : modeWords}</span>
+          <span className="spacer" />
+          {desk !== null && <ModelMenu desk={desk} onChanged={desks.refresh} />}
+        </div>
+        {voiceError !== null && <p className="error-text small composer-note">{voiceError}</p>}
+        {sendError !== null && <p className="error-text small composer-note">{sendError}</p>}
+      </div>
+      {panelOpen && <SidePanel deskName={deskName} desk={desk} events={deskEvents} />}
     </div>
   );
 }
@@ -414,25 +558,47 @@ function TurnView(properties: TurnViewProperties) {
   const turn = properties.turn;
   const fromUser = turn.source === 'user_message';
   const status = turnStatus(turn);
+  const inProgress = !turn.finished && !turn.stopped && turn.error === null && (turn.started || turn.steeringOutcome === null);
+  let finishedStatus = status;
+  if (turn.startedAt !== null && turn.finishedAt !== null) {
+    const seconds = Math.max(0, Math.round((Date.parse(turn.finishedAt) - Date.parse(turn.startedAt)) / 1000));
+    finishedStatus = `${status} · ${elapsedText(seconds)}`;
+  }
   const showStream = turn.answer === null && !turn.finished && properties.streamingText.length > 0;
   return (
     <section className="turn">
-      <div className={fromUser ? 'bubble user' : 'bubble trigger'}>
-        <div className="bubble-meta">
-          <span>{fromUser ? 'You' : eventDescriber.sourceWords(turn.source)}</span>
-          <span className="mono">{formatter.time(turn.receivedAt)}</span>
+      {turn.requestId !== null ? (
+        <div className="answer-note" title={turn.text}>
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M4 3v5a2 2 0 0 0 2 2h7M10 7l3 3-3 3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Your response went to the desk <span className="mono">{formatter.time(turn.receivedAt)}</span>
         </div>
-        {turn.text.length > 0 && <pre>{turn.text}</pre>}
-        <AttachmentList deskName={properties.deskName} attachments={turn.attachments} />
-      </div>
+      ) : (
+        <div className={fromUser ? 'bubble user' : 'bubble trigger'}>
+          <div className="bubble-meta">
+            <span>{fromUser ? 'You' : eventDescriber.sourceWords(turn.source)}</span>
+            <span className="mono">{formatter.time(turn.receivedAt)}</span>
+          </div>
+          {turn.text.length > 0 && <pre>{turn.text}</pre>}
+          <AttachmentList deskName={properties.deskName} attachments={turn.attachments} />
+        </div>
+      )}
       {turn.steps.length > 0 && (
         <div className="steps">
-          {turn.steps.map((step, index) => {
-            if (step.type === 'tool') {
-              return <ToolCard key={step.callId || index} deskName={properties.deskName} step={step} />;
+          {stepSegments(turn.steps).map((segment, index) => {
+            if (segment.type === 'tools') {
+              return <ToolGroup key={segment.steps[0].callId || index} deskName={properties.deskName} steps={segment.steps} />;
             }
+            const step = segment.step;
             if (step.type === 'steering') {
               return <SteeringView key={step.message.triggerId} step={step} />;
+            }
+            if (step.type === 'tool') {
+              return null;
+            }
+            if (step.type === 'request') {
+              return <RequestSummary key={step.request.request_id} request={step.request} />;
             }
             if (step.event.kind === 'message') {
               return <DeskMessageView key={eventMerger.key(step.event)} deskName={properties.deskName} event={step.event} />;
@@ -450,7 +616,7 @@ function TurnView(properties: TurnViewProperties) {
           <div className="bubble-meta">
             <span>Writing…</span>
           </div>
-          <pre>{properties.streamingText}</pre>
+          <MarkdownText text={properties.streamingText} />
         </div>
       )}
       {turn.answer !== null && (
@@ -458,11 +624,11 @@ function TurnView(properties: TurnViewProperties) {
           <div className="bubble-meta">
             <span>{turn.silent ? 'Nothing to do' : 'Desk'}</span>
           </div>
-          <pre>{turn.answer}</pre>
+          <MarkdownText text={turn.answer} />
         </div>
       )}
       {turn.error !== null && <div className="bubble failed">The turn failed: {turn.error}</div>}
-      <div className={turn.finished || turn.steeringOutcome === 'delivered' ? 'turn-status muted small' : 'turn-status working small'}>{status}</div>
+      {inProgress ? <TurnProgress turn={turn} streamingText={properties.streamingText} /> : <div className="turn-status muted small">{finishedStatus}</div>}
     </section>
   );
 }
@@ -482,6 +648,71 @@ function SteeringView(properties: { step: SteeringStep }) {
       </div>
       <pre>{message.text}</pre>
       <div className="muted small">{turnStatus(message)}</div>
+    </div>
+  );
+}
+
+/** A run of tool calls shown as one folded line, or any other step shown on its own. */
+type StepSegment = { type: 'tools'; steps: ToolStep[] } | { type: 'single'; step: TurnStep };
+
+/**
+ * Groups a turn's steps so that tool calls in a row become one segment.
+ * @param steps The turn's steps, in order.
+ * @returns The segments, in order.
+ */
+function stepSegments(steps: TurnStep[]): StepSegment[] {
+  const segments: StepSegment[] = [];
+  for (const step of steps) {
+    const last = segments.length > 0 ? segments[segments.length - 1] : null;
+    if (step.type === 'tool' && last !== null && last.type === 'tools') {
+      last.steps.push(step);
+    } else if (step.type === 'tool') {
+      segments.push({
+        type: 'tools',
+        steps: [
+          step,
+        ],
+      });
+    } else {
+      segments.push({
+        type: 'single',
+        step,
+      });
+    }
+  }
+  return segments;
+}
+
+/**
+ * Tool calls in a row, folded into one summary line as Claude Code shows them; pictures the tools showed the model stay visible.
+ * @param properties The desk and the tool calls.
+ * @returns The group.
+ */
+function ToolGroup(properties: { deskName: string; steps: ToolStep[] }) {
+  const [open, setOpen] = useState(false);
+  const steps = properties.steps;
+  const pictures = steps.filter((step) => step.picturePath !== null);
+  return (
+    <div className="tool-group">
+      <button type="button" className={open ? 'tool-group-summary open' : 'tool-group-summary'} aria-expanded={open} onClick={() => setOpen(!open)}>
+        {toolDescriber.summary(steps)}
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && (
+        <div className="tool-group-body">
+          {steps.map((step, index) => (
+            <ToolCard key={step.callId || index} deskName={properties.deskName} step={step} />
+          ))}
+        </div>
+      )}
+      {!open &&
+        pictures.map((step) => (
+          <div key={step.callId} className="tool-card-picture">
+            <PictureThumbnail fileName={step.picturePath as string} loadKey={`${properties.deskName}/${step.picturePath}`} load={() => apiClient.deskPicture(properties.deskName, step.picturePath as string)} />
+          </div>
+        ))}
     </div>
   );
 }
@@ -549,7 +780,7 @@ function DeskMessageView(properties: { deskName: string; event: AgentEvent }) {
         <span>{label}</span>
         <span className="mono">{formatter.time(properties.event.created_at)}</span>
       </div>
-      {text.length > 0 && <pre>{text}</pre>}
+      {text.length > 0 && <MarkdownText text={text} />}
       <AttachmentList deskName={properties.deskName} attachments={attachments} large />
     </div>
   );

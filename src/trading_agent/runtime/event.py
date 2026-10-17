@@ -44,6 +44,8 @@ class EventKind(enum.StrEnum):
     STOPPED = 'stopped'
     TEXT = 'text'
     TURN_FINISHED = 'turn_finished'
+    USER_REQUEST = 'user_request'
+    USER_RESPONSE = 'user_response'
     ERROR = 'error'
 
 

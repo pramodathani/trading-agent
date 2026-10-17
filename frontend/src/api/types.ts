@@ -34,7 +34,42 @@ export interface DeskSummary {
   last_model: string | null;
   session_id: string | null;
   exchanges: number;
+  backends?: DeskBackend[];
   persona?: string | null;
+}
+
+/** One backend a desk can use, and the model behind it. */
+export interface DeskBackend {
+  name: string;
+  kind: string;
+  model: string;
+  active_model: string | null;
+  other_models: string[];
+}
+
+/** One part of a context window, such as the messages or the free space. */
+export interface ContextCategory {
+  name: string;
+  tokens: number;
+  deferred: boolean;
+}
+
+/** How full one backend's context window is. */
+export interface ContextUsage {
+  backend: string;
+  model: string;
+  total_tokens: number;
+  context_window: number;
+  categories: ContextCategory[];
+  measured: boolean;
+  recorded_at: string;
+}
+
+/** The answer of GET /api/desks/{desk}/context. */
+export interface ContextDocument {
+  desk: string;
+  usage: ContextUsage | null;
+  tools: string[];
 }
 
 /** The answer of GET /api/desks. */
@@ -280,6 +315,7 @@ export interface BackendUsage {
   completion_tokens: number;
   cache_read_tokens: number;
   api_equivalent_cost_usd: number;
+  cost_usd?: number;
 }
 
 /** The answer of GET /api/usage. */
@@ -330,4 +366,60 @@ export interface AppEntry {
   health_detail: string;
   unit_state: { load_state: string; active_state: string; sub_state: string } | null;
   unit_error: string;
+}
+
+/** One choice in a desk's question. */
+export interface RequestOption {
+  label: string;
+  description: string;
+  preview: string | null;
+}
+
+/** One question in a desk's question request. */
+export interface RequestQuestion {
+  question: string;
+  header: string;
+  options: RequestOption[];
+  multi_select: boolean;
+}
+
+/** The user's answer to one question. */
+export interface QuestionAnswer {
+  selected: string[];
+  other: string;
+}
+
+/** A desk's question, plan or permission request to the user. */
+export interface UserRequest {
+  request_id: string;
+  desk: string;
+  kind: 'question' | 'plan' | 'permission';
+  content: {
+    questions?: RequestQuestion[];
+    title?: string;
+    plan?: string;
+    tool_name?: string;
+    arguments?: Record<string, unknown>;
+    reason?: string;
+  };
+  created_at: string;
+  status: 'pending' | 'answered' | 'dismissed' | 'expired';
+  response: {
+    answers?: QuestionAnswer[];
+    decision?: string;
+    feedback?: string;
+    reason?: string;
+    result?: string;
+    result_is_error?: boolean;
+  } | null;
+  responded_at: string | null;
+  responded_via: string | null;
+  expires_at: string | null;
+}
+
+/** A standing permission: a desk may use a tool without asking. */
+export interface PermissionGrant {
+  desk: string;
+  tool_name: string;
+  granted_at: string;
 }

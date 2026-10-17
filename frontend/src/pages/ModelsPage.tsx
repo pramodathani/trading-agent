@@ -55,7 +55,8 @@ export function ModelsPage() {
                       <th className="number">Prompt tokens</th>
                       <th className="number">Cached prompt tokens</th>
                       <th className="number">Answer tokens</th>
-                      <th className="number">API-equivalent cost</th>
+                      <th className="number">Claude at API prices</th>
+                      <th className="number">Charged</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -69,6 +70,7 @@ export function ModelsPage() {
                           <td className="number">{counts.cache_read_tokens.toLocaleString('en-IN')}</td>
                           <td className="number">{counts.completion_tokens.toLocaleString('en-IN')}</td>
                           <td className="number">{DOLLARS.format(counts.api_equivalent_cost_usd)}</td>
+                          <td className="number">{DOLLARS.format(counts.cost_usd ?? 0)}</td>
                         </tr>
                       )),
                     )}
