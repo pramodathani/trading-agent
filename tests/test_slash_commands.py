@@ -8,6 +8,7 @@ from pathlib import Path
 
 from tests import fakes
 from trading_agent.agent import context_usage as context_usage_module
+from trading_agent.backends import backend
 from trading_agent.backends import model_router
 from trading_agent.configuration import agent_configuration
 from trading_agent.journal import journal_reader
@@ -33,6 +34,8 @@ class _RecordingRunner(turn_runner.TurnRunner):
         reset_count: How many times reset was called.
         snapshot: The context window snapshot it reports, or None.
         thinking_level: The thinking level it reports, changed by set_thinking.
+        side_questions: The side questions it was asked.
+        side_fails: Whether a side question raises BackendUnavailableError.
     """
 
     def __init__(self, name: str):
@@ -46,6 +49,8 @@ class _RecordingRunner(turn_runner.TurnRunner):
         self.reset_count = 0
         self.snapshot: context_usage_module.ContextUsage | None = None
         self.thinking_level = 'medium'
+        self.side_questions: list[str] = []
+        self.side_fails = False
 
     async def run_turn(
         self,
@@ -65,6 +70,23 @@ class _RecordingRunner(turn_runner.TurnRunner):
     async def reset(self) -> None:
         """Counts the reset."""
         self.reset_count += 1
+
+    async def side_question(self, question: str) -> str:
+        """Records the side question and answers it, or fails when told to.
+
+        Args:
+            question (str): The question.
+
+        Returns:
+            str: "<name> side: <question>".
+
+        Raises:
+            backend.BackendUnavailableError: side_fails is set.
+        """
+        self.side_questions.append(question)
+        if self.side_fails:
+            raise backend.BackendUnavailableError('limit reached')
+        return f'{self._name} side: {question}'
 
     def thinking(self) -> str | None:
         """Reports the thinking level.
@@ -467,3 +489,49 @@ class TestInformationCommands:
         reply = _Desk().send(['/subagents'])[0]
 
         assert reply == 'This desk has no subagents and ran none today.'
+
+
+class TestSideQuestions:
+    """Tests for /btw."""
+
+    def test_side_answer_is_not_kept(self) -> None:
+        """/btw answers from a backend, runs no turn and adds no exchange to the session."""
+        setup = _Desk()
+
+        reply = setup.send(['/btw why did you sell INFY?'])[0]
+
+        assert reply == (
+            "Side answer from claude, not kept in the desk's conversation:\n"
+            'claude side: why did you sell INFY?'
+        )
+        assert setup.claude.received_texts == []
+        assert len(setup.desk.turn_runner.exchanges) == 0
+
+    def test_next_backend_answers_when_the_first_fails(self) -> None:
+        """When the first backend cannot answer, the next one does, and the first is not made to wait."""
+        setup = _Desk()
+        setup.claude.side_fails = True
+
+        replies = setup.send(
+            [
+                '/btw what now?',
+                '/status',
+            ]
+        )
+
+        assert any(
+            reply.startswith('Side answer from gemma') for reply in replies
+        )
+        assert any('1. claude: ready' in reply for reply in replies)
+
+    def test_empty_or_paused_side_questions_ask_no_model(self) -> None:
+        """/btw without a question explains itself, and a paused desk asks no model."""
+        empty = _Desk().send(['/btw'])[0]
+        setup = _Desk()
+        setup.desk.paused = True
+
+        paused = setup.send(['/btw anything'])[0]
+
+        assert 'Write the question after /btw' in empty
+        assert 'paused' in paused
+        assert setup.claude.side_questions == []

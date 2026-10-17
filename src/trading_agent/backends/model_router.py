@@ -185,6 +185,44 @@ class ModelRouter(turn_runner.TurnRunner):
             'Every backend is unavailable: ' + '; '.join(reasons)
         )
 
+    async def side_question(self, question: str) -> tuple[str, str]:
+        """Answers a side question without changing any conversation or the session's history.
+
+        The backend that answered last is asked first, because its conversation holds the whole session; the others follow in the usual order. A failure here does not make a backend wait, because a side question must not change how turns are routed.
+
+        Args:
+            question (str): The user's question.
+
+        Returns:
+            tuple[str, str]: A tuple (backend_name, answer), where backend_name is the backend that answered.
+
+        Raises:
+            backend_module.BackendUnavailableError: Every backend failed or is waiting.
+        """
+        routes = []
+        for route in self._routes:
+            if route.name == self._last_backend_name:
+                routes.append(route)
+        for route in self._ordered_routes():
+            if route.name != self._last_backend_name:
+                routes.append(route)
+        reasons = []
+        for route in routes:
+            now = self._clock()
+            if now < route.available_at:
+                waiting = route.available_at - now
+                reasons.append(f'{route.name} is waiting {waiting:.0f} s')
+                continue
+            try:
+                answer = await route.turn_runner.side_question(question)
+            except backend_module.BackendUnavailableError as error:
+                reasons.append(f'{route.name}: {error}')
+                continue
+            return route.name, answer
+        raise backend_module.BackendUnavailableError(
+            'Every backend is unavailable: ' + '; '.join(reasons)
+        )
+
     async def reset(self) -> None:
         """Forgets every backend's conversation and the hand-over history, and starts a new session.
 

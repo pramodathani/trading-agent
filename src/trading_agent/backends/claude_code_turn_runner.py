@@ -46,6 +46,7 @@ _API_KEY_VARIABLE = 'ANTHROPIC_API_KEY'
 _REJECTED = 'rejected'
 _TRADINGMACHINE_PREFIX = 'TRADINGMACHINE_'
 _MCP_TOOL_TIMEOUT_MILLISECONDS = 2_000_000
+_SIDE_QUESTION_ROUNDS = 3
 
 
 @dataclasses.dataclass(frozen=True)
@@ -160,6 +161,111 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
             raise backend_module.BackendUnavailableError(
                 f'Claude Code failed: {error!r}'
             ) from error
+
+    async def side_question(self, question: str) -> str:
+        """Answers a question in a throwaway fork of the session, so the desk's own session is not changed.
+
+        The fork runs in its own short-lived Claude Code process, beside any turn the desk is running. Its session file is deleted afterwards.
+
+        Args:
+            question (str): The user's question.
+
+        Returns:
+            str: Claude's answer.
+
+        Raises:
+            backend_module.BackendUnavailableError: Claude cannot be used now, or answered with an error.
+        """
+        self._check_preconditions()
+        prompt = self._settings.prompt_builder.build()
+        answer = ''
+        fork_id = None
+        try:
+            async for message in claude_agent_sdk.query(
+                prompt=f'{turn_runner.SIDE_QUESTION_NOTE}\n{question}',
+                options=self._side_question_options(prompt.text),
+            ):
+                if isinstance(message, claude_agent_sdk.AssistantMessage):
+                    if message.error is not None:
+                        raise backend_module.BackendUnavailableError(
+                            f'Claude answered with an error: {message.error}'
+                        )
+                    text = self._text_of(message)
+                    if text:
+                        answer = text
+                elif isinstance(message, claude_agent_sdk.ResultMessage):
+                    fork_id = message.session_id
+                    if message.is_error:
+                        raise backend_module.BackendUnavailableError(
+                            f'Claude could not answer: {message.result or message.subtype}'
+                        )
+        except claude_agent_sdk.ClaudeSDKError as error:
+            raise backend_module.BackendUnavailableError(
+                f'Claude Code failed: {error!r}'
+            ) from error
+        finally:
+            self._delete_fork(fork_id)
+        return answer
+
+    def _side_question_options(
+        self, prompt_text: str
+    ) -> claude_agent_sdk.ClaudeAgentOptions:
+        """Builds the options for a side question: a fork of the session in which every tool call is refused.
+
+        The desk's tools stay defined, because a session whose history holds tool calls cannot be continued without them, but an empty allowlist refuses each call.
+
+        Args:
+            prompt_text (str): The system prompt.
+
+        Returns:
+            claude_agent_sdk.ClaudeAgentOptions: The fork's options.
+        """
+        self._settings.working_directory.mkdir(parents=True, exist_ok=True)
+        refuse_every_tool = claude_tool_allowlist_hook.ClaudeToolAllowlistHook(
+            []
+        )
+        return claude_agent_sdk.ClaudeAgentOptions(
+            system_prompt=prompt_text,
+            model=self.active_model(),
+            effort=self._effort,
+            thinking=self._thinking_option(),
+            tools=[],
+            mcp_servers={
+                claude_tool_bridge.SERVER_NAME: self._bridge.build_server(),
+            },
+            allowed_tools=[],
+            hooks={
+                'PreToolUse': [
+                    claude_agent_sdk.HookMatcher(
+                        hooks=[
+                            refuse_every_tool,
+                        ],
+                    ),
+                ],
+            },
+            permission_mode='bypassPermissions',
+            setting_sources=[],
+            max_turns=_SIDE_QUESTION_ROUNDS,
+            cwd=self._settings.working_directory,
+            env=self._environment(),
+            resume=self.session_id,
+            fork_session=self.session_id is not None,
+            stderr=self._log_stderr,
+        )
+
+    def _delete_fork(self, fork_id: str | None) -> None:
+        """Deletes the session file a side question left behind, so session search never finds it.
+
+        Args:
+            fork_id (str | None): The fork's session id, or None when Claude Code never reported one.
+        """
+        if fork_id is None or fork_id == self.session_id:
+            return
+        directory = self._settings.sessions_directory
+        if not directory.is_dir():
+            return
+        for path in directory.glob(f'*/{fork_id}.jsonl'):
+            path.unlink(missing_ok=True)
 
     async def compact(self, trigger: trigger_module.Trigger) -> str:
         """Flushes and compacts the session now, for the /compact command.

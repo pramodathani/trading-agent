@@ -2,7 +2,7 @@
 
 A desk handles one trigger at a time, so it never runs two turns at once. Different desks each have their own runtime and run side by side.
 
-A message from the user that arrives while a model turn is running is steering: it goes to the desk's steering inbox and the running turn picks it up at its next tool round, instead of waiting for the turn to end. `/stop` skips the queue altogether and cancels the running turn. Commands that only read the desk, such as `/status`, also skip the queue and are answered beside the running turn.
+A message from the user that arrives while a model turn is running is steering: it goes to the desk's steering inbox and the running turn picks it up at its next tool round, instead of waiting for the turn to end. `/stop` skips the queue altogether and cancels the running turn. Commands that only read the desk, such as `/status`, also skip the queue and are answered beside the running turn, and so is `/btw`, which asks a model a side question.
 
 A message that starts with a slash is a command and is answered by code. Anything else goes to the desk's turn runner, prefixed with a line stating the India time and what woke the desk; those facts change every turn, so they belong in the message rather than in the system prompt. A desk with a session keeper lets it resume the saved session when the desk starts, and roll over to a new session before the first turn of a new day.
 
@@ -180,9 +180,13 @@ class DeskRuntime:
             trigger (trigger_module.Trigger): The new trigger.
 
         Returns:
-            bool: True for a read-only command without attachments, sent while an event loop runs to answer it.
+            bool: True for a read-only command, or one that runs in the background such as /btw, without attachments, sent while an event loop runs to answer it.
         """
-        if trigger.attachments or not self._commands.is_instant(trigger.text):
+        if trigger.attachments:
+            return False
+        if not self._commands.is_instant(
+            trigger.text
+        ) and not self._commands.is_background(trigger.text):
             return False
         try:
             asyncio.get_running_loop()

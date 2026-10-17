@@ -54,3 +54,13 @@ These copy what Claude Code, OpenClaw and Hermes offer under the same names, and
 The level applies to every backend of this desk, because a fallback model should think about as hard as the model it replaces. Each desk builds its own turn runners, so other desks are not affected, even when they share a backend entry in `trading_agent.toml`.
 
 It lasts until the gateway restarts. That matches `/model`, and it keeps `trading_agent.toml` as the place where lasting settings live. `/think` is queued like other commands that change the desk, so it never lands in the middle of a turn.
+
+## /btw, since 2026-10-18
+
+`/btw` copies the side question of Claude Code, OpenClaw and Hermes. The use on a trading desk is asking "why did you take that trade?" without the question and answer becoming part of the conversation the desk trades from.
+
+It is a background command (`is_background`): the desk answers it in its own task, like an instant command, so it neither waits for nor interrupts a running turn. Only one background command runs per desk at a time, tracked in `_background_command`, because each one costs a model call and two at once from a phone are almost always a double tap. All handlers run on the one event loop thread, so the check-then-set needs no lock.
+
+A paused desk asks no model, so `/btw` respects `/pause` like a model turn does.
+
+The answer names the backend that gave it, because a fallback model may lack the latest exchanges (see the note on `model_router.py`).

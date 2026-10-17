@@ -12,6 +12,7 @@ import zoneinfo
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
+from trading_agent.backends import backend as backend_module
 from trading_agent.backends import model_router
 from trading_agent.journal import journal_reader as journal_reader_module
 from trading_agent.runtime import event as event_module
@@ -33,6 +34,7 @@ _INSTANT_COMMANDS = (
     '/skills',
     '/subagents',
 )
+_BACKGROUND_COMMANDS = ('/btw',)
 _INDIA = zoneinfo.ZoneInfo('Asia/Kolkata')
 _FULL = 'full'
 _DEFAULT = 'default'
@@ -75,6 +77,7 @@ class SlashCommands:
         self._mode = mode
         self._skill_library = skill_library
         self._parts = parts or CommandParts()
+        self._background_command: str | None = None
         self._commands: dict[str, Callable[[str], Awaitable[str]]] = {
             '/help': self._help,
             '/status': self._status,
@@ -86,6 +89,7 @@ class SlashCommands:
             '/pause': self._pause,
             '/resume': self._resume,
             '/think': self._think,
+            '/btw': self._btw,
             '/context': self._context,
             '/tools': self._tools,
             '/skills': self._skills,
@@ -127,6 +131,17 @@ class SlashCommands:
             bool: True for the read-only commands, such as /status.
         """
         return self.command_name(text) in _INSTANT_COMMANDS
+
+    def is_background(self, text: str) -> bool:
+        """Says whether a command asks a model and runs beside the desk's turn, one at a time.
+
+        Args:
+            text (str): The message.
+
+        Returns:
+            bool: True for /btw.
+        """
+        return self.command_name(text) in _BACKGROUND_COMMANDS
 
     def skill_request(self, text: str) -> str | None:
         """Turns /<skill-name> into a request for the model to follow that skill.
@@ -211,6 +226,7 @@ class SlashCommands:
                 '/tools [full]        the tools the desk can call',
                 '/skills              the skills the desk can follow',
                 "/subagents           the desk's subagents and today's runs",
+                "/btw <question>      ask a side question; it is not kept in the desk's conversation",
                 '/stop                stop the running turn at once (it skips the queue)',
                 '/pause               stop answering until /resume (commands still work)',
                 '/resume              start answering again',
@@ -218,6 +234,7 @@ class SlashCommands:
                 '/help                this list',
                 '',
                 '/help, /status, /usage, /context, /tools, /skills and /subagents answer at once, even while the desk is working.',
+                '/btw runs beside the desk, without waiting for or interrupting its turn.',
             ]
         )
 
@@ -363,6 +380,35 @@ class SlashCommands:
                 'This applies from the next turn and lasts until the gateway restarts.'
             )
         return '\n'.join(lines)
+
+    async def _btw(self, argument: str) -> str:
+        """Answers a side question from the desk's conversation without adding it to the conversation.
+
+        Args:
+            argument (str): The question.
+
+        Returns:
+            str: The answer and the backend that gave it, or why it was not asked.
+        """
+        if not argument:
+            return 'Write the question after /btw, such as: /btw why did you sell INFY?'
+        router = self._router()
+        if router is None:
+            return 'This desk has no models connected.'
+        if self._desk.paused:
+            return (
+                'The desk is paused, so no model was asked. Send /resume first.'
+            )
+        if self._background_command is not None:
+            return f'{self._background_command} is still running. Wait for its answer, then ask again.'
+        self._background_command = '/btw'
+        try:
+            backend_name, answer = await router.side_question(argument)
+        except backend_module.BackendUnavailableError as error:
+            return f'No model could answer: {error}'
+        finally:
+            self._background_command = None
+        return f"Side answer from {backend_name}, not kept in the desk's conversation:\n{answer}"
 
     async def _pause(self, argument: str) -> str:
         """Pauses the desk.

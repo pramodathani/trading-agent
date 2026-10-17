@@ -66,3 +66,7 @@ The task publishes started, text and finished events for the command's trigger, 
 `submit` is a plain method, so it can only start a task when an event loop is running. If none is running, which only happens in tests that submit before starting the loop, the command is queued as before. The tasks are kept in `_beside_tasks` so they are not garbage-collected while running, and they are cancelled when the desk stops.
 
 `/stop` is now recognised by its command word through `SlashCommands.command_name`, so `/stop now` and `/stop@my_bot` (the form Telegram uses in groups) work like `/stop`.
+
+## Background commands, since 2026-10-18
+
+`/btw` takes the same path as the instant commands: answered in its own task, beside the running turn. The difference, one background command at a time per desk, is enforced in `SlashCommands`, because that is where the commands know what they are doing. The plan put this mechanism in the first phase; it was added with `/btw`, its first user, so it was tested against a real command.

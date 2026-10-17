@@ -8,3 +8,7 @@ Two changes on 2026-10-18 for the Claude → DeepSeek → Qwen → Gemma order:
 ## Thinking, since 2026-10-18
 
 `set_thinking` passes the level to every route, not only the first, so a fallback model inherits the user's choice. `thinking_lines` lists the routes in the order they will be tried, like `status_lines`.
+
+## Side questions, since 2026-10-18
+
+`side_question` asks the backend that answered last first, because only its conversation holds the whole session; a fallback backend may lack the exchanges it missed, which the router normally fills in with a hand-over that a side question does not get. A failure is not recorded with `record_failure`, so a failed side question never makes a backend wait for real turns. Nothing is passed to `_finish`, so the session's exchanges are unchanged.

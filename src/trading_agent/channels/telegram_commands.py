@@ -59,6 +59,10 @@ _MENU = (
         "Today's model calls, tokens and costs",
     ),
     (
+        'btw',
+        "Ask a side question, not kept in the desk's conversation",
+    ),
+    (
         'context',
         "How full the desk's context window is",
     ),
@@ -221,6 +225,7 @@ class TelegramCommands:
                 '',
                 'These go to your desk:',
                 "/stop - stop the desk's running turn",
+                "/btw <question> - a side question, answered beside the desk's work and not kept",
                 "/usage - today's model calls, tokens and costs",
                 "/context - how full the desk's context window is",
                 '/tools, /skills, /subagents - what the desk can use',

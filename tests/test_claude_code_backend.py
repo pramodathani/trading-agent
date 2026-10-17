@@ -592,3 +592,72 @@ class TestClaudeThinking:
         assert first.disconnected
         assert after_change.options.effort == 'low'
         assert len(_ConnectingClient.made) == 2
+
+
+class TestClaudeSideQuestion:
+    """Tests for side questions on the Claude runner."""
+
+    def test_side_question_forks_the_session_and_deletes_the_fork(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """The question runs in a fork of the desk's session with every tool refused, and the fork's file is deleted while the desk's is kept.
+
+        Args:
+            monkeypatch (pytest.MonkeyPatch): Replaces the SDK's query and removes ANTHROPIC_API_KEY for this test only.
+            tmp_path (Path): Stands in for Claude Code's sessions folder.
+        """
+        monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
+        project = tmp_path / 'project'
+        project.mkdir()
+        (project / 'session-42.jsonl').write_text('{}', encoding='utf-8')
+        (project / 'fork-1.jsonl').write_text('{}', encoding='utf-8')
+        seen_options = []
+
+        async def fake_query(prompt, options):
+            """Records the options and replays an answer from a fork.
+
+            Args:
+                prompt (str): The question sent.
+                options (claude_agent_sdk.ClaudeAgentOptions): The fork's options.
+
+            Yields:
+                object: An assistant message, then the result.
+            """
+            seen_options.append((prompt, options))
+            yield claude_agent_sdk.AssistantMessage(
+                content=[
+                    claude_agent_sdk.TextBlock(
+                        text='Because the trend turned.'
+                    ),
+                ],
+                model='claude-opus-5-5',
+            )
+            yield claude_agent_sdk.ResultMessage(
+                subtype='success',
+                duration_ms=100,
+                duration_api_ms=90,
+                is_error=False,
+                num_turns=1,
+                session_id='fork-1',
+                result='Because the trend turned.',
+            )
+
+        monkeypatch.setattr(
+            claude_code_turn_runner.claude_agent_sdk, 'query', fake_query
+        )
+        runner = _runner(
+            event_bus_module.EventBus(), sessions_directory=tmp_path
+        )
+        runner.session_id = 'session-42'
+
+        answer = asyncio.run(runner.side_question('Why?'))
+
+        prompt, options = seen_options[0]
+        assert answer == 'Because the trend turned.'
+        assert prompt.endswith('\nWhy?')
+        assert options.resume == 'session-42'
+        assert options.fork_session
+        assert options.allowed_tools == []
+        assert runner.session_id == 'session-42'
+        assert not (project / 'fork-1.jsonl').exists()
+        assert (project / 'session-42.jsonl').exists()

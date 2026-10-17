@@ -21,6 +21,7 @@ THINKING_LEVELS = (
     'xhigh',
     'max',
 )
+SIDE_QUESTION_NOTE = '[A side question from the user. Answer it briefly from what you already know, without calling any tools. Neither the question nor your answer will be kept in the conversation.]'
 
 
 @dataclasses.dataclass(frozen=True)
@@ -143,6 +144,20 @@ class TurnRunner:
         """
         del level
         return False
+
+    async def side_question(self, question: str) -> str:
+        """Answers a question from what the conversation already holds, without adding the question or the answer to it.
+
+        Runners without a model keep this default.
+
+        Args:
+            question (str): The user's question.
+
+        Returns:
+            str: The answer.
+        """
+        del question
+        return 'This desk has no model to ask.'
 
     def context_usage(self) -> context_usage_module.ContextUsage | None:
         """How full the runner's context window is, as of its last turn.
