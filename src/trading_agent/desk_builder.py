@@ -11,6 +11,7 @@ import datetime
 import functools
 import logging
 import os
+from collections.abc import Mapping
 from pathlib import Path
 
 from trading_agent.agent import agent_loop
@@ -28,6 +29,7 @@ from trading_agent.configuration import agent_configuration
 from trading_agent.configuration import secrets as secrets_module
 from trading_agent.extensions import installed_packages
 from trading_agent.extensions import mcp_client_manager
+from trading_agent.journal import usage_tracker as usage_tracker_module
 from trading_agent.knowledge import knowledge_base
 from trading_agent.memory import checkpoints as checkpoints_module
 from trading_agent.memory import session_keeper
@@ -50,6 +52,8 @@ from trading_agent.scheduling import cron_job
 from trading_agent.scheduling import cron_job_store
 from trading_agent.scheduling import cron_scheduler
 from trading_agent.scheduling import market_calendar
+from trading_agent.scheduling import market_watcher
+from trading_agent.scheduling import price_alert_store
 from trading_agent.skills import skill_curator
 from trading_agent.skills import skill_library
 from trading_agent.skills import skill_usage
@@ -75,6 +79,7 @@ from trading_agent.tools import browser_tabs_tool
 from trading_agent.tools import browser_type_tool
 from trading_agent.tools import call_mcp_tool_tool
 from trading_agent.tools import cancel_order_tool
+from trading_agent.tools import cancel_price_alert_tool
 from trading_agent.tools import cron_create_tool
 from trading_agent.tools import cron_delete_tool
 from trading_agent.tools import cron_list_tool
@@ -99,6 +104,7 @@ from trading_agent.tools import search_instruments_tool
 from trading_agent.tools import search_knowledge_tool
 from trading_agent.tools import search_sessions_tool
 from trading_agent.tools import send_message_tool
+from trading_agent.tools import set_price_alert_tool
 from trading_agent.tools import skill_archive_tool
 from trading_agent.tools import skill_create_tool
 from trading_agent.tools import skill_patch_tool
@@ -126,6 +132,7 @@ class DeskBuilder:
         secrets: secrets_module.Secrets,
         event_bus: event_bus_module.EventBus,
         mcp_manager: mcp_client_manager.McpClientManager | None = None,
+        usage_tracker: usage_tracker_module.UsageTracker | None = None,
     ):
         """Creates the builder.
 
@@ -134,11 +141,14 @@ class DeskBuilder:
             secrets (secrets_module.Secrets): The secrets read from the environment and .env.
             event_bus (event_bus_module.EventBus): The bus every desk publishes on.
             mcp_manager (mcp_client_manager.McpClientManager | None): The gateway's MCP connections, shared by every desk, or None.
+            usage_tracker (usage_tracker_module.UsageTracker | None): Today's model usage, for /usage, or None.
         """
         self._configuration = configuration
         self._secrets = secrets
         self._event_bus = event_bus
         self._mcp_manager = mcp_manager
+        self._usage_tracker = usage_tracker
+        self._alert_stores: dict[str, price_alert_store.PriceAlertStore] = {}
         self._layout = workspace_layout.WorkspaceLayout(
             configuration.workspace_directory
         )
@@ -255,6 +265,10 @@ class DeskBuilder:
             desk_configuration.heartbeat_minutes,
             desk_configuration.rollover_time,
         )
+        alerts = price_alert_store.PriceAlertStore(
+            self._layout.alerts_file(desk_name)
+        )
+        self._alert_stores[desk_name] = alerts
         executor = self._executor(
             desk_configuration,
             checkpoints,
@@ -263,6 +277,7 @@ class DeskBuilder:
             writer,
             jobs,
             built_ins,
+            alerts,
         )
         runner = self._turn_runner(desk_configuration, executor, store)
         keeper = None
@@ -290,6 +305,30 @@ class DeskBuilder:
             executor.tool_registry,
             keeper,
             library,
+            self._usage_tracker,
+        )
+
+    def market_watcher(
+        self,
+        desks: Mapping[str, desk_runtime.DeskRuntime],
+    ) -> market_watcher.MarketWatcher:
+        """The market watcher over the desks build() made.
+
+        Args:
+            desks (Mapping[str, desk_runtime.DeskRuntime]): The desks, keyed by name.
+
+        Returns:
+            market_watcher.MarketWatcher: The watcher, sharing the desks' order book, risk engine and alert stores.
+        """
+        return market_watcher.MarketWatcher(
+            desks,
+            self._alert_stores,
+            self._order_services.order_book,
+            self._broker_reader,
+            self._order_services.risk_engine,
+            self.hours,
+            self._event_bus,
+            self._layout.market_watcher_state_file,
         )
 
     def desk_schedule(
@@ -419,6 +458,7 @@ class DeskBuilder:
         writer: skill_writer.SkillWriter,
         jobs: cron_job_store.CronJobStore,
         built_ins: list[cron_job.CronJob],
+        alerts: price_alert_store.PriceAlertStore,
     ) -> tool_call_executor.ToolCallExecutor:
         """Builds the desk's tools and the executor that runs them.
 
@@ -430,6 +470,7 @@ class DeskBuilder:
             writer (skill_writer.SkillWriter): Changes the desk's own skills.
             jobs (cron_job_store.CronJobStore): The desk's scheduled jobs.
             built_ins (list[cron_job.CronJob]): The desk's heartbeat and rollover jobs.
+            alerts (price_alert_store.PriceAlertStore): The desk's price alerts.
 
         Returns:
             tool_call_executor.ToolCallExecutor: The executor.
@@ -485,6 +526,8 @@ class DeskBuilder:
             ),
             cron_delete_tool.CronDeleteTool(jobs),
             schedule_wakeup_tool.ScheduleWakeupTool(jobs),
+            set_price_alert_tool.SetPriceAlertTool(self._broker_reader, alerts),
+            cancel_price_alert_tool.CancelPriceAlertTool(alerts),
             send_message_tool.SendMessageTool(
                 self._event_bus,
                 desk_configuration.name,

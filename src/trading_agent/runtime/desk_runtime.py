@@ -18,6 +18,7 @@ import logging
 import zoneinfo
 
 from trading_agent.configuration import agent_configuration
+from trading_agent.journal import usage_tracker as usage_tracker_module
 from trading_agent.memory import session_keeper as session_keeper_module
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
@@ -49,6 +50,7 @@ class DeskRuntime:
         state: Whether the desk is stopped, idle or running a turn.
         paused: Whether the desk answers without asking any model.
         turn_runner: What runs each turn.
+        usage_tracker: Today's model usage, shown by /usage, or None.
     """
 
     def __init__(
@@ -60,6 +62,7 @@ class DeskRuntime:
         tool_registry: tool_registry_module.ToolRegistry | None = None,
         session_keeper: session_keeper_module.SessionKeeper | None = None,
         skill_library: skill_library_module.SkillLibrary | None = None,
+        usage_tracker: usage_tracker_module.UsageTracker | None = None,
     ):
         """Creates the desk without starting its loop.
 
@@ -71,6 +74,7 @@ class DeskRuntime:
             tool_registry (tool_registry_module.ToolRegistry | None): The desk's tools, closed when the desk stops, or None.
             session_keeper (session_keeper_module.SessionKeeper | None): Keeps the desk's sessions across restarts and days, or None to keep nothing.
             skill_library (skill_library_module.SkillLibrary | None): The desk's skills, invocable as /<skill-name>, or None.
+            usage_tracker (usage_tracker_module.UsageTracker | None): Today's model usage, shown by /usage, or None.
         """
         self.name = desk_configuration.name
         self.state = DeskState.STOPPED
@@ -85,6 +89,7 @@ class DeskRuntime:
         )
         self._tool_registry = tool_registry
         self._session_keeper = session_keeper
+        self.usage_tracker = usage_tracker
 
     def submit(self, trigger: trigger_module.Trigger) -> None:
         """Adds a trigger to the end of the desk's queue.

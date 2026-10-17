@@ -29,3 +29,7 @@ A slash message is first offered to `skill_request`; if it names a usable skill,
 ## NOTHING_TO_DO and /rollover (milestone 15)
 
 Every `text` event now carries `silent`: true when a heartbeat or scheduled job was answered with exactly NOTHING_TO_DO. The journal still records it; the web interface and Telegram will skip it, so an all-quiet heartbeat sends no message. `roll_over` serves `/rollover`.
+
+## usage_tracker (milestone 15)
+
+The desk holds the gateway's usage tracker so /usage can read it.

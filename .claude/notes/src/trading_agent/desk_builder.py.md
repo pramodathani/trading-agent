@@ -51,3 +51,7 @@ Every desk gets `search_knowledge`, over one knowledge base shared by all desks,
 ## Milestone 15: scheduling
 
 The builder owns one `MarketCalendar` and one `ExchangeHours` built on it, shared by the risk engine and the scheduler. Each desk gets a `CronJobStore`, its built-in jobs, and the tools cron_create, cron_list, cron_delete, schedule_wakeup and send_message. `desk_schedule` returns what the scheduler needs for a built desk: its store, built-in jobs, a command runner on its sandbox, and its subagent runner.
+
+## Milestone 15, part 2
+
+Each desk gets a `PriceAlertStore` and the tools set_price_alert and cancel_price_alert. `market_watcher` builds the watcher over the built desks, sharing the order services' order book and risk engine, the alert stores and the exchange hours. The builder takes the usage tracker and hands it to every desk.

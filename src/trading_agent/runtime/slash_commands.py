@@ -17,7 +17,6 @@ if TYPE_CHECKING:
     from trading_agent.runtime import desk_runtime
 
 _LATER_COMMANDS = {
-    '/usage': 'milestone 15, with the usage tracker',
     '/think': 'a later milestone, with per-desk thinking settings',
     '/stop': 'a later milestone, with steering a running turn',
 }
@@ -48,6 +47,7 @@ class SlashCommands:
             '/new': self._new,
             '/compact': self._compact,
             '/rollover': self._rollover,
+            '/usage': self._usage,
             '/model': self._model,
             '/pause': self._pause,
             '/resume': self._resume,
@@ -128,6 +128,7 @@ class SlashCommands:
                 '/new                 forget this conversation and start a fresh one',
                 '/compact             save what matters, then compress the conversation into a summary',
                 '/rollover            summarise the day and start a fresh session now',
+                "/usage               today's model calls, tokens, costs and Claude's limits",
                 '/pause               stop answering until /resume (commands still work)',
                 '/resume              start answering again',
                 '/<skill-name> ...    ask the desk to follow one of its skills',
@@ -194,6 +195,21 @@ class SlashCommands:
             '/compact',
         )
         return await self._desk.turn_runner.compact(trigger)
+
+    async def _usage(self, argument: str) -> str:
+        """Shows today's model usage.
+
+        Args:
+            argument (str): Ignored.
+
+        Returns:
+            str: The usage, or a note that no tracker is running.
+        """
+        del argument
+        tracker = self._desk.usage_tracker
+        if tracker is None:
+            return 'Usage is not being tracked on this gateway.'
+        return tracker.summary_text(self._desk.name)
 
     async def _rollover(self, argument: str) -> str:
         """Rolls the desk's session over now.

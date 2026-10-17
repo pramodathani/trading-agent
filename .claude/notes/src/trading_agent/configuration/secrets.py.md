@@ -5,3 +5,7 @@ Secrets are read with pydantic-settings, the same way sridhara reads `SRIDHARA_*
 `claude_code_oauth_token` is stored under our own prefix and passed to Claude Code as `CLAUDE_CODE_OAUTH_TOKEN` only in the environment of the process the Claude backend starts.
 
 `openai_api_key` is used by every `openai_compatible` backend; local servers that need no key leave it empty.
+
+## webhook_token (milestone 15)
+
+`TRADING_AGENT_WEBHOOK_TOKEN` in .env, for incoming webhooks; empty switches them off.

@@ -5,3 +5,7 @@ Two layers. Exact values: the agent's own secrets, and every value in tradingmac
 It is applied to the journal and to the live event stream. It is not applied to what tools return to the model, because the tools that could see secrets are already kept away from them by the sandbox and the path policy.
 
 On 2026-10-17 the journal of a live turn was checked against five real secret values (the gateway token, the Claude token and three tradingmachine passwords) and contained none.
+
+## Webhook token (milestone 15)
+
+The webhook token is masked like the other secrets.

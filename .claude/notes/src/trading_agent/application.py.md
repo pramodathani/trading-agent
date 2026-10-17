@@ -31,3 +31,7 @@ From milestone 8 the application builds the secret redactor and the trade journa
 ## Scheduler (milestone 15)
 
 `serve` builds a `CronScheduler` over every desk's schedule and runs it as a fifth background worker.
+
+## Watcher, webhooks and usage (milestone 15, part 2)
+
+`serve` creates the usage tracker before the desks, runs it, the market watcher and the scheduler as background workers, and gives the gateway the webhook token. The skill-usage tracker's variable was renamed `skill_uses` to keep the two trackers apart.

@@ -219,6 +219,8 @@ class BackendConfiguration(pydantic.BaseModel):
         model: The model name the server knows the model by.
         context_window: How many tokens of context the model is given.
         thinking: Whether the model reasons before answering, for models that support it.
+        rupees_per_million_prompt_tokens: The price of a million prompt tokens, for /usage to show costs, or None.
+        rupees_per_million_completion_tokens: The price of a million completion tokens, or None.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -228,6 +230,12 @@ class BackendConfiguration(pydantic.BaseModel):
     model: str
     context_window: int = pydantic.Field(gt=0)
     thinking: bool = True
+    rupees_per_million_prompt_tokens: float | None = pydantic.Field(
+        default=None, ge=0
+    )
+    rupees_per_million_completion_tokens: float | None = pydantic.Field(
+        default=None, ge=0
+    )
 
     @pydantic.model_validator(mode='after')
     def _require_base_url_for_servers(self) -> BackendConfiguration:

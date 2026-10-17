@@ -5,3 +5,7 @@ The desks run inside the web server's lifespan: their loops start when the serve
 Routes are built by small classes, one per group, which receive only what they need. That keeps each route group testable on its own with FastAPI's test client.
 
 Since milestone 8 the gateway also runs background workers, such as the trade journal, beside the desks, and cancels them at shutdown. The live event stream passes through the secret redactor.
+
+## Webhooks (milestone 15)
+
+The gateway includes the webhook route, which carries no gateway-token dependency because it checks its own token.

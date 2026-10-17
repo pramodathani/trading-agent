@@ -19,6 +19,7 @@ from trading_agent.gateway import access_guard
 from trading_agent.gateway.routes import desk_routes
 from trading_agent.gateway.routes import event_routes
 from trading_agent.gateway.routes import health_routes
+from trading_agent.gateway.routes import webhook_routes
 from trading_agent.journal import secret_redactor
 from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event_bus as event_bus_module
@@ -41,6 +42,7 @@ class GatewayApplication:
         guard: access_guard.AccessGuard,
         background_workers: Sequence[BackgroundWorker] = (),
         redactor: secret_redactor.SecretRedactor | None = None,
+        webhook_token: str = '',
     ):
         """Creates the gateway without starting anything.
 
@@ -50,12 +52,14 @@ class GatewayApplication:
             guard (access_guard.AccessGuard): The guard that checks the access token.
             background_workers (Sequence[BackgroundWorker]): Other loops to run beside the desks, such as the trade journal.
             redactor (secret_redactor.SecretRedactor | None): Masks secrets in the live event stream, or None to send events unchanged.
+            webhook_token (str): The token incoming webhooks must present, or an empty string to switch them off.
         """
         self._event_bus = event_bus
         self._desks = desks
         self._guard = guard
         self._background_workers = list(background_workers)
         self._redactor = redactor
+        self._webhook_token = webhook_token
 
     def build(self) -> fastapi.FastAPI:
         """Builds the FastAPI application with every route.
@@ -69,6 +73,12 @@ class GatewayApplication:
         )
         application.include_router(
             health_routes.HealthRoutes(self._desks).router()
+        )
+        application.include_router(
+            webhook_routes.WebhookRoutes(
+                self._desks,
+                self._webhook_token,
+            ).router()
         )
         application.include_router(
             desk_routes.DeskRoutes(self._desks, self._guard).router()

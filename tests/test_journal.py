@@ -80,6 +80,7 @@ class TestSecretRedactor:
             gateway_access_token = 'gateway-token-abcdefgh'
             claude_code_oauth_token = ''
             openai_api_key = ''
+            webhook_token = 'webhook-token-12345678'
 
         redactor = secret_redactor.SecretRedactor.from_files(
             _Secrets(), environment_file

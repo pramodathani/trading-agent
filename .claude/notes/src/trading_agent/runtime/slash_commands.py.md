@@ -21,3 +21,7 @@ Commands that belong to later milestones (`/compact`, `/usage`, `/think`, `/stop
 ## /rollover (milestone 15)
 
 Summarises the day and starts a fresh session now; the built-in after-close job sends it at 15:45 on trading days.
+
+## /usage (milestone 15)
+
+Shows the usage tracker's summary for the desk. The test of not-yet-built commands now uses /think.

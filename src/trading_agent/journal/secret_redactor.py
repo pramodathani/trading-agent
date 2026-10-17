@@ -64,6 +64,7 @@ class SecretRedactor:
             secrets.gateway_access_token,
             secrets.claude_code_oauth_token,
             secrets.openai_api_key,
+            secrets.webhook_token,
         ]
         if tradingmachine_environment_file.is_file():
             for name, value in dotenv.dotenv_values(

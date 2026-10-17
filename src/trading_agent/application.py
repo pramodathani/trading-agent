@@ -34,6 +34,7 @@ from trading_agent.gateway import gateway_application
 from trading_agent.gateway import token_redacting_filter
 from trading_agent.journal import secret_redactor
 from trading_agent.journal import trade_journal
+from trading_agent.journal import usage_tracker as usage_tracker_module
 from trading_agent.memory import checkpoints as checkpoints_module
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.scheduling import cron_scheduler
@@ -186,11 +187,22 @@ class Application:
             packages (installed_packages.InstalledPackages): The installed packages, whose hooks run beside the user's.
         """
         event_bus = event_bus_module.EventBus()
+        enabled_desk_names = []
+        for desk_configuration in configuration.desks:
+            if desk_configuration.enabled:
+                enabled_desk_names.append(desk_configuration.name)
+        model_usage = usage_tracker_module.UsageTracker(
+            event_bus,
+            workspace_layout.WorkspaceLayout(configuration.workspace_directory),
+            enabled_desk_names,
+            configuration.backends,
+        )
         builder = desk_builder.DeskBuilder(
             configuration,
             secrets,
             event_bus,
             manager,
+            model_usage,
         )
         desks = {}
         for desk_configuration in configuration.desks:
@@ -226,7 +238,7 @@ class Application:
             packages,
             redactor,
         )
-        usage_tracker = skill_usage.SkillUsageTracker(
+        skill_uses = skill_usage.SkillUsageTracker(
             event_bus,
             workspace_layout.WorkspaceLayout(configuration.workspace_directory),
         )
@@ -236,12 +248,15 @@ class Application:
             guard,
             [
                 journal,
-                usage_tracker,
+                skill_uses,
+                model_usage,
                 manager,
                 hooks,
                 scheduler,
+                builder.market_watcher(desks),
             ],
             redactor,
+            secrets.webhook_token,
         )
         server_configuration = uvicorn.Config(
             gateway.build(),

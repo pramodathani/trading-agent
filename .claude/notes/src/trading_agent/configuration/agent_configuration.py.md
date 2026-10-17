@@ -21,3 +21,7 @@ Defaults to `mcp_servers.json` beside trading_agent.toml.
 ## Scheduling settings (milestone 15)
 
 `market_calendar_directory` (UBI's calendars folder), and per desk `heartbeat_minutes` (off by default) and `rollover_time` (15:45).
+
+## Backend prices (milestone 15)
+
+`rupees_per_million_prompt_tokens` and `rupees_per_million_completion_tokens` on a backend let /usage show its cost.
