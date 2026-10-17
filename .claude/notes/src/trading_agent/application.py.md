@@ -35,3 +35,7 @@ From milestone 8 the application builds the secret redactor and the trade journa
 ## Watcher, webhooks and usage (milestone 15, part 2)
 
 `serve` creates the usage tracker before the desks, runs it, the market watcher and the scheduler as background workers, and gives the gateway the webhook token. The skill-usage tracker's variable was renamed `skill_uses` to keep the two trackers apart.
+
+## The API's route groups (milestone 17)
+
+`_route_groups` builds the API's route groups from the desk builder's parts, the scheduler, the usage tracker, the MCP manager and the redactor. It is a separate method because `_serve` was already long, and the list of route groups will grow with later milestones.

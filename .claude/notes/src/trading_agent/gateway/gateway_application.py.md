@@ -9,3 +9,7 @@ Since milestone 8 the gateway also runs background workers, such as the trade jo
 ## Webhooks (milestone 15)
 
 The gateway includes the webhook route, which carries no gateway-token dependency because it checks its own token.
+
+## Route groups (milestone 17)
+
+The application builds every API route group and passes them in as `route_groups`. When none are given, the gateway offers only the basic desk routes, which keeps the older tests and small test setups working without the full set of parts.

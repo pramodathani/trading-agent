@@ -1,8 +1,17 @@
-"""Routes for talking to a desk.
+"""Routes for the desks: their state, messages, and pause, resume and flatten.
+
+  GET  /api/desks                     every desk's state, models and session
+  GET  /api/desks/{desk}              one desk, with its persona
+  POST /api/desks/{desk}/messages     queue a message or /command; the reply arrives on /ws/events
+  POST /api/desks/{desk}/pause        stop asking models until resumed (commands still work)
+  POST /api/desks/{desk}/resume       start answering again
+  POST /api/desks/{desk}/flatten      cancel the desk's orders and close its positions
+
+Flatten runs the desk's own flatten_desk tool, so it goes through the risk engine and the journal exactly as when the desk calls it.
 
 Typical usage example:
 
-  application.include_router(DeskRoutes(desks, guard).router())
+  application.include_router(DeskRoutes(desks, guard, parts, layout, 'dry_run').router())
 """
 
 from collections.abc import Mapping
@@ -11,9 +20,14 @@ from typing import Any
 import fastapi
 import pydantic
 
+from trading_agent.agent import messages
+from trading_agent.backends import model_router
 from trading_agent.gateway import access_guard
+from trading_agent.gateway import gateway_parts
+from trading_agent.gateway.routes import route_group
 from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import trigger as trigger_module
+from trading_agent.workspace import workspace_layout
 
 
 class MessageRequest(pydantic.BaseModel):
@@ -26,33 +40,51 @@ class MessageRequest(pydantic.BaseModel):
     text: str = pydantic.Field(min_length=1)
 
 
-class DeskRoutes:
-    """Builds the /api/desks routes, which all need the access token."""
+class FlattenRequest(pydantic.BaseModel):
+    """The body of a flatten request.
+
+    Attributes:
+        reason: Why, for the journal.
+    """
+
+    reason: str = pydantic.Field(min_length=1)
+
+
+class DeskRoutes(route_group.RouteGroup):
+    """The /api/desks routes."""
 
     def __init__(
         self,
         desks: Mapping[str, desk_runtime.DeskRuntime],
         guard: access_guard.AccessGuard,
+        parts: Mapping[str, gateway_parts.DeskParts] | None = None,
+        layout: workspace_layout.WorkspaceLayout | None = None,
+        mode: str = 'dry_run',
     ):
-        """Creates the routes for a set of desks.
+        """Creates the routes.
 
         Args:
             desks (Mapping[str, desk_runtime.DeskRuntime]): The running desks, keyed by name.
-            guard (access_guard.AccessGuard): The guard that checks the access token.
+            guard (access_guard.AccessGuard): Checks the access token.
+            parts (Mapping[str, gateway_parts.DeskParts] | None): Each desk's tools, for flatten, or None when flatten is not offered.
+            layout (workspace_layout.WorkspaceLayout | None): Where the personas are, or None to leave them out.
+            mode (str): "dry_run" or "live", reported with each desk.
         """
+        super().__init__(guard)
         self._desks = desks
-        self._guard = guard
+        self._parts = parts or {}
+        self._layout = layout
+        self._mode = mode
 
-    def router(self) -> fastapi.APIRouter:
-        """Builds the router holding the desk routes.
+    def _add_routes(self, router: fastapi.APIRouter) -> None:
+        """Adds the desk routes.
 
-        Returns:
-            fastapi.APIRouter: The router.
+        Args:
+            router (fastapi.APIRouter): The router.
         """
-        router = fastapi.APIRouter(
-            dependencies=[
-                fastapi.Depends(self._guard.require_http_token),
-            ],
+        router.add_api_route('/api/desks', self.list_desks, methods=['GET'])
+        router.add_api_route(
+            '/api/desks/{desk_name}', self.desk, methods=['GET']
         )
         router.add_api_route(
             '/api/desks/{desk_name}/messages',
@@ -60,7 +92,47 @@ class DeskRoutes:
             methods=['POST'],
             status_code=202,
         )
-        return router
+        router.add_api_route(
+            '/api/desks/{desk_name}/pause', self.pause, methods=['POST']
+        )
+        router.add_api_route(
+            '/api/desks/{desk_name}/resume', self.resume, methods=['POST']
+        )
+        router.add_api_route(
+            '/api/desks/{desk_name}/flatten', self.flatten, methods=['POST']
+        )
+
+    def list_desks(self) -> dict[str, Any]:
+        """Every desk's state.
+
+        Returns:
+            dict[str, Any]: The desks, in configuration order, and the mode.
+        """
+        desks = []
+        for desk in self._desks.values():
+            desks.append(self._summary(desk))
+        return {
+            'mode': self._mode,
+            'desks': desks,
+        }
+
+    def desk(self, desk_name: str) -> dict[str, Any]:
+        """One desk's state and persona.
+
+        Args:
+            desk_name (str): The desk.
+
+        Returns:
+            dict[str, Any]: The desk's state, models, session and Persona.md text.
+        """
+        desk = self._find(self._desks, desk_name, 'desk')
+        summary = self._summary(desk)
+        summary['persona'] = None
+        if self._layout is not None:
+            persona = self._layout.persona_file(desk_name)
+            if persona.is_file():
+                summary['persona'] = persona.read_text(encoding='utf-8')
+        return summary
 
     def send_message(
         self,
@@ -69,24 +141,14 @@ class DeskRoutes:
     ) -> dict[str, Any]:
         """Queues a message for a desk and returns at once.
 
-        The reply arrives later as events on /ws/events.
-
         Args:
-            desk_name (str): The desk to send the message to.
+            desk_name (str): The desk.
             message (MessageRequest): The message.
 
         Returns:
             dict[str, Any]: The new trigger's identifier, to match it with later events.
-
-        Raises:
-            fastapi.HTTPException: No desk has that name (status 404).
         """
-        desk = self._desks.get(desk_name)
-        if desk is None:
-            raise fastapi.HTTPException(
-                status_code=404,
-                detail=f'No desk named {desk_name!r}',
-            )
+        desk = self._find(self._desks, desk_name, 'desk')
         trigger = trigger_module.Trigger.now(
             trigger_module.TriggerSource.USER_MESSAGE,
             desk_name,
@@ -96,3 +158,87 @@ class DeskRoutes:
         return {
             'trigger_id': trigger.trigger_id,
         }
+
+    def pause(self, desk_name: str) -> dict[str, Any]:
+        """Pauses a desk.
+
+        Args:
+            desk_name (str): The desk.
+
+        Returns:
+            dict[str, Any]: The desk's state.
+        """
+        desk = self._find(self._desks, desk_name, 'desk')
+        desk.paused = True
+        return self._summary(desk)
+
+    def resume(self, desk_name: str) -> dict[str, Any]:
+        """Resumes a desk.
+
+        Args:
+            desk_name (str): The desk.
+
+        Returns:
+            dict[str, Any]: The desk's state.
+        """
+        desk = self._find(self._desks, desk_name, 'desk')
+        desk.paused = False
+        return self._summary(desk)
+
+    async def flatten(
+        self,
+        desk_name: str,
+        request: FlattenRequest,
+    ) -> dict[str, Any]:
+        """Cancels a desk's orders and closes its positions, through its own flatten_desk tool.
+
+        Args:
+            desk_name (str): The desk.
+            request (FlattenRequest): Why.
+
+        Returns:
+            dict[str, Any]: The tool's report and whether it failed.
+        """
+        parts = self._find(self._parts, desk_name, 'desk')
+        result = await parts.tools.run(
+            messages.ToolCall.new(
+                'flatten_desk',
+                {
+                    'reason': f'From the user, through the API: {request.reason}',
+                },
+            )
+        )
+        return {
+            'text': result.text,
+            'is_error': result.is_error,
+        }
+
+    def _summary(self, desk: desk_runtime.DeskRuntime) -> dict[str, Any]:
+        """Describes a desk's state.
+
+        Args:
+            desk (desk_runtime.DeskRuntime): The desk.
+
+        Returns:
+            dict[str, Any]: Its name, state, queue, pause, models and session.
+        """
+        summary = {
+            'name': desk.name,
+            'state': str(desk.state),
+            'paused': desk.paused,
+            'queued': desk.queued_count,
+            'mode': self._mode,
+            'models': [],
+            'preferred_model': None,
+            'last_model': None,
+            'session_id': None,
+            'exchanges': 0,
+        }
+        router = desk.turn_runner
+        if isinstance(router, model_router.ModelRouter):
+            summary['models'] = router.status_lines()
+            summary['preferred_model'] = router.preferred_backend_name
+            summary['last_model'] = router.last_backend_name
+            summary['session_id'] = router.session_id
+            summary['exchanges'] = len(router.exchanges)
+        return summary

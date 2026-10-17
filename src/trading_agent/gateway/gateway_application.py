@@ -19,6 +19,7 @@ from trading_agent.gateway import access_guard
 from trading_agent.gateway.routes import desk_routes
 from trading_agent.gateway.routes import event_routes
 from trading_agent.gateway.routes import health_routes
+from trading_agent.gateway.routes import route_group
 from trading_agent.gateway.routes import webhook_routes
 from trading_agent.journal import secret_redactor
 from trading_agent.runtime import desk_runtime
@@ -43,6 +44,7 @@ class GatewayApplication:
         background_workers: Sequence[BackgroundWorker] = (),
         redactor: secret_redactor.SecretRedactor | None = None,
         webhook_token: str = '',
+        route_groups: Sequence[route_group.RouteGroup] = (),
     ):
         """Creates the gateway without starting anything.
 
@@ -53,6 +55,7 @@ class GatewayApplication:
             background_workers (Sequence[BackgroundWorker]): Other loops to run beside the desks, such as the trade journal.
             redactor (secret_redactor.SecretRedactor | None): Masks secrets in the live event stream, or None to send events unchanged.
             webhook_token (str): The token incoming webhooks must present, or an empty string to switch them off.
+            route_groups (Sequence[route_group.RouteGroup]): The API's route groups; when empty, only the basic desk routes are offered.
         """
         self._event_bus = event_bus
         self._desks = desks
@@ -60,6 +63,7 @@ class GatewayApplication:
         self._background_workers = list(background_workers)
         self._redactor = redactor
         self._webhook_token = webhook_token
+        self._route_groups = list(route_groups)
 
     def build(self) -> fastapi.FastAPI:
         """Builds the FastAPI application with every route.
@@ -80,9 +84,13 @@ class GatewayApplication:
                 self._webhook_token,
             ).router()
         )
-        application.include_router(
-            desk_routes.DeskRoutes(self._desks, self._guard).router()
-        )
+        route_groups = self._route_groups
+        if not route_groups:
+            route_groups = [
+                desk_routes.DeskRoutes(self._desks, self._guard),
+            ]
+        for group in route_groups:
+            application.include_router(group.router())
         application.include_router(
             event_routes.EventRoutes(
                 self._event_bus,

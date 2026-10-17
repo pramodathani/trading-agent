@@ -8,7 +8,7 @@ Typical usage example:
 import asyncio
 import logging
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 import uvicorn
 
@@ -32,10 +32,19 @@ from trading_agent.extensions import mcp_server_configuration
 from trading_agent.gateway import access_guard
 from trading_agent.gateway import gateway_application
 from trading_agent.gateway import token_redacting_filter
+from trading_agent.gateway.routes import account_routes
+from trading_agent.gateway.routes import desk_routes
+from trading_agent.gateway.routes import extension_routes
+from trading_agent.gateway.routes import file_routes
+from trading_agent.gateway.routes import memory_routes
+from trading_agent.gateway.routes import route_group
+from trading_agent.gateway.routes import schedule_routes
+from trading_agent.gateway.routes import system_routes
 from trading_agent.journal import secret_redactor
 from trading_agent.journal import trade_journal
 from trading_agent.journal import usage_tracker as usage_tracker_module
 from trading_agent.memory import checkpoints as checkpoints_module
+from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.scheduling import cron_scheduler
 from trading_agent.skills import skill_usage
@@ -257,6 +266,16 @@ class Application:
             ],
             redactor,
             secrets.webhook_token,
+            self._route_groups(
+                configuration,
+                builder,
+                desks,
+                guard,
+                scheduler,
+                model_usage,
+                manager,
+                redactor,
+            ),
         )
         server_configuration = uvicorn.Config(
             gateway.build(),
@@ -268,3 +287,59 @@ class Application:
             uvicorn.Server(server_configuration).run()
         except KeyboardInterrupt:
             return
+
+    def _route_groups(
+        self,
+        configuration: agent_configuration.AgentConfiguration,
+        builder: desk_builder.DeskBuilder,
+        desks: Mapping[str, desk_runtime.DeskRuntime],
+        guard: access_guard.AccessGuard,
+        scheduler: cron_scheduler.CronScheduler,
+        model_usage: usage_tracker_module.UsageTracker,
+        manager: mcp_client_manager.McpClientManager,
+        redactor: secret_redactor.SecretRedactor,
+    ) -> list[route_group.RouteGroup]:
+        """Creates every route group of the gateway's API.
+
+        Args:
+            configuration (agent_configuration.AgentConfiguration): The agent's configuration.
+            builder (desk_builder.DeskBuilder): The builder that made the desks, holding their parts.
+            desks (Mapping[str, desk_runtime.DeskRuntime]): The running desks.
+            guard (access_guard.AccessGuard): Checks the access token.
+            scheduler (cron_scheduler.CronScheduler): The cron scheduler.
+            model_usage (usage_tracker_module.UsageTracker): Today's model usage.
+            manager (mcp_client_manager.McpClientManager): The MCP connections.
+            redactor (secret_redactor.SecretRedactor): Masks secrets.
+
+        Returns:
+            list[route_group.RouteGroup]: The route groups.
+        """
+        parts = builder.desk_parts()
+        shared = builder.shared_parts()
+        desk_names = list(desks)
+        return [
+            desk_routes.DeskRoutes(
+                desks,
+                guard,
+                parts,
+                shared.layout,
+                configuration.mode,
+            ),
+            account_routes.AccountRoutes(guard, shared, desk_names),
+            memory_routes.MemoryRoutes(guard, parts, shared.layout),
+            file_routes.FileRoutes(
+                guard,
+                shared.layout,
+                parts,
+                shared.proposals,
+            ),
+            schedule_routes.ScheduleRoutes(guard, parts, scheduler),
+            extension_routes.ExtensionRoutes(guard, parts, shared, manager),
+            system_routes.SystemRoutes(
+                guard,
+                configuration,
+                model_usage,
+                redactor,
+                desk_names,
+            ),
+        ]
