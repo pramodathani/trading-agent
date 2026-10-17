@@ -9,3 +9,7 @@ The library is what a desk sees of skills: the user's installed skills plus its 
 - **Name clashes.** An installed skill beats a desk skill of the same name, so a desk can never override the user's version. `skill_writer.py` also refuses to create such a name.
 - **Read fresh every time.** No cache: a new import or a newly written skill shows up on the next turn. Reading a few dozen small files per turn is cheap next to a model call.
 - **Fault tolerance.** One broken `SKILL.md` is logged and skipped. Folders starting with a dot (`.archive`, `.patch-check`) are never skills.
+
+## Package skills (milestone 13, part 3)
+
+Skills inside installed packages count as installed skills. On a name clash the user's own installed skill wins over a package's, and both win over the desk's own.

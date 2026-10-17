@@ -9,6 +9,7 @@ import sys
 from collections.abc import Mapping, Sequence
 from typing import TextIO
 
+from trading_agent.extensions import installed_packages
 from trading_agent.skills import skill_importer
 from trading_agent.skills import skill_library
 from trading_agent.workspace import workspace_layout
@@ -60,6 +61,9 @@ class SkillCommands:
                 self._layout.installed_skills_directory,
                 self._layout.agent_skills_directory(desk_name),
                 environment=self._passed_environment,
+                package_skill_roots=installed_packages.InstalledPackages(
+                    self._layout.packages_directory
+                ).skill_roots,
             )
             self._print(f'Desk {desk_name}:')
             available = library.available()
@@ -99,12 +103,35 @@ class SkillCommands:
             if result.detail:
                 line = f'{line}: {result.detail}'
             self._print(line)
+            for warning in result.warnings:
+                self._print(f'           warning: {warning}')
             if result.outcome == 'invalid':
                 exit_code = 1
+        if self._has_warnings(results):
+            self._print(
+                'Some skills contain text that looks like it tries to steer an AI. Read those passages before relying on the skill; remove its folder if you do not trust it.'
+            )
         self._print(
             f'Installed skills live in {self._layout.installed_skills_directory}. Desks see them from their next turn.'
         )
         return exit_code
+
+    def _has_warnings(
+        self,
+        results: list[skill_importer.ImportResult],
+    ) -> bool:
+        """Says whether any imported skill has a warning.
+
+        Args:
+            results (list[skill_importer.ImportResult]): The import results.
+
+        Returns:
+            bool: True when at least one result has a warning.
+        """
+        for result in results:
+            if result.warnings:
+                return True
+        return False
 
     def _print(self, text: str) -> None:
         """Prints one line.

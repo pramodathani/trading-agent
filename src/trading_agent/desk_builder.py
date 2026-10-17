@@ -25,7 +25,9 @@ from trading_agent.backends import ollama_backend
 from trading_agent.backends import openai_compatible_backend
 from trading_agent.configuration import agent_configuration
 from trading_agent.configuration import secrets as secrets_module
+from trading_agent.extensions import installed_packages
 from trading_agent.extensions import mcp_client_manager
+from trading_agent.knowledge import knowledge_base
 from trading_agent.memory import checkpoints as checkpoints_module
 from trading_agent.memory import session_keeper
 from trading_agent.memory import session_search
@@ -79,6 +81,7 @@ from trading_agent.tools import place_order_tool
 from trading_agent.tools import propose_file_change_tool
 from trading_agent.tools import read_file_tool
 from trading_agent.tools import search_instruments_tool
+from trading_agent.tools import search_knowledge_tool
 from trading_agent.tools import search_sessions_tool
 from trading_agent.tools import skill_archive_tool
 from trading_agent.tools import skill_create_tool
@@ -130,6 +133,10 @@ class DeskBuilder:
         self._result_formatter = result_formatter.ResultFormatter()
         self._order_services = self._build_order_services()
         self._skill_libraries: dict[str, skill_library.SkillLibrary] = {}
+        self._knowledge_base = knowledge_base.KnowledgeBase(
+            self._layout.knowledge_directory,
+            self._layout.knowledge_index_file,
+        )
 
     def _build_order_services(self) -> order_tool.OrderServices:
         """Builds the one risk engine and order book that every desk shares.
@@ -205,6 +212,9 @@ class DeskBuilder:
             self._layout.installed_skills_directory,
             self._layout.agent_skills_directory(desk_name),
             environment=sandbox.passed_environment(),
+            package_skill_roots=installed_packages.InstalledPackages(
+                self._layout.packages_directory
+            ).skill_roots,
         )
         self._skill_libraries[desk_name] = library
         writer = skill_writer.SkillWriter(
@@ -390,6 +400,7 @@ class DeskBuilder:
                 session_search.SessionSearch(desk_directory)
             ),
             load_skill_tool.LoadSkillTool(library),
+            search_knowledge_tool.SearchKnowledgeTool(self._knowledge_base),
             skill_create_tool.SkillCreateTool(writer),
             skill_patch_tool.SkillPatchTool(writer),
             skill_archive_tool.SkillArchiveTool(writer),

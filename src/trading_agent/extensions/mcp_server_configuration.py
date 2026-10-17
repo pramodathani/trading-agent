@@ -25,14 +25,16 @@ Typical usage example:
 """
 
 import json
+import logging
 import os
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Literal
 
 import pydantic
 
+_LOGGER = logging.getLogger(__name__)
 _VARIABLE_PATTERN = re.compile(r'\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}')
 _SERVER_NAME_PATTERN = r'^[A-Za-z0-9_-]{1,64}$'
 
@@ -109,22 +111,80 @@ class McpConfigurationReader:
         Raises:
             McpConfigurationError: The file is not valid JSON, has no "mcpServers" object, or a server is not valid.
         """
-        if not self._path.is_file():
+        return self._read_file(self._path, None)
+
+    def read_with_packages(
+        self,
+        package_files: Sequence[Path],
+    ) -> list[McpServerConfiguration]:
+        """Reads the project's servers, then each package's.
+
+        A package server whose name is already taken is left out with a warning, so the user's own file always wins. A package server without a cwd starts in its package's folder, so it can name a program inside the package.
+
+        Args:
+            package_files (Sequence[Path]): The mcp_servers.json files of installed packages.
+
+        Returns:
+            list[McpServerConfiguration]: Every server, the project's first.
+
+        Raises:
+            McpConfigurationError: A file is not valid JSON or has an invalid server.
+        """
+        servers = self.read()
+        names = set()
+        for server in servers:
+            names.add(server.name)
+        for path in package_files:
+            for server in self._read_file(path, path.parent):
+                if server.name in names:
+                    _LOGGER.warning(
+                        'MCP server %s from %s is left out: the name is taken',
+                        server.name,
+                        path,
+                    )
+                    continue
+                names.add(server.name)
+                servers.append(server)
+        return servers
+
+    def _read_file(
+        self,
+        path: Path,
+        default_cwd: Path | None,
+    ) -> list[McpServerConfiguration]:
+        """Reads one mcp_servers.json file.
+
+        Args:
+            path (Path): The file.
+            default_cwd (Path | None): The folder a stdio server without a cwd starts in, or None for the gateway's folder.
+
+        Returns:
+            list[McpServerConfiguration]: Its servers, or an empty list when the file does not exist.
+
+        Raises:
+            McpConfigurationError: The file is not valid JSON or has an invalid server.
+        """
+        if not path.is_file():
             return []
         try:
-            data = json.loads(self._path.read_text(encoding='utf-8'))
+            data = json.loads(path.read_text(encoding='utf-8'))
         except ValueError as error:
             raise McpConfigurationError(
-                f'{self._path} is not valid JSON: {error}'
+                f'{path} is not valid JSON: {error}'
             ) from error
         servers = data.get('mcpServers') if isinstance(data, dict) else None
         if not isinstance(servers, dict):
-            raise McpConfigurationError(
-                f'{self._path} needs an "mcpServers" object'
-            )
+            raise McpConfigurationError(f'{path} needs an "mcpServers" object')
         configurations = []
         for name, entry in servers.items():
-            configurations.append(self._server(name, entry))
+            configuration = self._server(name, entry)
+            if default_cwd is not None and configuration.cwd is None:
+                configuration = configuration.model_copy(
+                    update={
+                        'cwd': str(default_cwd),
+                    }
+                )
+            configurations.append(configuration)
         return configurations
 
     def _server(self, name: str, entry: object) -> McpServerConfiguration:

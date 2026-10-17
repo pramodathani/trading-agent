@@ -1,11 +1,12 @@
 """The skills one desk can use: the user's installed skills and the desk's own.
 
-There are two homes:
+There are two homes, plus the skills of installed packages:
 
   workspace/shared/skills/installed/<name>/SKILL.md   imported by the user, read-only to every desk
+  workspace/shared/packages/<package>/skills/<name>/  from packages, treated like installed skills
   workspace/desks/<desk>/skills/agent/<name>/SKILL.md  written by the desk itself
 
-Only each skill's name and description go into the system prompt, as an index; load_skill reads a skill in full when the desk needs it. A skill whose required programs or environment variables are missing is hidden. When an installed skill and a desk skill share a name, the installed one wins.
+Only each skill's name and description go into the system prompt, as an index; load_skill reads a skill in full when the desk needs it. A skill whose required programs or environment variables are missing is hidden. When two skills share a name, the user's installed skill wins over a package's, and both win over the desk's own.
 
 The library reads the folders afresh every time it is asked, so a newly imported or newly written skill shows up on the desk's next turn.
 
@@ -20,7 +21,7 @@ import dataclasses
 import logging
 import os
 import shutil
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
 from trading_agent.skills import skill as skill_module
@@ -52,6 +53,7 @@ class SkillLibrary:
         agent_directory: Path,
         program_finder: Callable[[str], str | None] = shutil.which,
         environment: Mapping[str, str] | None = None,
+        package_skill_roots: Callable[[], Sequence[Path]] | None = None,
     ):
         """Creates the library without reading anything.
 
@@ -60,11 +62,13 @@ class SkillLibrary:
             agent_directory (Path): The desk's own skills.
             program_finder (Callable[[str], str | None]): Returns a program's path, or None when it is not installed; replaceable in tests.
             environment (Mapping[str, str] | None): The environment to check variables in; None uses os.environ.
+            package_skill_roots (Callable[[], Sequence[Path]] | None): Returns the skills/ folders of installed packages, asked afresh each time, or None for no packages.
         """
         self.installed_directory = installed_directory
         self.agent_directory = agent_directory
         self._program_finder = program_finder
         self._environment = environment
+        self._package_skill_roots = package_skill_roots
         self._parser = skill_module.SkillParser()
 
     def available(self) -> list[skill_module.Skill]:
@@ -129,7 +133,7 @@ class SkillLibrary:
         Returns:
             bool: True when an installed skill has it.
         """
-        for skill in self._read_folder(self.installed_directory, INSTALLED):
+        for skill in self._installed_skills():
             if skill.name == name:
                 return True
         return False
@@ -160,7 +164,7 @@ class SkillLibrary:
         Returns:
             list[skill_module.Skill]: The skills, installed first.
         """
-        skills = self._read_folder(self.installed_directory, INSTALLED)
+        skills = self._installed_skills()
         installed_names = set()
         for skill in skills:
             installed_names.add(skill.name)
@@ -172,6 +176,32 @@ class SkillLibrary:
                 )
                 continue
             skills.append(skill)
+        return skills
+
+    def _installed_skills(self) -> list[skill_module.Skill]:
+        """The user's installed skills, then those of packages, without repeated names.
+
+        Returns:
+            list[skill_module.Skill]: The skills; for a repeated name, the first found is kept.
+        """
+        folders = [
+            self.installed_directory,
+        ]
+        if self._package_skill_roots is not None:
+            folders.extend(self._package_skill_roots())
+        skills = []
+        names = set()
+        for folder in folders:
+            for skill in self._read_folder(folder, INSTALLED):
+                if skill.name in names:
+                    _LOGGER.warning(
+                        'Skill %s in %s is shadowed by another of the same name',
+                        skill.name,
+                        folder,
+                    )
+                    continue
+                names.add(skill.name)
+                skills.append(skill)
         return skills
 
     def _read_folder(

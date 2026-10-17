@@ -39,3 +39,7 @@ Each agent-loop runner gets its own `ContextCompressor`, sized by its backend's 
 ## MCP (milestone 13)
 
 The builder receives the gateway's one `McpClientManager`. When at least one server is configured, every desk gets `tool_search` and `call_mcp_tool`, and the prompt builder gets the manager for the tool-name index. With no servers, neither tool is offered, so models are not tempted by tools that cannot work.
+
+## Milestone 13, part 3
+
+Every desk gets `search_knowledge`, over one knowledge base shared by all desks, and its skill library includes the skills of installed packages.

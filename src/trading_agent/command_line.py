@@ -150,6 +150,36 @@ class CommandLine:
             'list',
             help='Connect to every MCP server once and list its tools.',
         )
+        packages_parser = subparsers.add_parser(
+            'packages',
+            help='Install, list or remove packages of skills, subagents, MCP servers, hooks and apps.',
+        )
+        package_actions = packages_parser.add_subparsers(
+            dest='package_action',
+            required=True,
+        )
+        package_install_parser = package_actions.add_parser(
+            'install',
+            help='Install a package from a folder, a .zip file or a git URL.',
+        )
+        package_install_parser.add_argument(
+            'source',
+            help='The folder, .zip file or git URL.',
+        )
+        package_install_parser.add_argument(
+            '--replace',
+            action='store_true',
+            help='Replace an installed package that has the same name.',
+        )
+        package_actions.add_parser('list', help='List the installed packages.')
+        package_remove_parser = package_actions.add_parser(
+            'remove',
+            help='Remove an installed package.',
+        )
+        package_remove_parser.add_argument(
+            'name',
+            help='The package name from the list.',
+        )
         arguments = parser.parse_args(argument_list)
         if arguments.command is None:
             arguments.command = 'serve'

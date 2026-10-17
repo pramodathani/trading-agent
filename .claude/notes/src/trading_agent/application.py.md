@@ -19,3 +19,7 @@ From milestone 8 the application builds the secret redactor and the trade journa
 ## MCP (milestone 13)
 
 `mcp_servers.json` is read once at start-up, before any command that needs it; an invalid file exits with status 2. `trading-agent mcp list` checks the servers on its own. `serve` passes the manager to the desk builder and runs it as a third background worker.
+
+## Packages and hooks (milestone 13, part 3)
+
+`trading-agent packages install|list|remove` runs before the MCP file is read, so a package with a broken MCP file can always be removed. The MCP server list includes installed packages' servers, and `serve` runs the hook runner as a fourth background worker.
