@@ -8,6 +8,7 @@ Typical usage example:
   message = ConversationMessage.assistant('', [call])
 """
 
+import base64
 import dataclasses
 import enum
 import uuid
@@ -51,6 +52,27 @@ class ToolCall:
 
 
 @dataclasses.dataclass(frozen=True)
+class MessageImage:
+    """A picture sent to the model with a user message, already sized for it.
+
+    Attributes:
+        media_type: The picture's media type, image/jpeg or image/png.
+        data: The encoded picture.
+    """
+
+    media_type: str
+    data: bytes
+
+    def base64_data(self) -> str:
+        """The picture in base64, as the model APIs take it.
+
+        Returns:
+            str: The base64 text.
+        """
+        return base64.b64encode(self.data).decode('ascii')
+
+
+@dataclasses.dataclass(frozen=True)
 class ConversationMessage:
     """One message in a conversation.
 
@@ -62,6 +84,7 @@ class ConversationMessage:
         tool_name: For a tool message, the name of the tool that ran.
         is_error: For a tool message, whether the tool failed.
         image_png: For a tool message, a picture the tool returned, or None.
+        images: For a user message, the pictures sent with it.
     """
 
     role: Role
@@ -71,18 +94,24 @@ class ConversationMessage:
     tool_name: str | None = None
     is_error: bool = False
     image_png: bytes | None = None
+    images: tuple[MessageImage, ...] = ()
 
     @classmethod
-    def user(cls, text: str) -> Self:
+    def user(
+        cls,
+        text: str,
+        images: tuple[MessageImage, ...] = (),
+    ) -> Self:
         """Creates a user message.
 
         Args:
             text (str): What the user, or a trigger, says.
+            images (tuple[MessageImage, ...]): The pictures sent with it.
 
         Returns:
             ConversationMessage: The message.
         """
-        return cls(role=Role.USER, text=text)
+        return cls(role=Role.USER, text=text, images=images)
 
     @classmethod
     def assistant(cls, text: str, tool_calls: list[ToolCall]) -> Self:
