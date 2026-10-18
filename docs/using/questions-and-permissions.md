@@ -21,6 +21,8 @@ When a desk asks, the request is saved, the desk's turn ends, and the desk carri
 
 In **Chat**, a waiting request is shown as a card docked above the message box, and a short summary of it stays in the conversation afterwards. A question card has one tab per question, a review step before you submit, and sometimes a preview beside the options.
 
+In **the terminal program**, the same cards wait in a dock above the message box. Press Tab to answer and Esc to go back; the dock never takes the keyboard by itself, so a request that arrives while you type cannot receive your Enter. [The terminal program](terminal.md#questions-plans-and-permissions) explains why.
+
 On **Telegram**, each request arrives as a message with buttons: one button per option, ticks and **Done** for a question that allows several answers, and a typed reply for **Other** and **Keep planning**. For a permission request you can also type `/approve` or `/deny`, as the [Telegram guide](../telegram_setup.md#6-try-it) explains.
 
 A request answered in one place loses its buttons in the other, so it can never be answered twice. Every request also has a **Dismiss** button, which closes it without an answer.
