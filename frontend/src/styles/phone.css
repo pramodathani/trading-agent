@@ -195,15 +195,15 @@
   }
 
   .composer-row .icon-button {
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
     box-shadow: inset 0 0 0 1px var(--color-border-strong);
   }
 
   .composer-row .icon-button svg {
-    width: 20px;
-    height: 20px;
+    width: 17px;
+    height: 17px;
   }
 
   .composer-row .model-menu {
@@ -212,15 +212,15 @@
 
   .composer-row .model-menu-button {
     align-items: center;
-    min-height: 40px;
-    padding: 0 14px;
-    border-radius: 20px;
-    font-size: 14px;
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 17px;
+    font-size: 13px;
     box-shadow: inset 0 0 0 1px var(--color-border-strong);
   }
 
   .composer-row .model-menu-list {
-    left: -46px;
+    left: -40px;
     right: auto;
     min-width: min(320px, calc(100vw - 20px));
   }
@@ -230,14 +230,14 @@
   }
 
   .composer-row .send-button {
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
   }
 
   .composer-row .send-button svg {
-    width: 20px;
-    height: 20px;
+    width: 17px;
+    height: 17px;
   }
 
   .composer-footer {
