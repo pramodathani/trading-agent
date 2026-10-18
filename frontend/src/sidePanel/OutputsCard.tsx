@@ -2,7 +2,9 @@ import { useState } from 'react';
 
 import { apiClient } from '../api/apiClient';
 import type { AgentEvent, Attachment } from '../api/types';
+import { appFiles } from '../utilities/appFiles';
 import { formatter } from '../utilities/formatter';
+import { platform } from '../utilities/platform';
 import { SideCard } from './SideCard';
 
 /** What the outputs card shows. */
@@ -60,6 +62,15 @@ function OutputRow(properties: { deskName: string; output: Output }) {
   /** Opens the file in a new tab. */
   async function open(): Promise<void> {
     setError(null);
+    if (platform.isApp()) {
+      try {
+        const blob = await apiClient.attachmentFile(properties.deskName, attachment.attachment_id);
+        await appFiles.open(blob, attachment.file_name);
+      } catch (failure) {
+        setError(failure instanceof Error ? failure.message : String(failure));
+      }
+      return;
+    }
     const opened = window.open('', '_blank');
     try {
       const blob = await apiClient.attachmentFile(properties.deskName, attachment.attachment_id);

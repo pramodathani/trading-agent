@@ -11,9 +11,12 @@ import sql from 'highlight.js/lib/languages/sql';
 import typescript from 'highlight.js/lib/languages/typescript';
 import xml from 'highlight.js/lib/languages/xml';
 import yaml from 'highlight.js/lib/languages/yaml';
-import { type ComponentProps, type ReactNode, useMemo, useState } from 'react';
+import { type ComponentProps, type MouseEvent, type ReactNode, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+
+import { appFiles } from '../utilities/appFiles';
+import { platform } from '../utilities/platform';
 
 const COPIED_MILLISECONDS = 1500;
 const REMARK_PLUGINS = [
@@ -84,8 +87,20 @@ export function MarkdownText(properties: MarkdownTextProperties) {
  * @returns The link.
  */
 function MarkdownLink(properties: ComponentProps<'a'>) {
+  /**
+   * Inside the app, opens the link in an in-app browser sheet instead of a new tab.
+   * @param click The click on the link.
+   */
+  function openInApp(click: MouseEvent): void {
+    if (!platform.isApp() || !properties.href) {
+      return;
+    }
+    click.preventDefault();
+    void appFiles.openLink(properties.href);
+  }
+
   return (
-    <a href={properties.href} target="_blank" rel="noreferrer noopener">
+    <a href={properties.href} target="_blank" rel="noreferrer noopener" onClick={openInApp}>
       {properties.children}
     </a>
   );

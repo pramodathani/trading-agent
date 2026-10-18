@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react';
+import { type MouseEvent, useEffect, useState } from 'react';
+
+import { appFiles } from '../utilities/appFiles';
+import { platform } from '../utilities/platform';
 
 /** What a picture thumbnail shows, and how it fetches the picture. */
 interface PictureThumbnailProperties {
@@ -16,6 +19,18 @@ export function PictureThumbnail(properties: PictureThumbnailProperties) {
   const [address, setAddress] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const load = properties.load;
+
+  /**
+   * Inside the app, opens the picture in the phone's viewer instead of a browser tab.
+   * @param click The click on the thumbnail.
+   */
+  function openInApp(click: MouseEvent): void {
+    if (!platform.isApp()) {
+      return;
+    }
+    click.preventDefault();
+    void load().then((blob) => appFiles.open(blob, properties.fileName));
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -47,7 +62,7 @@ export function PictureThumbnail(properties: PictureThumbnailProperties) {
     return <span className="attachment-picture loading muted small">Loading {properties.fileName}…</span>;
   }
   return (
-    <a className="attachment-picture" href={address} target="_blank" rel="noreferrer" title={`${properties.fileName}: open full size`}>
+    <a className="attachment-picture" href={address} target="_blank" rel="noreferrer" onClick={openInApp} title={`${properties.fileName}: open full size`}>
       <img src={address} alt={properties.fileName} />
     </a>
   );

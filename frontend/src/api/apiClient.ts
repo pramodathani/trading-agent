@@ -1,4 +1,5 @@
 import { tokenStore } from '../auth/tokenStore';
+import { gatewayAddress } from './gatewayAddress';
 import type {
   AccountDocument,
   AppEntry,
@@ -54,10 +55,11 @@ export class ApiClient {
   /**
    * Checks a token by asking for the desks with it.
    * @param token The token to check.
+   * @param address The gateway to ask, or the saved one when left out.
    * @returns True when the gateway accepts it.
    */
-  async isAccepted(token: string): Promise<boolean> {
-    const response = await fetch('/api/desks', {
+  async isAccepted(token: string, address?: string): Promise<boolean> {
+    const response = await fetch(gatewayAddress.url('/api/desks', address), {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -219,7 +221,7 @@ export class ApiClient {
    * @returns The file's contents.
    */
   async attachmentFile(deskName: string, attachmentId: string): Promise<Blob> {
-    const response = await fetch(`/api/desks/${deskName}/attachments/${attachmentId}`, {
+    const response = await fetch(gatewayAddress.url(`/api/desks/${deskName}/attachments/${attachmentId}`), {
       headers: {
         Authorization: `Bearer ${tokenStore.current() ?? ''}`,
       },
@@ -238,7 +240,7 @@ export class ApiClient {
    */
   async deskPicture(deskName: string, picturePath: string): Promise<Blob> {
     const encodedPath = picturePath.split('/').map(encodeURIComponent).join('/');
-    const response = await fetch(`/api/desks/${deskName}/pictures/${encodedPath}`, {
+    const response = await fetch(gatewayAddress.url(`/api/desks/${deskName}/pictures/${encodedPath}`), {
       headers: {
         Authorization: `Bearer ${tokenStore.current() ?? ''}`,
       },
@@ -639,7 +641,7 @@ export class ApiClient {
       headers['Content-Type'] = 'application/json';
       encoded = JSON.stringify(body);
     }
-    const response = await fetch(path, {
+    const response = await fetch(gatewayAddress.url(path), {
       method,
       headers,
       body: encoded,
