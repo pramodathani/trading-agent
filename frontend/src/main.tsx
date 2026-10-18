@@ -15,9 +15,11 @@ import './styles/sidePanel.css';
 import './styles/markdown.css';
 import './styles/requests.css';
 import './styles/phone.css';
+import { appShell } from './utilities/appShell';
 import { themeController } from './utilities/themeController';
 
 themeController.applyStoredChoice();
+appShell.start();
 
 const rootElement = document.getElementById('root');
 if (rootElement === null) {

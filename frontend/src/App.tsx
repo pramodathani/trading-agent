@@ -19,6 +19,7 @@ import { SessionsPage } from './pages/SessionsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SkillsPage } from './pages/SkillsPage';
 import { TradingPage } from './pages/TradingPage';
+import { platform } from './utilities/platform';
 
 /**
  * The application root: asks for the token when there is none, and otherwise shows the pages.
@@ -47,7 +48,7 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route element={<AppLayout />}>
-          <Route index element={<Navigate to="/desks" replace />} />
+          <Route index element={<Navigate to={platform.isApp() ? '/chat' : '/desks'} replace />} />
           <Route path="desks" element={<DesksPage />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="activity" element={<ActivityPage />} />
