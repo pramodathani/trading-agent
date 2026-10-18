@@ -1,0 +1,48 @@
+<svg class="ta-svg" viewBox="0 0 1000 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="android-app-title android-app-description">
+  <title id="android-app-title">The Android app and the gateway</title>
+  <desc id="android-app-description">The app on the phone calls the gateway over Tailscale, through tailscale serve on this computer, and gets its answers and live events back the same way; notifications travel from the gateway through Firebase Cloud Messaging to the phone, even when the app is closed.</desc>
+  <rect class="group" x="350" y="30" width="620" height="230" rx="12"/>
+  <text class="small" x="370" y="54">this computer</text>
+  <path class="wire" d="M290,120 L400,120"/>
+  <path class="wire" d="M290,170 L400,170"/>
+  <path class="wire" d="M620,120 L700,120"/>
+  <path class="wire" d="M620,170 L700,170"/>
+  <path class="wire" d="M830,220 L830,410 L620,410"/>
+  <path class="wire" d="M400,410 L170,410 L170,220"/>
+  <path id="android-app-request" class="hidden-path" d="M270,120 L400,120 L620,120 L720,120"/>
+  <path id="android-app-answer" class="hidden-path" d="M720,170 L620,170 L400,170 L270,170"/>
+  <path id="android-app-push" class="hidden-path" d="M830,200 L830,410 L620,410 L400,410 L170,410 L170,200"/>
+  <circle class="dot" r="6"><animateMotion dur="10s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.25;1" keyPoints="0;1;1"><mpath href="#android-app-request"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="10s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.3;0.55;1" keyPoints="0;0;1;1"><mpath href="#android-app-answer"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="10s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.55;0.98;1" keyPoints="0;0;1;1"><mpath href="#android-app-push"/></animateMotion></circle>
+  <rect class="box" x="50" y="70" width="240" height="150" rx="8"/>
+  <text class="title" x="170" y="104" text-anchor="middle">Trading Agent app</text>
+  <text class="small" x="170" y="128" text-anchor="middle">on your phone</text>
+  <text class="mono" x="170" y="154" text-anchor="middle">https://localhost</text>
+  <text class="small" x="170" y="178" text-anchor="middle">its own copy of the web page</text>
+  <text class="small" x="170" y="198" text-anchor="middle">address and token kept here</text>
+  <rect class="box" x="400" y="80" width="220" height="130" rx="8"/>
+  <text class="title" x="510" y="112" text-anchor="middle">tailscale serve</text>
+  <text class="mono" x="510" y="138" text-anchor="middle">https://&lt;pc&gt;.ts.net</text>
+  <text class="small" x="510" y="162" text-anchor="middle">HTTPS for your devices only</text>
+  <text class="small" x="510" y="182" text-anchor="middle">passes calls to 127.0.0.1:8120</text>
+  <rect class="accent-box" x="700" y="80" width="250" height="140" rx="8"/>
+  <text class="title" x="825" y="112" text-anchor="middle">Gateway</text>
+  <text class="mono" x="825" y="138" text-anchor="middle">/api · /ws/events</text>
+  <text class="small" x="825" y="162" text-anchor="middle">checks the access token</text>
+  <text class="small" x="825" y="182" text-anchor="middle">PushChannel picks the events</text>
+  <text class="small" x="825" y="202" text-anchor="middle">worth a notification</text>
+  <rect class="store" x="400" y="350" width="220" height="120" rx="8"/>
+  <text class="title" x="510" y="384" text-anchor="middle">Firebase Cloud</text>
+  <text class="title" x="510" y="406" text-anchor="middle">Messaging</text>
+  <text class="small" x="510" y="430" text-anchor="middle">Google's servers</text>
+  <text class="small" x="510" y="450" text-anchor="middle">wake the phone</text>
+  <text class="small" x="306" y="108">Tailscale</text>
+  <text class="small" x="842" y="300">fills, halts, requests</text>
+  <text class="small" x="182" y="300">a notification;</text>
+  <text class="small" x="182" y="318">tapping it opens the desk</text>
+  <circle cx="290" cy="525" r="6" class="dot"/>
+  <text x="304" y="525" dominant-baseline="middle">a call from the app</text>
+  <circle cx="500" cy="525" r="6" class="dot alt"/>
+  <text x="514" y="525" dominant-baseline="middle">answers, live events and notifications</text>
+</svg>

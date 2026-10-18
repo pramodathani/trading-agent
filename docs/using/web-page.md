@@ -78,6 +78,10 @@ The side panel on the right shows the chosen desk at a glance. Each card can be 
 
 Claude's context numbers are measured by Claude Code at the end of each turn. The other models have no such report, so their breakdown is estimated from the conversation and marked "estimated". `/context` gives the same read-out on Telegram.
 
+## On a phone
+
+At up to 760 pixels wide the page switches to a layout modelled on the Claude Android app: a ☰ menu that slides in, the desk's name in the centre of the header, a rounded message box with the model chip beside **+**, and the side panel as a sheet that slides up. The same layout is what the [Android app](android-app.md) shows. On a phone, Enter adds a new line and the round button sends.
+
 ## Safety on the page
 
 Risky buttons ask before acting. Flatten asks for a reason, which goes to the journal. The kill switch asks for a reason and the typed word FLATTEN, and its button stays disabled until both are given. Saving a TradingRules.md that the risk engine cannot read is refused with the reason, so a typing mistake can never leave the desks without limits. Saving a Memory.md takes a checkpoint first, so the edit can be undone.
