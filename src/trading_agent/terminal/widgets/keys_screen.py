@@ -47,6 +47,14 @@ _KEYS = (
         'exit, when the message box is empty (press twice)',
     ),
     (
+        '@',
+        'complete a file path and attach that file',
+    ),
+    (
+        'ctrl+v',
+        'attach the picture on the clipboard (text pastes as usual)',
+    ),
+    (
         'alt+d',
         'switch desk',
     ),
@@ -72,6 +80,10 @@ _KEYS = (
     ),
 )
 _COMMANDS = (
+    (
+        '/attach path',
+        'attach a file to the next message (or type @path, drag the file in, or ctrl+v a picture)',
+    ),
     (
         '/desk [name]',
         'switch desk',
@@ -114,17 +126,17 @@ class KeysScreen(screen.ModalScreen[None]):
         """
         with containers.VerticalScroll(classes='picker keys'):
             yield widgets.Static('[b]Keys[/b]', classes='picker-title')
-            yield widgets.Static(self._lines(_KEYS))
+            yield widgets.Static(self._two_columns(_KEYS))
             yield widgets.Static(
                 '[b]Terminal commands[/b]  [dim]every other /command goes to the desk; try /help[/dim]',
                 classes='picker-title keys-section',
             )
-            yield widgets.Static(self._lines(_COMMANDS))
+            yield widgets.Static(self._two_columns(_COMMANDS))
             yield widgets.Static(
                 '[dim]esc to close[/dim]', classes='picker-hint'
             )
 
-    def _lines(self, rows: tuple[tuple[str, str], ...]) -> Content:
+    def _two_columns(self, rows: tuple[tuple[str, str], ...]) -> Content:
         """Lays out rows of a name and what it does in two columns.
 
         Args:

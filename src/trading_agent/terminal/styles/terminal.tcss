@@ -328,3 +328,42 @@ Collapsible > Contents {
     border: none;
     background: transparent;
 }
+
+#pending-files {
+    height: auto;
+    margin: 0 2;
+}
+
+.picture {
+    height: auto;
+    width: 1fr;
+    margin: 0 0 1 0;
+}
+
+.picture:focus {
+    background: $surface;
+}
+
+.picture-image {
+    width: auto;
+    height: 12;
+}
+
+.tool-run, .tool-pictures, .turn-pictures {
+    height: auto;
+}
+
+.desk-message {
+    height: auto;
+    border-left: thick $secondary;
+    padding: 0 1;
+    margin: 0 0 1 0;
+}
+
+.desk-message.urgent {
+    border-left: thick $warning;
+}
+
+.document-line:focus {
+    background: $surface;
+}

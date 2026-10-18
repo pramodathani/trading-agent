@@ -1,6 +1,6 @@
 """Checks that the terminal program's classes do not overwrite attributes Textual itself uses.
 
-A widget that stored its own data in `self._context` replaced Textual's `_context` method, which stopped the widget's message loop and froze the whole screen without an error. This test finds such clashes before they run.
+A widget that stored its own data in `self._context` replaced Textual's `_context` method, which stopped the widget's message loop and froze the whole screen without an error, and a screen method named `_attach` replaced the one Textual calls to add a widget. This test finds such clashes before they run.
 """
 
 import ast
@@ -15,6 +15,8 @@ from textual.message_pump import MessagePump
 import trading_agent.terminal
 
 _MEANT_TO_SET = (
+    '_on_key',
+    '_on_paste',
     'title',
     'collapsed',
     'display',
@@ -58,7 +60,7 @@ class _TextualNames:
 
 
 class _AssignedNames:
-    """The attribute names a module's classes set on self."""
+    """The attribute names a module's classes set on self, and their private method names."""
 
     def by_class(self, path: Path) -> dict[str, set[str]]:
         """Reads one module.
@@ -67,7 +69,7 @@ class _AssignedNames:
             path (Path): The module's file.
 
         Returns:
-            dict[str, set[str]]: Each class's name and the names it assigns to self.
+            dict[str, set[str]]: Each class's name, with the names it assigns to self and the names of its private methods, which would replace Textual's own methods of the same name.
         """
         tree = ast.parse(path.read_text(encoding='utf-8'))
         found = {}
@@ -83,6 +85,15 @@ class _AssignedNames:
                     and isinstance(item.ctx, ast.Store)
                 ):
                     assigned.add(item.attr)
+            for item in node.body:
+                if not isinstance(
+                    item, (ast.FunctionDef, ast.AsyncFunctionDef)
+                ):
+                    continue
+                private = item.name.startswith('_')
+                special = item.name.startswith('__')
+                if private and not special:
+                    assigned.add(item.name)
             found[node.name] = assigned
         return found
 

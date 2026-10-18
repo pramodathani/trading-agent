@@ -66,6 +66,7 @@ class TerminalApplication(app.App[int]):
         self._theme_set = terminal_themes.TerminalThemes()
         self._first_desk = desk_name or settings.desk or _DEFAULT_DESK
         self.chat: chat_screen.ChatScreen | None = None
+        self.opener = attachment_opener.AttachmentOpener(gateway)
         self.desks_document: dict[str, Any] = {}
         self.problem: str | None = None
 
@@ -79,7 +80,7 @@ class TerminalApplication(app.App[int]):
             self._history,
             self._first_desk,
             self._settings,
-            attachment_opener.AttachmentOpener(self._gateway),
+            self.opener,
         )
         self.push_screen(self.chat)
         self._follow_events()

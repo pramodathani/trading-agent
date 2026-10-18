@@ -1,6 +1,6 @@
 """The box where the user writes messages, with Claude Code's keys.
 
-Enter sends. A ? typed into the empty box asks for the list of keys. Shift+Enter, Alt+Enter, Ctrl+J, or a backslash typed just before Enter, starts a new line. Up on the first line and Down on the last line move through earlier prompts. While the command menu is open, Up, Down and Tab move through the menu and Enter picks from it.
+Enter sends. A ? typed into the empty box asks for the list of keys. File paths pasted by dragging files onto the terminal become attachments, Ctrl+V attaches a picture on the clipboard, and Backspace in the empty box removes the newest attachment. Shift+Enter, Alt+Enter, Ctrl+J, or a backslash typed just before Enter, starts a new line. Up on the first line and Down on the last line move through earlier prompts. While the command menu is open, Up, Down and Tab move through the menu and Enter picks from it.
 
 Typical usage example:
 
@@ -8,10 +8,13 @@ Typical usage example:
   # The screen handles Composer.Submitted, MenuMoved and MenuPicked.
 """
 
+from pathlib import Path
+
 from textual import events
 from textual import message
 from textual import widgets
 
+from trading_agent.terminal import attachable_files
 from trading_agent.terminal import prompt_history as prompt_history_module
 
 _NEW_LINE_KEYS = (
@@ -58,6 +61,24 @@ class Composer(widgets.TextArea):
     class KeysWanted(message.Message):
         """The user typed ? into the empty box, asking for the list of keys."""
 
+    class FilesDropped(message.Message):
+        """Files were dragged onto the terminal, which pasted their paths."""
+
+        def __init__(self, paths: list[Path]):
+            """Creates the message.
+
+            Args:
+                paths (list[Path]): The files.
+            """
+            super().__init__()
+            self.paths = paths
+
+    class PictureWanted(message.Message):
+        """The user pressed Ctrl+V, which attaches a picture on the clipboard."""
+
+    class EmptyBackspace(message.Message):
+        """The user pressed Backspace in the empty box, which removes the newest attached file."""
+
     def __init__(
         self,
         history: prompt_history_module.PromptHistory,
@@ -97,6 +118,14 @@ class Composer(widgets.TextArea):
             event (events.Key): The key press.
         """
         key = event.key
+        if key == 'ctrl+v':
+            self._stop(event)
+            self.post_message(self.PictureWanted())
+            return
+        if key == 'backspace' and not self.text:
+            self._stop(event)
+            self.post_message(self.EmptyBackspace())
+            return
         if key == 'question_mark' and not self.text:
             self._stop(event)
             self.post_message(self.KeysWanted())
@@ -137,6 +166,24 @@ class Composer(widgets.TextArea):
                 self.set_text(later)
             return
         await super()._on_key(event)
+
+    async def _on_paste(self, event: events.Paste) -> None:
+        """Attaches pasted file paths, as a drag and drop gives them; pastes anything else as text.
+
+        Args:
+            event (events.Paste): The paste.
+        """
+        paths = attachable_files.AttachableFiles().from_paste(event.text)
+        if paths:
+            event.stop()
+            event.prevent_default()
+            self.post_message(self.FilesDropped(paths))
+            return
+        await super()._on_paste(event)
+
+    def paste_text(self) -> None:
+        """Pastes Textual's own clipboard, when Ctrl+V found no picture."""
+        self.action_paste()
 
     def _ends_with_backslash(self) -> bool:
         """Says whether the character just before the cursor is a backslash.

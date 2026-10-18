@@ -19,3 +19,7 @@ The transcript uses Textual's `anchor()`, which keeps a scroll area at its botto
 ## Shutdown
 
 `_show_status` looks its widgets up with `query()` and returns when they are gone, because a desk poll can finish after the screen's widgets have been removed at exit; `query_one` raised there and failed the worker.
+
+## Attaching files
+
+`@path` words that name files are removed from the message and their files go with it; a typed `@` opens the menu of files and folders, and picking a folder keeps the menu open inside it. `/attach path` and dropped files wait in the tray for the next message. The Ctrl+V handler runs in a thread because the clipboard programs block; it reaches the screen only through `call_from_thread`. The screen's method is `_attach_files`, not `_attach`: Textual calls a widget's `_attach` when it adds the widget to the screen, and the first version broke the screen's own mounting.

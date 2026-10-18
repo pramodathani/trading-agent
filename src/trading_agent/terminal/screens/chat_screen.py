@@ -2,7 +2,7 @@
 
 The screen reads today's journal of the desk when it opens, then takes live events from the application. Events that arrive while the journal is still loading are held and added afterwards; ChatTranscript drops the ones the journal already had.
 
-The terminal program's own commands (/desk, /model with no name, /theme, /keys, /exit) are handled here. Every other message, including every other /command, goes to the desk, which answers commands such as /status itself.
+The terminal program's own commands (/attach, /desk, /model with no name, /theme, /keys, /exit) are handled here. Files are attached with @path in a message, /attach, by dragging them onto the terminal, or with Ctrl+V for a picture on the clipboard; they upload at once and go with the next message. Every other message, including every other /command, goes to the desk, which answers commands such as /status itself.
 
 Typical usage example:
 
@@ -10,6 +10,7 @@ Typical usage example:
 """
 
 import time
+from pathlib import Path
 from typing import Any, ClassVar
 
 from textual import binding
@@ -19,9 +20,11 @@ from textual import widgets
 from textual import work
 from textual.content import Content
 
+from trading_agent.terminal import attachable_files
 from trading_agent.terminal import attachment_opener
 from trading_agent.terminal import chat_items
 from trading_agent.terminal import chat_transcript
+from trading_agent.terminal import clipboard_picture
 from trading_agent.terminal import event_stream
 from trading_agent.terminal import gateway_client
 from trading_agent.terminal import model_names
@@ -29,11 +32,13 @@ from trading_agent.terminal import prompt_history as prompt_history_module
 from trading_agent.terminal import terminal_settings
 from trading_agent.terminal.widgets import command_menu
 from trading_agent.terminal.widgets import composer as composer_module
+from trading_agent.terminal.widgets import desk_message_view
 from trading_agent.terminal.widgets import desk_picker
 from trading_agent.terminal.widgets import event_step_view
 from trading_agent.terminal.widgets import history_search
 from trading_agent.terminal.widgets import keys_screen
 from trading_agent.terminal.widgets import model_picker
+from trading_agent.terminal.widgets import pending_files
 from trading_agent.terminal.widgets import progress_line
 from trading_agent.terminal.widgets import request_dock
 from trading_agent.terminal.widgets import side_panel
@@ -53,6 +58,7 @@ _CONNECTION_WORDS = {
     event_stream.REFUSED: 'Token refused',
 }
 _TERMINAL_COMMANDS = (
+    '/attach',
     '/desk',
     '/theme',
     '/keys',
@@ -128,6 +134,7 @@ class ChatScreen(screen.Screen[None]):
         yield progress_line.ProgressLine()
         yield command_menu.CommandMenu()
         yield request_dock.RequestDock(self._gateway)
+        yield pending_files.PendingFiles(self._gateway)
         with containers.Vertical(id='composer-box'):
             yield composer_module.Composer(self._history)
         yield widgets.Static(
@@ -316,7 +323,17 @@ class ChatScreen(screen.Screen[None]):
         """
         menu = self.query_one(command_menu.CommandMenu)
         composer = self.query_one(composer_module.Composer)
-        composer.menu_open = menu.filter(event.text_area.text)
+        text = event.text_area.text
+        last_word = ''
+        if text and not text[-1].isspace():
+            last_word = text.split()[-1]
+        if last_word.startswith('@'):
+            suggestions = attachable_files.AttachableFiles().suggestions(
+                last_word[1:]
+            )
+            composer.menu_open = menu.show_paths(suggestions)
+            return
+        composer.menu_open = menu.filter(text)
 
     def on_composer_menu_moved(
         self, event: composer_module.Composer.MenuMoved
@@ -352,32 +369,111 @@ class ChatScreen(screen.Screen[None]):
         text = event.text.strip()
         if composer.menu_open:
             name = menu.highlighted_name()
+            if menu.showing_paths and name is not None:
+                self._complete_command()
+                return
             if name is not None and name != text:
                 self._complete_command()
                 return
-        if not text:
+        tray = self.query_one(pending_files.PendingFiles)
+        if not text and not tray.has_files():
             return
-        self._history.add(text)
+        if text:
+            self._history.add(text)
         composer.set_text('')
         menu.hide()
         composer.menu_open = False
-        if self._run_terminal_command(text):
+        if text and self._run_terminal_command(text):
             return
+        for word, path in attachable_files.AttachableFiles().mentioned(text):
+            problem = tray.add(self.desk_name, path)
+            if problem is not None:
+                self.notify(problem, title='Not attached', severity='error')
+                composer.set_text(text)
+                return
+            text = text.replace(word, '', 1).strip()
         self.query_one('#transcript', containers.VerticalScroll).anchor()
         self._send(text)
 
     @work(group='send')
     async def _send(self, text: str) -> None:
-        """Sends a message or desk command to the desk.
+        """Sends a message or desk command to the desk, with the files in the tray once they have uploaded.
 
         Args:
             text (str): The message.
         """
+        tray = self.query_one(pending_files.PendingFiles)
+        attachment_ids: list[str] = []
+        if tray.has_files() and text != '/stop':
+            attachment_ids, problems = await tray.ready_ids()
+            for problem in problems:
+                self.notify(problem, title='Not attached', severity='error')
+            if not attachment_ids and not text:
+                return
         try:
-            await self._gateway.send_message(self.desk_name, text)
+            await self._gateway.send_message(
+                self.desk_name, text, attachment_ids
+            )
         except gateway_client.GatewayError as error:
             self.notify(error.message, title='Not sent', severity='error')
             self.query_one(composer_module.Composer).set_text(text)
+            return
+        if attachment_ids:
+            tray.clear()
+
+    def on_composer_files_dropped(
+        self, event: composer_module.Composer.FilesDropped
+    ) -> None:
+        """Attaches files dragged onto the terminal.
+
+        Args:
+            event (composer_module.Composer.FilesDropped): The files.
+        """
+        self._attach_files(event.paths)
+
+    def on_composer_empty_backspace(
+        self, event: composer_module.Composer.EmptyBackspace
+    ) -> None:
+        """Removes the newest attached file.
+
+        Args:
+            event (composer_module.Composer.EmptyBackspace): The key press.
+        """
+        del event
+        self.query_one(pending_files.PendingFiles).remove_newest()
+
+    @work(group='clipboard', thread=True)
+    def on_composer_picture_wanted(
+        self, event: composer_module.Composer.PictureWanted
+    ) -> None:
+        """Attaches a picture on the clipboard, or pastes text when there is none.
+
+        Args:
+            event (composer_module.Composer.PictureWanted): The key press.
+        """
+        del event
+        folder = self.app.opener.folder / 'clipboard'
+        path = clipboard_picture.ClipboardPicture().save(folder)
+        if path is None:
+            self.app.call_from_thread(self._paste_text)
+            return
+        self.app.call_from_thread(self._attach_files, [path])
+
+    def _paste_text(self) -> None:
+        """Pastes text into the message box when Ctrl+V found no picture."""
+        self.query_one(composer_module.Composer).paste_text()
+
+    def _attach_files(self, paths: list[Path]) -> None:
+        """Adds files to the tray of the next message.
+
+        Args:
+            paths (list[Path]): The files.
+        """
+        tray = self.query_one(pending_files.PendingFiles)
+        for path in paths:
+            problem = tray.add(self.desk_name, path)
+            if problem is not None:
+                self.notify(problem, title='Not attached', severity='error')
 
     def action_escape(self) -> None:
         """Closes the menu, stops the running turn, or clears the box on a second press."""
@@ -518,6 +614,15 @@ class ChatScreen(screen.Screen[None]):
         """
         words = text.split()
         name = words[0].lower()
+        if name == '/attach':
+            path_text = text[len(words[0]) :].strip()
+            if not path_text:
+                self.notify(
+                    'Say which file: /attach path/to/file', severity='warning'
+                )
+                return True
+            self._attach_files([Path(path_text).expanduser()])
+            return True
         if name == '/desk':
             if len(words) == 1:
                 self.action_pick_desk()
@@ -596,7 +701,19 @@ class ChatScreen(screen.Screen[None]):
         if name is None:
             return
         composer = self.query_one(composer_module.Composer)
-        composer.set_text(f'{name} ')
+        if menu.showing_paths:
+            text = composer.text
+            last_word = text.split()[-1]
+            ending = ' '
+            if name.endswith('/'):
+                ending = ''
+            composer.set_text(
+                f'{text[: len(text) - len(last_word)]}@{name}{ending}'
+            )
+            if name.endswith('/'):
+                return
+        else:
+            composer.set_text(f'{name} ')
         menu.hide()
         composer.menu_open = False
 
@@ -626,7 +743,11 @@ class ChatScreen(screen.Screen[None]):
                     view.show(item)
                 continue
             if isinstance(item, chat_items.ChatTurn):
-                view = turn_view.TurnView(item)
+                view = turn_view.TurnView(self.desk_name, item)
+            elif item.event.get('kind') == 'message':
+                view = desk_message_view.DeskMessageView(
+                    self.desk_name, item.event, with_time=True
+                )
             else:
                 view = event_step_view.EventStepView(item.event, with_time=True)
             self._views[key] = view

@@ -17,7 +17,9 @@ from textual.content import Content
 from trading_agent.terminal import chat_items
 from trading_agent.terminal import event_describer
 from trading_agent.terminal import formatter
+from trading_agent.terminal.widgets import desk_message_view
 from trading_agent.terminal.widgets import event_step_view
+from trading_agent.terminal.widgets import picture_view
 from trading_agent.terminal.widgets import request_step_view
 from trading_agent.terminal.widgets import steering_view
 from trading_agent.terminal.widgets import tool_run_view
@@ -30,14 +32,18 @@ class TurnView(containers.Vertical):
         trigger_id: The trigger the turn belongs to.
     """
 
-    def __init__(self, turn: chat_items.ChatTurn):
+    def __init__(self, desk_name: str, turn: chat_items.ChatTurn):
         """Creates the view.
 
         Args:
+            desk_name (str): The desk the turn belongs to, for its pictures.
             turn (chat_items.ChatTurn): The turn.
         """
         super().__init__(classes='turn')
         self.trigger_id = turn.trigger_id
+        self._desk_name = desk_name
+        self._user_pictures = containers.Vertical(classes='turn-pictures')
+        self._shown_user_pictures: set[str] = set()
         self._turn = turn
         self._formatter = formatter.Formatter()
         self._heading = widgets.Static('', classes='turn-heading')
@@ -62,6 +68,7 @@ class TurnView(containers.Vertical):
         """
         yield self._heading
         yield self._message
+        yield self._user_pictures
         yield self._steps
         yield self._writing
         yield self._answer
@@ -85,6 +92,7 @@ class TurnView(containers.Vertical):
         self._heading.update(self._heading_content(turn))
         self._message.update(self._message_text(turn))
         self._message.display = bool(self._message_text(turn))
+        self._show_user_pictures(turn)
         self._show_steps(turn)
         writing = turn.streaming_text
         if turn.answer is not None:
@@ -129,7 +137,13 @@ class TurnView(containers.Vertical):
         for index, segment in enumerate(segments):
             if index < len(self._step_views):
                 view = self._step_views[index]
-                if isinstance(view, event_step_view.EventStepView):
+                if isinstance(
+                    view,
+                    (
+                        event_step_view.EventStepView,
+                        desk_message_view.DeskMessageView,
+                    ),
+                ):
                     continue
                 view.show(segment)
                 continue
@@ -147,12 +161,33 @@ class TurnView(containers.Vertical):
             Any: Its view.
         """
         if isinstance(segment, chat_items.ToolRun):
-            return tool_run_view.ToolRunView(segment)
+            return tool_run_view.ToolRunView(self._desk_name, segment)
         if isinstance(segment, chat_items.SteeringStep):
             return steering_view.SteeringView(segment)
         if isinstance(segment, chat_items.RequestStep):
             return request_step_view.RequestStepView(segment)
+        if segment.event.get('kind') == 'message':
+            return desk_message_view.DeskMessageView(
+                self._desk_name, segment.event
+            )
         return event_step_view.EventStepView(segment.event)
+
+    def _show_user_pictures(self, turn: chat_items.ChatTurn) -> None:
+        """Draws the pictures the user attached, once each.
+
+        Args:
+            turn (chat_items.ChatTurn): The turn.
+        """
+        for attachment in turn.attachments:
+            attachment_id = str(attachment.get('attachment_id', ''))
+            if attachment.get('kind') != 'image':
+                continue
+            if attachment_id in self._shown_user_pictures:
+                continue
+            self._shown_user_pictures.add(attachment_id)
+            self._user_pictures.mount(
+                picture_view.PictureView(self._desk_name, attachment=attachment)
+            )
 
     def _heading_content(self, turn: chat_items.ChatTurn) -> Content:
         """The line above the message: who or what woke the desk, and when.
@@ -189,7 +224,8 @@ class TurnView(containers.Vertical):
         if turn.text:
             lines.append(turn.text)
         for attachment in turn.attachments:
-            lines.append(f'📎 {attachment.get("file_name", "file")}')
+            if attachment.get('kind') != 'image':
+                lines.append(f'📎 {attachment.get("file_name", "file")}')
         return '\n'.join(lines)
 
     def _status_content(self, turn: chat_items.ChatTurn) -> Content:

@@ -1,6 +1,6 @@
 """The menu that opens above the message box when the user types a slash, as in Claude Code.
 
-It lists the terminal program's own commands, then the desk's commands and skills, keeping those whose names start with what was typed. Each name appears once, with the usage and description of its first entry.
+It lists the terminal program's own commands, then the desk's commands and skills, keeping those whose names start with what was typed. After an @ it lists files and folders instead, for attaching a file. Each name appears once, with the usage and description of its first entry.
 
 Typical usage example:
 
@@ -28,6 +28,7 @@ class CommandMenu(widgets.OptionList):
         self._entries: list[dict[str, Any]] = []
         self._shown: list[dict[str, Any]] = []
         self.can_focus = False
+        self.showing_paths = False
 
     def on_mount(self) -> None:
         """Hides the menu until something matches."""
@@ -47,6 +48,27 @@ class CommandMenu(widgets.OptionList):
             seen.add(entry['name'])
             self._entries.append(entry)
 
+    def show_paths(self, paths: list[str]) -> bool:
+        """Shows file paths for an @ word.
+
+        Args:
+            paths (list[str]): The paths, as they would be typed after @.
+
+        Returns:
+            bool: True when the menu is showing.
+        """
+        self.showing_paths = True
+        self._shown = []
+        for path in paths:
+            self._shown.append(
+                {
+                    'name': path,
+                    'usage': f'@{path}',
+                    'description': '',
+                }
+            )
+        return self._redraw()
+
     def filter(self, draft: str) -> bool:
         """Shows the commands whose names start with the draft.
 
@@ -56,11 +78,20 @@ class CommandMenu(widgets.OptionList):
         Returns:
             bool: True when the menu is showing.
         """
+        self.showing_paths = False
         self._shown = []
         if draft.startswith('/') and ' ' not in draft and '\n' not in draft:
             for entry in self._entries:
                 if entry['name'].startswith(draft.lower()):
                     self._shown.append(entry)
+        return self._redraw()
+
+    def _redraw(self) -> bool:
+        """Draws the shown entries.
+
+        Returns:
+            bool: True when the menu is showing.
+        """
         self.clear_options()
         for entry in self._shown:
             self.add_option(
@@ -102,4 +133,5 @@ class CommandMenu(widgets.OptionList):
     def hide(self) -> None:
         """Hides the menu."""
         self._shown = []
+        self.showing_paths = False
         self.display = False

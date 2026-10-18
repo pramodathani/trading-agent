@@ -5,6 +5,9 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
+from textual import events
+
+from trading_agent.terminal import attachable_files
 from trading_agent.terminal import gateway_client
 from trading_agent.terminal import prompt_history
 from trading_agent.terminal import terminal_application
@@ -63,6 +66,7 @@ class _StandInGateway(gateway_client.GatewayClient):
         self.state = 'idle'
         self.pending: list[dict[str, Any]] = []
         self.decisions: list[tuple[str, str, Any]] = []
+        self.sent_attachments: list[list[str]] = []
 
     async def desks(self) -> dict[str, Any]:
         """Two desks.
@@ -171,19 +175,39 @@ class _StandInGateway(gateway_client.GatewayClient):
         Args:
             desk_name (str): The desk.
             text (str): The message.
-            attachment_ids (Any): Ignored.
+            attachment_ids (Any): The uploads sent with it.
 
         Returns:
             str: A trigger id.
         """
-        del attachment_ids
         self.sent.append(
             (
                 desk_name,
                 text,
             )
         )
+        self.sent_attachments.append(list(attachment_ids))
         return f'sent-{len(self.sent)}'
+
+    async def upload_attachment(
+        self, desk_name: str, file_path: Path
+    ) -> dict[str, Any]:
+        """Pretends to upload a file.
+
+        Args:
+            desk_name (str): The desk.
+            file_path (Path): The file.
+
+        Returns:
+            dict[str, Any]: An attachment named after the file.
+        """
+        return {
+            'attachment_id': f'upload-{file_path.name}',
+            'desk': desk_name,
+            'kind': 'document',
+            'file_name': file_path.name,
+            'problem': None,
+        }
 
     async def account(self) -> dict[str, Any]:
         """An account with a balance and some margin in use.
@@ -925,3 +949,109 @@ class TestOrdersCard:
         assert lines[1].endswith('1')
         assert lines[2].endswith('1')
         assert lines[4].endswith('—')
+
+
+class TestAttachments:
+    """Tests for attaching files to a message."""
+
+    def test_an_at_path_is_uploaded_and_sent(self, tmp_path: Path) -> None:
+        """@path names a file that is uploaded and sent with the message, without the @ word."""
+        note = tmp_path / 'note.txt'
+        note.write_text('hello', encoding='utf-8')
+
+        async def scenario(program, pilot, gateway) -> None:
+            """Sends a message with an @path.
+
+            Args:
+                program (terminal_application.TerminalApplication): The program.
+                pilot (Any): The test pilot.
+                gateway (_StandInGateway): The stand-in gateway.
+            """
+            box = program.screen.query_one(composer.Composer)
+            box.set_text(f'@{note} read this')
+            await pilot.press('escape')
+            await pilot.press('enter')
+            await pilot.pause(0.5)
+            assert gateway.sent[-1] == (
+                'general',
+                'read this',
+            )
+            assert gateway.sent_attachments[-1] == [
+                'upload-note.txt',
+            ]
+
+        _run(scenario, tmp_path)
+
+    def test_a_dropped_file_waits_for_the_next_message(
+        self, tmp_path: Path
+    ) -> None:
+        """A pasted file path is attached, not typed, and goes with the next message."""
+        chart = tmp_path / 'chart one.csv'
+        chart.write_text('a,b', encoding='utf-8')
+
+        async def scenario(program, pilot, gateway) -> None:
+            """Drops a file, then sends.
+
+            Args:
+                program (terminal_application.TerminalApplication): The program.
+                pilot (Any): The test pilot.
+                gateway (_StandInGateway): The stand-in gateway.
+            """
+            box = program.screen.query_one(composer.Composer)
+            box.post_message(events.Paste(f"'{chart}'"))
+            await pilot.pause(0.3)
+            assert box.text == ''
+            await pilot.press(*'see file')
+            await pilot.press('enter')
+            await pilot.pause(0.5)
+            assert gateway.sent_attachments[-1] == [
+                'upload-chart one.csv',
+            ]
+
+        _run(scenario, tmp_path)
+
+
+class TestAttachableFiles:
+    """Tests for the rules and forms of attachable files."""
+
+    def test_pasted_forms(self, tmp_path: Path) -> None:
+        """Quoted paths, escaped spaces and file:// addresses are all read; other text is not."""
+        picture = tmp_path / 'a b.png'
+        picture.write_bytes(b'x')
+        files = attachable_files.AttachableFiles()
+
+        assert files.from_paste(f"'{picture}'") == [
+            picture,
+        ]
+        assert files.from_paste(str(picture).replace(' ', '\\ ')) == [
+            picture,
+        ]
+        assert files.from_paste(
+            f'file://{str(picture).replace(" ", "%20")}'
+        ) == [
+            picture,
+        ]
+        assert files.from_paste('just some words') == []
+
+    def test_problems(self, tmp_path: Path) -> None:
+        """A file of an unknown kind is refused with a reason."""
+        program = tmp_path / 'tool.exe'
+        program.write_bytes(b'x')
+        report = tmp_path / 'report.pdf'
+        report.write_bytes(b'x')
+        files = attachable_files.AttachableFiles()
+
+        assert 'not a picture or document' in files.problem(program)
+        assert files.problem(report) is None
+
+    def test_suggestions(self, tmp_path: Path) -> None:
+        """Suggestions list attachable files and folders that start with the typed name."""
+        (tmp_path / 'charts').mkdir()
+        (tmp_path / 'chart.png').write_bytes(b'x')
+        (tmp_path / 'chat.exe').write_bytes(b'x')
+        files = attachable_files.AttachableFiles()
+
+        assert files.suggestions(f'{tmp_path}/cha') == [
+            f'{tmp_path}/chart.png',
+            f'{tmp_path}/charts/',
+        ]
