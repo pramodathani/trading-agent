@@ -1,4 +1,4 @@
-"""Remembers the terminal program's choices between runs: the desk, the theme and the side panel.
+"""Remembers the terminal program's choices between runs: the desk, the theme, the side panel and its folded cards.
 
 They are kept in ~/.local/state/trading-agent/terminal.json, beside the prompt history. A missing or unreadable file gives the defaults.
 
@@ -24,6 +24,7 @@ class TerminalSettings:
         desk: The desk the chat opened on last, or None.
         theme: The theme's name.
         side_panel_open: Whether the right-hand panel is shown.
+        collapsed_cards: The side panel cards that are folded, by short name.
         file: Where the choices are kept.
     """
 
@@ -36,6 +37,7 @@ class TerminalSettings:
         self.desk: str | None = None
         self.theme = terminal_themes.TerminalThemes.DARK
         self.side_panel_open = True
+        self.collapsed_cards: list[str] = []
         self.file = file
 
     @classmethod
@@ -78,6 +80,11 @@ class TerminalSettings:
             settings.theme = stored['theme']
         if isinstance(stored.get('side_panel_open'), bool):
             settings.side_panel_open = stored['side_panel_open']
+        collapsed = stored.get('collapsed_cards')
+        if isinstance(collapsed, list):
+            for card_id in collapsed:
+                if isinstance(card_id, str):
+                    settings.collapsed_cards.append(card_id)
         return settings
 
     def save(self) -> None:
@@ -90,6 +97,7 @@ class TerminalSettings:
                         'desk': self.desk,
                         'theme': self.theme,
                         'side_panel_open': self.side_panel_open,
+                        'collapsed_cards': self.collapsed_cards,
                     },
                     indent=2,
                 ),

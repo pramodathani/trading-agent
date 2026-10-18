@@ -41,7 +41,7 @@ class ModelPicker(screen.ModalScreen[ModelChoice | None]):
         self._desk = desk
         self._names = model_names.ModelNames()
         self._choices: list[ModelChoice | None] = []
-        self._options: list[option_list.Option] = []
+        self._rows: list[option_list.Option] = []
         self._current_row: int | None = None
         self._build()
 
@@ -58,7 +58,7 @@ class ModelPicker(screen.ModalScreen[ModelChoice | None]):
                 ),
                 classes='picker-title',
             )
-            yield widgets.OptionList(*self._options, id='model-options')
+            yield widgets.OptionList(*self._rows, id='model-options')
             yield widgets.Static(
                 '[dim]↑↓ to move · enter or 1-9 to choose · esc to close[/dim]',
                 classes='picker-hint',
@@ -173,8 +173,8 @@ class ModelPicker(screen.ModalScreen[ModelChoice | None]):
             disabled (bool): Whether the row cannot be chosen.
         """
         if str(prompt).endswith('✓'):
-            self._current_row = len(self._options)
-        self._options.append(option_list.Option(prompt, disabled=disabled))
+            self._current_row = len(self._rows)
+        self._rows.append(option_list.Option(prompt, disabled=disabled))
         self._choices.append(choice)
 
     def _providers(
@@ -253,4 +253,4 @@ class ModelPicker(screen.ModalScreen[ModelChoice | None]):
         """
         if self._current_row is not None:
             return self._current_row
-        return len(self._options) - 1
+        return len(self._rows) - 1

@@ -11,9 +11,12 @@ from trading_agent.terminal import terminal_application
 from trading_agent.terminal import terminal_settings
 from trading_agent.terminal.widgets import command_menu
 from trading_agent.terminal.widgets import composer
+from trading_agent.terminal.widgets import funds_card
 from trading_agent.terminal.widgets import keys_screen
+from trading_agent.terminal.widgets import orders_card
 from trading_agent.terminal.widgets import permission_card
 from trading_agent.terminal.widgets import progress_line
+from trading_agent.terminal.widgets import side_panel
 from trading_agent.terminal.widgets import turn_view
 
 _SIZE = (
@@ -181,6 +184,81 @@ class _StandInGateway(gateway_client.GatewayClient):
             )
         )
         return f'sent-{len(self.sent)}'
+
+    async def account(self) -> dict[str, Any]:
+        """An account with a balance and some margin in use.
+
+        Returns:
+            dict[str, Any]: The account.
+        """
+        return {
+            'total_balance': 123456.7,
+            'margin_utilized': 23456.7,
+            'day_pnl': 1250.0,
+            'week_pnl': -300.0,
+            'desk_pnl': {
+                'general': 1250.0,
+            },
+            'positions': [],
+            'holdings': {},
+            'owners': [],
+            'halts': [],
+        }
+
+    async def desk_orders(self) -> dict[str, Any]:
+        """One open order on the general desk.
+
+        Returns:
+            dict[str, Any]: The open orders by desk.
+        """
+        return {
+            'general': [
+                {
+                    'order_id': 'o1',
+                },
+            ],
+        }
+
+    async def desk_context(self, desk_name: str) -> dict[str, Any]:
+        """A small context window snapshot.
+
+        Args:
+            desk_name (str): The desk.
+
+        Returns:
+            dict[str, Any]: The context document.
+        """
+        return {
+            'desk': desk_name,
+            'usage': {
+                'backend': 'claude',
+                'model': 'claude-opus-5-5',
+                'total_tokens': 1000,
+                'context_window': 10000,
+                'categories': [
+                    {
+                        'name': 'Messages',
+                        'tokens': 1000,
+                        'deferred': False,
+                    },
+                ],
+                'measured': True,
+                'recorded_at': '2026-10-19T04:30:00+00:00',
+            },
+            'tools': [
+                'get_quote',
+            ],
+        }
+
+    async def mcp_servers(self) -> dict[str, Any]:
+        """No MCP servers.
+
+        Returns:
+            dict[str, Any]: The servers document.
+        """
+        return {
+            'servers': [],
+        }
 
     async def requests(self, status: str = 'pending') -> list[dict[str, Any]]:
         """The pending requests set by the test.
@@ -750,3 +828,100 @@ class TestRequestDock:
             ]
 
         _run(scenario, tmp_path)
+
+
+class TestSidePanel:
+    """Tests for the side panel."""
+
+    def test_cards_show_the_account(self, tmp_path: Path) -> None:
+        """The Funds card shows the balance in Indian grouping, and the Orders card counts the open order."""
+
+        async def scenario(program, pilot, gateway) -> None:
+            """Reads the cards.
+
+            Args:
+                program (terminal_application.TerminalApplication): The program.
+                pilot (Any): The test pilot.
+                gateway (_StandInGateway): The stand-in gateway.
+            """
+            del gateway
+            await pilot.pause(0.5)
+            funds = program.screen.query_one(funds_card.FundsCard)
+            assert '₹1,23,456.70' in str(funds.query_one('.side-body').render())
+            orders = program.screen.query_one(orders_card.OrdersCard)
+            body = str(orders.query_one('.side-body').render())
+            assert 'Open orders' in body
+            assert body.splitlines()[3].endswith('1')
+
+        _run(scenario, tmp_path)
+
+    def test_ctrl_b_hides_the_panel_and_remembers(self, tmp_path: Path) -> None:
+        """Ctrl+B hides the panel and saves the choice."""
+
+        async def scenario(program, pilot, gateway) -> None:
+            """Toggles the panel.
+
+            Args:
+                program (terminal_application.TerminalApplication): The program.
+                pilot (Any): The test pilot.
+                gateway (_StandInGateway): The stand-in gateway.
+            """
+            del gateway
+            panel = program.screen.query_one(side_panel.SidePanel)
+            assert panel.display
+            await pilot.press('ctrl+b')
+            assert not panel.display
+            saved = terminal_settings.TerminalSettings.load(
+                tmp_path / 'terminal.json'
+            )
+            assert not saved.side_panel_open
+
+        _run(scenario, tmp_path)
+
+    def test_a_folded_card_is_remembered(self, tmp_path: Path) -> None:
+        """Folding a card saves its name among the folded cards."""
+
+        async def scenario(program, pilot, gateway) -> None:
+            """Folds the Funds card.
+
+            Args:
+                program (terminal_application.TerminalApplication): The program.
+                pilot (Any): The test pilot.
+                gateway (_StandInGateway): The stand-in gateway.
+            """
+            del gateway
+            program.screen.query_one(funds_card.FundsCard).collapsed = True
+            await pilot.pause(0.2)
+            saved = terminal_settings.TerminalSettings.load(
+                tmp_path / 'terminal.json'
+            )
+            assert saved.collapsed_cards == [
+                'funds',
+            ]
+
+        _run(scenario, tmp_path)
+
+
+class TestOrdersCard:
+    """Tests for the counts of the Orders card."""
+
+    def test_counts_come_from_the_events(self) -> None:
+        """Placed and cancelled orders and fills with a quantity are counted; a zero fill is not a trade."""
+        card = orders_card.OrdersCard()
+        events = [
+            _event('order', action='placed'),
+            _event('order', action='placed'),
+            _event('order', action='cancelled'),
+            _event('fill', filled_quantity=10),
+            _event('fill', filled_quantity=0),
+        ]
+        captured = []
+        card.show_body = captured.append
+
+        card.show('general', events, [], None)
+
+        lines = captured[0].plain.splitlines()
+        assert lines[0].endswith('2')
+        assert lines[1].endswith('1')
+        assert lines[2].endswith('1')
+        assert lines[4].endswith('—')

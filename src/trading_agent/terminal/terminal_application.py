@@ -14,6 +14,7 @@ from textual import app
 from textual import binding
 from textual import work
 
+from trading_agent.terminal import attachment_opener
 from trading_agent.terminal import event_stream
 from trading_agent.terminal import gateway_client
 from trading_agent.terminal import prompt_history as prompt_history_module
@@ -62,7 +63,7 @@ class TerminalApplication(app.App[int]):
         self._gateway = gateway
         self._settings = settings
         self._history = history
-        self._themes = terminal_themes.TerminalThemes()
+        self._theme_set = terminal_themes.TerminalThemes()
         self._first_desk = desk_name or settings.desk or _DEFAULT_DESK
         self.chat: chat_screen.ChatScreen | None = None
         self.desks_document: dict[str, Any] = {}
@@ -70,11 +71,15 @@ class TerminalApplication(app.App[int]):
 
     def on_mount(self) -> None:
         """Applies the theme, opens the chat, and starts the event stream and the desk polling."""
-        for theme in self._themes.all():
+        for theme in self._theme_set.all():
             self.register_theme(theme)
         self.theme = self._settings.theme
         self.chat = chat_screen.ChatScreen(
-            self._gateway, self._history, self._first_desk
+            self._gateway,
+            self._history,
+            self._first_desk,
+            self._settings,
+            attachment_opener.AttachmentOpener(self._gateway),
         )
         self.push_screen(self.chat)
         self._follow_events()
@@ -109,7 +114,7 @@ class TerminalApplication(app.App[int]):
 
     def toggle_theme(self) -> None:
         """Switches between the dark and light theme and remembers the choice."""
-        self.theme = self._themes.other(self.theme)
+        self.theme = self._theme_set.other(self.theme)
         self._settings.theme = self.theme
         self._settings.save()
 

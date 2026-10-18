@@ -59,6 +59,10 @@ _KEYS = (
         'open or fold every tool call',
     ),
     (
+        'ctrl+b',
+        'show or hide the side panel',
+    ),
+    (
         'ctrl+p',
         'command palette: every screen and action',
     ),

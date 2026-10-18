@@ -19,12 +19,14 @@ from textual import widgets
 from textual import work
 from textual.content import Content
 
+from trading_agent.terminal import attachment_opener
 from trading_agent.terminal import chat_items
 from trading_agent.terminal import chat_transcript
 from trading_agent.terminal import event_stream
 from trading_agent.terminal import gateway_client
 from trading_agent.terminal import model_names
 from trading_agent.terminal import prompt_history as prompt_history_module
+from trading_agent.terminal import terminal_settings
 from trading_agent.terminal.widgets import command_menu
 from trading_agent.terminal.widgets import composer as composer_module
 from trading_agent.terminal.widgets import desk_picker
@@ -34,6 +36,7 @@ from trading_agent.terminal.widgets import keys_screen
 from trading_agent.terminal.widgets import model_picker
 from trading_agent.terminal.widgets import progress_line
 from trading_agent.terminal.widgets import request_dock
+from trading_agent.terminal.widgets import side_panel
 from trading_agent.terminal.widgets import turn_view
 
 _DOUBLE_PRESS_SECONDS = 1.5
@@ -69,6 +72,7 @@ class ChatScreen(screen.Screen[None]):
         binding.Binding('alt+d', 'pick_desk', 'Desk'),
         binding.Binding('alt+p', 'pick_model', 'Model'),
         binding.Binding('ctrl+o', 'toggle_tools', 'Tools'),
+        binding.Binding('ctrl+b', 'toggle_side_panel', 'Panel'),
         binding.Binding('ctrl+r', 'search_history', 'History'),
         binding.Binding('ctrl+t', 'app.toggle_theme', 'Theme'),
     ]
@@ -78,6 +82,8 @@ class ChatScreen(screen.Screen[None]):
         gateway: gateway_client.GatewayClient,
         history: prompt_history_module.PromptHistory,
         desk_name: str,
+        settings: terminal_settings.TerminalSettings,
+        opener: attachment_opener.AttachmentOpener,
     ):
         """Creates the screen.
 
@@ -85,11 +91,15 @@ class ChatScreen(screen.Screen[None]):
             gateway (gateway_client.GatewayClient): The gateway's routes.
             history (prompt_history_module.PromptHistory): The earlier prompts.
             desk_name (str): The desk to open on.
+            settings (terminal_settings.TerminalSettings): The remembered choices, such as whether the side panel is shown.
+            opener (attachment_opener.AttachmentOpener): Downloads and opens the desk's files.
         """
         super().__init__()
         self.desk_name = desk_name
         self._gateway = gateway
         self._history = history
+        self._settings = settings
+        self._opener = opener
         self._transcript = chat_transcript.ChatTranscript()
         self._views: dict[str, Any] = {}
         self._loading = True
@@ -112,19 +122,25 @@ class ChatScreen(screen.Screen[None]):
         yield widgets.Static('', id='status-line')
         with containers.Horizontal(id='chat-body'):
             yield containers.VerticalScroll(id='transcript')
+            yield side_panel.SidePanel(
+                self._gateway, self._settings, self._opener
+            )
         yield progress_line.ProgressLine()
         yield command_menu.CommandMenu()
         yield request_dock.RequestDock(self._gateway)
         with containers.Vertical(id='composer-box'):
             yield composer_module.Composer(self._history)
         yield widgets.Static(
-            '[dim]enter send · shift+enter new line · / commands · esc stop · alt+d desk · alt+p model · ctrl+o tools · ? keys[/dim]',
+            '[dim]enter send · shift+enter new line · / commands · esc stop · alt+d desk · alt+p model · ctrl+o tools · ctrl+b panel · ? keys[/dim]',
             id='key-hints',
         )
 
     def on_mount(self) -> None:
         """Loads the desk's chat and focuses the message box."""
         self.query_one(composer_module.Composer).focus()
+        self.query_one(
+            side_panel.SidePanel
+        ).display = self._settings.side_panel_open
         self._show_status()
         self.load_desk(self.desk_name)
         self.set_interval(_REQUESTS_REFRESH_SECONDS, self.refresh_requests)
@@ -152,6 +168,8 @@ class ChatScreen(screen.Screen[None]):
         """
         self._desks_document = document
         self._show_status()
+        for panel in self.query(side_panel.SidePanel):
+            panel.take_desk(self.desk(), document.get('mode', ''))
 
     def take_connection(self, state: str) -> None:
         """Shows the event stream's state, and reloads the chat after a reconnect.
@@ -194,6 +212,9 @@ class ChatScreen(screen.Screen[None]):
         self._show_status()
         self._load_commands(desk_name)
         self.refresh_requests()
+        panel = self.query_one(side_panel.SidePanel)
+        panel.set_desk(desk_name)
+        panel.take_desk(self.desk(), self._desks_document.get('mode', ''))
         try:
             journal = await self._gateway.desk_journal(desk_name)
         except gateway_client.GatewayError as error:
@@ -431,6 +452,13 @@ class ChatScreen(screen.Screen[None]):
             return
         self.app.push_screen(model_picker.ModelPicker(desk), self._choose_model)
 
+    def action_toggle_side_panel(self) -> None:
+        """Shows or hides the side panel, and remembers the choice."""
+        panel = self.query_one(side_panel.SidePanel)
+        panel.display = not panel.display
+        self._settings.side_panel_open = bool(panel.display)
+        self._settings.save()
+
     def action_focus_dock(self) -> None:
         """Moves to the waiting request's card, or to the next widget when nothing waits."""
         dock = self.query_one(request_dock.RequestDock)
@@ -582,6 +610,8 @@ class ChatScreen(screen.Screen[None]):
         at_bottom = (
             transcript.max_scroll_y - transcript.scroll_y <= _BOTTOM_SLACK_LINES
         )
+        for panel in self.query(side_panel.SidePanel):
+            panel.take_events(events)
         changed: dict[int, Any] = {}
         for event in events:
             item = self._transcript.add(event)
