@@ -17,10 +17,12 @@ import { useDesks } from '../layout/desksContext';
 import { useSelectedDesk } from '../layout/selectedDeskStore';
 import { SidePanel } from '../sidePanel/SidePanel';
 import { sidePanelStore, useSidePanelOpen } from '../sidePanel/sidePanelStore';
+import { AndroidVoiceInput } from '../utilities/androidVoiceInput';
 import { chatTurnBuilder, type ChatItem, type ChatTurn, type SteeringStep, type ToolStep, type TurnStep } from '../utilities/chatTurnBuilder';
 import { eventDescriber } from '../utilities/eventDescriber';
 import { eventMerger } from '../utilities/eventMerger';
 import { formatter } from '../utilities/formatter';
+import { platform } from '../utilities/platform';
 import { toolDescriber } from '../utilities/toolDescriber';
 import { VoiceInput } from '../utilities/voiceInput';
 
@@ -70,7 +72,7 @@ export function ChatPage() {
   const scrollReference = useRef<HTMLDivElement>(null);
   const columnReference = useRef<HTMLDivElement>(null);
   const stuckToBottom = useRef(true);
-  const voiceInput = useMemo(() => new VoiceInput(), []);
+  const voiceInput = useMemo(() => (platform.isApp() ? new AndroidVoiceInput() : new VoiceInput()), []);
   const voiceBase = useRef('');
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
