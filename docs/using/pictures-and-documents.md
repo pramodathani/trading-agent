@@ -66,7 +66,7 @@ On 17 October 2026, the general desk (then called main) was asked for a picture 
 
 ## Which models see pictures
 
-Claude, Gemma 4 and Qwen3.8 can all see pictures, and each is sent them in the form it expects:
+Claude, Gemma 4 and Qwen3.8 can all see pictures, and each is sent them in the form it expects. DeepSeek V4 Pro cannot, so when it answers, pictures are left out and it is told that they were there. The table below shows the form each model is sent.
 
 | Model | Pictures with your message | Pictures from a tool |
 |---|---|---|

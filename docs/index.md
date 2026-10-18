@@ -7,7 +7,7 @@ hide:
 
 <div class="hero" markdown>
 
-<p class="lead"><code>trading-agent</code> is an always-on AI trading agent that trades on its own, without asking anyone to approve its orders. It runs four <strong>desks</strong> side by side: <em>main</em>, <em>intraday</em>, <em>scalper</em> and <em>positional</em>. Each desk has its own persona, models, schedule and memory, and every order from every desk passes through <strong>one risk engine</strong> that enforces the hard limits you write in <code>TradingRules.md</code>. It trades through <a href="https://pramodathani.github.io/tradingmachine/">tradingmachine</a> and the <a href="https://pramodathani.github.io/unified_broker_interface/">Unified Broker Interface</a> (UBI), and thinks with Claude through the Max subscription and with Gemma and Qwen on this machine.</p>
+<p class="lead"><code>trading-agent</code> is an always-on AI trading agent that trades on its own, without asking anyone to approve its orders. It runs four <strong>desks</strong> side by side: <em>general</em>, <em>intraday</em>, <em>scalper</em> and <em>positional</em>. Each desk has its own persona, models, schedule and memory, and every order from every desk passes through <strong>one risk engine</strong> that enforces the hard limits you write in <code>TradingRules.md</code>. It trades through <a href="https://pramodathani.github.io/tradingmachine/">tradingmachine</a> and the <a href="https://pramodathani.github.io/unified_broker_interface/">Unified Broker Interface</a> (UBI), and thinks with Claude through the Max subscription, with DeepSeek when Claude is unavailable, and with Gemma and Qwen on this machine.</p>
 
 </div>
 
@@ -42,7 +42,7 @@ The site is split into tabs along the top. If you are about to trade live, read 
 
     ---
 
-    The web page, talking to a desk, steering and stopping a turn, Telegram, and every command.
+    The web page, talking to a desk, answering its questions, steering and stopping a turn, Telegram, and every command.
 
     [:octicons-arrow-right-24: The web page](using/index.md)
 
@@ -58,7 +58,7 @@ The site is split into tabs along the top. If you are about to trade live, read 
 
     ---
 
-    Models and fallback, the 47 tools, memory and compression, skills, subagents, scheduling and extensions.
+    Models and fallback, the 49 tools, memory and compression, skills, subagents, scheduling and extensions.
 
     [:octicons-arrow-right-24: How a desk thinks](agent/index.md)
 
@@ -79,7 +79,8 @@ The table below lists the pieces a newcomer usually asks about first, and where 
 | You want to know | The short answer | Read |
 |---|---|---|
 | Who approves the orders? | Nobody. The risk engine's hard limits are the only gate. | [The risk engine](desks/risk-engine.md) |
-| Which models does it use? | Claude through your Max subscription, never the API; Qwen and Gemma on Ollama when Claude is unavailable. | [Models](agent/models.md) |
+| Does it ever ask me? | Only when it chooses to ask a question or show a plan, and before any tool you list in `[approvals]`, which is only `flatten_desk` on this machine. It never waits for the answer. | [Questions, plans and permissions](using/questions-and-permissions.md) |
+| Which models does it use? | Claude through your Max subscription, never the API; then DeepSeek V4 Pro, then Qwen and Gemma on Ollama when Claude is unavailable. | [Models](agent/models.md) |
 | How do I talk to it? | The web page at <http://127.0.0.1:8120>, Telegram, or `bin/trading-agent send`. | [Using it](using/index.md) |
 | How do I stop it? | Stop a turn, pause a desk, flatten a desk, or fire the kill switch. | [Going live](going_live.md#how-to-stop) |
 | What can it change? | Its own notes, memory and skills. It only proposes changes to your files. | [Your files](desks/your-files.md) |

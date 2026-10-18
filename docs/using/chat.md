@@ -1,6 +1,6 @@
 # Talking to a desk
 
-A message to a desk becomes a **turn**: the desk reads it with its instructions, thinks, calls tools, and answers. Every step is shown as it happens. In Chat a tool call is a folded card with its arguments and result, and the answer appears as it is written. Messages can carry pictures and documents, both ways; [Pictures and documents](pictures-and-documents.md) explains how.
+A message to a desk becomes a **turn**: the desk reads it with its instructions, thinks, calls tools, and answers. Every step is shown as it happens. In Chat a tool call is a folded card with its arguments and result, and the answer appears as it is written. Messages can carry pictures and documents, both ways; [Pictures and documents](pictures-and-documents.md) explains how. A desk can also ask you something and carry on without waiting for the answer, as [Questions, plans and permissions](questions-and-permissions.md) explains.
 
 ## Slash commands
 
@@ -20,7 +20,7 @@ The last column says when a command is answered. **At once** means it is answere
 | `/stop` | Stops the running turn | At once |
 | `/btw <question>` | A side question, such as `/btw why did you sell INFY?`, answered from the desk's conversation; neither the question nor the answer is kept in it | Beside |
 | `/review [notes]` | The trade reviewer subagent judges today's orders and fills against your rules, with any notes you add | Beside |
-| `/model` | Shows the model order; `/model qwen` tries that model first from now on; `/model auto` goes back to the configured order | Queued |
+| `/model` | Shows the model order; `/model deepseek` tries that model first from now on; `/model auto` goes back to the configured order. The model menu under the message box does the same | Queued |
 | `/think` | Shows how hard each model thinks; `/think off`, `low`, `medium`, `high`, `xhigh` or `max` sets it from the next turn; `/think default` goes back to the configuration | Queued |
 | `/new` | Forgets this conversation and starts a fresh one | Queued |
 | `/compact` | Saves what matters, then compresses the conversation into a summary | Queued |

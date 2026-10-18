@@ -19,6 +19,8 @@ curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8120/api/desks
 |---|---|---|---|
 | <span class="method get">GET</span> | `/api/desks` | Every desk's state, models and session | yes |
 | <span class="method get">GET</span> | `/api/desks/{desk}` | One desk, with its persona | yes |
+| <span class="method get">GET</span> | `/api/desks/{desk}/context` | How full the context window is, by category, and the desk's tools | yes |
+| <span class="method post">POST</span> | `/api/desks/{desk}/model` | Try one model first from now on, optionally another of its provider's models, or go back to the configured order, as `/model` does | yes |
 | <span class="method post">POST</span> | `/api/desks/{desk}/messages` | Queue a message or slash command, with `attachment_ids` naming uploaded files; the answer arrives as events | yes |
 | <span class="method post">POST</span> | `/api/desks/{desk}/attachments` | Upload one picture or document (a form with a `file` field); answers its attachment | yes |
 | <span class="method get">GET</span> | `/api/desks/{desk}/attachments/{attachment}` | The uploaded file itself | yes |
@@ -26,6 +28,20 @@ curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8120/api/desks
 | <span class="method post">POST</span> | `/api/desks/{desk}/pause` | Stop the desk asking its models | yes |
 | <span class="method post">POST</span> | `/api/desks/{desk}/resume` | Start it again | yes |
 | <span class="method post">POST</span> | `/api/desks/{desk}/flatten` | Cancel the desk's orders and close its positions, with a reason | yes |
+
+## Questions, plans and permissions
+
+| Method | Route | What it does | Token |
+|---|---|---|---|
+| <span class="method get">GET</span> | `/api/requests` | The desks' waiting requests, or all of them with `status=all` | yes |
+| <span class="method post">POST</span> | `/api/requests/{request}/answer` | Answer a question | yes |
+| <span class="method post">POST</span> | `/api/requests/{request}/plan` | Approve a plan, or ask for changes | yes |
+| <span class="method post">POST</span> | `/api/requests/{request}/permission` | Allow a held call once or always, or deny it | yes |
+| <span class="method post">POST</span> | `/api/requests/{request}/dismiss` | Close a request without answering | yes |
+| <span class="method get">GET</span> | `/api/permissions` | The standing "Always allow" permissions | yes |
+| <span class="method post">POST</span> | `/api/permissions/revoke` | Make a desk ask again before using a tool | yes |
+
+Each answer is handed to the desk as a new message; the desk never waited for it.
 
 ## The account
 

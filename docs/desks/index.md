@@ -8,14 +8,25 @@ All desks share one account at UBI and one risk engine. The risk engine gives ea
 
 | Desk | Style | Products | Models, in order | Wakes up |
 |---|---|---|---|---|
-| main | General purpose, whatever its strategy needs | any | Claude, Qwen, Gemma | When you message it, and at its alerts and fills |
-| intraday | Minutes to hours, flat by 15:15 | `mis` | Claude, Qwen, Gemma | Heartbeat every 10 minutes in market hours; checks at 09:05, 15:05 and 15:35 |
-| scalper | Seconds to minutes, entering and leaving through UBI's bracket orders | `mis` | Qwen, Gemma, Claude | Heartbeat every 2 minutes in market hours; checks at 09:10 and 15:05 |
-| positional | Days to weeks | `cnc`, `nrml` | Claude, Qwen, Gemma | Checks at 08:45, 12:30 and 15:40; no heartbeat |
+| general | General purpose, whatever its strategy needs | any | Claude Opus, DeepSeek, Qwen, Gemma | When you message it, and at its alerts and fills |
+| intraday | Minutes to hours, flat by 15:15 | `mis` | Claude Opus, DeepSeek, Qwen, Gemma | Heartbeat every 10 minutes in market hours; checks at 09:05, 15:05 and 15:35 |
+| scalper | Seconds to minutes, entering and leaving through UBI's bracket orders | `mis` | Claude Sonnet, DeepSeek, Qwen, Gemma | Heartbeat every 2 minutes in market hours; checks at 09:10 and 15:05 |
+| positional | Days to weeks | `cnc`, `nrml` | Claude Opus, DeepSeek, Qwen, Gemma | Checks at 08:45, 12:30 and 15:40; no heartbeat |
 
-The scalper puts the local models first because they are fast, free and have no usage limits, and it trades in two layers: it decides the instrument, the direction, the entry, the target and the stop, and UBI's bracket orders do the entry and exit in real time, because one decision of a model takes seconds.
+The scalper starts with Claude Sonnet at low effort rather than Opus, because it wakes every two minutes and would otherwise use up Opus's share of the Max subscription's limits. It trades in two layers: it decides the instrument, the direction, the entry, the target and the stop, and UBI's bracket orders do the entry and exit in real time, because one decision of a model takes seconds.
 
-Every desk without a written strategy for its style watches and reports, but opens nothing. The strategies belong in TradingRules.md.
+## Strategies
+
+The strategies belong in TradingRules.md, and today only the scalper has one. Every desk without a written strategy for its style watches and reports, but opens nothing.
+
+The scalper's strategy, which the desk proposed and you approved on 18 October 2026, buys NIFTY weekly options only, as `mis`, always entered with a bracket order. It has two setups, and the table below summarises them.
+
+| Setup | When | Signal | Bracket on the option |
+|---|---|---|---|
+| A: opening-range breakout | 09:30 to 11:00 | A 5-minute NIFTY candle closes outside the 09:15 to 09:30 range | Stop 15% below the entry premium, target 25% above |
+| B: momentum candle | 09:30 to 11:00 and 13:30 to 14:45 | A strong 5-minute candle in the direction of the day's trend | Stop 10% below, target 15% above |
+
+Both setups risk 1% of the balance per trade, hold at most two positions at once, stop after three losses in a row or at the desk's 3% daily loss limit, and are flat by 15:05. After ten dry-run trading days the desk reviews the numbers and proposes changes. TradingRules.md holds the full rules, including the liquidity filter and the order types each desk may use.
 
 ## What every message starts with
 

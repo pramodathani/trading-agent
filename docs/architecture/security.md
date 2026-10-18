@@ -14,8 +14,10 @@ trading-agent controls real money without a human approving its orders, runs a s
 | Against planted instructions | Text from the web, MCP servers, the knowledge base and imported skills is labelled as untrusted data, and the files the desks read are scanned |
 | Telegram | Only paired chats are obeyed; pairing needs a code approved on this machine, codes expire in an hour, and strangers are logged |
 | Packages | Nothing a package brings runs inside the gateway; app controls are limited to the systemd units installed packages name, as your user, never as root |
+| Actions you want to see first | The tools in `[approvals]` are held by trading-agent itself, not by the model, and run only as called, only if you allow them, and only within `expiry_minutes` |
+| The web page against hostile text | A desk's answer is drawn as Markdown, and any raw HTML in it is shown as text and never run |
 | Mistakes on the web page | Flatten needs a reason; the kill switch needs a reason and the word FLATTEN; a TradingRules.md the risk engine cannot read is never saved; Memory.md edits are checkpointed |
 
 ## What is deliberately not protected
 
-The desks have network access from their shell, because they fetch market data and research. They can read the project's code and your files, because they need to understand their own tools and your instructions. They act without approval, because that is the purpose of the agent; the limits in TradingRules.md are where you decide how much they may risk.
+The desks have network access from their shell, because they fetch market data and research. They can read the project's code and your files, because they need to understand their own tools and your instructions. They act without approval, because that is the purpose of the agent; the limits in TradingRules.md are where you decide how much they may risk, and `[approvals]` is where you choose actions to see first. Voice input in Chat uses the browser's speech recognition, so in Chrome your spoken words go to Google.

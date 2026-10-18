@@ -10,7 +10,7 @@ The doctor checks everything the agent depends on and explains each problem it f
 bin/trading-agent doctor
 ```
 
-It checks Python, the access token, UBI, each model backend, the Claude token and the absence of `ANTHROPIC_API_KEY`, SearXNG, Telegram, the limits in TradingRules.md, the files the desks read for planted instructions, the exchange calendar, the MCP servers, the bash sandbox and Chrome. Each line starts with `[ ok ]`, `[warn]` or `[FAIL]`.
+It checks Python, the access token, UBI, each model backend, the Claude token and the absence of `ANTHROPIC_API_KEY`, the DeepSeek key, SearXNG, Telegram, the limits in TradingRules.md, the files the desks read for planted instructions, the exchange calendar, the MCP servers, the bash sandbox and Chrome. Each line starts with `[ ok ]`, `[warn]` or `[FAIL]`.
 
 ## 2. The gateway
 

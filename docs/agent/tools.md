@@ -14,9 +14,10 @@ A desk acts through tools. Each tool is a class with a JSON schema, and the same
 | Pictures | `view_image`, `send_image` |
 | Skills | `load_skill`, `skill_create`, `skill_patch`, `skill_archive` |
 | Scheduling and messages | `cron_create`, `cron_list`, `cron_delete`, `schedule_wakeup`, `set_price_alert`, `cancel_price_alert`, `send_message` |
+| Asking you | `ask_user`, `present_plan` |
 | Extensions | `tool_search`, `call_mcp_tool`, `delegate_task`, `search_knowledge` |
 
-The full description each model reads is in the API reference, one page per tool, such as [place_order](../reference/trading_agent/tools/place_order_tool.md). A tool call that runs longer than 60 seconds is stopped, and the loop guard stops a tool called three times with the same arguments in one turn.
+The full description each model reads is in the API reference, one page per tool, such as [place_order](../reference/trading_agent/tools/place_order_tool.md). A tool call that runs longer than 60 seconds is stopped, and the loop guard stops a tool called three times with the same arguments in one turn. A tool listed in `[approvals]`, which is only `flatten_desk` on this machine, is held until you allow it, as [Questions, plans and permissions](../using/questions-and-permissions.md#permission-prompts) explains.
 
 ## The terminal
 

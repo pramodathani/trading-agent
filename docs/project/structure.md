@@ -21,10 +21,12 @@ trading-agent/
 
 | Package | What it holds |
 |---|---|
-| `runtime` | The desk runtime, the event bus, triggers, slash commands and the steering inbox |
-| `agent` | The agent loop, the conversation, the prompt builder, context compression and the loop guard |
-| `backends` | The Ollama, OpenAI-compatible and Claude Code backends, and the model router |
-| `tools` | The 47 tools, the bash sandbox, the browser session and the address guard |
+| `runtime` | The desk runtime, the base turn runner, the event bus, triggers, slash commands and the steering inbox |
+| `agent` | The agent loop and its turn runner, the conversation, the prompt builder, context compression, the context-usage breakdown and the loop guard |
+| `backends` | The Ollama, OpenAI-compatible, DeepSeek and Claude Code backends, and the model router |
+| `tools` | The 49 tools, the tool-call executor, the bash sandbox, the browser session and the address guard |
+| `requests` | The desks' questions, plans and permission requests, the permission gate, the standing permissions and the expiry watcher |
+| `attachments` | The attachment store, the readers for PDF, Word, Excel and text, and the picture preparer |
 | `risk` | The trading limits, the risk engine, the risk ledger, the account snapshot and the kill switch |
 | `trading` | The broker reader and the desk order book |
 | `memory` | Sessions, the session keeper, session search and checkpoints |
@@ -33,8 +35,8 @@ trading-agent/
 | `extensions` | MCP, packages, hooks, the injection scanner and apps |
 | `knowledge` | The full-text knowledge base |
 | `scheduling` | The market calendar, cron jobs and scheduler, built-in jobs, price alerts and the market watcher |
-| `journal` | The trade journal, the usage tracker and the secret redactor |
-| `channels` | Telegram: the API wrapper, pairing, commands and notifications |
+| `journal` | The trade journal, the journal reader, the usage tracker and the secret redactor |
+| `channels` | Telegram: the API wrapper, pairing, commands, request buttons and notifications |
 | `gateway` | The FastAPI application, the access guard and the route groups |
 | `configuration` | `trading_agent.toml` and `.env` |
 | `doctor` | The doctor's checks and the going-live checks |

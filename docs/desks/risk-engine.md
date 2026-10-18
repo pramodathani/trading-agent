@@ -21,7 +21,7 @@ maximum_order_value_percent = 25
 trading_window = "exchange_hours"
 allow_option_writing = false
 
-[desks.main]
+[desks.general]
 allowed_products = []
 allowed_instruments = []
 
@@ -30,6 +30,7 @@ allowed_products = ["mis"]
 
 [desks.scalper]
 allowed_products = ["mis"]
+daily_loss_limit_percent = 3
 
 [desks.positional]
 allowed_products = ["cnc", "nrml"]
@@ -58,7 +59,7 @@ allowed_products = ["cnc", "nrml"]
 | `maximum_orders_per_minute` | How many orders the desk may send in a minute |
 | `daily_loss_limit_percent` | Today's loss on the stocks this desk owned that stops this desk alone |
 
-On 17 October 2026 you chose to set no desk loss limits, so only the account's 15% daily and 35% weekly limits apply.
+The scalper is the only desk with a loss limit of its own: at a 3% loss for the day on the stocks it owned, it stops for the rest of the day. You added it with its strategy on 18 October 2026. The other desks have none, so only the account's 15% daily and 35% weekly limits apply to them.
 
 ## One stock, one desk
 
