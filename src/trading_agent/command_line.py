@@ -23,7 +23,7 @@ class CommandLine:
             argument_list (Sequence[str] | None): The arguments to parse, or None to read them from sys.argv.
 
         Returns:
-            argparse.Namespace: The parsed arguments, with `command` set to "serve" when no subcommand is given.
+            argparse.Namespace: The parsed arguments, with `command` set to "print" when -p is given without a subcommand, and to "serve" when neither is given.
         """
         parser = argparse.ArgumentParser(
             prog='trading-agent',
@@ -34,6 +34,29 @@ class CommandLine:
             type=Path,
             default=Path('trading_agent.toml'),
             help='The configuration file to read (default: trading_agent.toml).',
+        )
+        parser.add_argument(
+            '-p',
+            '--print',
+            dest='print_text',
+            metavar='TEXT',
+            help='Send one message or /command to the running gateway, print the reply and exit; text piped on standard input is put before it.',
+        )
+        parser.add_argument(
+            '--desk',
+            dest='chosen_desk',
+            default=None,
+            help='The desk that -p talks to (default: general).',
+        )
+        parser.add_argument(
+            '--output-format',
+            choices=[
+                'text',
+                'json',
+                'stream-json',
+            ],
+            default='text',
+            help='How -p prints the reply: text as it streams, one json object at the end, or stream-json with one event per line (default: text).',
         )
         subparsers = parser.add_subparsers(dest='command')
         subparsers.add_parser('serve', help='Run the gateway and its desks.')
@@ -249,6 +272,8 @@ class CommandLine:
             'chat_id', help='The chat id that `pairing list` shows.'
         )
         arguments = parser.parse_args(argument_list)
+        if arguments.command is None and arguments.print_text is not None:
+            arguments.command = 'print'
         if arguments.command is None:
             arguments.command = 'serve'
         return arguments

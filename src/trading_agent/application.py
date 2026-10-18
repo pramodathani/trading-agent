@@ -86,7 +86,7 @@ class Application:
     def run(self) -> None:
         """Reads the configuration and runs the chosen command until it ends.
 
-        The process exits with status 2 when the configuration is invalid, and with the command's own status after `doctor`, `send`, `proposals`, `checkpoints`, `skills`, `packages`, `subagents` and `mcp`.
+        The process exits with status 2 when the configuration is invalid, and with the command's own status after `doctor`, `send`, `-p`, `proposals`, `checkpoints`, `skills`, `packages`, `subagents` and `mcp`.
         """
         arguments = command_line.CommandLine().parse(self._argument_list)
         log_level = logging.INFO
@@ -122,6 +122,22 @@ class Application:
                 secrets.gateway_access_token,
             )
             sys.exit(asyncio.run(client.send(arguments.desk, arguments.text)))
+        if arguments.command == 'print':
+            client = message_client.MessageClient(
+                f'http://{configuration.gateway.host}:{configuration.gateway.port}',
+                secrets.gateway_access_token,
+                output_format=arguments.output_format,
+            )
+            text = arguments.print_text
+            if not sys.stdin.isatty():
+                piped = sys.stdin.read().strip()
+                if piped:
+                    text = f'{piped}\n\n{text}'
+            sys.exit(
+                asyncio.run(
+                    client.send(arguments.chosen_desk or 'general', text)
+                )
+            )
         if arguments.command == 'proposals':
             commands = proposal_commands.ProposalCommands(
                 proposal_store.ProposalStore(layout)
