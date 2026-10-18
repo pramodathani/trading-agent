@@ -12,6 +12,7 @@ from trading_agent.terminal import terminal_settings
 from trading_agent.terminal.widgets import command_menu
 from trading_agent.terminal.widgets import composer
 from trading_agent.terminal.widgets import keys_screen
+from trading_agent.terminal.widgets import permission_card
 from trading_agent.terminal.widgets import progress_line
 from trading_agent.terminal.widgets import turn_view
 
@@ -57,6 +58,8 @@ class _StandInGateway(gateway_client.GatewayClient):
         self.sent: list[tuple[str, str]] = []
         self.model_choices: list[tuple[str, str | None, str | None]] = []
         self.state = 'idle'
+        self.pending: list[dict[str, Any]] = []
+        self.decisions: list[tuple[str, str, Any]] = []
 
     async def desks(self) -> dict[str, Any]:
         """Two desks.
@@ -178,6 +181,93 @@ class _StandInGateway(gateway_client.GatewayClient):
             )
         )
         return f'sent-{len(self.sent)}'
+
+    async def requests(self, status: str = 'pending') -> list[dict[str, Any]]:
+        """The pending requests set by the test.
+
+        Args:
+            status (str): Ignored.
+
+        Returns:
+            list[dict[str, Any]]: The requests.
+        """
+        del status
+        return list(self.pending)
+
+    async def answer_questions(
+        self, request_id: str, answers: Any
+    ) -> dict[str, Any]:
+        """Records answers and clears the request.
+
+        Args:
+            request_id (str): The request.
+            answers (Any): The answers.
+
+        Returns:
+            dict[str, Any]: An empty request.
+        """
+        return self._decided(request_id, 'answer', list(answers))
+
+    async def decide_plan(
+        self, request_id: str, decision: str, feedback: str
+    ) -> dict[str, Any]:
+        """Records a plan decision and clears the request.
+
+        Args:
+            request_id (str): The request.
+            decision (str): The decision.
+            feedback (str): The feedback.
+
+        Returns:
+            dict[str, Any]: An empty request.
+        """
+        return self._decided(
+            request_id,
+            decision,
+            feedback,
+        )
+
+    async def decide_permission(
+        self, request_id: str, decision: str, reason: str
+    ) -> dict[str, Any]:
+        """Records a permission decision and clears the request.
+
+        Args:
+            request_id (str): The request.
+            decision (str): The decision.
+            reason (str): The reason.
+
+        Returns:
+            dict[str, Any]: An empty request.
+        """
+        return self._decided(request_id, decision, reason)
+
+    def _decided(
+        self, request_id: str, decision: str, detail: Any
+    ) -> dict[str, Any]:
+        """Records a decision and removes the request from the pending ones.
+
+        Args:
+            request_id (str): The request.
+            decision (str): The decision.
+            detail (Any): The answers, feedback or reason.
+
+        Returns:
+            dict[str, Any]: An empty request.
+        """
+        self.decisions.append(
+            (
+                request_id,
+                decision,
+                detail,
+            )
+        )
+        remaining = []
+        for request in self.pending:
+            if request['request_id'] != request_id:
+                remaining.append(request)
+        self.pending = remaining
+        return {}
 
     async def choose_model(
         self,
@@ -448,6 +538,214 @@ class TestChatScreen:
                     'general',
                     'claude',
                     None,
+                ),
+            ]
+
+        _run(scenario, tmp_path)
+
+
+def _permission_request() -> dict[str, Any]:
+    """A pending permission request for flatten_desk on the general desk.
+
+    Returns:
+        dict[str, Any]: The request.
+    """
+    return {
+        'request_id': 'r1',
+        'desk': 'general',
+        'kind': 'permission',
+        'status': 'pending',
+        'content': {
+            'tool_name': 'flatten_desk',
+            'arguments': {
+                'reason': 'test',
+            },
+        },
+        'expires_at': '2099-01-01T00:00:00+00:00',
+    }
+
+
+class TestRequestDock:
+    """Tests for answering the desk's requests from the dock."""
+
+    def test_a_request_never_takes_the_focus(self, tmp_path: Path) -> None:
+        """A new request appears without moving the focus, so Enter still sends the typed message."""
+
+        async def scenario(program, pilot, gateway) -> None:
+            """Types, lets a request arrive, presses Enter.
+
+            Args:
+                program (terminal_application.TerminalApplication): The program.
+                pilot (Any): The test pilot.
+                gateway (_StandInGateway): The stand-in gateway.
+            """
+            await pilot.press(*'hello')
+            gateway.pending = [
+                _permission_request(),
+            ]
+            program.chat.refresh_requests()
+            await pilot.pause(0.3)
+            assert program.screen.query(permission_card.PermissionCard)
+            await pilot.press('enter')
+            await pilot.pause(0.2)
+            assert gateway.decisions == []
+            assert gateway.sent[-1] == (
+                'general',
+                'hello',
+            )
+
+        _run(scenario, tmp_path)
+
+    def test_a_typed_reason_denies(self, tmp_path: Path) -> None:
+        """Tab reaches the card; letters go to the reason box; Enter there denies with the reason."""
+
+        async def scenario(program, pilot, gateway) -> None:
+            """Denies a permission request with a reason.
+
+            Args:
+                program (terminal_application.TerminalApplication): The program.
+                pilot (Any): The test pilot.
+                gateway (_StandInGateway): The stand-in gateway.
+            """
+            gateway.pending = [
+                _permission_request(),
+            ]
+            program.chat.refresh_requests()
+            await pilot.pause(0.3)
+            await pilot.press('tab')
+            await pilot.press(*'not now')
+            await pilot.press('enter')
+            await pilot.pause(0.3)
+            assert gateway.decisions == [
+                (
+                    'r1',
+                    'deny',
+                    'not now',
+                ),
+            ]
+            assert not program.screen.query(permission_card.PermissionCard)
+
+        _run(scenario, tmp_path)
+
+    def test_number_keys_decide_permission(self, tmp_path: Path) -> None:
+        """2 on the card allows the tool from now on."""
+
+        async def scenario(program, pilot, gateway) -> None:
+            """Allows a tool always.
+
+            Args:
+                program (terminal_application.TerminalApplication): The program.
+                pilot (Any): The test pilot.
+                gateway (_StandInGateway): The stand-in gateway.
+            """
+            gateway.pending = [
+                _permission_request(),
+            ]
+            program.chat.refresh_requests()
+            await pilot.pause(0.3)
+            await pilot.press('tab', '2')
+            await pilot.pause(0.3)
+            assert gateway.decisions[0][1] == 'always_allow'
+
+        _run(scenario, tmp_path)
+
+    def test_keep_planning_needs_feedback(self, tmp_path: Path) -> None:
+        """Keep planning without feedback is refused on the card; with feedback it is sent."""
+
+        async def scenario(program, pilot, gateway) -> None:
+            """Sends a plan back.
+
+            Args:
+                program (terminal_application.TerminalApplication): The program.
+                pilot (Any): The test pilot.
+                gateway (_StandInGateway): The stand-in gateway.
+            """
+            gateway.pending = [
+                {
+                    'request_id': 'p1',
+                    'desk': 'general',
+                    'kind': 'plan',
+                    'status': 'pending',
+                    'content': {
+                        'title': 'A plan',
+                        'plan': '1. Wait.',
+                    },
+                },
+            ]
+            program.chat.refresh_requests()
+            await pilot.pause(0.3)
+            await pilot.press('tab', '2')
+            await pilot.pause(0.2)
+            assert gateway.decisions == []
+            await pilot.press(*'shorter')
+            await pilot.press('enter')
+            await pilot.pause(0.3)
+            assert gateway.decisions == [
+                (
+                    'p1',
+                    'revise',
+                    'shorter',
+                ),
+            ]
+
+        _run(scenario, tmp_path)
+
+    def test_a_single_question_is_answered_by_its_number(
+        self, tmp_path: Path
+    ) -> None:
+        """For one single-choice question, its option number sends the answer at once."""
+
+        async def scenario(program, pilot, gateway) -> None:
+            """Answers a question.
+
+            Args:
+                program (terminal_application.TerminalApplication): The program.
+                pilot (Any): The test pilot.
+                gateway (_StandInGateway): The stand-in gateway.
+            """
+            gateway.pending = [
+                {
+                    'request_id': 'q1',
+                    'desk': 'general',
+                    'kind': 'question',
+                    'status': 'pending',
+                    'content': {
+                        'questions': [
+                            {
+                                'question': 'Which?',
+                                'header': 'Pick',
+                                'multi_select': False,
+                                'options': [
+                                    {
+                                        'label': 'Red',
+                                        'description': 'red',
+                                    },
+                                    {
+                                        'label': 'Blue',
+                                        'description': 'blue',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            ]
+            program.chat.refresh_requests()
+            await pilot.pause(0.3)
+            await pilot.press('tab', '2')
+            await pilot.pause(0.3)
+            assert gateway.decisions == [
+                (
+                    'q1',
+                    'answer',
+                    [
+                        {
+                            'selected': [
+                                'Blue',
+                            ],
+                            'other': '',
+                        },
+                    ],
                 ),
             ]
 

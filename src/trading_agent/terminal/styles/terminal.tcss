@@ -227,3 +227,68 @@ Collapsible > Contents {
 .keys-section {
     margin: 1 0;
 }
+
+#request-dock {
+    height: auto;
+    max-height: 60%;
+    margin: 0 1;
+    padding: 0 1;
+    border: round $warning;
+    background: $surface;
+}
+
+#request-dock:focus-within {
+    border: round $accent;
+}
+
+.request-card {
+    height: auto;
+}
+
+.request-heading {
+    margin: 0 0 1 0;
+}
+
+.question-tabs {
+    margin: 0 0 1 0;
+}
+
+.question-options {
+    height: auto;
+    max-height: 12;
+    border: none;
+    background: $surface;
+    margin: 1 0 0 0;
+}
+
+.question-other, .plan-feedback, .permission-reason {
+    margin: 0;
+}
+
+.question-preview {
+    height: auto;
+    max-height: 14;
+    border-left: thick $border;
+    padding: 0 1;
+}
+
+.plan-body {
+    height: auto;
+    max-height: 18;
+    border-left: thick $border;
+    padding: 0 1;
+}
+
+.permission-arguments {
+    color: $text-secondary;
+    background: $panel;
+    padding: 0 1;
+}
+
+.request-error {
+    height: auto;
+}
+
+.request-count {
+    text-align: right;
+}

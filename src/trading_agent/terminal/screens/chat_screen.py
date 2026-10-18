@@ -33,9 +33,15 @@ from trading_agent.terminal.widgets import history_search
 from trading_agent.terminal.widgets import keys_screen
 from trading_agent.terminal.widgets import model_picker
 from trading_agent.terminal.widgets import progress_line
+from trading_agent.terminal.widgets import request_dock
 from trading_agent.terminal.widgets import turn_view
 
 _DOUBLE_PRESS_SECONDS = 1.5
+_REQUESTS_REFRESH_SECONDS = 30.0
+_REQUEST_KINDS = (
+    'user_request',
+    'user_response',
+)
 _BOTTOM_SLACK_LINES = 3
 _CONNECTION_WORDS = {
     event_stream.CONNECTING: 'Connecting…',
@@ -59,6 +65,7 @@ class ChatScreen(screen.Screen[None]):
         binding.Binding('escape', 'escape', 'Stop', show=False),
         binding.Binding('ctrl+c', 'interrupt', 'Clear or exit', priority=True),
         binding.Binding('ctrl+d', 'exit_when_empty', 'Exit', priority=True),
+        binding.Binding('tab', 'focus_dock', 'Answer', show=False),
         binding.Binding('alt+d', 'pick_desk', 'Desk'),
         binding.Binding('alt+p', 'pick_model', 'Model'),
         binding.Binding('ctrl+o', 'toggle_tools', 'Tools'),
@@ -107,6 +114,7 @@ class ChatScreen(screen.Screen[None]):
             yield containers.VerticalScroll(id='transcript')
         yield progress_line.ProgressLine()
         yield command_menu.CommandMenu()
+        yield request_dock.RequestDock(self._gateway)
         with containers.Vertical(id='composer-box'):
             yield composer_module.Composer(self._history)
         yield widgets.Static(
@@ -119,6 +127,7 @@ class ChatScreen(screen.Screen[None]):
         self.query_one(composer_module.Composer).focus()
         self._show_status()
         self.load_desk(self.desk_name)
+        self.set_interval(_REQUESTS_REFRESH_SECONDS, self.refresh_requests)
 
     def take_event(self, event: dict[str, Any]) -> None:
         """Adds one live event to the chat, when it belongs to this desk.
@@ -128,6 +137,8 @@ class ChatScreen(screen.Screen[None]):
         """
         if event.get('desk') != self.desk_name:
             return
+        if event.get('kind') in _REQUEST_KINDS:
+            self.refresh_requests()
         if self._loading:
             self._held_events.append(event)
             return
@@ -182,6 +193,7 @@ class ChatScreen(screen.Screen[None]):
         await transcript.remove_children()
         self._show_status()
         self._load_commands(desk_name)
+        self.refresh_requests()
         try:
             journal = await self._gateway.desk_journal(desk_name)
         except gateway_client.GatewayError as error:
@@ -214,6 +226,46 @@ class ChatScreen(screen.Screen[None]):
             )
         self._add_events(events + held)
         transcript.anchor()
+
+    @work(exclusive=True, group='requests')
+    async def refresh_requests(self) -> None:
+        """Reads the pending requests and shows this desk's first one in the dock."""
+        try:
+            pending = await self._gateway.requests('pending')
+        except gateway_client.GatewayError:
+            return
+        mine = []
+        for request in pending:
+            if request.get('desk') == self.desk_name:
+                mine.append(request)
+        docks = self.query(request_dock.RequestDock)
+        if not docks:
+            return
+        dock = docks.first(request_dock.RequestDock)
+        focus_was_in_dock = (
+            self.focused is not None
+            and dock in self.focused.ancestors_with_self
+        )
+        if not dock.show(mine):
+            return
+        if dock.shown_request_id() is not None:
+            self.notify(
+                'The desk is waiting for your answer above the message box. Press tab to answer.',
+                timeout=6,
+            )
+        if focus_was_in_dock:
+            self.query_one(composer_module.Composer).focus()
+
+    def on_request_dock_answered(
+        self, event: request_dock.RequestDock.Answered
+    ) -> None:
+        """Reads the requests again after one was answered.
+
+        Args:
+            event (request_dock.RequestDock.Answered): The notice.
+        """
+        del event
+        self.refresh_requests()
 
     @work(exclusive=True, group='commands')
     async def _load_commands(self, desk_name: str) -> None:
@@ -378,6 +430,23 @@ class ChatScreen(screen.Screen[None]):
             )
             return
         self.app.push_screen(model_picker.ModelPicker(desk), self._choose_model)
+
+    def action_focus_dock(self) -> None:
+        """Moves to the waiting request's card, or to the next widget when nothing waits."""
+        dock = self.query_one(request_dock.RequestDock)
+        if not dock.focus_card():
+            self.focus_next()
+
+    def on_request_dock_left(
+        self, event: request_dock.RequestDock.Left
+    ) -> None:
+        """Goes back to the message box when the user leaves a card with Escape.
+
+        Args:
+            event (request_dock.RequestDock.Left): The notice.
+        """
+        del event
+        self.query_one(composer_module.Composer).focus()
 
     def action_toggle_tools(self) -> None:
         """Opens or folds every tool call in the chat."""
