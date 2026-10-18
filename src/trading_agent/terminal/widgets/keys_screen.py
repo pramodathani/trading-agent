@@ -71,6 +71,10 @@ _KEYS = (
         'show or hide the side panel',
     ),
     (
+        'f2',
+        'go to a page: Desks, Activity, Trading, Sessions, Files and the rest',
+    ),
+    (
         'ctrl+p',
         'command palette: every screen and action',
     ),
@@ -99,6 +103,10 @@ _COMMANDS = (
     (
         '/keys',
         'this list',
+    ),
+    (
+        '/trading, /desks, …',
+        'open a page; type / to see them all, or press f2',
     ),
     (
         '/exit',

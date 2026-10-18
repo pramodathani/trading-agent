@@ -2,7 +2,7 @@
 
 The screen reads today's journal of the desk when it opens, then takes live events from the application. Events that arrive while the journal is still loading are held and added afterwards; ChatTranscript drops the ones the journal already had.
 
-The terminal program's own commands (/attach, /desk, /model with no name, /theme, /keys, /exit) are handled here. Files are attached with @path in a message, /attach, by dragging them onto the terminal, or with Ctrl+V for a picture on the clipboard; they upload at once and go with the next message. Every other message, including every other /command, goes to the desk, which answers commands such as /status itself.
+The terminal program's own commands (/attach, /desk, /model with no name, /theme, /keys, /exit, and one per page such as /trading) are handled here. Files are attached with @path in a message, /attach, by dragging them onto the terminal, or with Ctrl+V for a picture on the clipboard; they upload at once and go with the next message. Every other message, including every other /command, goes to the desk, which answers commands such as /status itself.
 
 Typical usage example:
 
@@ -30,6 +30,7 @@ from trading_agent.terminal import gateway_client
 from trading_agent.terminal import model_names
 from trading_agent.terminal import prompt_history as prompt_history_module
 from trading_agent.terminal import terminal_settings
+from trading_agent.terminal.screens import page_catalogue
 from trading_agent.terminal.widgets import command_menu
 from trading_agent.terminal.widgets import composer as composer_module
 from trading_agent.terminal.widgets import desk_message_view
@@ -138,7 +139,7 @@ class ChatScreen(screen.Screen[None]):
         with containers.Vertical(id='composer-box'):
             yield composer_module.Composer(self._history)
         yield widgets.Static(
-            '[dim]enter send · shift+enter new line · / commands · esc stop · alt+d desk · alt+p model · ctrl+o tools · ctrl+b panel · ? keys[/dim]',
+            '[dim]enter send · shift+enter new line · / commands · esc stop · alt+d desk · alt+p model · ctrl+o tools · ctrl+b panel · f2 pages · ? keys[/dim]',
             id='key-hints',
         )
 
@@ -303,6 +304,14 @@ class ChatScreen(screen.Screen[None]):
             desk_name (str): The desk.
         """
         entries = keys_screen.TerminalCommandList().entries()
+        for page in page_catalogue.PageCatalogue().pages():
+            entries.append(
+                {
+                    'name': page.command,
+                    'usage': page.command,
+                    'description': f'open the {page.title} page: {page.description}',
+                }
+            )
         try:
             answer = await self._gateway.desk_commands(desk_name)
         except gateway_client.GatewayError:
@@ -311,6 +320,8 @@ class ChatScreen(screen.Screen[None]):
             }
         for entry in answer.get('commands', []):
             if entry['name'] in _TERMINAL_COMMANDS:
+                continue
+            if page_catalogue.PageCatalogue().find(entry['name']) is not None:
                 continue
             entries.append(entry)
         self.query_one(command_menu.CommandMenu).set_entries(entries)
@@ -641,7 +652,17 @@ class ChatScreen(screen.Screen[None]):
         if name in ('/exit', '/quit'):
             self.app.exit()
             return True
-        return False
+        if len(words) > 1:
+            return False
+        return self.app.open_page(name)
+
+    def show_desk(self, desk_name: str) -> None:
+        """Shows another desk's chat, as the Desks page asks.
+
+        Args:
+            desk_name (str): The desk.
+        """
+        self._switch_desk(desk_name)
 
     def _switch_desk(self, desk_name: str | None) -> None:
         """Shows another desk's chat.

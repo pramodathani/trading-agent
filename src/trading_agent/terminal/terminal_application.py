@@ -17,10 +17,13 @@ from textual import work
 from trading_agent.terminal import attachment_opener
 from trading_agent.terminal import event_stream
 from trading_agent.terminal import gateway_client
+from trading_agent.terminal import page_commands
 from trading_agent.terminal import prompt_history as prompt_history_module
 from trading_agent.terminal import terminal_settings
 from trading_agent.terminal import terminal_themes
 from trading_agent.terminal.screens import chat_screen
+from trading_agent.terminal.screens import page_catalogue
+from trading_agent.terminal.widgets import page_picker
 
 _DESKS_REFRESH_SECONDS = 5.0
 _DESK_CHANGING_KINDS = (
@@ -40,8 +43,10 @@ class TerminalApplication(app.App[int]):
     CSS_PATH = 'styles/terminal.tcss'
     TITLE = 'trading-agent'
     ENABLE_COMMAND_PALETTE = True
+    COMMANDS = app.App.COMMANDS | {page_commands.PageCommands}
     BINDINGS: ClassVar[list[binding.BindingType]] = [
         binding.Binding('ctrl+q', 'quit', 'Quit', show=False),
+        binding.Binding('f2', 'pick_page', 'Go to', show=False),
     ]
 
     def __init__(
@@ -61,6 +66,7 @@ class TerminalApplication(app.App[int]):
         """
         super().__init__()
         self._gateway = gateway
+        self.gateway = gateway
         self._settings = settings
         self._history = history
         self._theme_set = terminal_themes.TerminalThemes()
@@ -113,6 +119,40 @@ class TerminalApplication(app.App[int]):
         self._settings.desk = desk_name
         self._settings.save()
 
+    def open_page(self, command: str) -> bool:
+        """Opens a page, such as Trading, over the chat.
+
+        Args:
+            command (str): The page's slash command, such as "/trading".
+
+        Returns:
+            bool: True when the command names a page.
+        """
+        page = page_catalogue.PageCatalogue().find(command)
+        if page is None:
+            return False
+        while len(self.screen_stack) > 2:
+            self.pop_screen()
+        desk_name = self._first_desk
+        if self.chat is not None:
+            desk_name = self.chat.desk_name
+        self.push_screen(page.screen_class(desk_name))
+        return True
+
+    def action_pick_page(self) -> None:
+        """Opens the list of pages."""
+
+        def opened(command: str | None) -> None:
+            """Opens the chosen page.
+
+            Args:
+                command (str | None): The page's command, or None.
+            """
+            if command is not None:
+                self.open_page(command)
+
+        self.push_screen(page_picker.PagePicker(), opened)
+
     def toggle_theme(self) -> None:
         """Switches between the dark and light theme and remembers the choice."""
         self.theme = self._theme_set.other(self.theme)
@@ -140,6 +180,8 @@ class TerminalApplication(app.App[int]):
         """
         if self.chat is not None:
             self.chat.take_event(event)
+        if self.screen is not self.chat and hasattr(self.screen, 'take_event'):
+            self.screen.take_event(event)
         if event.get('kind') in _DESK_CHANGING_KINDS:
             self.refresh_desks()
 

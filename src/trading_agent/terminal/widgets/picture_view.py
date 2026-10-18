@@ -120,7 +120,8 @@ class PictureView(containers.Vertical):
         await self.mount(image_widget.Image(picture, classes='picture-image'))
         self._caption.update(
             Content.from_markup(
-                '[dim]▨ $name · enter or click to open[/dim]', name=self._file_name()
+                '[dim]▨ $name · enter or click to open[/dim]',
+                name=self._file_name(),
             )
         )
 

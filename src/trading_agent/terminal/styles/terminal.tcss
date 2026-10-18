@@ -367,3 +367,79 @@ Collapsible > Contents {
 .document-line:focus {
     background: $surface;
 }
+
+.page {
+    layout: vertical;
+}
+
+#page-title {
+    height: 1;
+    padding: 0 1;
+    background: $panel;
+}
+
+.page-summary {
+    padding: 0 1;
+    margin: 0 0 1 0;
+}
+
+.page-heading {
+    padding: 0 1;
+    margin: 1 0 0 0;
+}
+
+.page-detail {
+    padding: 0 1;
+    height: auto;
+}
+
+.page-body {
+    height: 1fr;
+}
+
+.page-body DataTable {
+    height: auto;
+    max-height: 20;
+    margin: 0 1;
+}
+
+.page DataTable {
+    background: $background;
+}
+
+.page-columns {
+    height: 1fr;
+}
+
+.page-left {
+    width: 44;
+    border-right: solid $border;
+}
+
+.page-left OptionList {
+    height: 1fr;
+    border: none;
+    background: $background;
+}
+
+.page-right {
+    width: 1fr;
+    padding: 0 1;
+}
+
+#files-editor {
+    height: 1fr;
+}
+
+#files-diff-scroll {
+    height: 1fr;
+}
+
+.confirm {
+    border: round $error;
+}
+
+#job-text {
+    height: 6;
+    border: round $border;
+}
