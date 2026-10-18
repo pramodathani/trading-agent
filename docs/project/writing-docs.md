@@ -33,4 +33,6 @@ Each SVG has the class `ta-svg` and no colours of its own: boxes, wires, text an
 
 ## The API reference
 
-`scripts/gen_ref_pages.py` writes one page per module of `src/trading_agent` while the site builds, nothing on disk: the module as the title, then each public class in source order with its methods. Its navigation goes to `reference/SUMMARY.md` for the literate-nav plugin, which is why `mkdocs.yml` says only `- API reference: reference/`.
+`scripts/gen_ref_pages.py` writes one page per module of `src/trading_agent` while the site builds, nothing on disk: the module as the title, then each public class in source order with its methods. It also writes the section's landing page, a tree of every class by inheritance, as tradingmachine's reference does. Its navigation goes to `reference/SUMMARY.md` for the literate-nav plugin, which is why `mkdocs.yml` says only `- API reference: reference/`.
+
+The landing page must stay the first entry of that navigation. Without it, the section's only entry is the `trading_agent` package, which has its own index page, and Material then treats that page as the section's own index and hides it, together with the whole tree of modules under it, leaving the left menu empty.
