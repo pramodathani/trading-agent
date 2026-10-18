@@ -80,3 +80,21 @@ The PostToolUse hook list holds the steering hook when the desk has an inbox. A 
 `_one_message` is an async generator because `query` iterates its argument with `async for`. It yields no `session_id`; `query` fills it in.
 
 Checked on 2026-10-17: the main desk (opus) described a test picture exactly, and a picture dropped on the chat page ("9035" on green) came back correctly.
+
+## /think, since 2026-10-18
+
+Claude Code reads `effort` and `thinking` only when its process starts; the SDK has `set_model` for a running client but nothing for effort. So `set_thinking` only records the wish, and `_connected_client` compares the wanted pair (effort, thinking off) with the pair the running client was started with. When they differ, it disconnects and connects again. The new process resumes the same session (`resume=self.session_id`), so the conversation is kept, at the cost of one process restart (a few seconds) on the next turn.
+
+`_applied_thinking` starts as the configured pair, so a client set up any other way, such as in tests, is not restarted for no reason.
+
+`/think off` sends `thinking={'type': 'disabled'}` and keeps the effort as it was, so `/think high` after `/think off` turns thinking back on at high.
+
+## Side questions, since 2026-10-18
+
+The desk's long-lived Claude Code client would add a side question to the session, so `side_question` uses the SDK's standalone `query()` instead, with `resume=<session id>` and `fork_session=True`. Claude Code then copies the session into a new one, answers there, and leaves the desk's session file untouched. This runs in a second, short-lived Claude Code process, so it can run while the desk's own turn is in progress.
+
+The fork keeps the desk's MCP server, because Claude's API refuses a conversation that holds tool calls when no tools are defined. Every call is refused instead, by `ClaudeToolAllowlistHook` with an empty allowlist, and the prompt asks for no tools. `max_turns` is 3, so a model that tries a tool anyway still has room to answer after the refusal.
+
+The fork's session file is deleted afterwards (`_delete_fork`), so session search and `/resume` never find it. A fork id equal to the desk's session id is never deleted, as a guard.
+
+The fork's cost is not recorded by the usage tracker; it counts against the Max subscription like any Claude Code call.

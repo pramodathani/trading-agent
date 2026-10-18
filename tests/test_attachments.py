@@ -765,6 +765,7 @@ class _StandInTelegram:
         self._files = files
         self._incoming: asyncio.Queue = asyncio.Queue()
         self.sent: list[tuple[int, str]] = []
+        self.menu: list[tuple[str, str]] = []
         self.downloads: list[str] = []
 
     async def start(self) -> str:
@@ -805,6 +806,14 @@ class _StandInTelegram:
             text (str): The message.
         """
         self.sent.append((chat_id, text))
+
+    async def set_commands(self, commands: tuple[tuple[str, str], ...]) -> None:
+        """Records the command menu.
+
+        Args:
+            commands (tuple[tuple[str, str], ...]): Each command as (name, description).
+        """
+        self.menu = list(commands)
 
     async def close(self) -> None:
         """Does nothing."""
@@ -996,3 +1005,11 @@ class _NoCommands:
         """
         del text
         return False
+
+    def menu(self) -> tuple[tuple[str, str], ...]:
+        """Offers no command menu.
+
+        Returns:
+            tuple[tuple[str, str], ...]: An empty menu.
+        """
+        return ()

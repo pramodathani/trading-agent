@@ -29,3 +29,7 @@ A message is kept whole or emptied whole: a user message with three pictures is 
 Editing an older message changes the conversation's prefix, which ends the model server's prompt cache from that message on. That happens only when a fifth picture arrives, and resending a cached prefix is still cheaper than carrying every picture.
 
 `measured_tokens` is not lowered when pictures are removed. The next call measures the real number, and until then the estimate errs high, which can only make compression come a little early.
+
+## copy, since 2026-10-18
+
+`copy` exists for `/btw`: a side question is asked on a copy so the real conversation never sees it. The copy shares the message objects, which is safe because messages are never changed after they are appended.

@@ -117,6 +117,25 @@ class TelegramApi:
         self.username = me.username or ''
         return self.username
 
+    async def set_commands(self, commands: Sequence[tuple[str, str]]) -> None:
+        """Sets the command menu Telegram shows when the user types a slash.
+
+        Args:
+            commands (Sequence[tuple[str, str]]): Each command as (name without the slash, description).
+
+        Raises:
+            TelegramApiError: Telegram could not be reached or refused the menu.
+        """
+        menu = []
+        for name, description in commands:
+            menu.append(telegram.BotCommand(name, description))
+        try:
+            await self._bot.set_my_commands(menu)
+        except telegram.error.TelegramError as error:
+            raise TelegramApiError(
+                f'{type(error).__name__}: {error}'
+            ) from error
+
     async def messages(self) -> list[IncomingMessage | IncomingButton]:
         """Waits for new messages and button presses, up to the poll time; stickers, voice notes and the like are skipped.
 

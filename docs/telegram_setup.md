@@ -112,7 +112,12 @@ Send these to the bot:
 | `/desk intraday` | Later messages go to the intraday desk |
 | `/pause all` | Every desk stops asking its models; `/resume all` starts them again |
 | `/stop` | The desk's running turn stops at once |
+| `/btw why did you sell INFY?` | A side answer from the desk, which is not kept in its conversation |
+| `/context` | How full the desk's context window is |
+| `/approve` or `/deny <reason>` | Allows or refuses an action a desk is holding for your permission, the same as its buttons. With several waiting, the bot lists them and you add the six-character id, as in `/approve a1b2c3`; `/approve a1b2c3 always` allows it from now on |
 | `/kill CONFIRM <reason>` | Every desk is halted until tomorrow and the whole account is flattened. Without the word CONFIRM, nothing happens |
+
+Typing `/` shows a menu of every command, and `/help` lists them. The desk's own commands, such as `/usage`, `/model`, `/think`, `/review` and `/tools`, are passed to your desk; [Talking to a desk](using/chat.md#slash-commands) describes them all.
 
 A message you send while the desk is working is handed to the running turn at its next tool call, as on the web page; the bot tells you so.
 

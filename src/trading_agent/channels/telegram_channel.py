@@ -160,7 +160,15 @@ class TelegramChannel:
             self.state = _STATE_CONNECTED
             self.error = ''
             self._publish_channel('connected', None, self.username, '')
+            await self._register_menu()
             return
+
+    async def _register_menu(self) -> None:
+        """Gives Telegram the command menu, logging a refusal rather than failing, because the bot works without it."""
+        try:
+            await self._api.set_commands(self._commands.menu())
+        except telegram_api_module.TelegramApiError as error:
+            _LOGGER.warning('Telegram refused the command menu (%s)', error)
 
     async def _message_loop(self) -> None:
         """Handles new messages until cancelled, pausing after Telegram errors."""

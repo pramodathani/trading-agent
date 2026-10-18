@@ -13,6 +13,16 @@ from typing import Any
 from trading_agent.agent import context_usage as context_usage_module
 from trading_agent.runtime import trigger as trigger_module
 
+THINKING_LEVELS = (
+    'off',
+    'low',
+    'medium',
+    'high',
+    'xhigh',
+    'max',
+)
+SIDE_QUESTION_NOTE = '[A side question from the user. Answer it briefly from what you already know, without calling any tools. Neither the question nor your answer will be kept in the conversation.]'
+
 
 @dataclasses.dataclass(frozen=True)
 class TurnResult:
@@ -110,6 +120,44 @@ class TurnRunner:
         """
         if model is not None:
             raise ValueError('This desk runs without a model')
+
+    def thinking(self) -> str | None:
+        """The thinking level the runner uses now, for /think.
+
+        Runners without a thinking setting keep this default.
+
+        Returns:
+            str | None: The level, such as "medium" or "off", or None when the runner has no thinking setting.
+        """
+        return None
+
+    def set_thinking(self, level: str | None) -> bool:
+        """Changes how hard the model thinks from the next turn on, keeping the conversation.
+
+        Runners without a thinking setting keep this default.
+
+        Args:
+            level (str | None): One of THINKING_LEVELS, or None for the level in trading_agent.toml.
+
+        Returns:
+            bool: True when the level was applied, False when the runner has no thinking setting.
+        """
+        del level
+        return False
+
+    async def side_question(self, question: str) -> str:
+        """Answers a question from what the conversation already holds, without adding the question or the answer to it.
+
+        Runners without a model keep this default.
+
+        Args:
+            question (str): The user's question.
+
+        Returns:
+            str: The answer.
+        """
+        del question
+        return 'This desk has no model to ask.'
 
     def context_usage(self) -> context_usage_module.ContextUsage | None:
         """How full the runner's context window is, as of its last turn.

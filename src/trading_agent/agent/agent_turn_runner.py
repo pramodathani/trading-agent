@@ -11,6 +11,7 @@ Typical usage example:
 from trading_agent.agent import agent_loop as agent_loop_module
 from trading_agent.agent import context_usage as context_usage_module
 from trading_agent.agent import conversation as conversation_module
+from trading_agent.agent import messages
 from trading_agent.agent import prompt_builder as prompt_builder_module
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.runtime import turn_runner
@@ -91,6 +92,60 @@ class AgentTurnRunner(turn_runner.TurnRunner):
             model (str | None): The model's name, or None for the configured model.
         """
         self._agent_loop.backend.use_model(model)
+
+    async def side_question(self, question: str) -> str:
+        """Asks the backend once, with a copy of the conversation and no tools, so nothing is kept.
+
+        Args:
+            question (str): The user's question.
+
+        Returns:
+            str: The model's answer.
+
+        Raises:
+            backend.BackendUnavailableError: The backend could not answer.
+        """
+        conversation = self.conversation.copy()
+        conversation.system_prompt = self._prompt_builder.build().text
+        conversation.append(
+            messages.ConversationMessage.user(
+                f'{turn_runner.SIDE_QUESTION_NOTE}\n{question}'
+            )
+        )
+        reply = await self._agent_loop.backend.complete(
+            conversation,
+            [],
+            self._ignore_text,
+        )
+        return reply.text
+
+    @staticmethod
+    def _ignore_text(piece: str) -> None:
+        """Drops a streamed piece of a side answer, which is shown only when complete.
+
+        Args:
+            piece (str): The piece.
+        """
+        del piece
+
+    def thinking(self) -> str | None:
+        """The thinking level of the loop's backend.
+
+        Returns:
+            str | None: The level, or None when the backend has no thinking setting.
+        """
+        return self._agent_loop.backend.thinking()
+
+    def set_thinking(self, level: str | None) -> bool:
+        """Changes the thinking level of the loop's backend, keeping the conversation.
+
+        Args:
+            level (str | None): One of turn_runner.THINKING_LEVELS, or None for the configured setting.
+
+        Returns:
+            bool: True when the backend applied it, False when it has no thinking setting.
+        """
+        return self._agent_loop.backend.set_thinking(level)
 
     def context_usage(self) -> context_usage_module.ContextUsage | None:
         """Estimates how full the model's context window is.

@@ -47,6 +47,18 @@ class Conversation:
         """
         self._messages.append(message)
 
+    def copy(self) -> Conversation:
+        """A separate conversation with the same prompt and messages, which can be extended without changing this one.
+
+        Returns:
+            Conversation: The copy.
+        """
+        duplicate = Conversation(self.system_prompt)
+        duplicate.measured_tokens = self.measured_tokens
+        duplicate._measured_message_count = self._measured_message_count
+        duplicate._messages = list(self._messages)
+        return duplicate
+
     @property
     def messages(self) -> tuple[messages.ConversationMessage, ...]:
         """The messages so far, oldest first, as a read-only tuple."""

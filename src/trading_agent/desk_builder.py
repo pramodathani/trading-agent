@@ -32,6 +32,7 @@ from trading_agent.configuration import secrets as secrets_module
 from trading_agent.extensions import installed_packages
 from trading_agent.extensions import mcp_client_manager
 from trading_agent.gateway import gateway_parts
+from trading_agent.journal import journal_reader
 from trading_agent.journal import usage_tracker as usage_tracker_module
 from trading_agent.knowledge import knowledge_base
 from trading_agent.memory import checkpoints as checkpoints_module
@@ -51,6 +52,7 @@ from trading_agent.risk import trading_limits
 from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import no_model_turn_runner
+from trading_agent.runtime import slash_commands
 from trading_agent.runtime import steering_inbox as steering_inbox_module
 from trading_agent.runtime import turn_runner
 from trading_agent.scheduling import built_in_jobs
@@ -342,6 +344,7 @@ class DeskBuilder:
                 self._event_bus,
                 curator,
             )
+        _, _, _, subagents = self._schedule_parts[desk_name]
         return desk_runtime.DeskRuntime(
             desk_configuration,
             self._event_bus,
@@ -353,6 +356,13 @@ class DeskBuilder:
             self._usage_tracker,
             market_status.MarketStatus(self.calendar, self.hours),
             self._steering_inboxes[desk_name],
+            slash_commands.CommandParts(
+                subagent_library=self._subagent_library,
+                journal_reader=journal_reader.JournalReader(
+                    self._layout.desk_directory(desk_name) / 'journal'
+                ),
+                subagent_runner=subagents,
+            ),
         )
 
     def desk_parts(self) -> dict[str, gateway_parts.DeskParts]:

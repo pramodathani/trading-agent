@@ -84,6 +84,30 @@ class ModelBackend:
         """
         self.model = model or self.configured_model
 
+    def thinking(self) -> str | None:
+        """The thinking level the backend uses now.
+
+        Backends whose provider decides on thinking keep this default.
+
+        Returns:
+            str | None: The level, or None when the backend has no thinking setting.
+        """
+        return None
+
+    def set_thinking(self, level: str | None) -> bool:
+        """Changes whether, or how hard, the model thinks from the next call on.
+
+        Backends whose provider decides on thinking keep this default.
+
+        Args:
+            level (str | None): One of turn_runner.THINKING_LEVELS, or None for the setting in trading_agent.toml.
+
+        Returns:
+            bool: True when the level was applied, False when the backend has no thinking setting.
+        """
+        del level
+        return False
+
     async def complete(
         self,
         conversation: conversation_module.Conversation,

@@ -9,3 +9,7 @@ The model's thinking text is not sent back in later requests; Ollama does not ne
 ## Pictures, since 2026-10-17
 
 A user message's pictures go in the message's `images` field as base64, the same field tool screenshots already used. Ollama passes them to vision models; `gemma4:31b` and `qwen3.8:27b` both list `vision`. Checked on 2026-10-17: Qwen read a test picture's red circle, blue background, the word KIWI and the number 4127 correctly.
+
+## Thinking, since 2026-10-18
+
+Ollama's `think` is a plain on/off switch for the models we run (Qwen, Gemma); only a few models accept low/medium/high. So `set_thinking('off')` turns it off and every other level turns it on. `thinking()` reports "on" or "off" so `/think` does not pretend the level matters.

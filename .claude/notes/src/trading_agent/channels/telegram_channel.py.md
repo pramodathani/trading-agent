@@ -33,3 +33,7 @@ A message with a file is never treated as a command, even when its caption start
 A `message` event with `attachments` is a picture from `send_image`, and is sent with `send_photo` instead of as text. The event carries no `trigger_id`, because tools do not know their trigger, so the channel remembers each desk's running trigger from `turn_started` and `turn_finished`. A desk runs one turn at a time, so this identifies the turn exactly. When that turn came from a Telegram chat, the picture goes to that chat whatever the notification settings, because the user asked for it; otherwise it is pushed to every paired chat only when `messages` notifications are on, with the formatter's "Picture from <desk>:" caption. The caption goes on the first picture only.
 
 The picture is read from the absolute `path` in the attachment dictionary rather than looked up in the store, so the channel works when it was built without a store. The path comes from our own tool, not from a model or a user.
+
+## Command menu, since 2026-10-18
+
+After each successful connect, `_register_menu` sends `TelegramCommands.menu()` to Telegram with `setMyCommands`. A refusal is logged and ignored, because the bot works without a menu and a failed menu must not keep the channel from starting.

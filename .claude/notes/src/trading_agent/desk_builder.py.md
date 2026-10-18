@@ -73,3 +73,7 @@ The builder makes one steering inbox per desk and gives it to the desk's runtime
 The builder creates the one `AttachmentStore` and hands it out in the shared parts.
 
 `send_image` and `view_image` are given every desk's file rules (`PathPolicy`), so they read exactly what `read_file` can. `send_image` also gets the one shared `AttachmentStore`, the same object the upload routes and Telegram use, so a picture a desk sends is found by `GET /api/desks/{desk}/attachments/{id}` like any upload.
+
+## Command parts, since 2026-10-18
+
+Each desk's `DeskRuntime` gets a `slash_commands.CommandParts` with the shared subagent library, a `JournalReader` over the desk's journal folder, and the desk's own subagent runner, taken from `_schedule_parts` where `_executor` stored it. The commands `/subagents` and `/review` read these.
