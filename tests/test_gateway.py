@@ -16,8 +16,13 @@ from trading_agent.runtime import no_model_turn_runner
 _TOKEN = 'test-token-that-is-long-enough-1234567890'
 
 
-def _client() -> fastapi.testclient.TestClient:
+def _client(
+    allowed_origins: tuple[str, ...] = (),
+) -> fastapi.testclient.TestClient:
     """Builds a gateway with one desk and a test client for it.
+
+    Args:
+        allowed_origins (tuple[str, ...]): The other web origins the gateway lets call its API.
 
     Returns:
         fastapi.testclient.TestClient: A client for the gateway; use it in a with statement so the desk loop runs.
@@ -34,6 +39,7 @@ def _client() -> fastapi.testclient.TestClient:
         event_bus,
         desks,
         access_guard.AccessGuard(_TOKEN),
+        allowed_origins=allowed_origins,
     )
     return fastapi.testclient.TestClient(gateway.build())
 
@@ -147,3 +153,50 @@ class TestGateway:
         """An empty access token is refused when the guard is built."""
         with pytest.raises(ValueError, match='is empty'):
             access_guard.AccessGuard('')
+
+
+class TestAllowedOrigins:
+    """Tests for the cross-origin rule that lets the Android app call the API."""
+
+    def test_allowed_origin_is_answered(self) -> None:
+        """A preflight request from an allowed origin is approved for the Authorization header."""
+        with _client(('https://localhost',)) as client:
+            response = client.options(
+                '/api/desks',
+                headers={
+                    'Origin': 'https://localhost',
+                    'Access-Control-Request-Method': 'GET',
+                    'Access-Control-Request-Headers': 'authorization',
+                },
+            )
+
+        assert response.status_code == 200
+        assert (
+            response.headers['access-control-allow-origin']
+            == 'https://localhost'
+        )
+        assert 'access-control-allow-credentials' not in response.headers
+
+    def test_other_origin_gets_no_permission(self) -> None:
+        """A request from an origin that is not listed gets no cross-origin header."""
+        with _client(('https://localhost',)) as client:
+            response = client.get(
+                '/api/health',
+                headers={
+                    'Origin': 'https://example.com',
+                },
+            )
+
+        assert 'access-control-allow-origin' not in response.headers
+
+    def test_no_origins_means_no_cross_origin_headers(self) -> None:
+        """Without allowed origins the gateway adds no cross-origin header at all."""
+        with _client() as client:
+            response = client.get(
+                '/api/health',
+                headers={
+                    'Origin': 'https://localhost',
+                },
+            )
+
+        assert 'access-control-allow-origin' not in response.headers

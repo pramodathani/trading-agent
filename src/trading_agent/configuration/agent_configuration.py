@@ -21,6 +21,7 @@ class GatewayConfiguration(pydantic.BaseModel):
         host: The address to listen on. 127.0.0.1 keeps the gateway reachable from this machine only.
         port: The TCP port to listen on.
         frontend_directory: The built web page, served at every address that is not part of the API.
+        allowed_origins: The other web origins whose pages may call the API, such as "https://localhost" for the Android app; empty allows none.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -28,6 +29,7 @@ class GatewayConfiguration(pydantic.BaseModel):
     host: str = '127.0.0.1'
     port: int = pydantic.Field(default=8120, gt=0, lt=65536)
     frontend_directory: Path = Path('frontend/dist')
+    allowed_origins: list[str] = []
 
 
 class DeskConfiguration(pydantic.BaseModel):

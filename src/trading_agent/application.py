@@ -409,6 +409,7 @@ class Application:
                 responder,
             ),
             configuration.gateway.frontend_directory,
+            configuration.gateway.allowed_origins,
         )
         server_configuration = uvicorn.Config(
             gateway.build(),

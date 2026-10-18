@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Protocol
 
 import fastapi
+from fastapi.middleware import cors
 
 from trading_agent.gateway import access_guard
 from trading_agent.gateway.routes import desk_routes
@@ -48,6 +49,7 @@ class GatewayApplication:
         webhook_token: str = '',
         route_groups: Sequence[route_group.RouteGroup] = (),
         frontend_directory: Path | None = None,
+        allowed_origins: Sequence[str] = (),
     ):
         """Creates the gateway without starting anything.
 
@@ -60,6 +62,7 @@ class GatewayApplication:
             webhook_token (str): The token incoming webhooks must present, or an empty string to switch them off.
             route_groups (Sequence[route_group.RouteGroup]): The API's route groups; when empty, only the basic desk routes are offered.
             frontend_directory (Path | None): The built web page to serve at every other address, or None to serve no page.
+            allowed_origins (Sequence[str]): The other web origins whose pages may call the API, such as the Android app's "https://localhost"; empty allows none.
         """
         self._event_bus = event_bus
         self._desks = desks
@@ -69,6 +72,7 @@ class GatewayApplication:
         self._webhook_token = webhook_token
         self._route_groups = list(route_groups)
         self._frontend_directory = frontend_directory
+        self._allowed_origins = list(allowed_origins)
 
     def build(self) -> fastapi.FastAPI:
         """Builds the FastAPI application with every route.
@@ -80,6 +84,23 @@ class GatewayApplication:
             title='trading-agent gateway',
             lifespan=self._lifespan,
         )
+        if self._allowed_origins:
+            application.add_middleware(
+                cors.CORSMiddleware,
+                allow_origins=self._allowed_origins,
+                allow_methods=[
+                    'GET',
+                    'POST',
+                    'PUT',
+                    'PATCH',
+                    'DELETE',
+                ],
+                allow_headers=[
+                    'Authorization',
+                    'Content-Type',
+                ],
+                allow_credentials=False,
+            )
         application.include_router(
             health_routes.HealthRoutes(self._desks).router()
         )

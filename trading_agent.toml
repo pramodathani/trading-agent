@@ -5,6 +5,9 @@ market_calendar_directory = "/home/pramod/Projects/unified_broker_interface/stoc
 [gateway]
 host = "127.0.0.1"
 port = 8120
+allowed_origins = [
+    "https://localhost",
+]
 
 [[desks]]
 name = "general"
