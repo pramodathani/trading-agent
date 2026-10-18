@@ -1,6 +1,6 @@
 """Talks to a running gateway's HTTP routes, one method per route, as the web page's apiClient.ts does.
 
-Every request carries the access token as a Bearer header. A route that answers with an error raises GatewayError with the gateway's own explanation.
+Every request carries the access token as a Bearer header, and names the terminal program as the client, so the desks' requests answered here are recorded as answered "via terminal". A route that answers with an error raises GatewayError with the gateway's own explanation.
 
 Typical usage example:
 
@@ -63,6 +63,7 @@ class GatewayClient:
             base_url=self.base_url,
             headers={
                 'Authorization': f'Bearer {access_token}',
+                'X-Trading-Agent-Client': 'terminal',
             },
             timeout=_TIMEOUT_SECONDS,
             transport=transport,
