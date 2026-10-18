@@ -24,6 +24,7 @@ class Secrets(pydantic_settings.BaseSettings):
         openai_api_key: The key for OpenAI-compatible backends, or empty for local servers that need none.
         webhook_token: The token incoming webhooks must present, kept apart from the gateway token so it can be pasted into services such as TradingView; empty switches webhooks off.
         telegram_bot_token: The token BotFather gave for the trading-agent bot, or empty when Telegram is not set up.
+        firebase_service_account_file: The path of the Firebase service-account key JSON that lets the gateway send push notifications, or empty when push is not set up.
     """
 
     model_config = pydantic_settings.SettingsConfigDict(
@@ -37,6 +38,7 @@ class Secrets(pydantic_settings.BaseSettings):
     openai_api_key: str = ''
     webhook_token: str = ''
     telegram_bot_token: str = ''
+    firebase_service_account_file: str = ''
 
     def named(self, variable: str) -> str:
         """Reads a secret by its own name, such as DEEPSEEK_API_KEY, from the environment or the .env file.

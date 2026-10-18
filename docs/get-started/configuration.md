@@ -14,6 +14,7 @@ Each secret can also be given as an environment variable of the same name, which
 | `DEEPSEEK_API_KEY` | DeepSeek's API key, named by `api_key_variable` in `[backends.deepseek]`; without it, DeepSeek is skipped | For DeepSeek |
 | `TRADING_AGENT_WEBHOOK_TOKEN` | The token incoming webhooks must show; empty switches webhooks off | No |
 | `TRADING_AGENT_TELEGRAM_BOT_TOKEN` | The bot token from BotFather | For Telegram |
+| `TRADING_AGENT_FIREBASE_SERVICE_ACCOUNT_FILE` | The path of the Firebase service-account key that lets the gateway send notifications to the Android app; keep the file outside the repository | For app notifications |
 | `TRADING_AGENT_SEARXNG_SECRET` | SearXNG's own secret, read by docker-compose | For web search |
 
 ## trading_agent.toml
@@ -35,6 +36,7 @@ Each secret can also be given as an environment variable of the same name, which
 | `host` | `"127.0.0.1"` | The address to listen on; 127.0.0.1 keeps it reachable from this machine only |
 | `port` | `8120` | The port of the web page, the API and the event stream |
 | `frontend_directory` | `"frontend/dist"` | The built web page |
+| `allowed_origins` | `[]` | Other web origins whose pages may call the API; `["https://localhost"]` on this machine lets the [Android app](../using/android-app.md) call it |
 
 ### [[desks]]
 
@@ -112,6 +114,15 @@ One table per model a desk can use. [Models](../agent/models.md) shows the five 
 | `default_desk` | the first desk | The desk a paired chat talks to at first |
 | `notifications` | all ten kinds | What is pushed to your phone; see [Telegram](../telegram_setup.md#7-choose-what-is-pushed-to-you) |
 | `poll_seconds` | `30` | How long one request to Telegram waits for a message |
+
+### [push]
+
+These settings are for notifications to the [Android app](../using/android-app.md#notifications).
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `enabled` | `false` | Whether the gateway sends notifications through Firebase; it also needs `TRADING_AGENT_FIREBASE_SERVICE_ACCOUNT_FILE`. `true` on this machine |
+| `notifications` | all ten kinds | What is pushed to every registered phone: Telegram's kinds without `daily_summaries`, plus `requests` |
 
 ### [approvals]
 

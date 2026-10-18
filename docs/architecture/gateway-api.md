@@ -112,6 +112,10 @@ Each answer is handed to the desk as a new message; the desk never waited for it
 | <span class="method get">GET</span> | `/api/channels` | Telegram's state, waiting codes and paired chats | yes |
 | <span class="method post">POST</span> | `/api/channels/telegram/pairings/{code}/approve` | Pair the chat that was given a code | yes |
 | <span class="method delete">DELETE</span> | `/api/channels/telegram/chats/{chat}` | Unpair a chat | yes |
+| <span class="method get">GET</span> | `/api/devices` | Whether app notifications are on, and the registered phones, without their Firebase tokens | yes |
+| <span class="method post">POST</span> | `/api/devices` | Register a phone's Firebase token for notifications | yes |
+| <span class="method delete">DELETE</span> | `/api/devices/{device}` | Remove a phone | yes |
+| <span class="method post">POST</span> | `/api/devices/{device}/test` | Send a test notification to one phone | yes |
 | <span class="method get">GET</span> | `/api/apps` | The packages' apps and their state | yes |
 | <span class="method post">POST</span> | `/api/apps/{package}/{action}` | Start, stop or restart an app's unit | yes |
 

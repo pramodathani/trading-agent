@@ -202,6 +202,11 @@ class WorkspaceLayout:
         """The Telegram chats allowed to command the desks, and the pairing codes waiting for approval."""
         return self.shared_directory / 'telegram_pairing.json'
 
+    @property
+    def phone_devices_file(self) -> Path:
+        """The phones running the Android app that receive push notifications."""
+        return self.shared_directory / 'phone_devices.json'
+
     def cron_directory(self, desk_name: str) -> Path:
         """Where the desk's scheduled jobs and their run record are kept.
 

@@ -21,6 +21,7 @@ class GatewayConfiguration(pydantic.BaseModel):
         host: The address to listen on. 127.0.0.1 keeps the gateway reachable from this machine only.
         port: The TCP port to listen on.
         frontend_directory: The built web page, served at every address that is not part of the API.
+        allowed_origins: The other web origins whose pages may call the API, such as "https://localhost" for the Android app; empty allows none.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -28,6 +29,7 @@ class GatewayConfiguration(pydantic.BaseModel):
     host: str = '127.0.0.1'
     port: int = pydantic.Field(default=8120, gt=0, lt=65536)
     frontend_directory: Path = Path('frontend/dist')
+    allowed_origins: list[str] = []
 
 
 class DeskConfiguration(pydantic.BaseModel):
@@ -294,6 +296,19 @@ TELEGRAM_NOTIFICATIONS = (
     'daily_summaries',
 )
 
+PUSH_NOTIFICATIONS = (
+    'fills',
+    'rejections',
+    'model_switches',
+    'job_results',
+    'desk_reports',
+    'messages',
+    'alerts',
+    'halts',
+    'errors',
+    'requests',
+)
+
 
 class ApprovalConfiguration(pydantic.BaseModel):
     """Which of the desks' actions wait for the user's permission.
@@ -350,6 +365,43 @@ class TelegramConfiguration(pydantic.BaseModel):
         return notifications
 
 
+class PushConfiguration(pydantic.BaseModel):
+    """Push notifications to the Android app through Firebase Cloud Messaging.
+
+    Attributes:
+        enabled: Whether the gateway sends notifications; it also needs TRADING_AGENT_FIREBASE_SERVICE_ACCOUNT_FILE in .env.
+        notifications: What is pushed to every registered phone: fills, rejections, model_switches, job_results, desk_reports, messages, alerts, halts, errors and requests (permissions, questions and plans waiting for the user).
+    """
+
+    model_config = pydantic.ConfigDict(extra='forbid')
+
+    enabled: bool = False
+    notifications: list[str] = list(PUSH_NOTIFICATIONS)
+
+    @pydantic.field_validator('notifications')
+    @classmethod
+    def _require_known_notifications(
+        cls, notifications: list[str]
+    ) -> list[str]:
+        """Checks that every notification name is known.
+
+        Args:
+            notifications (list[str]): The names.
+
+        Returns:
+            list[str]: The names, unchanged.
+
+        Raises:
+            ValueError: A name is not one of PUSH_NOTIFICATIONS.
+        """
+        for name in notifications:
+            if name not in PUSH_NOTIFICATIONS:
+                raise ValueError(
+                    f'Unknown push notification {name!r}; known ones are {", ".join(PUSH_NOTIFICATIONS)}'
+                )
+        return notifications
+
+
 class AgentConfiguration(pydantic.BaseModel):
     """Everything in trading_agent.toml.
 
@@ -369,6 +421,7 @@ class AgentConfiguration(pydantic.BaseModel):
         risk: How the risk engine works, apart from the limits in TradingRules.md.
         skills: How the desks' skills are kept.
         telegram: The Telegram channel.
+        push: Push notifications to the Android app.
         approvals: Which actions wait for the user's permission.
     """
 
@@ -389,6 +442,7 @@ class AgentConfiguration(pydantic.BaseModel):
     risk: RiskConfiguration = RiskConfiguration()
     skills: SkillsConfiguration = SkillsConfiguration()
     telegram: TelegramConfiguration = TelegramConfiguration()
+    push: PushConfiguration = PushConfiguration()
     approvals: ApprovalConfiguration = ApprovalConfiguration()
 
     @pydantic.model_validator(mode='after')

@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 
 import { apiClient } from '../api/apiClient';
 import { tokenStore } from '../auth/tokenStore';
+import { useCloseOnBack } from '../hooks/useCloseOnBack';
 import { useConnectionState, useLiveEvents } from '../hooks/useLiveEvents';
 import { usePolled } from '../hooks/usePolled';
 import { sidePanelStore, useSidePanelOpen } from '../sidePanel/sidePanelStore';
+import { pushRegistration } from '../utilities/pushRegistration';
 import { themeController } from '../utilities/themeController';
 import { DeskMenu } from './DeskMenu';
 import { DesksContext } from './desksContext';
@@ -28,6 +30,8 @@ const CONNECTION_WORDS = {
 
 /**
  * The frame around every page: the sidebar, the header with the desk switcher, and the page itself.
+ *
+ * On a phone the sidebar becomes a drawer that slides in from the left when the menu button is pressed, as in the Claude app.
  * @returns The layout.
  */
 export function AppLayout() {
@@ -37,10 +41,31 @@ export function AppLayout() {
   const connection = useConnectionState();
   const events = useLiveEvents();
   const location = useLocation();
+  const navigate = useNavigate();
   const panelOpen = useSidePanelOpen();
   const [theme, setTheme] = useState(themeController.current());
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
   const lastEvent = events.length > 0 ? events[events.length - 1] : null;
   const refreshDesks = desks.refresh;
+
+  useCloseOnBack(drawerOpen, closeDrawer);
+
+  useEffect(() => {
+    void pushRegistration.register();
+    return pushRegistration.onOpen((deskName) => {
+      selectedDeskStore.choose(deskName);
+      void navigate('/chat');
+    });
+  }, [
+    navigate,
+  ]);
+
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [
+    location.pathname,
+  ]);
 
   useEffect(() => {
     if (lastEvent !== null && STATE_CHANGING_KINDS.has(lastEvent.kind)) {
@@ -87,7 +112,8 @@ export function AppLayout() {
 
   return (
     <DesksContext.Provider value={contextValue}>
-      <div className="app">
+      <div className={drawerOpen ? 'app drawer-open' : 'app'}>
+        {drawerOpen && <div className="drawer-backdrop" onClick={closeDrawer} aria-hidden="true" />}
         <nav className="sidebar">
           <div className="brand">
             <img src="/favicon.svg" alt="" />
@@ -156,20 +182,26 @@ export function AppLayout() {
           </div>
         </nav>
         <header className="header">
+          <button type="button" className="icon-button menu-button" onClick={() => setDrawerOpen(true)} aria-label="Open the menu" title="Open the menu">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+          </button>
           <div className="desk-switcher">
             <span className="muted small">Desk</span>
             <DeskMenu desks={desks.data?.desks ?? []} selectedDesk={selectedDesk} />
           </div>
           {mode && (
             <span className={mode === 'live' ? 'mode-badge live' : 'mode-badge'}>
-              {mode === 'live' ? 'LIVE ORDERS' : 'DRY RUN'}
+              <span className="mode-words">{mode === 'live' ? 'LIVE ORDERS' : 'DRY RUN'}</span>
+              <span className="mode-words-short">{mode === 'live' ? 'LIVE' : 'DRY'}</span>
             </span>
           )}
           <span className="spacer" />
-          {desks.error !== null && <span className="error-text small">Gateway: {desks.error}</span>}
+          {desks.error !== null && <span className="error-text small gateway-error">Gateway: {desks.error}</span>}
           <span className="connection">
-            <span className={`connection-dot ${connection}`} />
-            {CONNECTION_WORDS[connection]}
+            <span className={`connection-dot ${connection}`} title={CONNECTION_WORDS[connection]} />
+            <span className="connection-words">{CONNECTION_WORDS[connection]}</span>
           </span>
           {location.pathname === '/chat' && (
             <button

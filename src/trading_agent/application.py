@@ -9,6 +9,7 @@ import asyncio
 import logging
 import sys
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 
 import uvicorn
 
@@ -32,6 +33,9 @@ from trading_agent.client import subagent_commands
 from trading_agent.configuration import agent_configuration
 from trading_agent.configuration import configuration_loader
 from trading_agent.configuration import secrets as secrets_module
+from trading_agent.devices import device_store
+from trading_agent.devices import firebase_sender
+from trading_agent.devices import push_channel
 from trading_agent.doctor import doctor
 from trading_agent.extensions import app_catalog
 from trading_agent.extensions import hook_runner
@@ -46,6 +50,7 @@ from trading_agent.gateway.routes import app_routes
 from trading_agent.gateway.routes import attachment_routes
 from trading_agent.gateway.routes import channel_routes
 from trading_agent.gateway.routes import desk_routes
+from trading_agent.gateway.routes import device_routes
 from trading_agent.gateway.routes import extension_routes
 from trading_agent.gateway.routes import file_routes
 from trading_agent.gateway.routes import memory_routes
@@ -387,6 +392,29 @@ class Application:
         ]
         if telegram is not None:
             workers.append(telegram)
+        phones = device_store.DeviceStore(layout.phone_devices_file)
+        push, push_problem = self._push_channel(
+            configuration, secrets, event_bus, phones
+        )
+        if push is not None:
+            workers.append(push)
+        route_groups = self._route_groups(
+            configuration,
+            builder,
+            desks,
+            guard,
+            scheduler,
+            model_usage,
+            manager,
+            redactor,
+            pairing,
+            bool(secrets.telegram_bot_token),
+            telegram,
+            responder,
+        )
+        route_groups.append(
+            device_routes.DeviceRoutes(guard, phones, push, push_problem)
+        )
         gateway = gateway_application.GatewayApplication(
             event_bus,
             desks,
@@ -394,21 +422,9 @@ class Application:
             workers,
             redactor,
             secrets.webhook_token,
-            self._route_groups(
-                configuration,
-                builder,
-                desks,
-                guard,
-                scheduler,
-                model_usage,
-                manager,
-                redactor,
-                pairing,
-                bool(secrets.telegram_bot_token),
-                telegram,
-                responder,
-            ),
+            route_groups,
             configuration.gateway.frontend_directory,
+            configuration.gateway.allowed_origins,
         )
         server_configuration = uvicorn.Config(
             gateway.build(),
@@ -512,6 +528,53 @@ class Application:
                 builder.permission_grants,
             ),
         ]
+
+    def _push_channel(
+        self,
+        configuration: agent_configuration.AgentConfiguration,
+        secrets: secrets_module.Secrets,
+        event_bus: event_bus_module.EventBus,
+        phones: device_store.DeviceStore,
+    ) -> tuple[push_channel.PushChannel | None, str]:
+        """Builds the push channel for the Android app, when it is switched on and has a Firebase key.
+
+        Args:
+            configuration (agent_configuration.AgentConfiguration): The agent's configuration.
+            secrets (secrets_module.Secrets): The secrets, holding the Firebase key file's path.
+            event_bus (event_bus_module.EventBus): The event bus.
+            phones (device_store.DeviceStore): The registered phones.
+
+        Returns:
+            tuple[push_channel.PushChannel | None, str]: The channel, or None with the reason push is off.
+        """
+        settings = configuration.push
+        if not settings.enabled:
+            return (
+                None,
+                'Push notifications are off: [push] enabled is false in trading_agent.toml.',
+            )
+        if not secrets.firebase_service_account_file:
+            problem = 'Push notifications are off: TRADING_AGENT_FIREBASE_SERVICE_ACCOUNT_FILE is not set in .env.'
+            logging.getLogger(__name__).warning(problem)
+            return None, problem
+        try:
+            sender = firebase_sender.FirebaseSender(
+                Path(secrets.firebase_service_account_file).expanduser()
+            )
+        except (OSError, ValueError) as error:
+            problem = f'Push notifications are off: the Firebase key file could not be read ({error}).'
+            logging.getLogger(__name__).warning(problem)
+            return None, problem
+        channel = push_channel.PushChannel(
+            phones,
+            sender,
+            notification_formatter.NotificationFormatter(
+                settings.notifications
+            ),
+            event_bus,
+            settings.notifications,
+        )
+        return channel, ''
 
     def _telegram_channel(
         self,

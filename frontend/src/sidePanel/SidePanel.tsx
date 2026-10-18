@@ -72,6 +72,7 @@ export function SidePanel(properties: SidePanelProperties) {
   const usage = context.data?.usage ?? null;
   return (
     <aside className="side-panel" aria-label="Desk details">
+      <div className="sheet-handle" aria-hidden="true" />
       <DeskCard desk={properties.desk} />
       <ModelCard desk={properties.desk} usage={usage} />
       <ContextCard usage={usage} error={context.error} />

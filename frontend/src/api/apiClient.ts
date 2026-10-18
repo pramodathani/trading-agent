@@ -1,4 +1,5 @@
 import { tokenStore } from '../auth/tokenStore';
+import { gatewayAddress } from './gatewayAddress';
 import type {
   AccountDocument,
   AppEntry,
@@ -12,6 +13,7 @@ import type {
   DeskOrder,
   DeskSummary,
   DesksDocument,
+  DevicesDocument,
   EditableFile,
   Exchange,
   HiddenSkillEntry,
@@ -21,6 +23,7 @@ import type {
   NotesFile,
   PackageEntry,
   PermissionGrant,
+  PhoneDevice,
   PriceAlert,
   Proposal,
   QuestionAnswer,
@@ -54,10 +57,11 @@ export class ApiClient {
   /**
    * Checks a token by asking for the desks with it.
    * @param token The token to check.
+   * @param address The gateway to ask, or the saved one when left out.
    * @returns True when the gateway accepts it.
    */
-  async isAccepted(token: string): Promise<boolean> {
-    const response = await fetch('/api/desks', {
+  async isAccepted(token: string, address?: string): Promise<boolean> {
+    const response = await fetch(gatewayAddress.url('/api/desks', address), {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -219,7 +223,7 @@ export class ApiClient {
    * @returns The file's contents.
    */
   async attachmentFile(deskName: string, attachmentId: string): Promise<Blob> {
-    const response = await fetch(`/api/desks/${deskName}/attachments/${attachmentId}`, {
+    const response = await fetch(gatewayAddress.url(`/api/desks/${deskName}/attachments/${attachmentId}`), {
       headers: {
         Authorization: `Bearer ${tokenStore.current() ?? ''}`,
       },
@@ -238,7 +242,7 @@ export class ApiClient {
    */
   async deskPicture(deskName: string, picturePath: string): Promise<Blob> {
     const encodedPath = picturePath.split('/').map(encodeURIComponent).join('/');
-    const response = await fetch(`/api/desks/${deskName}/pictures/${encodedPath}`, {
+    const response = await fetch(gatewayAddress.url(`/api/desks/${deskName}/pictures/${encodedPath}`), {
       headers: {
         Authorization: `Bearer ${tokenStore.current() ?? ''}`,
       },
@@ -613,6 +617,45 @@ export class ApiClient {
   }
 
   /**
+   * Whether push notifications are on, and the phones that receive them.
+   * @returns The phones, without their Firebase tokens.
+   */
+  devices(): Promise<DevicesDocument> {
+    return this.request('GET', '/api/devices');
+  }
+
+  /**
+   * Registers this phone for push notifications.
+   * @param token The phone's Firebase Cloud Messaging token.
+   * @param name The phone's name.
+   * @returns The registered phone.
+   */
+  registerDevice(token: string, name: string): Promise<PhoneDevice> {
+    return this.request('POST', '/api/devices', {
+      token,
+      name,
+    });
+  }
+
+  /**
+   * Removes a phone, so it gets no more notifications.
+   * @param deviceId The phone's id.
+   * @returns The removed phone.
+   */
+  removeDevice(deviceId: string): Promise<PhoneDevice> {
+    return this.request('DELETE', `/api/devices/${encodeURIComponent(deviceId)}`);
+  }
+
+  /**
+   * Sends a test notification to one phone.
+   * @param deviceId The phone's id.
+   * @returns Whether Firebase accepted it.
+   */
+  testDevice(deviceId: string): Promise<{ sent: boolean }> {
+    return this.request('POST', `/api/devices/${encodeURIComponent(deviceId)}/test`);
+  }
+
+  /**
    * The configuration, with secrets masked.
    * @returns trading_agent.toml as the gateway read it.
    */
@@ -639,7 +682,7 @@ export class ApiClient {
       headers['Content-Type'] = 'application/json';
       encoded = JSON.stringify(body);
     }
-    const response = await fetch(path, {
+    const response = await fetch(gatewayAddress.url(path), {
       method,
       headers,
       body: encoded,

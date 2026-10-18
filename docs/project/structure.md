@@ -5,6 +5,7 @@ trading-agent/
 ├── bin/trading-agent          the command; with no subcommand, the terminal program
 ├── src/trading_agent/         the gateway and everything it runs
 ├── frontend/                  the web page: React 19, TypeScript, Vite 8
+│   └── android/               the Android app around it (Capacitor 8)
 ├── workspace/                 your files and the desks' memory, journals and sessions
 ├── packages/                  package sources, such as packages/sridhara
 ├── deploy/                    the systemd unit, and SearXNG's settings
@@ -37,6 +38,7 @@ trading-agent/
 | `scheduling` | The market calendar, cron jobs and scheduler, built-in jobs, price alerts and the market watcher |
 | `journal` | The trade journal, the journal reader, the usage tracker and the secret redactor |
 | `channels` | Telegram: the API wrapper, pairing, commands, request buttons and notifications |
+| `devices` | The Android app's notifications: the registered phones, the Firebase sender and the push channel |
 | `gateway` | The FastAPI application, the access guard and the route groups |
 | `configuration` | `trading_agent.toml` and `.env` |
 | `doctor` | The doctor's checks and the going-live checks |

@@ -1,4 +1,5 @@
 import type { AgentEvent } from '../api/types';
+import { gatewayAddress } from '../api/gatewayAddress';
 import { tokenStore } from '../auth/tokenStore';
 
 const MOST_EVENTS_KEPT = 3000;
@@ -83,8 +84,7 @@ export class EventSocket {
     if (token === null) {
       return;
     }
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const address = `${protocol}://${window.location.host}/ws/events?token=${encodeURIComponent(token)}`;
+    const address = gatewayAddress.socketUrl(`/ws/events?token=${encodeURIComponent(token)}`);
     const socket = new WebSocket(address);
     this.socket = socket;
     this.setState('connecting');
