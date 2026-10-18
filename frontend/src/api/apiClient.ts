@@ -1,16 +1,17 @@
 import { tokenStore } from '../auth/tokenStore';
 import type {
   AccountDocument,
-  Attachment,
   AppEntry,
+  Attachment,
   CheckpointEntry,
+  CommandsDocument,
   ContextDocument,
   CronJob,
   CronRun,
   DailySummary,
   DeskOrder,
-  DesksDocument,
   DeskSummary,
+  DesksDocument,
   EditableFile,
   Exchange,
   HiddenSkillEntry,
@@ -21,8 +22,8 @@ import type {
   PackageEntry,
   PermissionGrant,
   PriceAlert,
-  QuestionAnswer,
   Proposal,
+  QuestionAnswer,
   SearchHit,
   SessionEntry,
   SkillEntry,
@@ -174,6 +175,15 @@ export class ApiClient {
    */
   deskContext(deskName: string): Promise<ContextDocument> {
     return this.request<ContextDocument>('GET', `/api/desks/${deskName}/context`);
+  }
+
+  /**
+   * A desk's slash commands and usable skills, as /help lists them.
+   * @param deskName The desk.
+   * @returns The desk and its command entries.
+   */
+  deskCommands(deskName: string): Promise<CommandsDocument> {
+    return this.request<CommandsDocument>('GET', `/api/desks/${deskName}/commands`);
   }
 
   /**

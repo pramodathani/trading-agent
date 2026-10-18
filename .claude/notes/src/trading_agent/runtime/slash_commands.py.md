@@ -72,3 +72,7 @@ The answer names the backend that gave it, because a fallback model may lack the
 The task lists today's `order` and `fill` events from the desk's journal, because the journal is the only record that ties each order to the desk, dry runs included. UBI's order book is shared by every desk. The reviewer can still call `get_orders` and `get_portfolio` for live prices and positions, so the task does not repeat the profit and loss. At most 200 events are listed, the latest ones, so a busy scalper day cannot overflow the reviewer's context.
 
 With no orders today it answers at once and starts no subagent, because a review of nothing would only spend the subscription. It is a background command, sharing the one-at-a-time guard with `/btw` through `_one_at_a_time`, because a review can take minutes.
+
+## The command catalogue
+
+The `/help` lines live in `_COMMAND_HELP`, a tuple of `CommandHelp` entries, so `/help` and `catalogue()` cannot drift apart. `catalogue()` feeds `GET /api/desks/{desk}/commands`, which the web page's slash menu and the terminal program both read; before 2026-10-18 the web page had its own list of nine names. Each entry says how it runs: `at_once` for the instant commands and `/stop`, `beside` for `/btw` and `/review`, `queued` for the rest. The `/<skill-name>` help line is left out of the catalogue, because each usable skill is listed by its own name instead, after the commands; a skill whose name a built-in command takes is left out, matching `skill_request`.
