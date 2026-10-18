@@ -1,0 +1,52 @@
+<svg class="ta-svg" viewBox="0 0 1000 580" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="user-requests-title user-requests-description">
+  <title id="user-requests-title">A desk asking the user</title>
+  <desc id="user-requests-description">A question, a plan or a held action is saved as a request and shown in the web chat and on Telegram; the desk's turn ends, and the user's answer later reaches the desk as a new message.</desc>
+  <path class="wire" d="M260,110 L390,110"/>
+  <path class="wire" d="M610,110 L740,70"/>
+  <path class="wire" d="M610,110 L740,190"/>
+  <path class="wire" d="M960,70 L985,70 L985,350 L610,350"/>
+  <path class="wire" d="M850,230 L850,350"/>
+  <path class="wire" d="M390,350 L260,350"/>
+  <path class="wire" d="M150,300 L150,160"/>
+  <path class="wire" d="M500,450 L500,400"/>
+  <path id="user-requests-to-web" class="hidden-path" d="M240,110 L390,110 L610,110 L740,70 L770,70"/>
+  <path id="user-requests-to-telegram" class="hidden-path" d="M240,110 L390,110 L610,110 L740,190 L770,190"/>
+  <path id="user-requests-from-telegram" class="hidden-path" d="M850,215 L850,350 L150,350 L150,140"/>
+  <circle class="dot" r="6"><animateMotion dur="10s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.35;1" keyPoints="0;1;1"><mpath href="#user-requests-to-web"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="10s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.35;1" keyPoints="0;1;1"><mpath href="#user-requests-to-telegram"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="10s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.5;0.92;1" keyPoints="0;0;1;1"><mpath href="#user-requests-from-telegram"/></animateMotion></circle>
+  <rect class="box" x="40" y="60" width="220" height="100" rx="8"/>
+  <text class="title" x="150" y="90" text-anchor="middle">Desk turn</text>
+  <text class="mono" x="150" y="114" text-anchor="middle">ask_user · present_plan</text>
+  <text class="small" x="150" y="134" text-anchor="middle">or a call held for permission</text>
+  <rect class="store" x="390" y="60" width="220" height="100" rx="8"/>
+  <text class="title" x="500" y="90" text-anchor="middle">Request store</text>
+  <text class="mono" x="500" y="114" text-anchor="middle">desks/&lt;desk&gt;/requests/</text>
+  <text class="small" x="500" y="134" text-anchor="middle">the turn ends; nothing waits</text>
+  <rect class="box" x="740" y="30" width="220" height="80" rx="8"/>
+  <text class="title" x="850" y="62" text-anchor="middle">Web chat</text>
+  <text class="small" x="850" y="84" text-anchor="middle">a card above the message box</text>
+  <rect class="box" x="740" y="150" width="220" height="80" rx="8"/>
+  <text class="title" x="850" y="182" text-anchor="middle">Telegram</text>
+  <text class="small" x="850" y="204" text-anchor="middle">buttons, or /approve and /deny</text>
+  <rect class="accent-box" x="390" y="300" width="220" height="100" rx="8"/>
+  <text class="title" x="500" y="330" text-anchor="middle">Request responder</text>
+  <text class="small" x="500" y="354" text-anchor="middle">records the answer once</text>
+  <text class="small" x="500" y="374" text-anchor="middle">an allowed call runs as it was held</text>
+  <rect class="box" x="40" y="300" width="220" height="100" rx="8"/>
+  <text class="title" x="150" y="330" text-anchor="middle">Desk's queue</text>
+  <text class="small" x="150" y="354" text-anchor="middle">the answer arrives as</text>
+  <text class="small" x="150" y="372" text-anchor="middle">a new message naming the request</text>
+  <rect class="store" x="390" y="450" width="220" height="70" rx="8"/>
+  <text class="title" x="500" y="478" text-anchor="middle">Expiry watcher</text>
+  <text class="small" x="500" y="500" text-anchor="middle">a permission request lapses after 5 min</text>
+  <text class="small question" x="270" y="98">1 saved</text>
+  <text class="small question" x="626" y="76">2 shown to you</text>
+  <text class="small answer" x="862" y="290">3 your answer</text>
+  <text class="small answer" x="270" y="338">4 a new message</text>
+  <text class="small" x="512" y="430">tells the desk</text>
+  <circle cx="300" cy="548" r="6" class="dot"/>
+  <text x="314" y="548" dominant-baseline="middle">the request going out</text>
+  <circle cx="530" cy="548" r="6" class="dot alt"/>
+  <text x="544" y="548" dominant-baseline="middle">your answer coming back</text>
+</svg>
