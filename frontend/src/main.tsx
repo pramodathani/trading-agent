@@ -14,6 +14,7 @@ import './styles/pages.css';
 import './styles/sidePanel.css';
 import './styles/markdown.css';
 import './styles/requests.css';
+import './styles/phone.css';
 import { themeController } from './utilities/themeController';
 
 themeController.applyStoredChoice();

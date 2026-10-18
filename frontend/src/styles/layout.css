@@ -306,39 +306,3 @@
 .table-scroll {
   overflow-x: auto;
 }
-
-@media (max-width: 760px) {
-  .app {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto var(--header-height) minmax(0, 1fr);
-  }
-
-  .sidebar {
-    grid-row: auto;
-    flex-direction: row;
-    flex-wrap: wrap;
-    padding: 8px;
-    border-right: none;
-    border-bottom: 1px solid var(--color-border);
-    overflow: visible;
-  }
-
-  .nav-section,
-  .sidebar-footer {
-    display: none;
-  }
-
-  .brand {
-    height: 32px;
-    padding: 0 8px;
-  }
-
-  .content {
-    padding: 8px 12px 14px;
-  }
-
-  .header {
-    padding: 0 12px;
-    gap: 10px;
-  }
-}

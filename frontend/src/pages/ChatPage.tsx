@@ -9,12 +9,14 @@ import { PictureThumbnail } from '../components/PictureThumbnail';
 import { RequestDock } from '../components/requests/RequestDock';
 import { RequestSummary } from '../components/requests/RequestSummary';
 import { elapsedText, TurnProgress } from '../components/TurnProgress';
+import { useCloseOnBack } from '../hooks/useCloseOnBack';
 import { useLiveEvents, useStreamingTexts } from '../hooks/useLiveEvents';
+import { usePhoneLayout } from '../hooks/usePhoneLayout';
 import { usePolled } from '../hooks/usePolled';
 import { useDesks } from '../layout/desksContext';
 import { useSelectedDesk } from '../layout/selectedDeskStore';
 import { SidePanel } from '../sidePanel/SidePanel';
-import { useSidePanelOpen } from '../sidePanel/sidePanelStore';
+import { sidePanelStore, useSidePanelOpen } from '../sidePanel/sidePanelStore';
 import { chatTurnBuilder, type ChatItem, type ChatTurn, type SteeringStep, type ToolStep, type TurnStep } from '../utilities/chatTurnBuilder';
 import { eventDescriber } from '../utilities/eventDescriber';
 import { eventMerger } from '../utilities/eventMerger';
@@ -50,6 +52,8 @@ export function ChatPage() {
   const deskName = useSelectedDesk();
   const desks = useDesks();
   const panelOpen = useSidePanelOpen();
+  const phone = usePhoneLayout();
+  useCloseOnBack(phone && panelOpen, closeSidePanel);
   const liveEvents = useLiveEvents();
   const requests = usePolled(() => apiClient.requests('pending'), REQUESTS_REFRESH_MILLISECONDS);
   const commands = usePolled(() => apiClient.deskCommands(deskName), COMMANDS_REFRESH_MILLISECONDS, deskName);
@@ -349,7 +353,7 @@ export function ChatPage() {
    * @param event The key event.
    */
   function handleKey(event: KeyboardEvent<HTMLTextAreaElement>): void {
-    if (event.key === 'Enter' && !event.shiftKey) {
+    if (event.key === 'Enter' && !event.shiftKey && !phone) {
       event.preventDefault();
       void send();
     }
@@ -412,10 +416,11 @@ export function ChatPage() {
                 <path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </button>
+            {phone && desk !== null && <ModelMenu desk={desk} onChanged={desks.refresh} />}
             <textarea
               rows={1}
               value={draft}
-              placeholder={busy ? `Enter to hand a message to ${deskName} at its next tool call` : 'Enter to send, Shift+Enter for a new line, / for commands'}
+              placeholder={composerHint(deskName, busy, phone)}
               title="Enter sends; Shift and Enter adds a line. Drop or paste pictures and documents here."
               onChange={(change) => setDraft(change.target.value)}
               onKeyDown={handleKey}
@@ -463,17 +468,37 @@ export function ChatPage() {
             )}
           </div>
         </form>
-        <div className="composer-footer">
+        <div className={phone && !listening ? 'composer-footer hidden' : 'composer-footer'}>
           <span className={listening ? 'composer-hint listening' : 'composer-hint'}>{listening ? 'Listening… press the microphone again to stop' : modeWords}</span>
           <span className="spacer" />
-          {desk !== null && <ModelMenu desk={desk} onChanged={desks.refresh} />}
+          {!phone && desk !== null && <ModelMenu desk={desk} onChanged={desks.refresh} />}
         </div>
         {voiceError !== null && <p className="error-text small composer-note">{voiceError}</p>}
         {sendError !== null && <p className="error-text small composer-note">{sendError}</p>}
       </div>
+      {phone && panelOpen && <div className="sheet-backdrop" onClick={() => sidePanelStore.close()} aria-hidden="true" />}
       {panelOpen && <SidePanel deskName={deskName} desk={desk} events={deskEvents} />}
     </div>
   );
+}
+
+/**
+ * The grey hint in the empty message box.
+ * @param deskName The desk being talked to.
+ * @param busy Whether the desk is in the middle of a turn.
+ * @param phone Whether the phone layout is in use, where Enter adds a line and the send button sends.
+ * @returns The hint.
+ */
+function composerHint(deskName: string, busy: boolean, phone: boolean): string {
+  if (phone) {
+    return busy ? `Steer ${deskName} at its next tool call` : `Message ${deskName}`;
+  }
+  return busy ? `Enter to hand a message to ${deskName} at its next tool call` : 'Enter to send, Shift+Enter for a new line, / for commands';
+}
+
+/** Hides the side panel. */
+function closeSidePanel(): void {
+  sidePanelStore.close();
 }
 
 /**

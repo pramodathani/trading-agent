@@ -3,6 +3,7 @@ import { useSyncExternalStore } from 'react';
 const OPEN_KEY = 'trading-agent.side-panel.open';
 const COLLAPSED_KEY = 'trading-agent.side-panel.collapsed';
 const WIDE_SCREEN_PIXELS = 1100;
+const PHONE_SCREEN_PIXELS = 760;
 
 type Listener = () => void;
 
@@ -24,6 +25,14 @@ export class SidePanelStore {
    */
   isOpen(): boolean {
     return this.open;
+  }
+
+  /** Hides the panel. */
+  close(): void {
+    if (!this.open) {
+      return;
+    }
+    this.toggleOpen();
   }
 
   /** Shows the panel if it is hidden, and hides it if it is shown. */
@@ -70,9 +79,12 @@ export class SidePanelStore {
 
   /**
    * Reads whether the panel was shown last time.
-   * @returns The saved choice, or true on a wide screen when there is none.
+   * @returns The saved choice, or true on a wide screen when there is none; always false on a phone, where the panel is a sheet over the chat.
    */
   private readOpen(): boolean {
+    if (window.innerWidth <= PHONE_SCREEN_PIXELS) {
+      return false;
+    }
     try {
       const saved = window.localStorage.getItem(OPEN_KEY);
       if (saved !== null) {
