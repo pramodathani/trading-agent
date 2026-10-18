@@ -25,7 +25,7 @@ Claude works the same way, but the loop runs inside Claude Code, which trading-a
 | Page | What it covers |
 |---|---|
 | [Models](models.md) | The backends, the model router and its fallback, and Claude through the Max subscription |
-| [Tools](tools.md) | All 47 tools, the bash sandbox, the browser and web search |
+| [Tools](tools.md) | All 49 tools, the bash sandbox, the browser and web search |
 | [Memory](memory.md) | Sessions, the daily rollover, notes, Memory.md, checkpoints and context compression |
 | [Skills](skills.md) | Procedures the desks load when a task matches, and the ones they write themselves |
 | [Subagents](subagents.md) | Helpers a desk hands tasks to, in parallel |

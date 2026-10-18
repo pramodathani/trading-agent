@@ -7,10 +7,13 @@ trading-agent is one long-running process, the **gateway**. It owns every desk, 
 | Part | Its job |
 |---|---|
 | Desk runtime | One per desk: its queue of triggers, its turn runner, its steering inbox and its commands |
-| Turn runners | The agent loop for Qwen and Gemma; the Claude Code runner for Claude |
+| Turn runners | The agent loop for Qwen, Gemma, DeepSeek and OpenAI-compatible servers; the Claude Code runner for Claude |
 | Model router | One per desk: tries its models in order and falls back |
 | Prompt builder | Turns your files, the desk's memory and the skills index into the instructions |
-| Tool registry | The 47 tools, as schemas for the local models and as an in-process MCP server for Claude |
+| Tool registry | The 49 tools, as schemas for the other models and as an in-process MCP server for Claude |
+| Tool-call executor and permission gate | Runs each tool call, publishes it, and holds the calls listed in `[approvals]` until you allow them |
+| Request store and responder | Keeps the desks' questions, plans and permission requests, and hands your answers back as new messages |
+| Attachment store | Keeps the pictures and documents sent to or by each desk |
 | Risk engine and ledger | Judges every order; records who owns which stock, halts and daily results |
 | Event bus | Carries every step of every turn to everything that listens |
 | Trade journal | Writes every event, masked, one file per desk per day |

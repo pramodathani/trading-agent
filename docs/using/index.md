@@ -8,7 +8,7 @@ There are three ways to reach the desks. The table below compares them.
 | Telegram | Alerts and quick commands away from the computer | [Telegram](../telegram_setup.md) |
 | The `trading-agent` command | Scripts, setup and checks | [Commands](commands.md) |
 
-Talking to a desk works the same everywhere: a message becomes a turn, a slash command is answered by code, and a message sent while the desk is working steers the running turn. [Talking to a desk](chat.md) explains it.
+Talking to a desk works the same everywhere: a message becomes a turn, a slash command is answered by code, and a message sent while the desk is working steers the running turn. [Talking to a desk](chat.md) explains it. A desk can also ask you a question, show you a plan, or wait for your permission before certain actions, in the web chat and on Telegram alike; [Questions, plans and permissions](questions-and-permissions.md) explains how.
 
 <figure class="diagram">
 --8<-- "docs/assets/diagrams/request-flow.svg"

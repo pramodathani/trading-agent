@@ -7,9 +7,9 @@ Everything the web page does can also be done from a terminal with `bin/trading-
 | `serve` | Runs the gateway and its desks; the service normally does this |
 | `doctor` | Checks everything the agent depends on |
 | `preflight` | The doctor plus the going-live checks, with a verdict |
-| `send [--desk NAME] TEXT` | Sends a message or slash command to a desk and prints the turn |
+| `send [--desk NAME] TEXT` | Sends a message or slash command to a desk, general unless named, and prints the turn |
 | `proposals list`, `accept ID`, `reject ID` | The desks' proposed changes to your files |
-| `checkpoints list [--desk NAME]`, `restore [--desk NAME] ID` | Snapshots of a desk's own files; the desk is main unless named |
+| `checkpoints list [--desk NAME]`, `restore [--desk NAME] ID` | Snapshots of a desk's own files; the desk is general unless named |
 | `skills list`, `import SOURCE` | Your skills and the desks' own; import from a folder, zip or git URL |
 | `mcp list` | Each MCP server's state and tools |
 | `packages install SOURCE`, `list`, `remove NAME` | Packages of skills, subagents, MCP servers, hooks and apps |

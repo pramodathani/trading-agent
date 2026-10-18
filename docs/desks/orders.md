@@ -26,3 +26,7 @@ In `dry_run` mode, every order goes to UBI with `dry_run` set: UBI checks it ful
 A plain limit order is held by UBI's engine until it is placed at the broker, so it starts with a `parent_id` and gets an `order_id` later. The desk order book keeps both. The market watcher reads UBI's order book every fifteen seconds while a market is open, matches each finished order to the desk that placed it, and wakes that desk with the result: filled, rejected or cancelled, with the quantity and the average price.
 
 A desk can only change or cancel its own orders, and `flatten_desk` closes only its own positions, never another desk's or yours.
+
+## Flattening waits for you
+
+On this machine `flatten_desk` is listed in `[approvals]`, so when a desk calls it, the call is held and you are asked for permission in Chat and on Telegram. If nobody answers within five minutes, nothing is closed. Your own Flatten button on the Desks page is not held. [Questions, plans and permissions](../using/questions-and-permissions.md#permission-prompts) explains the rules, including what this means for the scalper's 15:05 exit.

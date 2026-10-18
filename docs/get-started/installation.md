@@ -36,6 +36,16 @@ claude setup-token
 !!! danger "Never set ANTHROPIC_API_KEY"
     If `ANTHROPIC_API_KEY` is set, Claude Code bills the API instead of your subscription. The Claude backend removes it from the environment of every Claude Code process it starts, and the doctor fails if it is set.
 
+## The DeepSeek key
+
+DeepSeek is the second model of every desk, after Claude. It is paid per token, so it needs an API key from the DeepSeek platform, kept in `.env`:
+
+```text
+DEEPSEEK_API_KEY=sk-...
+```
+
+Without the key, the desks skip DeepSeek and fall back from Claude straight to Qwen.
+
 ## Web search
 
 The `web_search` tool asks a local SearXNG server, which `docker-compose.yml` starts on port 4001:

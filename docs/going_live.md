@@ -15,7 +15,8 @@ In `dry_run` mode, UBI checks every order the desks place and sends none to a br
 | One order's margin | at most 25% of the account | TradingRules.md |
 | Option writing | forbidden | TradingRules.md |
 | Each desk's products | intraday and scalper `mis`, positional `cnc` and `nrml`, general any | TradingRules.md |
-| Desk loss limits | none; only the account limits apply (your choice on 17 October 2026) | TradingRules.md |
+| Desk loss limits | the scalper stops for the day at a 3% loss; the other desks have none | TradingRules.md |
+| A desk flattening itself | waits for your permission, and lapses after 5 minutes | `[approvals]` in trading_agent.toml |
 | One stock, one desk | a desk cannot trade a stock another desk holds | the risk engine |
 
 Change any of these on the Files page or in `workspace/shared/TradingRules.md` before going live.
@@ -51,6 +52,8 @@ Change any of these on the Files page or in `workspace/shared/TradingRules.md` b
 3. **A fill report.** Dry runs reach no broker, so they never fill; the first real fill report is seen in the live session. Ask general to flatten itself afterwards:
 
    > Flatten your desk: cancel your open orders and close your positions.
+
+   Because `flatten_desk` needs your permission, a permission card appears above the message box, and on Telegram if a phone is paired. Press **Allow once** within five minutes. This also checks that permission prompts work before the scalper relies on them at 15:05.
 
 4. Run the check again:
 
@@ -93,7 +96,8 @@ Things that should happen, and what they mean:
 
 - A desk's **order** event, followed by a **fill** a few seconds later: the broker filled the order, and the desk is told.
 - A **risk engine refused** line: a limit stopped an order. That is the risk engine working, not an error.
-- A **model switch** from claude to qwen: Claude hit a limit or failed, and the desk carried on with the next model.
+- A **model switch** from claude to deepseek: Claude hit a limit or failed, and the desk carried on with the next model. After a limit, the desk returns to Claude by itself when the limit resets.
+- A **permission request** from the scalper near 15:05: it wants to flatten itself, as its strategy says. Allow it, or it lapses after five minutes.
 
 ## How to stop
 

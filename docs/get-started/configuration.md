@@ -4,13 +4,14 @@ trading-agent reads two files from the project folder. `trading_agent.toml` hold
 
 ## Secrets in .env
 
-Each secret can also be given as an environment variable of the same name, which then takes precedence over `.env`.
+Each secret can also be given as an environment variable of the same name, which then takes precedence over `.env`. A backend's own key, such as `DEEPSEEK_API_KEY`, is read by exactly the name its `api_key_variable` gives, without the `TRADING_AGENT_` prefix.
 
 | Variable | What it is | Needed |
 |---|---|---|
 | `TRADING_AGENT_GATEWAY_ACCESS_TOKEN` | The token every web page and API request must show | Yes |
 | `TRADING_AGENT_CLAUDE_CODE_OAUTH_TOKEN` | The Max subscription token from `claude setup-token` | For Claude |
 | `TRADING_AGENT_OPENAI_API_KEY` | A key for OpenAI-compatible servers that need one | No |
+| `DEEPSEEK_API_KEY` | DeepSeek's API key, named by `api_key_variable` in `[backends.deepseek]`; without it, DeepSeek is skipped | For DeepSeek |
 | `TRADING_AGENT_WEBHOOK_TOKEN` | The token incoming webhooks must show; empty switches webhooks off | No |
 | `TRADING_AGENT_TELEGRAM_BOT_TOKEN` | The bot token from BotFather | For Telegram |
 | `TRADING_AGENT_SEARXNG_SECRET` | SearXNG's own secret, read by docker-compose | For web search |
@@ -50,14 +51,23 @@ One table per desk. The four desks of this machine are in the [desks section](..
 
 ### [backends.<name>]
 
+One table per model a desk can use. [Models](../agent/models.md) shows the five on this machine.
+
 | Setting | Default | Meaning |
 |---|---|---|
-| `kind` | required | `"ollama"`, `"openai_compatible"` or `"claude_code"` |
-| `base_url` | none | The server's address, needed by ollama and openai_compatible |
-| `model` | required | The model's name on its server |
+| `kind` | required | `"claude_code"`, `"deepseek"`, `"ollama"` or `"openai_compatible"` |
+| `base_url` | none | The server's address, needed by every kind except claude_code |
+| `model` | required | The model's name on its server, such as `"opus"` or `"deepseek-v4-pro"` |
 | `context_window` | required | How many tokens of context the model is given |
 | `thinking` | `true` | Whether the model reasons before answering, where it can |
+| `effort` | Claude Code's default | For claude_code, how hard Claude thinks: `"low"`, `"medium"`, `"high"`, `"xhigh"` or `"max"` |
+| `api_key_variable` | `TRADING_AGENT_OPENAI_API_KEY` | The `.env` entry holding this backend's key, such as `"DEEPSEEK_API_KEY"` |
+| `vision` | `true` | Whether the model can read pictures; when false, pictures are left out and the model is told so |
+| `other_models` | `[]` | Other models of the same provider that the chat page's model menu offers, such as `"claude-haiku-5-5"` |
 | `rupees_per_million_prompt_tokens`, `rupees_per_million_completion_tokens` | none | Prices, so `/usage` can show costs |
+| `usd_per_million_cache_hit_tokens`, `usd_per_million_cache_miss_tokens`, `usd_per_million_completion_tokens` | none | For deepseek, the peak-hour prices in dollars, split by whether DeepSeek's cache held the prompt |
+| `peak_hours_utc` | `[]` | For deepseek, the weekday periods charged at peak prices, such as `"01:00-04:00"`, in UTC |
+| `off_peak_price_factor` | `1.0` | For deepseek, what off-peak prices are as a share of peak prices, such as `0.5` |
 
 ### [agent]
 
@@ -102,5 +112,14 @@ One table per desk. The four desks of this machine are in the [desks section](..
 | `default_desk` | the first desk | The desk a paired chat talks to at first |
 | `notifications` | all ten kinds | What is pushed to your phone; see [Telegram](../telegram_setup.md#7-choose-what-is-pushed-to-you) |
 | `poll_seconds` | `30` | How long one request to Telegram waits for a message |
+
+### [approvals]
+
+These settings choose which of the desks' actions wait for your permission, as [Questions, plans and permissions](../using/questions-and-permissions.md#permission-prompts) explains.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `tools` | `[]` | The tools whose every call by a desk or a subagent waits for your permission; `["flatten_desk"]` on this machine |
+| `expiry_minutes` | `5` | How long a permission request stays open before it lapses and the action is not run, from 1 to 1440 |
 
 The trading limits are not here. They live in `workspace/shared/TradingRules.md`, described in [The risk engine](../desks/risk-engine.md), so the desks read them as part of their instructions.

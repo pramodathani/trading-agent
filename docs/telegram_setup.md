@@ -29,21 +29,9 @@ The token is the bot's password. Anyone who has it can read what you send the bo
 
 Still in the BotFather chat:
 
-1. Send `/setjoingroups`, choose your bot, and choose **Disable**. The bot then cannot be added to group chats, where other people could see its messages.
-2. Send `/setcommands`, choose your bot, and paste the following, so Telegram shows a menu of commands when you type `/`:
+Send `/setjoingroups`, choose your bot, and choose **Disable**. The bot then cannot be added to group chats, where other people could see its messages.
 
-   ```text
-   status - every desk, and the account
-   positions - open positions and which desk owns each
-   pnl - today's and this week's profit or loss
-   desk - talk to another desk
-   pause - stop a desk asking its models
-   resume - start it again
-   stop - stop the desk's running turn
-   help - what you can do
-   ```
-
-   `/kill` is left out of the menu on purpose, so it cannot be tapped by mistake.
+You do not need BotFather's `/setcommands`. Each time the gateway connects, it registers the bot's command menu itself, so the menu always matches the commands trading-agent has. `/kill` is left out of the menu on purpose, so it cannot be tapped by mistake.
 
 ## 3. Give the token to trading-agent
 
@@ -120,6 +108,8 @@ Send these to the bot:
 Typing `/` shows a menu of every command, and `/help` lists them. The desk's own commands, such as `/usage`, `/model`, `/think`, `/review` and `/tools`, are passed to your desk; [Talking to a desk](using/chat.md#slash-commands) describes them all.
 
 A message you send while the desk is working is handed to the running turn at its next tool call, as on the web page; the bot tells you so.
+
+When a desk asks you a question, shows you a plan or wants permission for an action, the bot sends it with buttons: one per option, ticks and **Done** when several answers are allowed, **Approve** and **Keep planning** for a plan, and **Allow once**, **Always allow** and **Deny** for a permission request. **Other** and **Keep planning** ask you to type a reply, and your next message is taken as that reply rather than sent to the desk. [Questions, plans and permissions](using/questions-and-permissions.md) explains them.
 
 ## 7. Choose what is pushed to you
 
