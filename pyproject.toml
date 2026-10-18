@@ -26,6 +26,7 @@ dependencies = [
     "python-dotenv==1.2.3",
     "python-multipart==0.0.32",
     "python-telegram-bot==22.8",
+    "textual==8.2.8",
     "pyyaml==6.0.3",
     "trafilatura==2.3.1",
     "uvicorn[standard]==0.53.0",

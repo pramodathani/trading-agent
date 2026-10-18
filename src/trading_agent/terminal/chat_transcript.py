@@ -129,6 +129,12 @@ class ChatTranscript:
         if kind == 'turn_finished':
             turn.finished = True
             turn.finished_at = event.get('created_at')
+            for step in turn.steps:
+                if (
+                    isinstance(step, chat_items.ToolStep)
+                    and step.result_text is None
+                ):
+                    step.ended_early = True
             if self._open_turn is turn:
                 self._open_turn = None
             return turn
@@ -156,7 +162,7 @@ class ChatTranscript:
         return self._open_turn
 
     def key(self, event: dict[str, Any]) -> str:
-        """A key that is the same for the journal's copy and the live copy of one event.
+        """A key that is the same for the journal's copy and the live copy of one event; the web page's key plus the trigger id.
 
         Args:
             event (dict[str, Any]): The event.
@@ -168,8 +174,11 @@ class ChatTranscript:
         call_id = payload.get('call_id')
         if not isinstance(call_id, str):
             call_id = ''
+        trigger_id = payload.get('trigger_id')
+        if not isinstance(trigger_id, str):
+            trigger_id = ''
         desk = event.get('desk') or ''
-        return f'{event.get("created_at", "")}|{event.get("kind", "")}|{desk}|{call_id}'
+        return f'{event.get("created_at", "")}|{event.get("kind", "")}|{desk}|{trigger_id}|{call_id}'
 
     def _shown_item(
         self,

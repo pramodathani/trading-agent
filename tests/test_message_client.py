@@ -271,6 +271,7 @@ class TestCommandLine:
         assert arguments.chosen_desk == 'scalper'
         assert arguments.output_format == 'json'
 
-    def test_bare_command_still_serves(self) -> None:
-        """With no subcommand and no -p, the gateway is served."""
-        assert CommandLine().parse([]).command == 'serve'
+    def test_bare_command_opens_the_terminal_program(self) -> None:
+        """With no subcommand and no -p, the terminal program opens; serve must be named."""
+        assert CommandLine().parse([]).command == 'terminal'
+        assert CommandLine().parse(['serve']).command == 'serve'

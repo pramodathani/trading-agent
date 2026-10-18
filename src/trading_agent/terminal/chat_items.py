@@ -24,6 +24,7 @@ class ToolStep:
         result_text: The tool's answer, or None while it runs.
         is_error: Whether the tool reported a failure.
         picture_path: A picture the tool showed the model, relative to the desk folder, or None.
+        ended_early: Whether the turn ended, for example by a stop, before the tool answered.
     """
 
     call_id: str
@@ -32,6 +33,7 @@ class ToolStep:
     result_text: str | None = None
     is_error: bool = False
     picture_path: str | None = None
+    ended_early: bool = False
 
     def arguments_text(self) -> str:
         """The arguments as indented JSON.
@@ -164,7 +166,7 @@ class ChatTurn:
         """
         for step in reversed(self.steps):
             if isinstance(step, ToolStep):
-                if step.result_text is None:
+                if step.result_text is None and not step.ended_early:
                     return step
                 return None
         return None

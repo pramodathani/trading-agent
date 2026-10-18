@@ -1,0 +1,229 @@
+Screen {
+    background: $background;
+    layout: vertical;
+}
+
+#status-line {
+    height: 1;
+    padding: 0 1;
+    background: $panel;
+}
+
+#chat-body {
+    height: 1fr;
+}
+
+#transcript {
+    height: 1fr;
+    padding: 0 2;
+    scrollbar-size-vertical: 1;
+}
+
+.notice {
+    margin: 1 0;
+}
+
+.turn {
+    height: auto;
+    margin: 1 0 0 0;
+}
+
+.turn-heading {
+    color: $text-muted;
+}
+
+.turn.from-user .turn-heading {
+    color: $accent;
+}
+
+.turn-message {
+    background: $surface;
+    padding: 0 1;
+    margin: 0 0 1 0;
+}
+
+.turn-steps {
+    height: auto;
+}
+
+.turn-writing {
+    margin: 0;
+    padding: 0;
+    color: $text-secondary;
+}
+
+.turn-answer {
+    margin: 0;
+    padding: 0;
+}
+
+.turn-error {
+    color: $error;
+}
+
+.turn-status {
+    color: $text-muted;
+}
+
+Markdown {
+    background: transparent;
+    padding: 0;
+    margin: 0;
+}
+
+Collapsible {
+    background: transparent;
+    border-top: none;
+    padding: 0;
+    margin: 0;
+}
+
+Collapsible > CollapsibleTitle {
+    padding: 0;
+    color: $text-secondary;
+}
+
+Collapsible > CollapsibleTitle:hover {
+    background: $surface;
+    color: $foreground;
+}
+
+Collapsible > Contents {
+    padding: 0 0 0 2;
+}
+
+.tool-call.failed > CollapsibleTitle {
+    color: $error;
+}
+
+.tool-body {
+    height: auto;
+    padding: 0 1;
+    background: $surface;
+}
+
+.tool-heading {
+    color: $text-muted;
+    text-style: bold;
+}
+
+.tool-arguments, .tool-result {
+    color: $text-secondary;
+}
+
+.event-step {
+    margin: 0 0 0 0;
+    color: $text-secondary;
+}
+
+.event-step.tone-good {
+    color: $success;
+}
+
+.event-step.tone-warning {
+    color: $warning;
+}
+
+.event-step.tone-bad {
+    color: $error;
+}
+
+.event-step.tone-quiet {
+    color: $text-muted;
+}
+
+.steering {
+    border-left: thick $secondary;
+    padding: 0 1;
+    margin: 0 0 1 0;
+}
+
+.request-step {
+    border-left: thick $warning;
+    padding: 0 1;
+    margin: 0 0 1 0;
+}
+
+#progress-line {
+    height: 1;
+    padding: 0 2;
+}
+
+#command-menu {
+    height: auto;
+    max-height: 10;
+    margin: 0 2;
+    border: round $border;
+    background: $surface;
+}
+
+#composer-box {
+    height: auto;
+    max-height: 12;
+    margin: 0 1;
+    border: round $border;
+    padding: 0 1;
+}
+
+#composer-box:focus-within {
+    border: round $accent;
+}
+
+#composer {
+    height: auto;
+    max-height: 10;
+    background: transparent;
+    border: none;
+}
+
+#key-hints {
+    height: 1;
+    padding: 0 2;
+}
+
+.picker-screen {
+    align: center middle;
+    background: $background 60%;
+}
+
+.picker {
+    width: 80;
+    max-width: 95%;
+    height: auto;
+    max-height: 80%;
+    border: round $accent;
+    background: $surface;
+    padding: 1 2;
+}
+
+.picker-title {
+    margin: 0 0 1 0;
+}
+
+.picker-hint {
+    margin: 1 0 0 0;
+}
+
+.picker OptionList {
+    height: auto;
+    max-height: 20;
+    background: $surface;
+    border: none;
+}
+
+.picker DataTable {
+    height: auto;
+    background: $surface;
+}
+
+.picker Input {
+    margin: 0 0 1 0;
+}
+
+.keys {
+    width: 100;
+}
+
+.keys-section {
+    margin: 1 0;
+}

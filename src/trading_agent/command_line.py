@@ -23,7 +23,7 @@ class CommandLine:
             argument_list (Sequence[str] | None): The arguments to parse, or None to read them from sys.argv.
 
         Returns:
-            argparse.Namespace: The parsed arguments, with `command` set to "print" when -p is given without a subcommand, and to "serve" when neither is given.
+            argparse.Namespace: The parsed arguments, with `command` set to "print" when -p is given without a subcommand, and to "terminal" when neither is given.
         """
         parser = argparse.ArgumentParser(
             prog='trading-agent',
@@ -46,7 +46,7 @@ class CommandLine:
             '--desk',
             dest='chosen_desk',
             default=None,
-            help='The desk that -p talks to (default: general).',
+            help='The desk that -p talks to, or that the terminal program opens on (default: general, or for the terminal program the desk used last).',
         )
         parser.add_argument(
             '--output-format',
@@ -59,7 +59,10 @@ class CommandLine:
             help='How -p prints the reply: text as it streams, one json object at the end, or stream-json with one event per line (default: text).',
         )
         subparsers = parser.add_subparsers(dest='command')
-        subparsers.add_parser('serve', help='Run the gateway and its desks.')
+        subparsers.add_parser(
+            'serve',
+            help='Run the gateway and its desks. With no subcommand, trading-agent opens the terminal program instead.',
+        )
         subparsers.add_parser(
             'doctor',
             help='Check that everything the agent needs is in place.',
@@ -275,5 +278,5 @@ class CommandLine:
         if arguments.command is None and arguments.print_text is not None:
             arguments.command = 'print'
         if arguments.command is None:
-            arguments.command = 'serve'
+            arguments.command = 'terminal'
         return arguments
