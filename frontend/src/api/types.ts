@@ -324,6 +324,20 @@ export interface UsageDocument {
   rate_limits: Record<string, Record<string, unknown>>;
 }
 
+/** A phone running the Android app that receives push notifications. */
+export interface PhoneDevice {
+  device_id: string;
+  name: string;
+  registered_at: string;
+}
+
+/** Whether push notifications are on, and the registered phones. */
+export interface DevicesDocument {
+  enabled: boolean;
+  problem: string;
+  devices: PhoneDevice[];
+}
+
 /** A Telegram chat the desks obey. */
 export interface PairedChat {
   chat_id: number;

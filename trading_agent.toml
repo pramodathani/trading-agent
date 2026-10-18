@@ -114,6 +114,9 @@ peak_hours_utc = [
 ]
 off_peak_price_factor = 0.5
 
+[push]
+enabled = true
+
 [telegram]
 enabled = true
 default_desk = "general"

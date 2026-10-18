@@ -13,6 +13,7 @@ dependencies = [
     "claude-agent-sdk==0.2.168",
     "croniter==6.2.4",
     "fastapi==0.141.1",
+    "google-auth[requests]==2.59.1",
     "httpx==0.28.1",
     "ollama==0.6.3",
     "openai==3.31.0",

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 
 import { apiClient } from '../api/apiClient';
 import { tokenStore } from '../auth/tokenStore';
@@ -7,6 +7,7 @@ import { useCloseOnBack } from '../hooks/useCloseOnBack';
 import { useConnectionState, useLiveEvents } from '../hooks/useLiveEvents';
 import { usePolled } from '../hooks/usePolled';
 import { sidePanelStore, useSidePanelOpen } from '../sidePanel/sidePanelStore';
+import { pushRegistration } from '../utilities/pushRegistration';
 import { themeController } from '../utilities/themeController';
 import { DeskMenu } from './DeskMenu';
 import { DesksContext } from './desksContext';
@@ -40,6 +41,7 @@ export function AppLayout() {
   const connection = useConnectionState();
   const events = useLiveEvents();
   const location = useLocation();
+  const navigate = useNavigate();
   const panelOpen = useSidePanelOpen();
   const [theme, setTheme] = useState(themeController.current());
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -48,6 +50,16 @@ export function AppLayout() {
   const refreshDesks = desks.refresh;
 
   useCloseOnBack(drawerOpen, closeDrawer);
+
+  useEffect(() => {
+    void pushRegistration.register();
+    return pushRegistration.onOpen((deskName) => {
+      selectedDeskStore.choose(deskName);
+      void navigate('/chat');
+    });
+  }, [
+    navigate,
+  ]);
 
   useEffect(() => {
     setDrawerOpen(false);

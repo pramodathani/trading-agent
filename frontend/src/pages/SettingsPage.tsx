@@ -1,6 +1,7 @@
 import { apiClient } from '../api/apiClient';
 import { Loadable } from '../components/Loadable';
 import { PermissionGrantsPanel } from '../components/PermissionGrantsPanel';
+import { PhonesPanel } from '../components/PhonesPanel';
 import { usePolled } from '../hooks/usePolled';
 
 const REFRESH_MILLISECONDS = 60000;
@@ -20,6 +21,7 @@ export function SettingsPage() {
         </p>
       </div>
       <PermissionGrantsPanel />
+      <PhonesPanel />
       <Loadable data={configuration.data} error={configuration.error}>
         {(document) => (
           <>

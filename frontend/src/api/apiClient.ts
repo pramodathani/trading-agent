@@ -13,6 +13,7 @@ import type {
   DeskOrder,
   DeskSummary,
   DesksDocument,
+  DevicesDocument,
   EditableFile,
   Exchange,
   HiddenSkillEntry,
@@ -22,6 +23,7 @@ import type {
   NotesFile,
   PackageEntry,
   PermissionGrant,
+  PhoneDevice,
   PriceAlert,
   Proposal,
   QuestionAnswer,
@@ -612,6 +614,45 @@ export class ApiClient {
    */
   revokePairing(chatId: number): Promise<Record<string, unknown>> {
     return this.request('DELETE', `/api/channels/telegram/chats/${chatId}`);
+  }
+
+  /**
+   * Whether push notifications are on, and the phones that receive them.
+   * @returns The phones, without their Firebase tokens.
+   */
+  devices(): Promise<DevicesDocument> {
+    return this.request('GET', '/api/devices');
+  }
+
+  /**
+   * Registers this phone for push notifications.
+   * @param token The phone's Firebase Cloud Messaging token.
+   * @param name The phone's name.
+   * @returns The registered phone.
+   */
+  registerDevice(token: string, name: string): Promise<PhoneDevice> {
+    return this.request('POST', '/api/devices', {
+      token,
+      name,
+    });
+  }
+
+  /**
+   * Removes a phone, so it gets no more notifications.
+   * @param deviceId The phone's id.
+   * @returns The removed phone.
+   */
+  removeDevice(deviceId: string): Promise<PhoneDevice> {
+    return this.request('DELETE', `/api/devices/${encodeURIComponent(deviceId)}`);
+  }
+
+  /**
+   * Sends a test notification to one phone.
+   * @param deviceId The phone's id.
+   * @returns Whether Firebase accepted it.
+   */
+  testDevice(deviceId: string): Promise<{ sent: boolean }> {
+    return this.request('POST', `/api/devices/${encodeURIComponent(deviceId)}/test`);
   }
 
   /**
