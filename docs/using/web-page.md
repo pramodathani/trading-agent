@@ -49,7 +49,7 @@ The message box is one row of controls. The table below lists them from left to 
 | Control | What it does |
 |---|---|
 | Attach | Adds pictures or documents; dropping files on the box or pasting a picture also works, as [Pictures and documents](pictures-and-documents.md) explains |
-| The text | Enter sends, Shift+Enter starts a new line, and `/` starts a [command](chat.md#slash-commands) |
+| The text | Enter sends, Shift+Enter starts a new line, and `/` opens a menu of every [command](chat.md#slash-commands) and skill of the desk, read from the gateway |
 | Stop | A circle with a square, shown only while the desk is working; it stops the running turn at once |
 | Microphone | Fills the box as you speak, after any text already there |
 | Send | An arrow, shown once there is something to send |

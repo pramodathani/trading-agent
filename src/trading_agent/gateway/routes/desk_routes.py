@@ -3,6 +3,7 @@
   GET  /api/desks                     every desk's state, models and session
   GET  /api/desks/{desk}              one desk, with its persona
   GET  /api/desks/{desk}/context      how full the model's context window is, and the desk's tools
+  GET  /api/desks/{desk}/commands     the desk's slash commands and usable skills, for a command menu
   POST /api/desks/{desk}/messages     queue a message or /command, with uploads named by id; the reply arrives on /ws/events
   POST /api/desks/{desk}/model        try one backend first, optionally with another of its provider's models, or return to the configured order
   POST /api/desks/{desk}/pause        stop asking models until resumed (commands still work)
@@ -135,6 +136,9 @@ class DeskRoutes(route_group.RouteGroup):
             '/api/desks/{desk_name}/context', self.context, methods=['GET']
         )
         router.add_api_route(
+            '/api/desks/{desk_name}/commands', self.commands, methods=['GET']
+        )
+        router.add_api_route(
             '/api/desks/{desk_name}/messages',
             self.send_message,
             methods=['POST'],
@@ -206,6 +210,21 @@ class DeskRoutes(route_group.RouteGroup):
             'desk': desk_name,
             'usage': None if usage is None else usage.to_payload(),
             'tools': tools,
+        }
+
+    def commands(self, desk_name: str) -> dict[str, Any]:
+        """The desk's slash commands and usable skills.
+
+        Args:
+            desk_name (str): The desk.
+
+        Returns:
+            dict[str, Any]: The desk's name and its entries, each with name, usage, description, kind and runs.
+        """
+        desk = self._find(self._desks, desk_name, 'desk')
+        return {
+            'desk': desk_name,
+            'commands': desk.command_catalogue(),
         }
 
     def send_message(

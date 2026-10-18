@@ -420,6 +420,31 @@ class TestRequestRoutes:
         assert client.get('/api/requests').json()['requests'] == []
         assert len(client.get('/api/requests?status=all').json()['requests']) == 1
 
+    def test_the_terminal_names_itself_as_the_channel(
+        self, tmp_path: Path
+    ) -> None:
+        """A response sent with X-Trading-Agent-Client: terminal is recorded as via terminal; any other value as via web."""
+        setup = _Setup(tmp_path)
+        client = self._client(setup)
+        first = setup.ask()
+        second = setup.ask()
+
+        from_terminal = client.post(
+            f'/api/requests/{first.request_id}/dismiss',
+            headers={
+                'X-Trading-Agent-Client': 'terminal',
+            },
+        )
+        from_elsewhere = client.post(
+            f'/api/requests/{second.request_id}/dismiss',
+            headers={
+                'X-Trading-Agent-Client': 'something-else',
+            },
+        )
+
+        assert from_terminal.json()['responded_via'] == 'terminal'
+        assert from_elsewhere.json()['responded_via'] == 'web'
+
     def test_errors_map_to_status_codes(self, tmp_path: Path) -> None:
         """An unknown request is 404, a bad answer 422, and a second response 409."""
         setup = _Setup(tmp_path)

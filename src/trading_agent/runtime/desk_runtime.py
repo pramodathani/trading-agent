@@ -137,6 +137,14 @@ class DeskRuntime:
             return
         self._accept(trigger)
 
+    def command_catalogue(self) -> list[dict[str, str]]:
+        """The desk's commands and usable skills, for a client's command menu.
+
+        Returns:
+            list[dict[str, str]]: The entries, as SlashCommands.catalogue describes them.
+        """
+        return self._commands.catalogue()
+
     def _called_from_another_thread(self) -> bool:
         """Says whether submit was called outside the desk's event loop, such as from a web route running in a worker thread.
 

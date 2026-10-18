@@ -20,6 +20,7 @@ curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8120/api/desks
 | <span class="method get">GET</span> | `/api/desks` | Every desk's state, models and session | yes |
 | <span class="method get">GET</span> | `/api/desks/{desk}` | One desk, with its persona | yes |
 | <span class="method get">GET</span> | `/api/desks/{desk}/context` | How full the context window is, by category, and the desk's tools | yes |
+| <span class="method get">GET</span> | `/api/desks/{desk}/commands` | The desk's slash commands and usable skills, each with its usage, what it does, and whether it is answered at once, beside the running turn, or queued; the web page's and the terminal's command menus read it | yes |
 | <span class="method post">POST</span> | `/api/desks/{desk}/model` | Try one model first from now on, optionally another of its provider's models, or go back to the configured order, as `/model` does | yes |
 | <span class="method post">POST</span> | `/api/desks/{desk}/messages` | Queue a message or slash command, with `attachment_ids` naming uploaded files; the answer arrives as events | yes |
 | <span class="method post">POST</span> | `/api/desks/{desk}/attachments` | Upload one picture or document (a form with a `file` field); answers its attachment | yes |
@@ -41,7 +42,7 @@ curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8120/api/desks
 | <span class="method get">GET</span> | `/api/permissions` | The standing "Always allow" permissions | yes |
 | <span class="method post">POST</span> | `/api/permissions/revoke` | Make a desk ask again before using a tool | yes |
 
-Each answer is handed to the desk as a new message; the desk never waited for it.
+Each answer is handed to the desk as a new message; the desk never waited for it. An answer is recorded as given "via web" unless the client sends the header `X-Trading-Agent-Client: terminal`, which the terminal program does; any other value counts as web.
 
 ## The account
 

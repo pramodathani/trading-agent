@@ -389,6 +389,21 @@ export interface QuestionAnswer {
   other: string;
 }
 
+/** One slash command or skill a desk accepts, for the composer's command menu. */
+export interface DeskCommand {
+  name: string;
+  usage: string;
+  description: string;
+  kind: 'command' | 'skill';
+  runs: 'at_once' | 'beside' | 'queued';
+}
+
+/** A desk's slash commands and usable skills. */
+export interface CommandsDocument {
+  desk: string;
+  commands: DeskCommand[];
+}
+
 /** A desk's question, plan or permission request to the user. */
 export interface UserRequest {
   request_id: string;

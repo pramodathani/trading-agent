@@ -65,6 +65,10 @@ from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.scheduling import cron_scheduler
 from trading_agent.skills import skill_usage
 from trading_agent.subagents import subagent_library
+from trading_agent.terminal import gateway_client
+from trading_agent.terminal import prompt_history
+from trading_agent.terminal import terminal_application
+from trading_agent.terminal import terminal_settings
 from trading_agent.tools import bash_sandbox
 from trading_agent.workspace import proposal_store
 from trading_agent.workspace import workspace_layout
@@ -86,7 +90,7 @@ class Application:
     def run(self) -> None:
         """Reads the configuration and runs the chosen command until it ends.
 
-        The process exits with status 2 when the configuration is invalid, and with the command's own status after `doctor`, `send`, `proposals`, `checkpoints`, `skills`, `packages`, `subagents` and `mcp`.
+        The process exits with status 2 when the configuration is invalid, and with the command's own status after the terminal program, `doctor`, `send`, `-p`, `proposals`, `checkpoints`, `skills`, `packages`, `subagents` and `mcp`.
         """
         arguments = command_line.CommandLine().parse(self._argument_list)
         log_level = logging.INFO
@@ -122,6 +126,30 @@ class Application:
                 secrets.gateway_access_token,
             )
             sys.exit(asyncio.run(client.send(arguments.desk, arguments.text)))
+        if arguments.command == 'print':
+            client = message_client.MessageClient(
+                f'http://{configuration.gateway.host}:{configuration.gateway.port}',
+                secrets.gateway_access_token,
+                output_format=arguments.output_format,
+            )
+            text = arguments.print_text
+            if not sys.stdin.isatty():
+                piped = sys.stdin.read().strip()
+                if piped:
+                    text = f'{piped}\n\n{text}'
+            sys.exit(
+                asyncio.run(
+                    client.send(arguments.chosen_desk or 'general', text)
+                )
+            )
+        if arguments.command == 'terminal':
+            sys.exit(
+                self._terminal(
+                    f'http://{configuration.gateway.host}:{configuration.gateway.port}',
+                    secrets.gateway_access_token,
+                    arguments.chosen_desk,
+                )
+            )
         if arguments.command == 'proposals':
             commands = proposal_commands.ProposalCommands(
                 proposal_store.ProposalStore(layout)
@@ -221,6 +249,37 @@ class Application:
         if arguments.command == 'mcp':
             sys.exit(asyncio.run(mcp_commands.McpCommands(manager).list()))
         self._serve(configuration, secrets, manager, packages)
+
+    def _terminal(
+        self,
+        base_url: str,
+        access_token: str,
+        desk_name: str | None,
+    ) -> int:
+        """Runs the terminal program until the user leaves it.
+
+        Args:
+            base_url (str): The gateway's address.
+            access_token (str): The gateway's access token.
+            desk_name (str | None): The desk to open on, or None for the one used last.
+
+        Returns:
+            int: 0 when the user left normally, 1 when the gateway refused the token.
+        """
+        settings = terminal_settings.TerminalSettings.load()
+        history = prompt_history.PromptHistory(
+            terminal_settings.TerminalSettings.state_directory() / 'history'
+        )
+        program = terminal_application.TerminalApplication(
+            gateway_client.GatewayClient(base_url, access_token),
+            settings,
+            history,
+            desk_name,
+        )
+        exit_code = program.run()
+        if program.problem is not None:
+            print(program.problem, file=sys.stderr)
+        return exit_code or 0
 
     def _serve(
         self,

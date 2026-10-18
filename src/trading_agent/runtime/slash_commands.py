@@ -48,6 +48,127 @@ _DEFAULT = 'default'
 
 
 @dataclasses.dataclass(frozen=True)
+class CommandHelp:
+    """One line of /help: how a command is typed and what it does.
+
+    Attributes:
+        usage: How the command is typed, such as "/think <level>".
+        description: What it does.
+    """
+
+    usage: str
+    description: str
+
+    def name(self) -> str:
+        """The command word, such as "/think".
+
+        Returns:
+            str: The first word of the usage.
+        """
+        return self.usage.split()[0]
+
+    def line(self) -> str:
+        """The line /help prints for this command.
+
+        Returns:
+            str: The usage padded to 20 characters, a space, then the description.
+        """
+        return f'{self.usage:<20} {self.description}'
+
+
+_COMMAND_HELP = (
+    CommandHelp(
+        '/status',
+        'what the desk is doing and which models are ready',
+    ),
+    CommandHelp(
+        '/think',
+        'show how hard each model thinks',
+    ),
+    CommandHelp(
+        '/think <level>',
+        'off, low, medium, high, xhigh or max, from the next turn',
+    ),
+    CommandHelp(
+        '/think default',
+        'go back to the configured thinking',
+    ),
+    CommandHelp(
+        '/model',
+        'show the model order',
+    ),
+    CommandHelp(
+        '/model <name>',
+        'try that model first from now on',
+    ),
+    CommandHelp(
+        '/model auto',
+        'go back to the configured order',
+    ),
+    CommandHelp(
+        '/new',
+        'forget this conversation and start a fresh one',
+    ),
+    CommandHelp(
+        '/compact',
+        'save what matters, then compress the conversation into a summary',
+    ),
+    CommandHelp(
+        '/rollover',
+        'summarise the day and start a fresh session now',
+    ),
+    CommandHelp(
+        '/usage',
+        "today's model calls, tokens, costs and Claude's limits",
+    ),
+    CommandHelp(
+        '/context',
+        'how full the context window is, and with what',
+    ),
+    CommandHelp(
+        '/tools [full]',
+        'the tools the desk can call',
+    ),
+    CommandHelp(
+        '/skills',
+        'the skills the desk can follow',
+    ),
+    CommandHelp(
+        '/subagents',
+        "the desk's subagents and today's runs",
+    ),
+    CommandHelp(
+        '/btw <question>',
+        "ask a side question; it is not kept in the desk's conversation",
+    ),
+    CommandHelp(
+        '/review [notes]',
+        "have the trade reviewer judge today's orders and fills",
+    ),
+    CommandHelp(
+        '/stop',
+        'stop the running turn at once (it skips the queue)',
+    ),
+    CommandHelp(
+        '/pause',
+        'stop answering until /resume (commands still work)',
+    ),
+    CommandHelp(
+        '/resume',
+        'start answering again',
+    ),
+    CommandHelp(
+        '/<skill-name> ...',
+        'ask the desk to follow one of its skills',
+    ),
+    CommandHelp(
+        '/help',
+        'this list',
+    ),
+)
+
+
+@dataclasses.dataclass(frozen=True)
 class CommandParts:
     """The parts of the gateway some commands read, beyond the desk itself.
 
@@ -180,6 +301,47 @@ class SlashCommands:
             lines.append(argument)
         return '\n'.join(lines)
 
+    def catalogue(self) -> list[dict[str, str]]:
+        """Every command and usable skill, for a client's command menu.
+
+        Returns:
+            list[dict[str, str]]: One entry per /help line, then one per usable skill, each with name, usage, description, kind ("command" or "skill") and runs ("at_once", "beside" or "queued"; /stop is "at_once" because it skips the queue).
+        """
+        entries = []
+        for entry in _COMMAND_HELP:
+            name = entry.name()
+            if name == '/<skill-name>':
+                continue
+            runs = 'queued'
+            if name in _INSTANT_COMMANDS or name == '/stop':
+                runs = 'at_once'
+            elif name in _BACKGROUND_COMMANDS:
+                runs = 'beside'
+            entries.append(
+                {
+                    'name': name,
+                    'usage': entry.usage,
+                    'description': entry.description,
+                    'kind': 'command',
+                    'runs': runs,
+                }
+            )
+        if self._skill_library is None:
+            return entries
+        for skill in self._skill_library.available():
+            if f'/{skill.name}' in self._commands:
+                continue
+            entries.append(
+                {
+                    'name': f'/{skill.name}',
+                    'usage': f'/{skill.name}',
+                    'description': skill.description,
+                    'kind': 'skill',
+                    'runs': 'queued',
+                }
+            )
+        return entries
+
     async def handle(self, text: str) -> str:
         """Runs one command.
 
@@ -219,35 +381,17 @@ class SlashCommands:
             str: The list.
         """
         del argument
-        return '\n'.join(
+        lines = []
+        for entry in _COMMAND_HELP:
+            lines.append(entry.line())
+        lines.extend(
             [
-                '/status              what the desk is doing and which models are ready',
-                '/think               show how hard each model thinks',
-                '/think <level>       off, low, medium, high, xhigh or max, from the next turn',
-                '/think default       go back to the configured thinking',
-                '/model               show the model order',
-                '/model <name>        try that model first from now on',
-                '/model auto          go back to the configured order',
-                '/new                 forget this conversation and start a fresh one',
-                '/compact             save what matters, then compress the conversation into a summary',
-                '/rollover            summarise the day and start a fresh session now',
-                "/usage               today's model calls, tokens, costs and Claude's limits",
-                '/context             how full the context window is, and with what',
-                '/tools [full]        the tools the desk can call',
-                '/skills              the skills the desk can follow',
-                "/subagents           the desk's subagents and today's runs",
-                "/btw <question>      ask a side question; it is not kept in the desk's conversation",
-                "/review [notes]      have the trade reviewer judge today's orders and fills",
-                '/stop                stop the running turn at once (it skips the queue)',
-                '/pause               stop answering until /resume (commands still work)',
-                '/resume              start answering again',
-                '/<skill-name> ...    ask the desk to follow one of its skills',
-                '/help                this list',
                 '',
                 '/help, /status, /usage, /context, /tools, /skills and /subagents answer at once, even while the desk is working.',
                 '/btw and /review run beside the desk, without waiting for or interrupting its turn.',
             ]
         )
+        return '\n'.join(lines)
 
     async def _status(self, argument: str) -> str:
         """Describes the desk's state and its models.

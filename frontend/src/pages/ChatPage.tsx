@@ -1,7 +1,7 @@
 import { type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 import { apiClient } from '../api/apiClient';
-import type { AgentEvent, Attachment } from '../api/types';
+import type { AgentEvent, Attachment, DeskCommand } from '../api/types';
 import { AttachmentList } from '../components/AttachmentList';
 import { MarkdownText } from '../components/MarkdownText';
 import { ModelMenu } from '../components/ModelMenu';
@@ -30,17 +30,7 @@ const REQUEST_EVENT_KINDS = new Set([
   'user_response',
 ]);
 const ACCEPTED_FILES = '.png,.jpg,.jpeg,.webp,.gif,.pdf,.docx,.xlsx,.csv,.tsv,.txt,.md,.json';
-const SLASH_COMMANDS = [
-  '/status',
-  '/usage',
-  '/model',
-  '/compact',
-  '/new',
-  '/rollover',
-  '/pause',
-  '/resume',
-  '/help',
-];
+const COMMANDS_REFRESH_MILLISECONDS = 60000;
 
 /** A file added to the message being written, uploaded at once. */
 interface PendingFile {
@@ -62,6 +52,7 @@ export function ChatPage() {
   const panelOpen = useSidePanelOpen();
   const liveEvents = useLiveEvents();
   const requests = usePolled(() => apiClient.requests('pending'), REQUESTS_REFRESH_MILLISECONDS);
+  const commands = usePolled(() => apiClient.deskCommands(deskName), COMMANDS_REFRESH_MILLISECONDS, deskName);
   const refreshRequests = requests.refresh;
   const lastLiveEvent = liveEvents.length > 0 ? liveEvents[liveEvents.length - 1] : null;
   const streams = useStreamingTexts();
@@ -364,7 +355,7 @@ export function ChatPage() {
     }
   }
 
-  const suggestions = draft.startsWith('/') && !draft.includes(' ') ? SLASH_COMMANDS.filter((command) => command.startsWith(draft)) : [];
+  const suggestions = draft.startsWith('/') && !draft.includes(' ') ? commandSuggestions(commands.data?.commands ?? [], draft) : [];
 
   return (
     <div className={panelOpen ? 'chat-page with-panel' : 'chat-page'}>
@@ -409,8 +400,8 @@ export function ChatPage() {
           {suggestions.length > 0 && (
             <div className="slash-suggestions">
               {suggestions.map((command) => (
-                <button key={command} type="button" onClick={() => setDraft(`${command} `)}>
-                  {command}
+                <button key={command.name} type="button" title={command.description} onClick={() => setDraft(`${command.name} `)}>
+                  {command.name}
                 </button>
               ))}
             </div>
@@ -802,4 +793,23 @@ function LooseEventView(properties: { deskName: string; event: AgentEvent }) {
       {description.detail && <pre className="muted small">{description.detail}</pre>}
     </div>
   );
+}
+
+/**
+ * The commands whose names start with what the user has typed, each name once.
+ * @param commands The desk's commands and skills, as GET /api/desks/{desk}/commands lists them.
+ * @param draft What the user has typed, such as "/st".
+ * @returns The matching entries, in the desk's order.
+ */
+function commandSuggestions(commands: DeskCommand[], draft: string): DeskCommand[] {
+  const seen = new Set<string>();
+  const matches: DeskCommand[] = [];
+  for (const command of commands) {
+    if (seen.has(command.name) || !command.name.startsWith(draft)) {
+      continue;
+    }
+    seen.add(command.name);
+    matches.push(command);
+  }
+  return matches;
 }

@@ -1,6 +1,6 @@
 # Tests
 
-The suite has 500 tests in 49 files and runs in about 24 seconds:
+The suite has 578 tests in 57 files and runs in about 80 seconds, most of it the terminal program's screen tests:
 
 ```bash
 .venv/bin/pytest
@@ -23,5 +23,6 @@ The tests use stand-ins for models, UBI, Telegram and systemd, so they need no G
 | Extensions | `test_extensions.py`, `test_mcp.py`, `test_apps.py` |
 | The gateway | `test_gateway.py`, `test_gateway_api.py`, `test_frontend_routes.py`, `test_token_redacting_filter.py` |
 | Telegram and going live | `test_telegram.py`, `test_preflight.py` |
+| The terminal program | `test_chat_transcript.py`, `test_terminal_describers.py`, `test_gateway_client.py`, `test_message_client.py`, `test_command_catalogue.py`, `test_terminal_chat_screen.py`, `test_terminal_pages.py`, `test_terminal_attribute_names.py` |
 
-Some things can only be checked live, and were: each backend against its real model, the browser against real pages, the sandbox against bwrap, UBI's account and quotes, the service's restart after `kill -9`, and the web page in Chrome. The checks that need a trading day are in [Going live](../going_live.md).
+Some things can only be checked live, and were: each backend against its real model, the browser against real pages, the sandbox against bwrap, UBI's account and quotes, the service's restart after `kill -9`, the web page in Chrome, and the terminal program against a copy of the gateway, driven key by key with Textual's test pilot. The checks that need a trading day are in [Going live](../going_live.md).

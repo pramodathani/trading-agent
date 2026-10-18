@@ -81,7 +81,7 @@ The table below lists the pieces a newcomer usually asks about first, and where 
 | Who approves the orders? | Nobody. The risk engine's hard limits are the only gate. | [The risk engine](desks/risk-engine.md) |
 | Does it ever ask me? | Only when it chooses to ask a question or show a plan, and before any tool you list in `[approvals]`, which is only `flatten_desk` on this machine. It never waits for the answer. | [Questions, plans and permissions](using/questions-and-permissions.md) |
 | Which models does it use? | Claude through your Max subscription, never the API; then DeepSeek V4 Pro, then Qwen and Gemma on Ollama when Claude is unavailable. | [Models](agent/models.md) |
-| How do I talk to it? | The web page at <http://127.0.0.1:8120>, Telegram, or `bin/trading-agent send`. | [Using it](using/index.md) |
+| How do I talk to it? | The web page at <http://127.0.0.1:8120>, the terminal program `bin/trading-agent`, Telegram, or `bin/trading-agent -p` from a script. | [Using it](using/index.md) |
 | How do I stop it? | Stop a turn, pause a desk, flatten a desk, or fire the kill switch. | [Going live](going_live.md#how-to-stop) |
 | What can it change? | Its own notes, memory and skills. It only proposes changes to your files. | [Your files](desks/your-files.md) |
 | Does it keep running? | Yes. It is a systemd user service that restarts after a crash and resumes every conversation. | [The service](get-started/service.md) |

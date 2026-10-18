@@ -2,7 +2,7 @@
 
 ```text
 trading-agent/
-├── bin/trading-agent          the command; changes to the project folder, then runs the package
+├── bin/trading-agent          the command; with no subcommand, the terminal program
 ├── src/trading_agent/         the gateway and everything it runs
 ├── frontend/                  the web page: React 19, TypeScript, Vite 8
 ├── workspace/                 your files and the desks' memory, journals and sessions
@@ -40,7 +40,8 @@ trading-agent/
 | `gateway` | The FastAPI application, the access guard and the route groups |
 | `configuration` | `trading_agent.toml` and `.env` |
 | `doctor` | The doctor's checks and the going-live checks |
-| `client` | The terminal commands that are not `serve` |
+| `client` | The subcommands that are not `serve`, and the client behind `send` and `-p` |
+| `terminal` | The terminal program: the gateway client, the event stream, the chat transcript, the chat screen with its side panel and request dock, and one screen per page |
 | `workspace` | The workspace layout, its templates and proposals |
 
 `application.py` holds the `Application` class that `__main__.py` runs, and `desk_builder.py` builds each desk from its configuration. The [API reference](../reference/trading_agent/index.md) has one page per module.

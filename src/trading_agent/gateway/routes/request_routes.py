@@ -8,7 +8,7 @@
   GET  /api/permissions                  the standing "Always allow" permissions
   POST /api/permissions/revoke           make a desk ask again before using a tool
 
-Each response is handed to the desk as a new message; the desk never waited for it.
+Each response is handed to the desk as a new message; the desk never waited for it. A response is recorded as given "via web" unless the client names itself with the header X-Trading-Agent-Client: terminal.
 
 Typical usage example:
 
@@ -29,6 +29,11 @@ from trading_agent.requests import user_request_responder as user_request_respon
 from trading_agent.requests import user_request_store as user_request_store_module
 
 _WEB = 'web'
+_CLIENTS = (
+    'web',
+    'terminal',
+)
+_CLIENT_HEADER = fastapi.Header(default=_WEB, alias='X-Trading-Agent-Client')
 
 
 class QuestionAnswer(pydantic.BaseModel):
@@ -160,12 +165,18 @@ class RequestRoutes(route_group.RouteGroup):
             'requests': requests,
         }
 
-    def answer(self, request_id: str, body: AnswerRequest) -> dict[str, Any]:
+    def answer(
+        self,
+        request_id: str,
+        body: AnswerRequest,
+        client: str = _CLIENT_HEADER,
+    ) -> dict[str, Any]:
         """Answers a question request.
 
         Args:
             request_id (str): The request.
             body (AnswerRequest): The answers.
+            client (str): The client that sent it, from the X-Trading-Agent-Client header.
 
         Returns:
             dict[str, Any]: The answered request.
@@ -178,19 +189,23 @@ class RequestRoutes(route_group.RouteGroup):
             answers.append(answer.model_dump())
         return self._respond(
             request_id,
-            lambda: self._responder.answer_question(request_id, answers, _WEB),
+            lambda: self._responder.answer_question(
+                request_id, answers, self._via(client)
+            ),
         )
 
     def decide_plan(
         self,
         request_id: str,
         body: PlanDecisionRequest,
+        client: str = _CLIENT_HEADER,
     ) -> dict[str, Any]:
         """Approves a plan or asks for changes.
 
         Args:
             request_id (str): The request.
             body (PlanDecisionRequest): The decision and feedback.
+            client (str): The client that sent it, from the X-Trading-Agent-Client header.
 
         Returns:
             dict[str, Any]: The decided request.
@@ -204,7 +219,7 @@ class RequestRoutes(route_group.RouteGroup):
                 request_id,
                 body.decision,
                 body.feedback,
-                _WEB,
+                self._via(client),
             ),
         )
 
@@ -212,12 +227,14 @@ class RequestRoutes(route_group.RouteGroup):
         self,
         request_id: str,
         body: PermissionDecisionRequest,
+        client: str = _CLIENT_HEADER,
     ) -> dict[str, Any]:
         """Allows a held call once or always, running it, or denies it.
 
         Args:
             request_id (str): The request.
             body (PermissionDecisionRequest): The decision and reason.
+            client (str): The client that sent it, from the X-Trading-Agent-Client header.
 
         Returns:
             dict[str, Any]: The decided request, with the call's result when it ran.
@@ -234,7 +251,7 @@ class RequestRoutes(route_group.RouteGroup):
                 request_id,
                 body.decision,
                 body.reason,
-                _WEB,
+                self._via(client),
             )
         except user_request_store_module.UserRequestError as error:
             raise fastapi.HTTPException(status_code=409, detail=str(error)) from error
@@ -283,11 +300,16 @@ class RequestRoutes(route_group.RouteGroup):
             'revoked': True,
         }
 
-    def dismiss(self, request_id: str) -> dict[str, Any]:
+    def dismiss(
+        self,
+        request_id: str,
+        client: str = _CLIENT_HEADER,
+    ) -> dict[str, Any]:
         """Closes a request without answering it.
 
         Args:
             request_id (str): The request.
+            client (str): The client that sent it, from the X-Trading-Agent-Client header.
 
         Returns:
             dict[str, Any]: The dismissed request.
@@ -297,8 +319,21 @@ class RequestRoutes(route_group.RouteGroup):
         """
         return self._respond(
             request_id,
-            lambda: self._responder.dismiss(request_id, _WEB),
+            lambda: self._responder.dismiss(request_id, self._via(client)),
         )
+
+    def _via(self, client: str) -> str:
+        """The channel a response is recorded as coming through.
+
+        Args:
+            client (str): The X-Trading-Agent-Client header's value.
+
+        Returns:
+            str: "terminal" for the terminal program, otherwise "web".
+        """
+        if client in _CLIENTS:
+            return client
+        return _WEB
 
     def _respond(
         self,

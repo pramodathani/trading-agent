@@ -64,7 +64,7 @@ class UserRequestResponder:
         Args:
             request_id (str): The request.
             answers (Sequence[dict[str, Any]]): One {"selected": [labels], "other": text} per question.
-            via (str): "web" or "telegram".
+            via (str): "web", "terminal" or "telegram".
 
         Returns:
             user_request_module.UserRequest: The answered request.
@@ -99,7 +99,7 @@ class UserRequestResponder:
             request_id (str): The request.
             decision (str): "approve" or "revise".
             feedback (str): What should change, or a note with an approval.
-            via (str): "web" or "telegram".
+            via (str): "web", "terminal" or "telegram".
 
         Returns:
             user_request_module.UserRequest: The decided request.
@@ -134,7 +134,7 @@ class UserRequestResponder:
             request_id (str): The request.
             decision (str): "allow_once", "always_allow" or "deny".
             reason (str): Why it was denied, or a note; may be empty.
-            via (str): "web" or "telegram".
+            via (str): "web", "terminal" or "telegram".
 
         Returns:
             user_request_module.UserRequest: The decided request.
@@ -187,7 +187,7 @@ class UserRequestResponder:
 
         Args:
             request_id (str): The request.
-            via (str): "web" or "telegram".
+            via (str): "web", "terminal" or "telegram".
 
         Returns:
             user_request_module.UserRequest: The dismissed request.
@@ -220,7 +220,7 @@ class UserRequestResponder:
             status (str): "answered" or "dismissed".
             response (dict[str, Any]): The response to save.
             message (str): What the desk is told.
-            via (str): "web" or "telegram".
+            via (str): "web", "terminal" or "telegram".
 
         Returns:
             user_request_module.UserRequest: The finished request.
@@ -250,7 +250,7 @@ class UserRequestResponder:
             request (user_request_module.UserRequest): The request.
             status (str): "answered", "dismissed" or "expired".
             response (dict[str, Any]): The response saved, or empty.
-            via (str): "web", "telegram", or empty when it lapsed.
+            via (str): "web", "terminal", "telegram", or empty when it lapsed.
         """
         self._event_bus.publish(
             event_module.Event.now(

@@ -563,7 +563,11 @@ class TelegramRequests:
         Returns:
             str: Such as "✓ Answered on the web: 2%".
         """
-        place = 'on the web' if request.responded_via == 'web' else 'on Telegram'
+        place = 'on Telegram'
+        if request.responded_via == 'web':
+            place = 'on the web'
+        elif request.responded_via == 'terminal':
+            place = 'in the terminal'
         if request.status == user_request_module.DISMISSED:
             return f'Dismissed {place}.'
         if request.status == user_request_module.EXPIRED:

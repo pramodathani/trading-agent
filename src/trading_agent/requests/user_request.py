@@ -41,7 +41,7 @@ class UserRequest:
         status: "pending", "answered", "dismissed" or "expired".
         response: The user's response, or None while pending.
         responded_at: When the user responded, as ISO 8601 text, or None.
-        responded_via: Where the user responded, "web" or "telegram", or None.
+        responded_via: Where the user responded, "web", "terminal" or "telegram", or None.
         expires_at: When the request lapses, as ISO 8601 text, or None when it never does.
     """
 
