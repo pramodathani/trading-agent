@@ -39,7 +39,7 @@ class TraderCard(side_card.SideCard):
         if trader.get('paused'):
             state += ', paused'
         state_value = Content(state)
-        if trader.get('state') != 'idle':
+        if trader.get('state') not in ('idle', 'sleeping'):
             state_value = Content.from_markup(
                 '[$warning]$state[/]', state=state
             )

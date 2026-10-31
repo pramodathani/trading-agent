@@ -78,3 +78,9 @@ The gateway's web routes, such as `POST /api/traders/{trader}/messages`, are pla
 `run` now records the trader's loop, and `submit`, when called from another thread while that loop runs, hands the trigger over with `call_soon_threadsafe` and returns. `_accept` does the real work on the loop. The trigger id is created before the hand-over, so the route still returns it at once. Before the loop starts, as in tests that submit first, `submit` works directly as before.
 
 This also makes `/stop` from the web page cancel the turn from the loop's own thread.
+
+## Sleeping and waiting (ported from research-agent's `eabbd86`)
+
+A trader that has had no trigger for `[traders] sleep_after_minutes` (30 by default, 0 never) calls `release()` on its turn runner and shows as `sleeping`. For the Claude Code backend that stops the process but keeps the session id, so the next trigger starts a process that resumes the same conversation. With more traders created on demand, idle Claude Code processes would otherwise add up overnight. A trader with a heartbeat during market hours never sits idle that long, so this mostly frees processes after the close and at weekends. Price alerts, fills and messages arrive as triggers, so they wake a sleeping trader.
+
+`waiting` means the trader has a turn to run but every slot of `[traders] maximum_running` is taken.

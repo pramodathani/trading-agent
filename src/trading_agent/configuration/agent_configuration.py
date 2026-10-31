@@ -78,6 +78,8 @@ class TradersConfiguration(pydantic.BaseModel):
         heartbeat_minutes: A new trader's minutes between heartbeats, or None for no heartbeat.
         rollover_time: A new trader's daily rollover time in India time, as HH:MM.
         first_trader: The trader created when the workspace has none.
+        sleep_after_minutes: How long a trader may sit idle before it stops its model processes, or 0 to keep them running; it wakes on its next trigger.
+        maximum_running: The most traders that may run a model turn at the same time, or None for no limit.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -92,6 +94,8 @@ class TradersConfiguration(pydantic.BaseModel):
         default='general',
         pattern=TRADER_NAME_PATTERN,
     )
+    sleep_after_minutes: int = pydantic.Field(default=30, ge=0)
+    maximum_running: int | None = pydantic.Field(default=None, ge=1)
 
 
 class AgentLoopConfiguration(pydantic.BaseModel):

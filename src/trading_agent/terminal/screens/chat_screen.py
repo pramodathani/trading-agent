@@ -824,7 +824,11 @@ class ChatScreen(screen.Screen[None]):
         if self._transcript.running_turn() is not None:
             return True
         trader = self.trader()
-        return trader is not None and trader.get('state') not in (None, 'idle')
+        return trader is not None and trader.get('state') not in (
+            None,
+            'idle',
+            'sleeping',
+        )
 
     def _show_status(self) -> None:
         """Redraws the status line and the message box's placeholder, while the screen's widgets exist."""

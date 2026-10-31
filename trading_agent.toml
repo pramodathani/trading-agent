@@ -16,6 +16,7 @@ backend_order = [
     "qwen",
     "gemma",
 ]
+sleep_after_minutes = 30
 
 [backends.gemma]
 kind = "ollama"

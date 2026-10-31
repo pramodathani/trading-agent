@@ -55,6 +55,7 @@ from trading_agent.runtime import slash_commands
 from trading_agent.runtime import steering_inbox as steering_inbox_module
 from trading_agent.runtime import trader_runtime
 from trading_agent.runtime import turn_runner
+from trading_agent.runtime import turn_slots
 from trading_agent.scheduling import built_in_jobs
 from trading_agent.scheduling import command_job_runner
 from trading_agent.scheduling import cron_job
@@ -197,6 +198,9 @@ class TraderBuilder:
         self._order_services = self._build_order_services()
         self._skill_libraries: dict[str, skill_library.SkillLibrary] = {}
         self._roster: Callable[[], Sequence[str]] | None = None
+        self._turn_slots = turn_slots.TurnSlots(
+            configuration.traders.maximum_running
+        )
         self._packages = installed_packages.InstalledPackages(
             self._layout.packages_directory
         )
@@ -366,7 +370,20 @@ class TraderBuilder:
                 ),
                 subagent_runner=subagents,
             ),
+            self._sleep_after_seconds(),
+            self._turn_slots,
         )
+
+    def _sleep_after_seconds(self) -> float | None:
+        """How long a trader may sit idle before it falls asleep.
+
+        Returns:
+            float | None: Seconds, or None when traders never sleep.
+        """
+        minutes = self._configuration.traders.sleep_after_minutes
+        if minutes == 0:
+            return None
+        return minutes * 60.0
 
     def trader_parts(self) -> dict[str, gateway_parts.TraderParts]:
         """The stores and tools of every trader build() made, for the gateway's API.

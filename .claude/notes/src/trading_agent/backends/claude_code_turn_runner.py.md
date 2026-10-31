@@ -98,3 +98,7 @@ The fork keeps the trader's MCP server, because Claude's API refuses a conversat
 The fork's session file is deleted afterwards (`_delete_fork`), so session search and `/resume` never find it. A fork id equal to the trader's session id is never deleted, as a guard.
 
 The fork's cost is not recorded by the usage tracker; it counts against the Max subscription like any Claude Code call.
+
+## release()
+
+Stops the Claude Code process while the trader sleeps, keeping `session_id`, so the next turn resumes the conversation in a new process.

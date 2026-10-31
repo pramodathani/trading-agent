@@ -27,3 +27,7 @@ At start, a job with `catch_up` whose previous scheduled run was within 24 hours
 ## Run now (milestone 17)
 
 `run_now` starts a job through the same `_start` the timer uses, with `catching_up` false, so a run started from the web page is recorded and reported exactly like a scheduled one.
+
+## Heartbeats for sleeping traders
+
+A heartbeat is skipped only while the trader is busy or waiting for a turn slot. A sleeping trader is not busy, so its heartbeat wakes it.

@@ -18,6 +18,7 @@ class EventKind(enum.StrEnum):
     TRADER_STOPPED = 'trader_stopped'
     TRADER_CREATED = 'trader_created'
     TRADER_RETIRED = 'trader_retired'
+    TRADER_SLEEPING = 'trader_sleeping'
     TRIGGER_RECEIVED = 'trigger_received'
     TURN_STARTED = 'turn_started'
     TEXT_DELTA = 'text_delta'

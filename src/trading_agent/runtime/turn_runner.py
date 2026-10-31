@@ -169,6 +169,15 @@ class TurnRunner:
         """
         return None
 
+    async def release(self) -> None:
+        """Stops any process the runner keeps between turns, keeping the conversation so the next turn carries on.
+
+        The trader calls this when it falls asleep after sitting idle. Runners that keep no process keep this empty default.
+
+        Returns:
+            None.
+        """
+
     async def close(self) -> None:
         """Releases anything the runner started, such as a Claude Code process.
 

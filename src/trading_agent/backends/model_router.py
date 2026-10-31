@@ -303,6 +303,15 @@ class ModelRouter(turn_runner.TurnRunner):
                 chosen = route
         return chosen.turn_runner.context_usage()
 
+    async def release(self) -> None:
+        """Lets every backend's turn runner stop the processes it keeps between turns.
+
+        Returns:
+            None.
+        """
+        for route in self._routes:
+            await route.turn_runner.release()
+
     async def close(self) -> None:
         """Closes every backend's turn runner."""
         for route in self._routes:

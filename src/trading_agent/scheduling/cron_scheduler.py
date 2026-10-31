@@ -280,9 +280,12 @@ class CronScheduler:
             catching_up (bool): Whether this run makes up for a missed one.
         """
         trader = schedule.trader
+        busy_states = (
+            trader_runtime_module.TraderState.BUSY,
+            trader_runtime_module.TraderState.WAITING,
+        )
         if job.job_id == HEARTBEAT_JOB_ID and (
-            trader.state != trader_runtime_module.TraderState.IDLE
-            or trader.queued_count
+            trader.state in busy_states or trader.queued_count
         ):
             schedule.store.record_run(
                 job, moment, 'skipped', 'the trader was busy'

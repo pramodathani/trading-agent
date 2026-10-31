@@ -919,6 +919,14 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         self._session_prompt_fingerprint = None
         self._context_usage = None
 
+    async def release(self) -> None:
+        """Stops Claude Code while the trader sleeps; the next turn starts a process that resumes the same session.
+
+        Returns:
+            None.
+        """
+        await self._disconnect()
+
     async def close(self) -> None:
         """Stops the trader's Claude Code process when the trader stops."""
         await self._disconnect()

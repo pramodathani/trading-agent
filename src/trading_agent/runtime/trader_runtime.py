@@ -28,6 +28,7 @@ from trading_agent.runtime import slash_commands
 from trading_agent.runtime import steering_inbox as steering_inbox_module
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.runtime import turn_runner as turn_runner_module
+from trading_agent.runtime import turn_slots as turn_slots_module
 from trading_agent.scheduling import market_status as market_status_module
 from trading_agent.skills import skill_library as skill_library_module
 from trading_agent.tools import tool_registry as tool_registry_module
@@ -41,10 +42,12 @@ _STOPPED_REPLY = 'Stopped by the user before the turn finished. Tools that had a
 
 
 class TraderState(enum.StrEnum):
-    """Whether a trader is waiting for a trigger or running a turn."""
+    """Whether a trader is waiting for a trigger, asleep, waiting for a turn slot, or running a turn."""
 
     STOPPED = 'stopped'
     IDLE = 'idle'
+    SLEEPING = 'sleeping'
+    WAITING = 'waiting'
     BUSY = 'busy'
 
 
@@ -72,6 +75,8 @@ class TraderRuntime:
         market_status: market_status_module.MarketStatus | None = None,
         steering_inbox: steering_inbox_module.SteeringInbox | None = None,
         command_parts: slash_commands.CommandParts | None = None,
+        sleep_after_seconds: float | None = None,
+        turn_slots: turn_slots_module.TurnSlots | None = None,
     ):
         """Creates the trader without starting its loop.
 
@@ -87,6 +92,8 @@ class TraderRuntime:
             market_status (market_status_module.MarketStatus | None): Describes the market for the context line, or None to leave it out.
             steering_inbox (steering_inbox_module.SteeringInbox | None): Where mid-turn messages wait for the running turn, shared with the turn runner; None creates one that only this trader reads.
             command_parts (slash_commands.CommandParts | None): The subagents and journal some commands read, or None; the trader's own tool registry is added to it.
+            sleep_after_seconds (float | None): How long the trader may sit idle before it stops its model processes, or None to keep them running.
+            turn_slots (turn_slots_module.TurnSlots | None): The limit on model turns running at once, shared by every trader, or None for no limit.
         """
         self.name = trader_configuration.name
         self.state = TraderState.STOPPED
@@ -116,6 +123,8 @@ class TraderRuntime:
         self._stop_requested = False
         self._beside_tasks: set[asyncio.Task] = set()
         self._loop: asyncio.AbstractEventLoop | None = None
+        self._sleep_after_seconds = sleep_after_seconds
+        self._turn_slots = turn_slots or turn_slots_module.TurnSlots(None)
 
     def submit(self, trigger: trigger_module.Trigger) -> None:
         """Adds a trigger to the end of the trader's queue.
@@ -326,7 +335,7 @@ class TraderRuntime:
             if self._session_keeper is not None:
                 await self._session_keeper.start()
             while True:
-                trigger = await self._trigger_queue.get()
+                trigger = await self._next_trigger()
                 await self._handle(trigger)
         finally:
             for task in list(self._beside_tasks):
@@ -336,6 +345,35 @@ class TraderRuntime:
                 await self._tool_registry.close()
             self.state = TraderState.STOPPED
             self._publish(event_module.EventKind.TRADER_STOPPED, {})
+
+    async def _next_trigger(self) -> trigger_module.Trigger:
+        """Waits for the next trigger, falling asleep when none comes for a while.
+
+        Returns:
+            trigger_module.Trigger: The trigger.
+        """
+        if (
+            self._sleep_after_seconds is None
+            or self.state == TraderState.SLEEPING
+        ):
+            return await self._trigger_queue.get()
+        try:
+            return await asyncio.wait_for(
+                self._trigger_queue.get(), self._sleep_after_seconds
+            )
+        except TimeoutError:
+            await self._fall_asleep()
+        return await self._trigger_queue.get()
+
+    async def _fall_asleep(self) -> None:
+        """Stops the model processes kept between turns; the next trigger wakes the trader and resumes its session.
+
+        Returns:
+            None.
+        """
+        await self.turn_runner.release()
+        self.state = TraderState.SLEEPING
+        self._publish(event_module.EventKind.TRADER_SLEEPING, {})
 
     async def _handle(self, trigger: trigger_module.Trigger) -> None:
         """Answers one trigger and publishes what happened.
@@ -426,6 +464,21 @@ class TraderRuntime:
             return _PAUSED_REPLY
         if self._session_keeper is not None:
             trigger = await self._session_keeper.prepare(trigger)
+        if not self._turn_slots.is_free():
+            self.state = TraderState.WAITING
+        async with self._turn_slots.slot():
+            self.state = TraderState.BUSY
+            return await self._run_model_turn(trigger)
+
+    async def _run_model_turn(self, trigger: trigger_module.Trigger) -> str:
+        """Runs one model turn, or answers the /stop that cancelled it.
+
+        Args:
+            trigger (trigger_module.Trigger): The trigger, prepared by the session keeper.
+
+        Returns:
+            str: The answer's text.
+        """
         self._running_trigger_id = trigger.trigger_id
         self._turn_task = asyncio.create_task(
             self.turn_runner.run_turn(self._with_context(trigger))
