@@ -218,6 +218,7 @@ class OrderTool(tool.Tool):
         quantity: int,
         product: str,
         price: float,
+        after_market: bool = False,
     ) -> order_request_module.OrderRequest:
         """Describes an order for the risk engine.
 
@@ -227,6 +228,7 @@ class OrderTool(tool.Tool):
             quantity (int): How many units.
             product (str): "cnc", "mis" or "nrml".
             price (float): The price the order is valued at.
+            after_market (bool): Whether it is an after-market order.
 
         Returns:
             order_request_module.OrderRequest: The request.
@@ -242,6 +244,7 @@ class OrderTool(tool.Tool):
             quantity=quantity,
             product=product,
             price=price,
+            after_market=after_market,
         )
 
     def _refusal(

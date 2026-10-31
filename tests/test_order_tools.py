@@ -352,7 +352,7 @@ class _Setup:
 
 def _limit_buy(
     instrument_id: str = _INFY_ID, quantity: int = 10
-) -> order_arguments.OrderArguments:
+) -> place_order_tool.PlaceOrderArguments:
     """A limit buy for the tests.
 
     Args:
@@ -360,9 +360,9 @@ def _limit_buy(
         quantity (int): How many units.
 
     Returns:
-        order_arguments.OrderArguments: The order.
+        place_order_tool.PlaceOrderArguments: The order.
     """
-    return order_arguments.OrderArguments(
+    return place_order_tool.PlaceOrderArguments(
         instrument_id=instrument_id,
         transaction_type='buy',
         quantity=quantity,
@@ -436,6 +436,53 @@ class TestPlaceOrderTool:
         assert sent['dry_run'] is True
         assert sent['tag'] == 'main'
         assert 'dry run' in result.text
+
+    def test_after_market_order_is_sent_as_after_market(
+        self, tmp_path: Path
+    ) -> None:
+        """An after-market order reaches the risk engine and UBI marked as after market.
+
+        Args:
+            tmp_path (Path): A temporary folder from pytest.
+        """
+        setup = _Setup(tmp_path)
+        tool = place_order_tool.PlaceOrderTool(
+            setup.services, 'main', 'dry_run'
+        )
+        arguments = place_order_tool.PlaceOrderArguments(
+            instrument_id=_INFY_ID,
+            transaction_type='buy',
+            quantity=1,
+            product='cnc',
+            order_type='limit',
+            price=1490.0,
+            after_market=True,
+            reason='test after-market entry',
+        )
+
+        result = asyncio.run(tool.run(arguments))
+
+        assert not result.is_error
+        method, sent = setup.share.requests[0]
+        assert method == 'place_order'
+        assert sent['after_market'] is True
+        assert setup.engine.requests[0].after_market is True
+        assert 'after market' in result.text
+
+    def test_after_market_order_cannot_be_ioc(self) -> None:
+        """An after-market order with ioc validity is refused before anything runs."""
+        with pytest.raises(pydantic.ValidationError, match='cannot be ioc'):
+            place_order_tool.PlaceOrderArguments(
+                instrument_id=_INFY_ID,
+                transaction_type='buy',
+                quantity=1,
+                product='cnc',
+                order_type='limit',
+                price=1490.0,
+                validity='ioc',
+                after_market=True,
+                reason='test',
+            )
 
     def test_dry_run_order_is_recorded_under_a_made_up_id(
         self, tmp_path: Path
@@ -533,7 +580,7 @@ class TestPlaceOrderTool:
         """
         setup = _Setup(tmp_path)
         tool = place_order_tool.PlaceOrderTool(setup.services, 'main', 'live')
-        arguments = order_arguments.OrderArguments(
+        arguments = place_order_tool.PlaceOrderArguments(
             instrument_id=_INFY_ID,
             transaction_type='buy',
             quantity=5,
