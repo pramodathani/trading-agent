@@ -36,14 +36,14 @@ _OWNER = 111
 
 
 class _Permissions:
-    """A desk whose echo tool needs permission, with its executor, responder and watcher.
+    """A trader whose echo tool needs permission, with its executor, responder and watcher.
 
     Attributes:
         store: The request store.
         grants: The standing permissions.
-        desk: The stand-in desk.
-        executor: The desk's executor, with the gate.
-        responder: The responder, able to run the desk's tools.
+        trader: The stand-in trader.
+        executor: The trader's executor, with the gate.
+        responder: The responder, able to run the trader's tools.
         watcher: The expiry watcher.
     """
 
@@ -79,22 +79,24 @@ class _Permissions:
             loop_guard.LoopGuard(maximum_identical_calls=5),
             gate,
         )
-        self.desk = test_user_requests._StandInDesk()
+        self.trader = test_user_requests._StandInTrader()
         self.responder = user_request_responder.UserRequestResponder(
             self.store,
             event_bus,
             {
-                'main': self.desk,
+                'main': self.trader,
             },
             {
                 'main': registry,
             },
             self.grants,
         )
-        self.watcher = request_expiry_watcher.RequestExpiryWatcher(self.store, self.responder)
+        self.watcher = request_expiry_watcher.RequestExpiryWatcher(
+            self.store, self.responder
+        )
 
     def call(self, word: str = 'hello') -> str:
-        """Has the desk call the echo tool.
+        """Has the trader call the echo tool.
 
         Args:
             word (str): The word to echo.
@@ -102,11 +104,19 @@ class _Permissions:
         Returns:
             str: What the model is told.
         """
-        trigger = trigger_module.Trigger.now(trigger_module.TriggerSource.USER_MESSAGE, 'main', 'go')
-        result = asyncio.run(self.executor.execute(trigger, messages.ToolCall.new('echo', {'word': word})))
+        trigger = trigger_module.Trigger.now(
+            trigger_module.TriggerSource.USER_MESSAGE, 'main', 'go'
+        )
+        result = asyncio.run(
+            self.executor.execute(
+                trigger, messages.ToolCall.new('echo', {'word': word})
+            )
+        )
         return result.text
 
-    def decide(self, decision: str, reason: str = '') -> user_request_module.UserRequest:
+    def decide(
+        self, decision: str, reason: str = ''
+    ) -> user_request_module.UserRequest:
         """Decides the newest pending request.
 
         Args:
@@ -117,7 +127,11 @@ class _Permissions:
             user_request_module.UserRequest: The decided request.
         """
         request = self.store.pending()[-1]
-        return asyncio.run(self.responder.decide_permission(request.request_id, decision, reason, 'web'))
+        return asyncio.run(
+            self.responder.decide_permission(
+                request.request_id, decision, reason, 'web'
+            )
+        )
 
 
 class TestPermissionGate:
@@ -138,19 +152,23 @@ class TestPermissionGate:
         }
         assert request.expires_at is not None
 
-    def test_allow_once_runs_exactly_the_held_call(self, tmp_path: Path) -> None:
-        """Allowing runs the held call and gives the desk its result, without a standing permission."""
+    def test_allow_once_runs_exactly_the_held_call(
+        self, tmp_path: Path
+    ) -> None:
+        """Allowing runs the held call and gives the trader its result, without a standing permission."""
         permissions = _Permissions(tmp_path)
         permissions.call('hello')
 
         decided = permissions.decide('allow_once')
 
         assert decided.response['result'] == 'HELLO'
-        assert 'HELLO' in permissions.desk.triggers[-1].text
+        assert 'HELLO' in permissions.trader.triggers[-1].text
         assert permissions.grants.all() == []
         assert 'needs the user' in permissions.call('again')
 
-    def test_always_allow_lets_later_calls_through(self, tmp_path: Path) -> None:
+    def test_always_allow_lets_later_calls_through(
+        self, tmp_path: Path
+    ) -> None:
         """Always allow saves a grant, so the next call runs at once, until it is revoked."""
         permissions = _Permissions(tmp_path)
         permissions.call('hello')
@@ -163,38 +181,52 @@ class TestPermissionGate:
         assert later == 'LATER'
         assert 'needs the user' in after_revoking
 
-    def test_deny_does_not_run_and_passes_the_reason(self, tmp_path: Path) -> None:
-        """Denying does not run the call and tells the desk the reason."""
+    def test_deny_does_not_run_and_passes_the_reason(
+        self, tmp_path: Path
+    ) -> None:
+        """Denying does not run the call and tells the trader the reason."""
         permissions = _Permissions(tmp_path)
         permissions.call('hello')
 
         decided = permissions.decide('deny', 'Not during the opening')
 
         assert 'result' not in decided.response
-        assert 'Not during the opening' in permissions.desk.triggers[-1].text
-        assert 'HELLO' not in permissions.desk.triggers[-1].text
+        assert 'Not during the opening' in permissions.trader.triggers[-1].text
+        assert 'HELLO' not in permissions.trader.triggers[-1].text
 
-    def test_lapsed_request_cannot_be_allowed_and_is_reported_once(self, tmp_path: Path) -> None:
-        """A lapsed request is refused, and the watcher tells the desk exactly once."""
+    def test_lapsed_request_cannot_be_allowed_and_is_reported_once(
+        self, tmp_path: Path
+    ) -> None:
+        """A lapsed request is refused, and the watcher tells the trader exactly once."""
         permissions = _Permissions(tmp_path)
         permissions.call('hello')
         request = permissions.store.pending()[0]
         permissions.store.save(
             dataclasses.replace(
                 request,
-                expires_at=(datetime.datetime.now(datetime.UTC) - datetime.timedelta(seconds=1)).isoformat(),
+                expires_at=(
+                    datetime.datetime.now(datetime.UTC)
+                    - datetime.timedelta(seconds=1)
+                ).isoformat(),
             )
         )
 
         with pytest.raises(user_request_store.UserRequestError):
-            asyncio.run(permissions.responder.decide_permission(request.request_id, 'allow_once', '', 'web'))
+            asyncio.run(
+                permissions.responder.decide_permission(
+                    request.request_id, 'allow_once', '', 'web'
+                )
+            )
         first = permissions.watcher.check()
         second = permissions.watcher.check()
 
         assert first == 1
         assert second == 0
-        assert 'lapsed' in permissions.desk.triggers[-1].text
-        assert permissions.store.get(request.request_id).status == user_request_module.EXPIRED
+        assert 'lapsed' in permissions.trader.triggers[-1].text
+        assert (
+            permissions.store.get(request.request_id).status
+            == user_request_module.EXPIRED
+        )
 
     def test_uncovered_tools_run_at_once(self, tmp_path: Path) -> None:
         """A gate that covers other tools lets the call run."""
@@ -202,7 +234,7 @@ class TestPermissionGate:
         store = user_request_store.UserRequestStore(layout)
         gate = permission_gate.PermissionGate(
             [
-                'flatten_desk',
+                'flatten_trader',
             ],
             5,
             store,
@@ -211,13 +243,15 @@ class TestPermissionGate:
         )
 
         assert not gate.needs_permission('main', 'echo')
-        assert gate.needs_permission('main', 'flatten_desk')
+        assert gate.needs_permission('main', 'flatten_trader')
 
 
 class TestPermissionRoutes:
     """Tests for the permission routes."""
 
-    def _client(self, permissions: _Permissions) -> fastapi.testclient.TestClient:
+    def _client(
+        self, permissions: _Permissions
+    ) -> fastapi.testclient.TestClient:
         """Mounts the request routes.
 
         Args:
@@ -249,14 +283,23 @@ class TestPermissionRoutes:
         request = permissions.store.pending()[0]
         client = self._client(permissions)
 
-        decided = client.post(f'/api/requests/{request.request_id}/permission', json={'decision': 'always_allow'})
+        decided = client.post(
+            f'/api/requests/{request.request_id}/permission',
+            json={'decision': 'always_allow'},
+        )
         listed = client.get('/api/permissions').json()['grants']
-        revoked = client.post('/api/permissions/revoke', json={'desk': 'main', 'tool_name': 'echo'})
-        again = client.post('/api/permissions/revoke', json={'desk': 'main', 'tool_name': 'echo'})
+        revoked = client.post(
+            '/api/permissions/revoke',
+            json={'trader': 'main', 'tool_name': 'echo'},
+        )
+        again = client.post(
+            '/api/permissions/revoke',
+            json={'trader': 'main', 'tool_name': 'echo'},
+        )
 
         assert decided.status_code == 200
         assert decided.json()['response']['result'] == 'HELLO'
-        assert [(grant['desk'], grant['tool_name']) for grant in listed] == [
+        assert [(grant['trader'], grant['tool_name']) for grant in listed] == [
             (
                 'main',
                 'echo',
@@ -271,7 +314,10 @@ class TestPermissionRoutes:
         permissions.call('hello')
         request = permissions.store.pending()[0]
 
-        answer = self._client(permissions).post(f'/api/requests/{request.request_id}/permission', json={'decision': 'maybe'})
+        answer = self._client(permissions).post(
+            f'/api/requests/{request.request_id}/permission',
+            json={'decision': 'maybe'},
+        )
 
         assert answer.status_code == 422
 
@@ -282,10 +328,14 @@ class TestTelegramPermissions:
     def test_allow_button_runs_the_call(self, tmp_path: Path) -> None:
         """A permission request shows three buttons, and Allow once runs the held call."""
         permissions = _Permissions(tmp_path)
-        pairing = pairing_store_module.PairingStore(tmp_path / 'telegram_pairing.json')
+        pairing = pairing_store_module.PairingStore(
+            tmp_path / 'telegram_pairing.json'
+        )
         pairing.approve(pairing.request(_OWNER, 'Owner'), 'main')
         api = test_telegram_requests._StandInApi()
-        handler = telegram_requests.TelegramRequests(api, pairing, permissions.store, permissions.responder)
+        handler = telegram_requests.TelegramRequests(
+            api, pairing, permissions.store, permissions.responder
+        )
         permissions.call('hello')
         request = permissions.store.pending()[0]
 
@@ -310,4 +360,7 @@ class TestTelegramPermissions:
             'Always allow echo',
             '⛔ Deny',
         ]
-        assert permissions.store.get(request.request_id).response['result'] == 'HELLO'
+        assert (
+            permissions.store.get(request.request_id).response['result']
+            == 'HELLO'
+        )

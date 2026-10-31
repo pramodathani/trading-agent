@@ -1,4 +1,4 @@
-"""A question, plan or permission request the desk made during a turn, with its answer once given.
+"""A question, plan or permission request the trader made during a turn, with its answer once given.
 
 The request itself is answered in the request dock above the message box; this line records it in the transcript.
 
@@ -46,7 +46,7 @@ class RequestStepView(widgets.Static):
             request (dict[str, Any]): The request.
 
         Returns:
-            Content: What the desk asked for, and the answer or the waiting state.
+            Content: What the trader asked for, and the answer or the waiting state.
         """
         description = event_describer.EventDescriber().describe(
             {
@@ -126,7 +126,7 @@ class RequestStepView(widgets.Static):
         return text
 
     def _answers_text(self, response: dict[str, Any]) -> str:
-        """The answers to the desk's questions.
+        """The answers to the trader's questions.
 
         Args:
             response (dict[str, Any]): The response.

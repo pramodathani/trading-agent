@@ -1,11 +1,11 @@
 """Talks to a running gateway's HTTP routes, one method per route, as the web page's apiClient.ts does.
 
-Every request carries the access token as a Bearer header, and names the terminal program as the client, so the desks' requests answered here are recorded as answered "via terminal". A route that answers with an error raises GatewayError with the gateway's own explanation.
+Every request carries the access token as a Bearer header, and names the terminal program as the client, so the traders' requests answered here are recorded as answered "via terminal". A route that answers with an error raises GatewayError with the gateway's own explanation.
 
 Typical usage example:
 
   async with GatewayClient('http://127.0.0.1:8120', token) as gateway:
-      desks = await gateway.desks()
+      traders = await gateway.traders()
       reply = await gateway.send_message('general', '/status')
 """
 
@@ -96,11 +96,11 @@ class GatewayClient:
         """Closes the client's connections."""
         await self._http.aclose()
 
-    def events_address(self, desk_name: str | None = None) -> str:
+    def events_address(self, trader_name: str | None = None) -> str:
         """The WebSocket address of the event stream, with the token.
 
         Args:
-            desk_name (str | None): A desk to keep only that desk's events and events of no desk, or None for every event.
+            trader_name (str | None): A trader to keep only that trader's events and events of no trader, or None for every event.
 
         Returns:
             str: Such as ws://127.0.0.1:8120/ws/events?token=....
@@ -108,8 +108,8 @@ class GatewayClient:
         query = {
             'token': self._access_token,
         }
-        if desk_name is not None:
-            query['desk'] = desk_name
+        if trader_name is not None:
+            query['trader'] = trader_name
         address = self.base_url.replace('http', 'ws', 1)
         return f'{address}/ws/events?{urllib.parse.urlencode(query)}'
 
@@ -117,65 +117,67 @@ class GatewayClient:
         """Whether the gateway is up; this route needs no token.
 
         Returns:
-            dict[str, Any]: The status and each desk's state.
+            dict[str, Any]: The status and each trader's state.
         """
         return await self._json('GET', '/api/health')
 
-    async def desks(self) -> dict[str, Any]:
-        """Every desk's state, models and session.
+    async def traders(self) -> dict[str, Any]:
+        """Every trader's state, models and session.
 
         Returns:
-            dict[str, Any]: The mode and the desks.
+            dict[str, Any]: The mode and the traders.
         """
-        return await self._json('GET', '/api/desks')
+        return await self._json('GET', '/api/traders')
 
-    async def desk(self, desk_name: str) -> dict[str, Any]:
-        """One desk's state, with its persona.
+    async def trader(self, trader_name: str) -> dict[str, Any]:
+        """One trader's state, with its persona.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
-            dict[str, Any]: The desk's summary and Persona.md text.
-        """
-        return await self._json('GET', f'/api/desks/{self._part(desk_name)}')
-
-    async def desk_context(self, desk_name: str) -> dict[str, Any]:
-        """How full a desk's context window is, and its tools.
-
-        Args:
-            desk_name (str): The desk.
-
-        Returns:
-            dict[str, Any]: The desk, its usage snapshot or None, and its tool names.
+            dict[str, Any]: The trader's summary and Persona.md text.
         """
         return await self._json(
-            'GET', f'/api/desks/{self._part(desk_name)}/context'
+            'GET', f'/api/traders/{self._part(trader_name)}'
         )
 
-    async def desk_commands(self, desk_name: str) -> dict[str, Any]:
-        """A desk's slash commands and usable skills.
+    async def trader_context(self, trader_name: str) -> dict[str, Any]:
+        """How full a trader's context window is, and its tools.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
-            dict[str, Any]: The desk and its command entries.
+            dict[str, Any]: The trader, its usage snapshot or None, and its tool names.
         """
         return await self._json(
-            'GET', f'/api/desks/{self._part(desk_name)}/commands'
+            'GET', f'/api/traders/{self._part(trader_name)}/context'
+        )
+
+    async def trader_commands(self, trader_name: str) -> dict[str, Any]:
+        """A trader's slash commands and usable skills.
+
+        Args:
+            trader_name (str): The trader.
+
+        Returns:
+            dict[str, Any]: The trader and its command entries.
+        """
+        return await self._json(
+            'GET', f'/api/traders/{self._part(trader_name)}/commands'
         )
 
     async def send_message(
         self,
-        desk_name: str,
+        trader_name: str,
         text: str,
         attachment_ids: Sequence[str] = (),
     ) -> str:
-        """Queues a message or /command for a desk; the reply arrives on the event stream.
+        """Queues a message or /command for a trader; the reply arrives on the event stream.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             text (str): The message or command.
             attachment_ids (Sequence[str]): Uploads to send with it.
 
@@ -184,7 +186,7 @@ class GatewayClient:
         """
         answer = await self._json(
             'POST',
-            f'/api/desks/{self._part(desk_name)}/messages',
+            f'/api/traders/{self._part(trader_name)}/messages',
             body={
                 'text': text,
                 'attachment_ids': list(attachment_ids),
@@ -194,23 +196,23 @@ class GatewayClient:
 
     async def choose_model(
         self,
-        desk_name: str,
+        trader_name: str,
         backend_name: str | None,
         model: str | None = None,
     ) -> dict[str, Any]:
-        """Makes a desk try one backend first, or go back to the configured order.
+        """Makes a trader try one backend first, or go back to the configured order.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             backend_name (str | None): The backend, or None for the configured order.
             model (str | None): Another model of that backend's provider, or None for its configured model.
 
         Returns:
-            dict[str, Any]: The desk's new summary.
+            dict[str, Any]: The trader's new summary.
         """
         return await self._json(
             'POST',
-            f'/api/desks/{self._part(desk_name)}/model',
+            f'/api/traders/{self._part(trader_name)}/model',
             body={
                 'backend': backend_name,
                 'model': model,
@@ -218,12 +220,12 @@ class GatewayClient:
         )
 
     async def upload_attachment(
-        self, desk_name: str, file_path: Path
+        self, trader_name: str, file_path: Path
     ) -> dict[str, Any]:
-        """Uploads a file for a desk, to be named in a later message.
+        """Uploads a file for a trader, to be named in a later message.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             file_path (Path): The file to upload.
 
         Returns:
@@ -232,34 +234,34 @@ class GatewayClient:
         with file_path.open('rb') as file:
             return await self._json(
                 'POST',
-                f'/api/desks/{self._part(desk_name)}/attachments',
+                f'/api/traders/{self._part(trader_name)}/attachments',
                 files={
                     'file': (file_path.name, file),
                 },
             )
 
     async def attachment_bytes(
-        self, desk_name: str, attachment_id: str
+        self, trader_name: str, attachment_id: str
     ) -> bytes:
         """Downloads an attachment.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             attachment_id (str): The attachment's id.
 
         Returns:
             bytes: The file's contents.
         """
         return await self._bytes(
-            f'/api/desks/{self._part(desk_name)}/attachments/{self._part(attachment_id)}'
+            f'/api/traders/{self._part(trader_name)}/attachments/{self._part(attachment_id)}'
         )
 
-    async def picture_bytes(self, desk_name: str, picture_path: str) -> bytes:
-        """Downloads a picture from inside a desk's folder.
+    async def picture_bytes(self, trader_name: str, picture_path: str) -> bytes:
+        """Downloads a picture from inside a trader's folder.
 
         Args:
-            desk_name (str): The desk.
-            picture_path (str): The picture's path relative to the desk folder.
+            trader_name (str): The trader.
+            picture_path (str): The picture's path relative to the trader folder.
 
         Returns:
             bytes: The picture's contents.
@@ -268,40 +270,40 @@ class GatewayClient:
             self._part(segment) for segment in picture_path.split('/')
         )
         return await self._bytes(
-            f'/api/desks/{self._part(desk_name)}/pictures/{encoded}'
+            f'/api/traders/{self._part(trader_name)}/pictures/{encoded}'
         )
 
-    async def pause(self, desk_name: str) -> dict[str, Any]:
-        """Stops a desk asking models until it is resumed.
+    async def pause(self, trader_name: str) -> dict[str, Any]:
+        """Stops a trader asking models until it is resumed.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
-            dict[str, Any]: The desk's new summary.
+            dict[str, Any]: The trader's new summary.
         """
         return await self._json(
-            'POST', f'/api/desks/{self._part(desk_name)}/pause'
+            'POST', f'/api/traders/{self._part(trader_name)}/pause'
         )
 
-    async def resume(self, desk_name: str) -> dict[str, Any]:
-        """Makes a paused desk answer again.
+    async def resume(self, trader_name: str) -> dict[str, Any]:
+        """Makes a paused trader answer again.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
-            dict[str, Any]: The desk's new summary.
+            dict[str, Any]: The trader's new summary.
         """
         return await self._json(
-            'POST', f'/api/desks/{self._part(desk_name)}/resume'
+            'POST', f'/api/traders/{self._part(trader_name)}/resume'
         )
 
-    async def flatten(self, desk_name: str, reason: str) -> dict[str, Any]:
-        """Cancels a desk's orders and closes its positions.
+    async def flatten(self, trader_name: str, reason: str) -> dict[str, Any]:
+        """Cancels a trader's orders and closes its positions.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             reason (str): Why, for the journal.
 
         Returns:
@@ -309,14 +311,14 @@ class GatewayClient:
         """
         return await self._json(
             'POST',
-            f'/api/desks/{self._part(desk_name)}/flatten',
+            f'/api/traders/{self._part(trader_name)}/flatten',
             body={
                 'reason': reason,
             },
         )
 
     async def requests(self, status: str = 'pending') -> list[dict[str, Any]]:
-        """The desks' questions, plans and permission requests.
+        """The traders' questions, plans and permission requests.
 
         Args:
             status (str): "pending" for the ones waiting for an answer, or "all".
@@ -338,7 +340,7 @@ class GatewayClient:
         request_id: str,
         answers: Sequence[dict[str, Any]],
     ) -> dict[str, Any]:
-        """Answers a desk's questions.
+        """Answers a trader's questions.
 
         Args:
             request_id (str): The request.
@@ -361,7 +363,7 @@ class GatewayClient:
         decision: str,
         feedback: str,
     ) -> dict[str, Any]:
-        """Approves a desk's plan or asks it to keep planning.
+        """Approves a trader's plan or asks it to keep planning.
 
         Args:
             request_id (str): The request.
@@ -391,7 +393,7 @@ class GatewayClient:
         Args:
             request_id (str): The request.
             decision (str): "allow_once", "always_allow" or "deny".
-            reason (str): Why, sent to the desk with a denial.
+            reason (str): Why, sent to the trader with a denial.
 
         Returns:
             dict[str, Any]: The request, with the call's result when it ran.
@@ -419,21 +421,21 @@ class GatewayClient:
         )
 
     async def permission_grants(self) -> list[dict[str, Any]]:
-        """The tools each desk may call without asking.
+        """The tools each trader may call without asking.
 
         Returns:
-            list[dict[str, Any]]: The grants, each with desk, tool_name and granted_at.
+            list[dict[str, Any]]: The grants, each with trader, tool_name and granted_at.
         """
         answer = await self._json('GET', '/api/permissions')
         return answer['grants']
 
     async def revoke_permission(
-        self, desk_name: str, tool_name: str
+        self, trader_name: str, tool_name: str
     ) -> dict[str, Any]:
-        """Makes a desk ask again before calling a tool.
+        """Makes a trader ask again before calling a tool.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             tool_name (str): The tool.
 
         Returns:
@@ -443,7 +445,7 @@ class GatewayClient:
             'POST',
             '/api/permissions/revoke',
             body={
-                'desk': desk_name,
+                'trader': trader_name,
                 'tool_name': tool_name,
             },
         )
@@ -456,13 +458,13 @@ class GatewayClient:
         """
         return await self._json('GET', '/api/account')
 
-    async def desk_orders(self) -> dict[str, Any]:
-        """Each desk's open orders.
+    async def trader_orders(self) -> dict[str, Any]:
+        """Each trader's open orders.
 
         Returns:
-            dict[str, Any]: The orders, keyed by desk.
+            dict[str, Any]: The orders, keyed by trader.
         """
-        return await self._json('GET', '/api/desk-orders')
+        return await self._json('GET', '/api/trader-orders')
 
     async def broker_orders(self, kind: str = 'orders') -> dict[str, Any]:
         """UBI's own order book.
@@ -482,7 +484,7 @@ class GatewayClient:
         )
 
     async def kill(self, reason: str) -> dict[str, Any]:
-        """Fires the kill switch: every desk is halted and the account is flattened.
+        """Fires the kill switch: every trader is halted and the account is flattened.
 
         Args:
             reason (str): Why, for the journal.
@@ -499,16 +501,16 @@ class GatewayClient:
             },
         )
 
-    async def desk_journal(
+    async def trader_journal(
         self,
-        desk_name: str,
+        trader_name: str,
         limit: int = _JOURNAL_LIMIT,
         day: str | None = None,
     ) -> dict[str, Any]:
-        """A desk's events of one day, oldest first.
+        """A trader's events of one day, oldest first.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             limit (int): The most events to return, newest kept.
             day (str | None): The day as YYYY-MM-DD, or None for today.
 
@@ -522,12 +524,12 @@ class GatewayClient:
             parameters['day'] = day
         return await self._json(
             'GET',
-            f'/api/desks/{self._part(desk_name)}/journal',
+            f'/api/traders/{self._part(trader_name)}/journal',
             parameters=parameters,
         )
 
     async def journal(self, limit: int = _JOURNAL_LIMIT) -> dict[str, Any]:
-        """Today's events that belong to no desk, oldest first.
+        """Today's events that belong to no trader, oldest first.
 
         Args:
             limit (int): The most events to return, newest kept.
@@ -543,24 +545,26 @@ class GatewayClient:
             },
         )
 
-    async def sessions(self, desk_name: str) -> dict[str, Any]:
-        """A desk's sessions.
+    async def sessions(self, trader_name: str) -> dict[str, Any]:
+        """A trader's sessions.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: The current session id and every session with its exchange count.
         """
         return await self._json(
-            'GET', f'/api/desks/{self._part(desk_name)}/sessions'
+            'GET', f'/api/traders/{self._part(trader_name)}/sessions'
         )
 
-    async def session(self, desk_name: str, session_id: str) -> dict[str, Any]:
+    async def session(
+        self, trader_name: str, session_id: str
+    ) -> dict[str, Any]:
         """One session's exchanges.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             session_id (str): The session.
 
         Returns:
@@ -568,40 +572,40 @@ class GatewayClient:
         """
         return await self._json(
             'GET',
-            f'/api/desks/{self._part(desk_name)}/sessions/{self._part(session_id)}',
+            f'/api/traders/{self._part(trader_name)}/sessions/{self._part(session_id)}',
         )
 
-    async def summaries(self, desk_name: str) -> dict[str, Any]:
-        """A desk's daily summaries.
+    async def summaries(self, trader_name: str) -> dict[str, Any]:
+        """A trader's daily summaries.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: The summaries, each with date and text.
         """
         return await self._json(
-            'GET', f'/api/desks/{self._part(desk_name)}/summaries'
+            'GET', f'/api/traders/{self._part(trader_name)}/summaries'
         )
 
-    async def notes(self, desk_name: str) -> dict[str, Any]:
-        """A desk's notes files.
+    async def notes(self, trader_name: str) -> dict[str, Any]:
+        """A trader's notes files.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: The notes, each with file and text.
         """
         return await self._json(
-            'GET', f'/api/desks/{self._part(desk_name)}/notes'
+            'GET', f'/api/traders/{self._part(trader_name)}/notes'
         )
 
-    async def search(self, desk_name: str, keywords: str) -> dict[str, Any]:
-        """Searches a desk's memory.
+    async def search(self, trader_name: str, keywords: str) -> dict[str, Any]:
+        """Searches a trader's memory.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             keywords (str): The words to look for.
 
         Returns:
@@ -609,7 +613,7 @@ class GatewayClient:
         """
         return await self._json(
             'GET',
-            f'/api/desks/{self._part(desk_name)}/search',
+            f'/api/traders/{self._part(trader_name)}/search',
             parameters={
                 'keywords': keywords,
                 'limit': '40',
@@ -620,27 +624,27 @@ class GatewayClient:
         """The files the user may edit.
 
         Returns:
-            dict[str, Any]: The files, each with name, desk, whether it exists and its size.
+            dict[str, Any]: The files, each with name, trader, whether it exists and its size.
         """
         return await self._json('GET', '/api/files')
 
     async def file_text(
-        self, name: str, desk_name: str | None
+        self, name: str, trader_name: str | None
     ) -> dict[str, Any]:
         """Reads an editable file.
 
         Args:
             name (str): The file's name, such as "TradingRules.md".
-            desk_name (str | None): Its desk, or None for a shared file.
+            trader_name (str | None): Its trader, or None for a shared file.
 
         Returns:
-            dict[str, Any]: The name, desk and text.
+            dict[str, Any]: The name, trader and text.
         """
         parameters = {
             'name': name,
         }
-        if desk_name is not None:
-            parameters['desk'] = desk_name
+        if trader_name is not None:
+            parameters['trader'] = trader_name
         return await self._json(
             'GET', '/api/files/content', parameters=parameters
         )
@@ -648,14 +652,14 @@ class GatewayClient:
     async def save_file(
         self,
         name: str,
-        desk_name: str | None,
+        trader_name: str | None,
         text: str,
     ) -> dict[str, Any]:
         """Writes an editable file.
 
         Args:
             name (str): The file's name.
-            desk_name (str | None): Its desk, or None for a shared file.
+            trader_name (str | None): Its trader, or None for a shared file.
             text (str): The new text.
 
         Returns:
@@ -666,13 +670,13 @@ class GatewayClient:
             '/api/files/content',
             body={
                 'name': name,
-                'desk': desk_name,
+                'trader': trader_name,
                 'text': text,
             },
         )
 
     async def proposals(self) -> dict[str, Any]:
-        """The changes desks propose to the user's files.
+        """The changes traders propose to the user's files.
 
         Returns:
             dict[str, Any]: The proposals, each with its unified diff.
@@ -698,40 +702,40 @@ class GatewayClient:
             'POST', f'/api/proposals/{self._part(proposal_id)}/{action}'
         )
 
-    async def jobs(self, desk_name: str) -> dict[str, Any]:
-        """A desk's scheduled jobs and their latest runs.
+    async def jobs(self, trader_name: str) -> dict[str, Any]:
+        """A trader's scheduled jobs and their latest runs.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: The jobs and recent runs.
         """
         return await self._json(
-            'GET', f'/api/desks/{self._part(desk_name)}/jobs'
+            'GET', f'/api/traders/{self._part(trader_name)}/jobs'
         )
 
     async def create_job(
-        self, desk_name: str, job: dict[str, Any]
+        self, trader_name: str, job: dict[str, Any]
     ) -> dict[str, Any]:
-        """Schedules a new job for a desk.
+        """Schedules a new job for a trader.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             job (dict[str, Any]): The job: name, schedule, run_at, instructions or command, trading_days_only and market_hours_only.
 
         Returns:
             dict[str, Any]: The job as stored.
         """
         return await self._json(
-            'POST', f'/api/desks/{self._part(desk_name)}/jobs', body=job
+            'POST', f'/api/traders/{self._part(trader_name)}/jobs', body=job
         )
 
-    async def delete_job(self, desk_name: str, job_id: str) -> dict[str, Any]:
+    async def delete_job(self, trader_name: str, job_id: str) -> dict[str, Any]:
         """Removes a scheduled job.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             job_id (str): The job.
 
         Returns:
@@ -739,14 +743,14 @@ class GatewayClient:
         """
         return await self._json(
             'DELETE',
-            f'/api/desks/{self._part(desk_name)}/jobs/{self._part(job_id)}',
+            f'/api/traders/{self._part(trader_name)}/jobs/{self._part(job_id)}',
         )
 
-    async def run_job(self, desk_name: str, job_id: str) -> dict[str, Any]:
+    async def run_job(self, trader_name: str, job_id: str) -> dict[str, Any]:
         """Runs a scheduled job now.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             job_id (str): The job.
 
         Returns:
@@ -754,29 +758,29 @@ class GatewayClient:
         """
         return await self._json(
             'POST',
-            f'/api/desks/{self._part(desk_name)}/jobs/{self._part(job_id)}/run',
+            f'/api/traders/{self._part(trader_name)}/jobs/{self._part(job_id)}/run',
         )
 
-    async def alerts(self, desk_name: str) -> dict[str, Any]:
-        """A desk's price alerts.
+    async def alerts(self, trader_name: str) -> dict[str, Any]:
+        """A trader's price alerts.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: The alerts.
         """
         return await self._json(
-            'GET', f'/api/desks/{self._part(desk_name)}/alerts'
+            'GET', f'/api/traders/{self._part(trader_name)}/alerts'
         )
 
     async def delete_alert(
-        self, desk_name: str, alert_id: str
+        self, trader_name: str, alert_id: str
     ) -> dict[str, Any]:
         """Removes a price alert.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             alert_id (str): The alert.
 
         Returns:
@@ -784,20 +788,20 @@ class GatewayClient:
         """
         return await self._json(
             'DELETE',
-            f'/api/desks/{self._part(desk_name)}/alerts/{self._part(alert_id)}',
+            f'/api/traders/{self._part(trader_name)}/alerts/{self._part(alert_id)}',
         )
 
-    async def skills(self, desk_name: str) -> dict[str, Any]:
-        """A desk's usable and hidden skills.
+    async def skills(self, trader_name: str) -> dict[str, Any]:
+        """A trader's usable and hidden skills.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: The available and hidden skills.
         """
         return await self._json(
-            'GET', f'/api/desks/{self._part(desk_name)}/skills'
+            'GET', f'/api/traders/{self._part(trader_name)}/skills'
         )
 
     async def subagents(self) -> dict[str, Any]:
@@ -824,26 +828,26 @@ class GatewayClient:
         """
         return await self._json('GET', '/api/packages')
 
-    async def checkpoints(self, desk_name: str) -> dict[str, Any]:
-        """A desk's checkpoints, newest first.
+    async def checkpoints(self, trader_name: str) -> dict[str, Any]:
+        """A trader's checkpoints, newest first.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: The checkpoints.
         """
         return await self._json(
-            'GET', f'/api/desks/{self._part(desk_name)}/checkpoints'
+            'GET', f'/api/traders/{self._part(trader_name)}/checkpoints'
         )
 
     async def restore_checkpoint(
-        self, desk_name: str, checkpoint_id: str
+        self, trader_name: str, checkpoint_id: str
     ) -> dict[str, Any]:
-        """Puts a desk's own files back as they were at a checkpoint.
+        """Puts a trader's own files back as they were at a checkpoint.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             checkpoint_id (str): The checkpoint.
 
         Returns:
@@ -851,14 +855,14 @@ class GatewayClient:
         """
         return await self._json(
             'POST',
-            f'/api/desks/{self._part(desk_name)}/checkpoints/{self._part(checkpoint_id)}/restore',
+            f'/api/traders/{self._part(trader_name)}/checkpoints/{self._part(checkpoint_id)}/restore',
         )
 
     async def usage(self) -> dict[str, Any]:
         """Today's model calls, tokens and costs, and Claude's limits.
 
         Returns:
-            dict[str, Any]: The usage per desk and backend, and the rate limits.
+            dict[str, Any]: The usage per trader and backend, and the rate limits.
         """
         return await self._json('GET', '/api/usage')
 
@@ -943,7 +947,7 @@ class GatewayClient:
 
         Args:
             method (str): The HTTP method.
-            path (str): The route, such as /api/desks.
+            path (str): The route, such as /api/traders.
             body (Any): A JSON body, or None.
             parameters (dict[str, str] | None): Query parameters, or None.
             files (dict[str, Any] | None): Multipart files, or None.
@@ -1041,7 +1045,7 @@ class GatewayClient:
         """Encodes one path segment.
 
         Args:
-            value (str): The segment, such as a desk name.
+            value (str): The segment, such as a trader name.
 
         Returns:
             str: The segment, safe to put in a URL path.

@@ -10,7 +10,7 @@ From milestone 8 the application builds the secret redactor and the trade journa
 
 ## checkpoints command (milestone 11)
 
-`trading-agent checkpoints list|restore` is handled before the gateway is built, like `proposals`. An unknown `--desk` exits with status 1 rather than creating an empty checkpoint repository for a desk that does not exist.
+`trading-agent checkpoints list|restore` is handled before the gateway is built, like `proposals`. An unknown `--trader` exits with status 1 rather than creating an empty checkpoint repository for a trader that does not exist.
 
 ## Skills (milestone 13)
 
@@ -18,7 +18,7 @@ From milestone 8 the application builds the secret redactor and the trade journa
 
 ## MCP (milestone 13)
 
-`mcp_servers.json` is read once at start-up, before any command that needs it; an invalid file exits with status 2. `trading-agent mcp list` checks the servers on its own. `serve` passes the manager to the desk builder and runs it as a third background worker.
+`mcp_servers.json` is read once at start-up, before any command that needs it; an invalid file exits with status 2. `trading-agent mcp list` checks the servers on its own. `serve` passes the manager to the trader builder and runs it as a third background worker.
 
 ## Packages and hooks (milestone 13, part 3)
 
@@ -30,20 +30,20 @@ From milestone 8 the application builds the secret redactor and the trade journa
 
 ## Scheduler (milestone 15)
 
-`serve` builds a `CronScheduler` over every desk's schedule and runs it as a fifth background worker.
+`serve` builds a `CronScheduler` over every trader's schedule and runs it as a fifth background worker.
 
 ## Watcher, webhooks and usage (milestone 15, part 2)
 
-`serve` creates the usage tracker before the desks, runs it, the market watcher and the scheduler as background workers, and gives the gateway the webhook token. The skill-usage tracker's variable was renamed `skill_uses` to keep the two trackers apart.
+`serve` creates the usage tracker before the traders, runs it, the market watcher and the scheduler as background workers, and gives the gateway the webhook token. The skill-usage tracker's variable was renamed `skill_uses` to keep the two trackers apart.
 
 ## The API's route groups (milestone 17)
 
-`_route_groups` builds the API's route groups from the desk builder's parts, the scheduler, the usage tracker, the MCP manager and the redactor. It is a separate method because `_serve` was already long, and the list of route groups will grow with later milestones.
+`_route_groups` builds the API's route groups from the trader builder's parts, the scheduler, the usage tracker, the MCP manager and the redactor. It is a separate method because `_serve` was already long, and the list of route groups will grow with later milestones.
 
 ## Telegram (milestone 19)
 
-`_telegram_channel` builds the channel only when `[telegram] enabled` is true and a token is set; enabled without a token logs a warning and runs without Telegram, rather than refusing to start the desks. The channel runs as one of the gateway's background workers. `trading-agent pairing` works without the gateway.
+`_telegram_channel` builds the channel only when `[telegram] enabled` is true and a token is set; enabled without a token logs a warning and runs without Telegram, rather than refusing to start the traders. The channel runs as one of the gateway's background workers. `trading-agent pairing` works without the gateway.
 
 ## Attachments, since 2026-10-17
 
-`_route_groups` adds `AttachmentRoutes` and gives `DeskRoutes` the attachment store; `_telegram_channel` gives the channel the same store.
+`_route_groups` adds `AttachmentRoutes` and gives `TraderRoutes` the attachment store; `_telegram_channel` gives the channel the same store.

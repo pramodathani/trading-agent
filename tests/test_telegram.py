@@ -20,9 +20,9 @@ from trading_agent.doctor.checks import telegram_check
 from trading_agent.gateway import access_guard
 from trading_agent.gateway import gateway_parts
 from trading_agent.gateway.routes import channel_routes
-from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
+from trading_agent.runtime import trader_runtime
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.runtime import turn_runner
 
@@ -187,7 +187,7 @@ class _StandInKillSwitch:
 
 
 class _Scenario:
-    """A gateway with two desks, a pairing file and a Telegram channel on the stand-in."""
+    """A gateway with two traders, a pairing file and a Telegram channel on the stand-in."""
 
     def __init__(self, directory: Path, notifications: list[str] | None = None):
         """Builds everything.
@@ -198,10 +198,10 @@ class _Scenario:
         """
         self.event_bus = event_bus_module.EventBus()
         self.runner = _EchoTurnRunner()
-        self.desks = {}
+        self.traders = {}
         for name in ('main', 'intraday'):
-            self.desks[name] = desk_runtime.DeskRuntime(
-                agent_configuration.DeskConfiguration(name=name),
+            self.traders[name] = trader_runtime.TraderRuntime(
+                agent_configuration.TraderConfiguration(name=name),
                 self.event_bus,
                 self.runner,
             )
@@ -229,13 +229,13 @@ class _Scenario:
             self.api,
             self.pairing,
             telegram_commands.TelegramCommands(
-                self.desks, shared, self.pairing, 'dry_run'
+                self.traders, shared, self.pairing, 'dry_run'
             ),
             notification_formatter.NotificationFormatter(
                 notifications
                 or list(agent_configuration.TELEGRAM_NOTIFICATIONS)
             ),
-            self.desks,
+            self.traders,
             {},
             self.event_bus,
             'main',
@@ -247,14 +247,15 @@ class _Scenario:
         self.pairing.approve(code, 'main')
 
     async def run_until(self, chat_id: int, count: int) -> None:
-        """Runs the desks and the channel until a chat has received a number of messages.
+        """Runs the traders and the channel until a chat has received a number of messages.
 
         Args:
             chat_id (int): The chat to watch.
             count (int): How many messages to wait for.
         """
         tasks = [
-            asyncio.create_task(desk.run()) for desk in self.desks.values()
+            asyncio.create_task(trader.run())
+            for trader in self.traders.values()
         ]
         tasks.append(asyncio.create_task(self.channel.run()))
         try:
@@ -374,12 +375,12 @@ class TestPairingStore:
 
 
 class TestTelegramChannel:
-    """Tests for messages to and from the desks."""
+    """Tests for messages to and from the traders."""
 
     def test_stranger_gets_a_code_and_is_not_obeyed(
         self, tmp_path: Path
     ) -> None:
-        """A chat that is not paired gets a pairing code, and its message never reaches a desk."""
+        """A chat that is not paired gets a pairing code, and its message never reaches a trader."""
         scenario = _Scenario(tmp_path)
 
         asyncio.run(scenario.converse(_STRANGER, ['buy everything'], 1))
@@ -390,15 +391,15 @@ class TestTelegramChannel:
         assert 'trading-agent pairing approve' in reply
         assert scenario.runner.texts == []
 
-    def test_paired_chat_talks_to_its_desk(self, tmp_path: Path) -> None:
-        """A paired chat's message goes to its desk, and the desk's answer comes back."""
+    def test_paired_chat_talks_to_its_trader(self, tmp_path: Path) -> None:
+        """A paired chat's message goes to its trader, and the trader's answer comes back."""
         scenario = _Scenario(tmp_path)
         scenario.pair_owner()
 
-        asyncio.run(scenario.converse(_OWNER, ['hello desk'], 1))
+        asyncio.run(scenario.converse(_OWNER, ['hello trader'], 1))
 
         assert scenario.api.sent_to(_OWNER) == [
-            'echo: hello desk',
+            'echo: hello trader',
         ]
 
     def test_command_menu_is_registered_on_connect(
@@ -408,7 +409,7 @@ class TestTelegramChannel:
         scenario = _Scenario(tmp_path)
         scenario.pair_owner()
 
-        asyncio.run(scenario.converse(_OWNER, ['hello desk'], 1))
+        asyncio.run(scenario.converse(_OWNER, ['hello trader'], 1))
 
         names = [name for name, _ in scenario.api.menu]
         assert 'status' in names
@@ -419,24 +420,24 @@ class TestTelegramChannel:
             assert not name.startswith('/')
             assert 0 < len(description) <= 256
 
-    def test_desk_command_changes_the_desk(self, tmp_path: Path) -> None:
-        """/desk intraday makes later messages go to intraday."""
+    def test_trader_command_changes_the_trader(self, tmp_path: Path) -> None:
+        """/trader intraday makes later messages go to intraday."""
         scenario = _Scenario(tmp_path)
         scenario.pair_owner()
 
-        asyncio.run(scenario.converse(_OWNER, ['/desk intraday'], 1))
+        asyncio.run(scenario.converse(_OWNER, ['/trader intraday'], 1))
 
-        assert scenario.pairing.paired_chat(_OWNER).desk == 'intraday'
+        assert scenario.pairing.paired_chat(_OWNER).trader == 'intraday'
         assert 'now talking to intraday' in scenario.api.sent_to(_OWNER)[0]
 
     def test_pause_all(self, tmp_path: Path) -> None:
-        """/pause all pauses every desk without asking a model."""
+        """/pause all pauses every trader without asking a model."""
         scenario = _Scenario(tmp_path)
         scenario.pair_owner()
 
         asyncio.run(scenario.converse(_OWNER, ['/pause all'], 1))
 
-        assert all(desk.paused for desk in scenario.desks.values())
+        assert all(trader.paused for trader in scenario.traders.values())
         assert scenario.runner.texts == []
 
     def test_kill_needs_confirm(self, tmp_path: Path) -> None:
@@ -462,15 +463,17 @@ class TestTelegramChannel:
             'The user fired the kill switch from Telegram: market crash',
         ]
 
-    def test_desk_commands_are_passed_to_the_desk(self, tmp_path: Path) -> None:
-        """A desk's own command, such as /usage, goes to the desk rather than being answered by the channel."""
+    def test_trader_commands_are_passed_to_the_trader(
+        self, tmp_path: Path
+    ) -> None:
+        """A trader's own command, such as /usage, goes to the trader rather than being answered by the channel."""
         scenario = _Scenario(tmp_path)
         scenario.pair_owner()
 
         asyncio.run(scenario.converse(_OWNER, ['/help'], 1))
 
         assert (
-            'You are talking to the main desk'
+            'You are talking to the main trader'
             in scenario.api.sent_to(_OWNER)[0]
         )
         assert not scenario.channel._commands.handles('/usage')
@@ -480,7 +483,7 @@ class TestNotifications:
     """Tests for what is pushed without being asked."""
 
     def test_fill_is_pushed_with_its_symbol(self, tmp_path: Path) -> None:
-        """A fill goes to every paired chat, naming the desk and the stock."""
+        """A fill goes to every paired chat, naming the trader and the stock."""
         scenario = _Scenario(tmp_path)
         scenario.pair_owner()
         fill = event_module.Event.now(
@@ -523,7 +526,7 @@ class TestNotifications:
     def test_scheduled_report_is_pushed_but_answers_and_silence_are_not(
         self,
     ) -> None:
-        """A desk's words at a scheduled check are pushed; a reply to a message and a silent heartbeat are not."""
+        """A trader's words at a scheduled check are pushed; a reply to a message and a silent heartbeat are not."""
         formatter = notification_formatter.NotificationFormatter(
             list(agent_configuration.TELEGRAM_NOTIFICATIONS)
         )

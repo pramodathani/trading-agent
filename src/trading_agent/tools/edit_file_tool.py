@@ -1,4 +1,4 @@
-"""The edit_file tool: replaces exact text in a file in the desk's own folders.
+"""The edit_file tool: replaces exact text in a file in the trader's own folders.
 
 Typical usage example:
 
@@ -22,7 +22,7 @@ class EditFileArguments(pydantic.BaseModel):
     """The arguments of edit_file.
 
     Attributes:
-        path: The file; a relative path starts at your desk folder.
+        path: The file; a relative path starts at your trader folder.
         old_text: The exact text to replace, copied from the file.
         new_text: The text to put in its place.
         replace_all: Whether to replace every occurrence instead of exactly one.
@@ -40,7 +40,7 @@ class EditFileTool(tool.Tool):
     """Replaces exact text in a file."""
 
     name = 'edit_file'
-    description = 'Replaces exact text in one of your files. old_text must appear exactly once, unless replace_all is true. You may edit only inside memory/, notes/ and scratch/ of your desk folder, and your Memory.md.'
+    description = 'Replaces exact text in one of your files. old_text must appear exactly once, unless replace_all is true. You may edit only inside memory/, notes/ and scratch/ of your trader folder, and your Memory.md.'
     arguments_model = EditFileArguments
 
     def __init__(
@@ -51,8 +51,8 @@ class EditFileTool(tool.Tool):
         """Creates the tool.
 
         Args:
-            policy (path_policy_module.PathPolicy): The desk's read and write rules.
-            checkpoints (checkpoints_module.Checkpoints | None): Snapshots the desk's files before each change, or None to take none.
+            policy (path_policy_module.PathPolicy): The trader's read and write rules.
+            checkpoints (checkpoints_module.Checkpoints | None): Snapshots the trader's files before each change, or None to take none.
         """
         self._policy = policy
         self._checkpoints = checkpoints
@@ -90,20 +90,20 @@ class EditFileTool(tool.Tool):
             encoding='utf-8',
         )
         return tool.ToolResult.success(
-            f'Replaced {occurrences} occurrence(s) in {path.relative_to(self._policy.desk_directory)}.'
+            f'Replaced {occurrences} occurrence(s) in {path.relative_to(self._policy.trader_directory)}.'
         )
 
     async def _snapshot(self, path: Path) -> None:
-        """Snapshots the desk's files before the change, so it can be undone.
+        """Snapshots the trader's files before the change, so it can be undone.
 
-        A failed snapshot is logged and does not stop the change, because the desk must keep working.
+        A failed snapshot is logged and does not stop the change, because the trader must keep working.
 
         Args:
             path (Path): The file about to change.
         """
         if self._checkpoints is None:
             return
-        relative_path = path.relative_to(self._policy.desk_directory)
+        relative_path = path.relative_to(self._policy.trader_directory)
         try:
             await asyncio.to_thread(
                 self._checkpoints.snapshot,

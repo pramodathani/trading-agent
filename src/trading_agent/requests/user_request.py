@@ -1,6 +1,6 @@
-"""One thing a desk asked the user: a question, a plan to approve, or permission for an action.
+"""One thing a trader asked the user: a question, a plan to approve, or permission for an action.
 
-A desk never waits for the answer. The request is saved and shown to the user, the desk's turn ends, and the user's answer reaches the desk later as a new message.
+A trader never waits for the answer. The request is saved and shown to the user, the trader's turn ends, and the user's answer reaches the trader later as a new message.
 
 Typical usage example:
 
@@ -34,7 +34,7 @@ class UserRequest:
 
     Attributes:
         request_id: Its identifier.
-        desk: The desk that asked.
+        trader: The trader that asked.
         kind: "question", "plan" or "permission".
         content: What was asked: the questions, the plan, or the action awaiting permission.
         created_at: When it was asked, as ISO 8601 text in UTC.
@@ -46,7 +46,7 @@ class UserRequest:
     """
 
     request_id: str
-    desk: str
+    trader: str
     kind: str
     content: dict[str, Any]
     created_at: str
@@ -59,7 +59,7 @@ class UserRequest:
     @classmethod
     def new(
         cls,
-        desk: str,
+        trader: str,
         kind: str,
         content: dict[str, Any],
         expires_at: datetime.datetime | None = None,
@@ -67,7 +67,7 @@ class UserRequest:
         """Creates a pending request with a new identifier.
 
         Args:
-            desk (str): The desk asking.
+            trader (str): The trader asking.
             kind (str): "question", "plan" or "permission".
             content (dict[str, Any]): What is asked.
             expires_at (datetime.datetime | None): When it lapses, or None for never.
@@ -83,7 +83,7 @@ class UserRequest:
         now = datetime.datetime.now(datetime.UTC)
         return cls(
             request_id=f'{now:%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:6]}',
-            desk=desk,
+            trader=trader,
             kind=kind,
             content=content,
             created_at=now.isoformat(),

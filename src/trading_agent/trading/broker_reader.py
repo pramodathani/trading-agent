@@ -1,6 +1,6 @@
 """The one place trading-agent reads from UBI, through tradingmachine.
 
-tradingmachine is synchronous, so every call runs in a worker thread and the desks keep working while UBI answers. A lock lets one UBI call run at a time, as the tradingmachine_mcp server does, because UBI holds a single access token and broker rate limits are shared.
+tradingmachine is synchronous, so every call runs in a worker thread and the traders keep working while UBI answers. A lock lets one UBI call run at a time, as the tradingmachine_mcp server does, because UBI holds a single access token and broker rate limits are shared.
 
 The client is built from tradingmachine's own `.env`, named in trading_agent.toml. Left to itself, tradingmachine would look for a `.env` in the working folder and find trading-agent's, which has no UBI settings.
 

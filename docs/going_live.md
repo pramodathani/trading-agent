@@ -2,22 +2,22 @@
 
 This is the plan for the first trading day: finish the checks that only a trading day allows, switch from dry runs to live orders, and watch the first live session. Every step says what to look at and how to stop.
 
-trading-agent already runs as the systemd user service `trading-agent.service`, in `dry_run` mode. It starts at boot, restarts ten seconds after a crash, and resumes each desk's conversation.
+trading-agent already runs as the systemd user service `trading-agent.service`, in `dry_run` mode. It starts at boot, restarts ten seconds after a crash, and resumes each trader's conversation.
 
 ## Before you start: what live means
 
-In `dry_run` mode, UBI checks every order the desks place and sends none to a broker. In `live` mode the same orders go to the brokers with real money, and no human approves them. The risk engine's hard limits still apply to every order:
+In `dry_run` mode, UBI checks every order the traders place and sends none to a broker. In `live` mode the same orders go to the brokers with real money, and no human approves them. The risk engine's hard limits still apply to every order:
 
 | Limit | Value | From |
 |---|---|---|
-| Daily loss | 15% of the account; every desk stops and the account is flattened | TradingRules.md |
+| Daily loss | 15% of the account; every trader stops and the account is flattened | TradingRules.md |
 | Weekly loss | 35% | TradingRules.md |
 | One order's margin | at most 25% of the account | TradingRules.md |
 | Option writing | forbidden | TradingRules.md |
-| Each desk's products | intraday and scalper `mis`, positional `cnc` and `nrml`, general any | TradingRules.md |
-| Desk loss limits | the scalper stops for the day at a 3% loss; the other desks have none | TradingRules.md |
-| A desk flattening itself | waits for your permission, and lapses after 5 minutes | `[approvals]` in trading_agent.toml |
-| One stock, one desk | a desk cannot trade a stock another desk holds | the risk engine |
+| Each trader's products | intraday and scalper `mis`, positional `cnc` and `nrml`, general any | TradingRules.md |
+| Trader loss limits | the scalper stops for the day at a 3% loss; the other traders have none | TradingRules.md |
+| A trader flattening itself | waits for your permission, and lapses after 5 minutes | `[approvals]` in trading_agent.toml |
+| One stock, one trader | a trader cannot trade a stock another trader holds | the risk engine |
 
 Change any of these on the Files page or in `workspace/shared/TradingRules.md` before going live.
 
@@ -33,27 +33,27 @@ Change any of these on the Files page or in `workspace/shared/TradingRules.md` b
 
 2. Open the web page at <http://127.0.0.1:8120>. The header must say **DRY RUN**, and the dot on the right **Live**.
 
-3. The positional desk's 08:45 check, the intraday desk's 09:05 check and the scalper's 09:10 check run by themselves, and from 09:15 the intraday and scalper heartbeats wake them every 10 and 2 minutes. Watch them on the Activity page; each answers on the Chat page of its desk.
+3. The positional trader's 08:45 check, the intraday trader's 09:05 check and the scalper's 09:10 check run by themselves, and from 09:15 the intraday and scalper heartbeats wake them every 10 and 2 minutes. Watch them on the Activity page; each answers on the Chat page of its trader.
 
 ## 2. The trading-day checks, in dry run (09:15 to 10:00)
 
-1. **A dry-run order through UBI.** In Chat, choose the **general** desk and send:
+1. **A dry-run order through UBI.** In Chat, choose the **general** trader and send:
 
    > Place a dry-run limit order to buy 1 share of IDEA at the current price, product mis, then tell me what UBI answered.
 
-   The Trading page should show the order under "Desks' open orders", and general as the owner of IDEA.
+   The Trading page should show the order under "Traders' open orders", and general as the owner of IDEA.
 
-2. **Two desks cannot share a stock.** Choose the **intraday** desk and send:
+2. **Two traders cannot share a stock.** Choose the **intraday** trader and send:
 
    > Try to buy 1 share of IDEA, product mis, as a dry run, and tell me exactly what the risk engine said.
 
-   The risk engine must refuse it with "IDEA belongs to the general desk; one desk trades an instrument at a time." The Activity page shows the refusal.
+   The risk engine must refuse it with "IDEA belongs to the general trader; one trader trades an instrument at a time." The Activity page shows the refusal.
 
 3. **A fill report.** Dry runs reach no broker, so they never fill; the first real fill report is seen in the live session. Ask general to flatten itself afterwards:
 
-   > Flatten your desk: cancel your open orders and close your positions.
+   > Flatten your trader: cancel your open orders and close your positions.
 
-   Because `flatten_desk` needs your permission, a permission card appears above the message box, and on Telegram if a phone is paired. Press **Allow once** within five minutes. This also checks that permission prompts work before the scalper relies on them at 15:05.
+   Because `flatten_trader` needs your permission, a permission card appears above the message box, and on Telegram if a phone is paired. Press **Allow once** within five minutes. This also checks that permission prompts work before the scalper relies on them at 15:05.
 
 4. Run the check again:
 
@@ -79,7 +79,7 @@ Change any of these on the Files page or in `workspace/shared/TradingRules.md` b
 
 3. Reload the web page. The header must now say **LIVE ORDERS** in red.
 
-A desk that is in the middle of a turn when the service restarts loses that turn; its conversation and everything it had saved are kept.
+A trader that is in the middle of a turn when the service restarts loses that turn; its conversation and everything it had saved are kept.
 
 ## 4. Watch the first live session
 
@@ -87,16 +87,16 @@ Keep these pages open:
 
 | Page | What to watch |
 |---|---|
-| Desks | Each desk's state and today's profit or loss |
+| Traders | Each trader's state and today's profit or loss |
 | Activity | Every order, risk decision and fill as it happens |
-| Trading | Positions, which desk owns each, open orders, halts |
-| Models | Claude's five-hour limit, if the desks talk a lot |
+| Trading | Positions, which trader owns each, open orders, halts |
+| Models | Claude's five-hour limit, if the traders talk a lot |
 
 Things that should happen, and what they mean:
 
-- A desk's **order** event, followed by a **fill** a few seconds later: the broker filled the order, and the desk is told.
+- A trader's **order** event, followed by a **fill** a few seconds later: the broker filled the order, and the trader is told.
 - A **risk engine refused** line: a limit stopped an order. That is the risk engine working, not an error.
-- A **model switch** from claude to deepseek: Claude hit a limit or failed, and the desk carried on with the next model. After a limit, the desk returns to Claude by itself when the limit resets.
+- A **model switch** from claude to deepseek: Claude hit a limit or failed, and the trader carried on with the next model. After a limit, the trader returns to Claude by itself when the limit resets.
 - A **permission request** from the scalper near 15:05: it wants to flatten itself, as its strategy says. Allow it, or it lapses after five minutes.
 
 ## How to stop
@@ -105,18 +105,18 @@ From gentlest to strongest:
 
 | You want to | Do this | What happens to open positions |
 |---|---|---|
-| Stop one turn | Stop button in Chat, or `/stop` | Nothing; the desk just stops thinking |
-| Stop one desk thinking | Pause on the Desks page, or `/pause intraday` | Nothing; its orders and stops at UBI stay |
-| Stop every desk thinking | `/pause all` on Telegram, or Pause on each desk card | Nothing |
-| Close one desk's trades | Flatten on the desk's card | That desk's orders are cancelled and positions closed |
-| Stop everything | The kill switch on the Trading page (type FLATTEN), or `/kill CONFIRM <reason>` on Telegram | Every desk halts until tomorrow and UBI flattens the whole account |
+| Stop one turn | Stop button in Chat, or `/stop` | Nothing; the trader just stops thinking |
+| Stop one trader thinking | Pause on the Traders page, or `/pause intraday` | Nothing; its orders and stops at UBI stay |
+| Stop every trader thinking | `/pause all` on Telegram, or Pause on each trader card | Nothing |
+| Close one trader's trades | Flatten on the trader's card | That trader's orders are cancelled and positions closed |
+| Stop everything | The kill switch on the Trading page (type FLATTEN), or `/kill CONFIRM <reason>` on Telegram | Every trader halts until tomorrow and UBI flattens the whole account |
 | Stop trading-agent itself | `systemctl --user stop trading-agent` | Nothing is closed: orders and bracket stops already at UBI stay in place |
 
 To go back to dry runs at any time, set `mode = "dry_run"` and run `systemctl --user restart trading-agent`.
 
 ## After the close
 
-At 15:45 each desk rolls over: it summarises the day, starts a fresh session for tomorrow, and folds its notes into Memory.md. Read the summaries on the Sessions page, and accept or reject any proposals the desks made on the Files page.
+At 15:45 each trader rolls over: it summarises the day, starts a fresh session for tomorrow, and folds its notes into Memory.md. Read the summaries on the Sessions page, and accept or reject any proposals the traders made on the Files page.
 
 ## Useful commands
 

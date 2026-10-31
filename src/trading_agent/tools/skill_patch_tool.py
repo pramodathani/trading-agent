@@ -1,4 +1,4 @@
-"""The skill_patch tool: corrects one of the desk's own skills.
+"""The skill_patch tool: corrects one of the trader's own skills.
 
 Typical usage example:
 
@@ -32,7 +32,7 @@ class SkillPatchArguments(pydantic.BaseModel):
 
 
 class SkillPatchTool(tool.Tool):
-    """Replaces text in one of the desk's own skills."""
+    """Replaces text in one of the trader's own skills."""
 
     name = 'skill_patch'
     description = "Fixes one of your own skills by replacing exact text in its SKILL.md, the description at the top included. Use it when following the skill went wrong because a step was wrong or missing. old_text must appear exactly once; load the skill first to copy it. The user's installed skills cannot be changed. The change is snapshotted, so it can be undone."
@@ -42,7 +42,7 @@ class SkillPatchTool(tool.Tool):
         """Creates the tool.
 
         Args:
-            writer (skill_writer_module.SkillWriter): Writes the desk's skills.
+            writer (skill_writer_module.SkillWriter): Writes the trader's skills.
         """
         self._writer = writer
 

@@ -1,10 +1,10 @@
-"""Snapshots of a desk's own files, so any change the desk makes can be undone.
+"""Snapshots of a trader's own files, so any change the trader makes can be undone.
 
-Each desk gets its own git repository in `workspace/.checkpoints/<desk>.git`, kept apart from the project's git. Its working tree is the desk folder, but only Memory.md, memory/, notes/ and skills/agent/ are tracked; everything else in the folder is ignored. A snapshot is taken before every write the desk makes, so each checkpoint is the state just before one change.
+Each trader gets its own git repository in `workspace/.checkpoints/<trader>.git`, kept apart from the project's git. Its working tree is the trader folder, but only Memory.md, memory/, notes/ and skills/agent/ are tracked; everything else in the folder is ignored. A snapshot is taken before every write the trader makes, so each checkpoint is the state just before one change.
 
 Typical usage example:
 
-  checkpoints = Checkpoints(Path('workspace/.checkpoints/main.git'), Path('workspace/desks/main'))
+  checkpoints = Checkpoints(Path('workspace/.checkpoints/main.git'), Path('workspace/traders/main'))
   checkpoints.snapshot('before write_file Memory.md')
   checkpoints.restore('3f2a9c1')
 """
@@ -55,26 +55,26 @@ class Checkpoint:
 
 
 class Checkpoints:
-    """The checkpoint repository of one desk.
+    """The checkpoint repository of one trader.
 
     Attributes:
         repository_directory: The git directory that holds the snapshots.
-        desk_directory: The desk folder whose files are snapshotted.
+        trader_directory: The trader folder whose files are snapshotted.
     """
 
-    def __init__(self, repository_directory: Path, desk_directory: Path):
+    def __init__(self, repository_directory: Path, trader_directory: Path):
         """Describes the repository without touching the disk.
 
         Args:
             repository_directory (Path): The git directory, such as workspace/.checkpoints/main.git.
-            desk_directory (Path): The desk folder.
+            trader_directory (Path): The trader folder.
         """
         self.repository_directory = repository_directory
-        self.desk_directory = desk_directory
+        self.trader_directory = trader_directory
         self._lock = threading.Lock()
 
     def snapshot(self, reason: str) -> str | None:
-        """Records the desk's files as they are now, if they changed since the last snapshot.
+        """Records the trader's files as they are now, if they changed since the last snapshot.
 
         Args:
             reason (str): What is about to happen, kept as the snapshot's message.
@@ -123,7 +123,7 @@ class Checkpoints:
         return checkpoints
 
     def restore(self, checkpoint_id: str) -> str:
-        """Puts the desk's files back as they were at a checkpoint.
+        """Puts the trader's files back as they were at a checkpoint.
 
         The current files are snapshotted first, so a restore can itself be undone. Files created after the checkpoint are removed; files outside Memory.md, memory/, notes/ and skills/agent/ are never touched.
 
@@ -192,7 +192,7 @@ class Checkpoints:
         """
         if not (self.repository_directory / 'HEAD').is_file():
             self.repository_directory.parent.mkdir(parents=True, exist_ok=True)
-            self.desk_directory.mkdir(parents=True, exist_ok=True)
+            self.trader_directory.mkdir(parents=True, exist_ok=True)
             self._git('init', '--quiet')
         exclude_file = self.repository_directory / 'info' / 'exclude'
         wanted = '\n'.join(_EXCLUDE_LINES) + '\n'
@@ -238,7 +238,7 @@ class Checkpoints:
         command = [
             'git',
             f'--git-dir={self.repository_directory.resolve()}',
-            f'--work-tree={self.desk_directory.resolve()}',
+            f'--work-tree={self.trader_directory.resolve()}',
             '-c',
             'user.name=trading-agent',
             '-c',
@@ -250,7 +250,7 @@ class Checkpoints:
         try:
             completed = subprocess.run(
                 command,
-                cwd=self.desk_directory,
+                cwd=self.trader_directory,
                 env=environment,
                 capture_output=True,
                 text=True,

@@ -1,4 +1,4 @@
-"""The Schedule page: a desk's scheduled jobs with their next runs, the latest runs, its price alerts, and a form for a new job.
+"""The Schedule page: a trader's scheduled jobs with their next runs, the latest runs, its price alerts, and a form for a new job.
 
 It copies the web page's CronPage.tsx.
 
@@ -26,22 +26,22 @@ class ScheduleScreen(page_screen.PageScreen):
 
     TITLE_TEXT = 'Schedule'
     REFRESH_SECONDS = 30.0
-    PER_DESK = True
+    PER_TRADER = True
 
     BINDINGS: ClassVar[list[binding.BindingType]] = [
-        binding.Binding('d', 'next_desk', 'Next desk'),
+        binding.Binding('d', 'next_trader', 'Next trader'),
         binding.Binding('n', 'new_job', 'New job'),
         binding.Binding('g', 'run_job', 'Run job now'),
         binding.Binding('delete', 'delete_selected', 'Delete job or alert'),
     ]
 
-    def __init__(self, desk_name: str):
+    def __init__(self, trader_name: str):
         """Creates the page.
 
         Args:
-            desk_name (str): The desk the chat shows.
+            trader_name (str): The trader the chat shows.
         """
-        super().__init__(desk_name)
+        super().__init__(trader_name)
         self._formatter = formatter.Formatter()
 
     def compose_page(self):
@@ -79,11 +79,11 @@ class ScheduleScreen(page_screen.PageScreen):
 
     @work(exclusive=True, group='page')
     async def refresh_page(self) -> None:
-        """Reads the desk's jobs, runs and alerts."""
+        """Reads the trader's jobs, runs and alerts."""
         gateway = self.app.gateway
         try:
-            jobs = await gateway.jobs(self.desk_name)
-            alerts = await gateway.alerts(self.desk_name)
+            jobs = await gateway.jobs(self.trader_name)
+            alerts = await gateway.alerts(self.trader_name)
         except gateway_client.GatewayError as error:
             self.problem(error.message)
             return
@@ -141,7 +141,7 @@ class ScheduleScreen(page_screen.PageScreen):
             if job is not None:
                 self._create(job)
 
-        self.app.push_screen(NewJobForm(self.desk_name), create)
+        self.app.push_screen(NewJobForm(self.trader_name), create)
 
     def action_run_job(self) -> None:
         """Runs the highlighted job now."""
@@ -169,7 +169,7 @@ class ScheduleScreen(page_screen.PageScreen):
             job (dict[str, Any]): The job.
         """
         try:
-            await self.app.gateway.create_job(self.desk_name, job)
+            await self.app.gateway.create_job(self.trader_name, job)
         except gateway_client.GatewayError as error:
             self.problem(error.message)
             return
@@ -184,7 +184,7 @@ class ScheduleScreen(page_screen.PageScreen):
             job_id (str): The job.
         """
         try:
-            await self.app.gateway.run_job(self.desk_name, job_id)
+            await self.app.gateway.run_job(self.trader_name, job_id)
         except gateway_client.GatewayError as error:
             self.problem(error.message)
             return
@@ -199,7 +199,7 @@ class ScheduleScreen(page_screen.PageScreen):
             job_id (str): The job.
         """
         try:
-            await self.app.gateway.delete_job(self.desk_name, job_id)
+            await self.app.gateway.delete_job(self.trader_name, job_id)
         except gateway_client.GatewayError as error:
             self.problem(error.message)
             return
@@ -214,7 +214,7 @@ class ScheduleScreen(page_screen.PageScreen):
             alert_id (str): The alert.
         """
         try:
-            await self.app.gateway.delete_alert(self.desk_name, alert_id)
+            await self.app.gateway.delete_alert(self.trader_name, alert_id)
         except gateway_client.GatewayError as error:
             self.problem(error.message)
             return
@@ -230,14 +230,14 @@ class NewJobForm(screen.ModalScreen[dict[str, Any] | None]):
         binding.Binding('ctrl+s', 'submit', 'Schedule'),
     ]
 
-    def __init__(self, desk_name: str):
+    def __init__(self, trader_name: str):
         """Creates the form.
 
         Args:
-            desk_name (str): The desk the job is for.
+            trader_name (str): The trader the job is for.
         """
         super().__init__(classes='picker-screen')
-        self._desk_name = desk_name
+        self._trader_name = trader_name
 
     def compose(self):
         """Builds the form.
@@ -248,7 +248,7 @@ class NewJobForm(screen.ModalScreen[dict[str, Any] | None]):
         with containers.VerticalScroll(classes='picker'):
             yield widgets.Static(
                 Content.from_markup(
-                    '[b]New job for $desk[/b]', desk=self._desk_name
+                    '[b]New job for $trader[/b]', trader=self._trader_name
                 ),
                 classes='picker-title',
             )
@@ -261,7 +261,7 @@ class NewJobForm(screen.ModalScreen[dict[str, Any] | None]):
             )
             yield widgets.RadioSet(
                 widgets.RadioButton(
-                    'Wake the desk with instructions',
+                    'Wake the trader with instructions',
                     value=True,
                     id='job-kind-agent',
                 ),
@@ -274,7 +274,7 @@ class NewJobForm(screen.ModalScreen[dict[str, Any] | None]):
                 '',
                 id='job-text',
                 compact=True,
-                placeholder='Instructions for the desk, or the shell command to run',
+                placeholder='Instructions for the trader, or the shell command to run',
             )
             yield widgets.Checkbox(
                 'Trading days only', value=True, id='job-trading-days'

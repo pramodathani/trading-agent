@@ -1,6 +1,6 @@
 """Installs and removes packages: `trading-agent packages install|remove`.
 
-Installing copies the package's folder into workspace/shared/packages/<name>/; the desks, the hook runner and the MCP manager read its parts from there. Before copying, the installer checks that the folder holds at least one package part and that its mcp_servers.json is valid, and scans its text files for prompt injection. A package whose name is already installed is kept unless replacing is asked for.
+Installing copies the package's folder into workspace/shared/packages/<name>/; the traders, the hook runner and the MCP manager read its parts from there. Before copying, the installer checks that the folder holds at least one package part and that its mcp_servers.json is valid, and scans its text files for prompt injection. A package whose name is already installed is kept unless replacing is asked for.
 
 Typical usage example:
 

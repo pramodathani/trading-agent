@@ -59,7 +59,7 @@
   align-items: baseline;
 }
 
-.event-row.with-desk {
+.event-row.with-trader {
   grid-template-columns: 70px 84px 1fr;
 }
 
@@ -94,7 +94,7 @@
   border-radius: var(--radius-small);
 }
 
-.desk-chip {
+.trader-chip {
   justify-self: start;
   font-size: var(--font-size-tiny);
   padding: 2px 8px;

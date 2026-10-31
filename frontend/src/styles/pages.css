@@ -20,13 +20,13 @@
   padding: 0;
 }
 
-.desk-grid {
+.trader-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
   gap: 14px;
 }
 
-.desk-card {
+.trader-card {
   background: var(--color-bg-card);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius);
@@ -36,43 +36,43 @@
   gap: 10px;
 }
 
-.desk-card.busy {
+.trader-card.busy {
   border-color: var(--color-accent);
   box-shadow: 0 0 0 1px var(--color-accent);
 }
 
-.desk-card-header {
+.trader-card-header {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.desk-pnl {
+.trader-pnl {
   display: flex;
   align-items: baseline;
   gap: 8px;
 }
 
-.desk-pnl strong {
+.trader-pnl strong {
   font-size: 18px;
   font-weight: 500;
 }
 
-.desk-models {
+.trader-models {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.desk-last-event {
+.trader-last-event {
   min-height: 20px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.desk-card-buttons {
+.trader-card-buttons {
   display: flex;
   gap: 8px;
   margin-top: auto;
@@ -378,7 +378,7 @@
   background: transparent;
 }
 
-.bubble.answer.desk-message {
+.bubble.answer.trader-message {
   align-self: flex-start;
   max-width: 85%;
   padding: 8px 12px;
@@ -782,7 +782,7 @@
   max-height: 260px;
 }
 
-.bubble.desk-message.urgent {
+.bubble.trader-message.urgent {
   border-color: var(--color-warning);
 }
 

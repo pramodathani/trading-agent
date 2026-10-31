@@ -1,7 +1,7 @@
 import { type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 import { apiClient } from '../api/apiClient';
-import type { AgentEvent, Attachment, DeskCommand } from '../api/types';
+import type { AgentEvent, Attachment, TraderCommand } from '../api/types';
 import { AttachmentList } from '../components/AttachmentList';
 import { MarkdownText } from '../components/MarkdownText';
 import { ModelMenu } from '../components/ModelMenu';
@@ -13,8 +13,8 @@ import { useCloseOnBack } from '../hooks/useCloseOnBack';
 import { useLiveEvents, useStreamingTexts } from '../hooks/useLiveEvents';
 import { usePhoneLayout } from '../hooks/usePhoneLayout';
 import { usePolled } from '../hooks/usePolled';
-import { useDesks } from '../layout/desksContext';
-import { useSelectedDesk } from '../layout/selectedDeskStore';
+import { useTraders } from '../layout/tradersContext';
+import { useSelectedTrader } from '../layout/selectedTraderStore';
 import { SidePanel } from '../sidePanel/SidePanel';
 import { sidePanelStore, useSidePanelOpen } from '../sidePanel/sidePanelStore';
 import { AndroidVoiceInput } from '../utilities/androidVoiceInput';
@@ -47,18 +47,18 @@ interface PendingFile {
 }
 
 /**
- * Talk to the chosen desk: today's turns with every tool call, live updates, and a box to send messages and slash commands.
+ * Talk to the chosen trader: today's turns with every tool call, live updates, and a box to send messages and slash commands.
  * @returns The page.
  */
 export function ChatPage() {
-  const deskName = useSelectedDesk();
-  const desks = useDesks();
+  const traderName = useSelectedTrader();
+  const traders = useTraders();
   const panelOpen = useSidePanelOpen();
   const phone = usePhoneLayout();
   useCloseOnBack(phone && panelOpen, closeSidePanel);
   const liveEvents = useLiveEvents();
   const requests = usePolled(() => apiClient.requests('pending'), REQUESTS_REFRESH_MILLISECONDS);
-  const commands = usePolled(() => apiClient.deskCommands(deskName), COMMANDS_REFRESH_MILLISECONDS, deskName);
+  const commands = usePolled(() => apiClient.traderCommands(traderName), COMMANDS_REFRESH_MILLISECONDS, traderName);
   const refreshRequests = requests.refresh;
   const lastLiveEvent = liveEvents.length > 0 ? liveEvents[liveEvents.length - 1] : null;
   const streams = useStreamingTexts();
@@ -79,14 +79,14 @@ export function ChatPage() {
   const fileInput = useRef<HTMLInputElement>(null);
   const pendingReference = useRef<PendingFile[]>([]);
   pendingReference.current = pending;
-  const desk = desks.document?.desks.find((candidate) => candidate.name === deskName) ?? null;
+  const trader = traders.document?.traders.find((candidate) => candidate.name === traderName) ?? null;
 
   useEffect(() => {
     let cancelled = false;
     setLoaded([]);
     setLoadError(null);
     apiClient
-      .deskJournal(deskName, JOURNAL_LIMIT)
+      .traderJournal(traderName, JOURNAL_LIMIT)
       .then((document) => {
         if (!cancelled) {
           setLoaded(document.events);
@@ -101,7 +101,7 @@ export function ChatPage() {
       cancelled = true;
     };
   }, [
-    deskName,
+    traderName,
   ]);
 
   useEffect(() => {
@@ -114,16 +114,16 @@ export function ChatPage() {
       setPending([]);
     };
   }, [
-    deskName,
+    traderName,
   ]);
 
-  const deskEvents = useMemo(() => {
-    const deskLive = liveEvents.filter((event) => event.desk === deskName);
-    return eventMerger.merge(loaded, deskLive);
+  const traderEvents = useMemo(() => {
+    const traderLive = liveEvents.filter((event) => event.trader === traderName);
+    return eventMerger.merge(loaded, traderLive);
   }, [
     loaded,
     liveEvents,
-    deskName,
+    traderName,
   ]);
 
   useEffect(() => {
@@ -135,10 +135,10 @@ export function ChatPage() {
     refreshRequests,
   ]);
 
-  const deskRequests = (requests.data ?? []).filter((request) => request.desk === deskName);
+  const traderRequests = (requests.data ?? []).filter((request) => request.trader === traderName);
 
-  const items = useMemo(() => chatTurnBuilder.build(deskEvents), [
-    deskEvents,
+  const items = useMemo(() => chatTurnBuilder.build(traderEvents), [
+    traderEvents,
   ]);
 
   const lastItemKey = items.length > 0 ? itemKey(items[items.length - 1]) : '';
@@ -151,7 +151,7 @@ export function ChatPage() {
       voiceInput.stop();
     };
   }, [
-    deskName,
+    traderName,
     voiceInput,
   ]);
 
@@ -180,7 +180,7 @@ export function ChatPage() {
   }, [
     lastItemKey,
     lastSize,
-    deskName,
+    traderName,
   ]);
 
   useEffect(() => {
@@ -218,8 +218,8 @@ export function ChatPage() {
     stuckToBottom.current = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < BOTTOM_SLACK_PIXELS;
   }
 
-  const busy = desk !== null && desk.state !== 'idle';
-  const modeWords = desk !== null && desk.mode === 'live' ? 'Live orders' : 'Dry run';
+  const busy = trader !== null && trader.state !== 'idle';
+  const modeWords = trader !== null && trader.mode === 'live' ? 'Live orders' : 'Dry run';
   const readyFiles = pending.filter((item) => item.status === 'ready');
   const uploading = pending.some((item) => item.status === 'uploading');
   const canSend = !sending && !uploading && (draft.trim().length > 0 || readyFiles.length > 0);
@@ -252,7 +252,7 @@ export function ChatPage() {
           previewAddress,
         },
       ]);
-      apiClient.uploadAttachment(deskName, file).then(
+      apiClient.uploadAttachment(traderName, file).then(
         (attachment) => updatePending(localId, { status: 'ready', attachment }),
         (failure: unknown) => updatePending(localId, { status: 'failed', error: failure instanceof Error ? failure.message : String(failure) }),
       );
@@ -315,7 +315,7 @@ export function ChatPage() {
   }
 
   /**
-   * Sends the draft and its files to the desk.
+   * Sends the draft and its files to the trader.
    * @param event The form's submit event, if any.
    */
   async function send(event?: FormEvent): Promise<void> {
@@ -330,7 +330,7 @@ export function ChatPage() {
     voiceInput.stop();
     try {
       const attachmentIds = readyFiles.map((item) => (item.attachment as Attachment).attachment_id);
-      await apiClient.sendMessage(deskName, text, attachmentIds);
+      await apiClient.sendMessage(traderName, text, attachmentIds);
       setDraft('');
       clearPending();
     } catch (failure) {
@@ -340,11 +340,11 @@ export function ChatPage() {
     }
   }
 
-  /** Stops the desk's running turn. */
+  /** Stops the trader's running turn. */
   async function stop(): Promise<void> {
     setSendError(null);
     try {
-      await apiClient.sendMessage(deskName, '/stop');
+      await apiClient.sendMessage(traderName, '/stop');
     } catch (failure) {
       setSendError(failure instanceof Error ? failure.message : String(failure));
     }
@@ -368,12 +368,12 @@ export function ChatPage() {
       <div className="chat-scroll" ref={scrollReference} onScroll={handleScroll}>
         <div className="chat-column" ref={columnReference}>
           <div className="chat-header">
-            <h1>Chat with {deskName}</h1>
-            {desk !== null && (
+            <h1>Chat with {traderName}</h1>
+            {trader !== null && (
               <span className="muted small">
-                {desk.state}
-                {desk.paused ? ', paused' : ''}
-                {desk.queued > 0 ? `, ${desk.queued} waiting` : ''}
+                {trader.state}
+                {trader.paused ? ', paused' : ''}
+                {trader.queued > 0 ? `, ${trader.queued} waiting` : ''}
               </span>
             )}
           </div>
@@ -381,13 +381,13 @@ export function ChatPage() {
             {loadError !== null && <p className="error-text">Could not read today&apos;s journal: {loadError}</p>}
             {items.length === 0 && loadError === null && <p className="muted">Nothing today yet. Say hello, or try /status.</p>}
             {items.map((item) =>
-              item.type === 'turn' ? <TurnView key={itemKey(item)} deskName={deskName} turn={item} streamingText={streams.get(item.triggerId) ?? ''} /> : <LooseEventView key={itemKey(item)} deskName={deskName} event={item.event} />,
+              item.type === 'turn' ? <TurnView key={itemKey(item)} traderName={traderName} turn={item} streamingText={streams.get(item.triggerId) ?? ''} /> : <LooseEventView key={itemKey(item)} traderName={traderName} event={item.event} />,
             )}
           </div>
         </div>
       </div>
       <div className="composer-area">
-        <RequestDock requests={deskRequests} onDone={refreshRequests} />
+        <RequestDock requests={traderRequests} onDone={refreshRequests} />
         <form className={dragging ? 'composer dragging' : 'composer'} onSubmit={send} onDragOver={handleDragOver} onDragLeave={() => setDragging(false)} onDrop={handleDrop}>
           {pending.length > 0 && (
             <div className="pending-files">
@@ -418,11 +418,11 @@ export function ChatPage() {
                 <path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </button>
-            {phone && desk !== null && <ModelMenu desk={desk} onChanged={desks.refresh} />}
+            {phone && trader !== null && <ModelMenu trader={trader} onChanged={traders.refresh} />}
             <textarea
               rows={1}
               value={draft}
-              placeholder={composerHint(deskName, busy, phone)}
+              placeholder={composerHint(traderName, busy, phone)}
               title="Enter sends; Shift and Enter adds a line. Drop or paste pictures and documents here."
               onChange={(change) => setDraft(change.target.value)}
               onKeyDown={handleKey}
@@ -473,29 +473,29 @@ export function ChatPage() {
         <div className={phone && !listening ? 'composer-footer hidden' : 'composer-footer'}>
           <span className={listening ? 'composer-hint listening' : 'composer-hint'}>{listening ? 'Listening… press the microphone again to stop' : modeWords}</span>
           <span className="spacer" />
-          {!phone && desk !== null && <ModelMenu desk={desk} onChanged={desks.refresh} />}
+          {!phone && trader !== null && <ModelMenu trader={trader} onChanged={traders.refresh} />}
         </div>
         {voiceError !== null && <p className="error-text small composer-note">{voiceError}</p>}
         {sendError !== null && <p className="error-text small composer-note">{sendError}</p>}
       </div>
       {phone && panelOpen && <div className="sheet-backdrop" onClick={() => sidePanelStore.close()} aria-hidden="true" />}
-      {panelOpen && <SidePanel deskName={deskName} desk={desk} events={deskEvents} />}
+      {panelOpen && <SidePanel traderName={traderName} trader={trader} events={traderEvents} />}
     </div>
   );
 }
 
 /**
  * The grey hint in the empty message box.
- * @param deskName The desk being talked to.
- * @param busy Whether the desk is in the middle of a turn.
+ * @param traderName The trader being talked to.
+ * @param busy Whether the trader is in the middle of a turn.
  * @param phone Whether the phone layout is in use, where Enter adds a line and the send button sends.
  * @returns The hint.
  */
-function composerHint(deskName: string, busy: boolean, phone: boolean): string {
+function composerHint(traderName: string, busy: boolean, phone: boolean): string {
   if (phone) {
-    return busy ? `Steer ${deskName} at its next tool call` : `Message ${deskName}`;
+    return busy ? `Steer ${traderName} at its next tool call` : `Message ${traderName}`;
   }
-  return busy ? `Enter to hand a message to ${deskName} at its next tool call` : 'Enter to send, Shift+Enter for a new line, / for commands';
+  return busy ? `Enter to hand a message to ${traderName} at its next tool call` : 'Enter to send, Shift+Enter for a new line, / for commands';
 }
 
 /** Hides the side panel. */
@@ -562,13 +562,13 @@ function turnStatus(turn: ChatTurn): string {
 
 /** What a turn view shows. */
 interface TurnViewProperties {
-  deskName: string;
+  traderName: string;
   turn: ChatTurn;
   streamingText: string;
 }
 
 /**
- * One turn: what woke the desk, its steps, the text it is writing, and its answer.
+ * One turn: what woke the trader, its steps, the text it is writing, and its answer.
  * @param properties The turn and its streamed text.
  * @returns The turn's view.
  */
@@ -590,7 +590,7 @@ function TurnView(properties: TurnViewProperties) {
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M4 3v5a2 2 0 0 0 2 2h7M10 7l3 3-3 3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          Your response went to the desk <span className="mono">{formatter.time(turn.receivedAt)}</span>
+          Your response went to the trader <span className="mono">{formatter.time(turn.receivedAt)}</span>
         </div>
       ) : (
         <div className={fromUser ? 'bubble user' : 'bubble trigger'}>
@@ -599,14 +599,14 @@ function TurnView(properties: TurnViewProperties) {
             <span className="mono">{formatter.time(turn.receivedAt)}</span>
           </div>
           {turn.text.length > 0 && <pre>{turn.text}</pre>}
-          <AttachmentList deskName={properties.deskName} attachments={turn.attachments} />
+          <AttachmentList traderName={properties.traderName} attachments={turn.attachments} />
         </div>
       )}
       {turn.steps.length > 0 && (
         <div className="steps">
           {stepSegments(turn.steps).map((segment, index) => {
             if (segment.type === 'tools') {
-              return <ToolGroup key={segment.steps[0].callId || index} deskName={properties.deskName} steps={segment.steps} />;
+              return <ToolGroup key={segment.steps[0].callId || index} traderName={properties.traderName} steps={segment.steps} />;
             }
             const step = segment.step;
             if (step.type === 'steering') {
@@ -619,7 +619,7 @@ function TurnView(properties: TurnViewProperties) {
               return <RequestSummary key={step.request.request_id} request={step.request} />;
             }
             if (step.event.kind === 'message') {
-              return <DeskMessageView key={eventMerger.key(step.event)} deskName={properties.deskName} event={step.event} />;
+              return <TraderMessageView key={eventMerger.key(step.event)} traderName={properties.traderName} event={step.event} />;
             }
             return (
               <div key={eventMerger.key(step.event)} className={`step-line tone-${eventDescriber.describe(step.event).tone}`}>
@@ -640,7 +640,7 @@ function TurnView(properties: TurnViewProperties) {
       {turn.answer !== null && (
         <div className={turn.silent ? 'bubble answer silent' : 'bubble answer'}>
           <div className="bubble-meta">
-            <span>{turn.silent ? 'Nothing to do' : 'Desk'}</span>
+            <span>{turn.silent ? 'Nothing to do' : 'Trader'}</span>
           </div>
           <MarkdownText text={turn.answer} />
         </div>
@@ -703,10 +703,10 @@ function stepSegments(steps: TurnStep[]): StepSegment[] {
 
 /**
  * Tool calls in a row, folded into one summary line as Claude Code shows them; pictures the tools showed the model stay visible.
- * @param properties The desk and the tool calls.
+ * @param properties The trader and the tool calls.
  * @returns The group.
  */
-function ToolGroup(properties: { deskName: string; steps: ToolStep[] }) {
+function ToolGroup(properties: { traderName: string; steps: ToolStep[] }) {
   const [open, setOpen] = useState(false);
   const steps = properties.steps;
   const pictures = steps.filter((step) => step.picturePath !== null);
@@ -721,14 +721,14 @@ function ToolGroup(properties: { deskName: string; steps: ToolStep[] }) {
       {open && (
         <div className="tool-group-body">
           {steps.map((step, index) => (
-            <ToolCard key={step.callId || index} deskName={properties.deskName} step={step} />
+            <ToolCard key={step.callId || index} traderName={properties.traderName} step={step} />
           ))}
         </div>
       )}
       {!open &&
         pictures.map((step) => (
           <div key={step.callId} className="tool-card-picture">
-            <PictureThumbnail fileName={step.picturePath as string} loadKey={`${properties.deskName}/${step.picturePath}`} load={() => apiClient.deskPicture(properties.deskName, step.picturePath as string)} />
+            <PictureThumbnail fileName={step.picturePath as string} loadKey={`${properties.traderName}/${step.picturePath}`} load={() => apiClient.traderPicture(properties.traderName, step.picturePath as string)} />
           </div>
         ))}
     </div>
@@ -737,12 +737,12 @@ function ToolGroup(properties: { deskName: string; steps: ToolStep[] }) {
 
 /**
  * One tool call, folded, with its arguments and result inside, and any picture it showed the model beneath.
- * @param properties The desk and the step.
+ * @param properties The trader and the step.
  * @returns The card.
  */
-function ToolCard(properties: { deskName: string; step: ToolStep }) {
+function ToolCard(properties: { traderName: string; step: ToolStep }) {
   const step = properties.step;
-  const deskName = properties.deskName;
+  const traderName = properties.traderName;
   const picturePath = step.picturePath;
   let state = 'running…';
   if (step.resultText !== null) {
@@ -768,7 +768,7 @@ function ToolCard(properties: { deskName: string; step: ToolStep }) {
       </details>
       {picturePath !== null && (
         <div className="tool-card-picture">
-          <PictureThumbnail fileName={picturePath} loadKey={`${deskName}/${picturePath}`} load={() => apiClient.deskPicture(deskName, picturePath)} />
+          <PictureThumbnail fileName={picturePath} loadKey={`${traderName}/${picturePath}`} load={() => apiClient.traderPicture(traderName, picturePath)} />
         </div>
       )}
     </div>
@@ -776,42 +776,42 @@ function ToolCard(properties: { deskName: string; step: ToolStep }) {
 }
 
 /**
- * A message the desk sent with send_message or send_image: its text and any pictures, shown large.
- * @param properties The desk and the message event.
+ * A message the trader sent with send_message or send_image: its text and any pictures, shown large.
+ * @param properties The trader and the message event.
  * @returns The bubble.
  */
-function DeskMessageView(properties: { deskName: string; event: AgentEvent }) {
+function TraderMessageView(properties: { traderName: string; event: AgentEvent }) {
   const payload = properties.event.payload;
   const text = typeof payload.text === 'string' ? payload.text : '';
   const attachments = Array.isArray(payload.attachments) ? (payload.attachments as Attachment[]) : [];
   const urgent = payload.urgent === true;
-  let label = 'Message from the desk';
+  let label = 'Message from the trader';
   if (attachments.length > 0) {
-    label = 'Picture from the desk';
+    label = 'Picture from the trader';
   }
   if (urgent) {
-    label = 'Urgent message from the desk';
+    label = 'Urgent message from the trader';
   }
   return (
-    <div className={urgent ? 'bubble answer desk-message urgent' : 'bubble answer desk-message'}>
+    <div className={urgent ? 'bubble answer trader-message urgent' : 'bubble answer trader-message'}>
       <div className="bubble-meta">
         <span>{label}</span>
         <span className="mono">{formatter.time(properties.event.created_at)}</span>
       </div>
       {text.length > 0 && <MarkdownText text={text} />}
-      <AttachmentList deskName={properties.deskName} attachments={attachments} large />
+      <AttachmentList traderName={properties.traderName} attachments={attachments} large />
     </div>
   );
 }
 
 /**
  * An event that happened outside any turn.
- * @param properties The desk and the event.
- * @returns A one-line view, or a message bubble for a message the desk sent.
+ * @param properties The trader and the event.
+ * @returns A one-line view, or a message bubble for a message the trader sent.
  */
-function LooseEventView(properties: { deskName: string; event: AgentEvent }) {
+function LooseEventView(properties: { traderName: string; event: AgentEvent }) {
   if (properties.event.kind === 'message') {
-    return <DeskMessageView deskName={properties.deskName} event={properties.event} />;
+    return <TraderMessageView traderName={properties.traderName} event={properties.event} />;
   }
   const description = eventDescriber.describe(properties.event);
   return (
@@ -824,13 +824,13 @@ function LooseEventView(properties: { deskName: string; event: AgentEvent }) {
 
 /**
  * The commands whose names start with what the user has typed, each name once.
- * @param commands The desk's commands and skills, as GET /api/desks/{desk}/commands lists them.
+ * @param commands The trader's commands and skills, as GET /api/traders/{trader}/commands lists them.
  * @param draft What the user has typed, such as "/st".
- * @returns The matching entries, in the desk's order.
+ * @returns The matching entries, in the trader's order.
  */
-function commandSuggestions(commands: DeskCommand[], draft: string): DeskCommand[] {
+function commandSuggestions(commands: TraderCommand[], draft: string): TraderCommand[] {
   const seen = new Set<string>();
-  const matches: DeskCommand[] = [];
+  const matches: TraderCommand[] = [];
   for (const command of commands) {
     if (seen.has(command.name) || !command.name.startsWith(draft)) {
       continue;

@@ -1,4 +1,4 @@
-"""The set_price_alert tool: asks the market watcher to wake the desk when a price is reached.
+"""The set_price_alert tool: asks the market watcher to wake the trader when a price is reached.
 
 Typical usage example:
 
@@ -51,7 +51,7 @@ class SetPriceAlertTool(tool.Tool):
 
         Args:
             reader (broker_reader_module.BrokerReader): The shared UBI reader.
-            store (price_alert_store_module.PriceAlertStore): The desk's alerts.
+            store (price_alert_store_module.PriceAlertStore): The trader's alerts.
         """
         self._reader = reader
         self._store = store

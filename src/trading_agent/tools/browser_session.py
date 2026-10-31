@@ -1,6 +1,6 @@
-"""One desk's Chrome browser, driven by Playwright.
+"""One trader's Chrome browser, driven by Playwright.
 
-Chrome runs headless with a profile of its own inside the desk's folder, so it never sees the user's logins, cookies or history. It identifies itself as ordinary Chrome rather than HeadlessChrome and hides the automation flag, because Indian finance sites such as Moneycontrol and Zee Business refuse headless browsers with HTTP 403.
+Chrome runs headless with a profile of its own inside the trader's folder, so it never sees the user's logins, cookies or history. It identifies itself as ordinary Chrome rather than HeadlessChrome and hides the automation flag, because Indian finance sites such as Moneycontrol and Zee Business refuse headless browsers with HTTP 403.
 
 Every request the browser makes, including images, scripts and redirects, passes the address guard, so no page can make it fetch anything from this machine or the local network, and file:// pages cannot be opened. Downloads are refused.
 
@@ -82,7 +82,7 @@ class BrowserError(Exception):
 
 
 class BrowserSession:
-    """A desk's browser, started on first use."""
+    """A trader's browser, started on first use."""
 
     def __init__(
         self,
@@ -94,7 +94,7 @@ class BrowserSession:
         """Creates the session without starting Chrome.
 
         Args:
-            profile_directory (Path): The desk's own Chrome profile folder.
+            profile_directory (Path): The trader's own Chrome profile folder.
             screenshot_directory (Path): Where screenshots are saved.
             guard (address_guard_module.AddressGuard): The check every request must pass.
             browser_configuration (agent_configuration.BrowserConfiguration): Timeouts and limits.

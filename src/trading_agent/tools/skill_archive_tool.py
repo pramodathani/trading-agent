@@ -1,4 +1,4 @@
-"""The skill_archive tool: takes one of the desk's own skills out of use without deleting it.
+"""The skill_archive tool: takes one of the trader's own skills out of use without deleting it.
 
 Typical usage example:
 
@@ -28,7 +28,7 @@ class SkillArchiveArguments(pydantic.BaseModel):
 
 
 class SkillArchiveTool(tool.Tool):
-    """Archives one of the desk's own skills."""
+    """Archives one of the trader's own skills."""
 
     name = 'skill_archive'
     description = 'Takes one of your own skills out of the skills index by moving it to the archive, for example after merging it into another skill or when it proved wrong. Nothing is deleted, and the change can be undone.'
@@ -38,7 +38,7 @@ class SkillArchiveTool(tool.Tool):
         """Creates the tool.
 
         Args:
-            writer (skill_writer_module.SkillWriter): Writes the desk's skills.
+            writer (skill_writer_module.SkillWriter): Writes the trader's skills.
         """
         self._writer = writer
 

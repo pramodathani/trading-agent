@@ -1,4 +1,4 @@
-"""Tests for ChatTranscript, which groups a desk's events into chat turns as the web page does."""
+"""Tests for ChatTranscript, which groups a trader's events into chat turns as the web page does."""
 
 from typing import Any
 
@@ -14,7 +14,7 @@ class _Events:
         self._second = 0
 
     def make(self, event_kind: str, **payload: Any) -> dict[str, Any]:
-        """Makes one event of the general desk.
+        """Makes one event of the general trader.
 
         Args:
             event_kind (str): The event's kind.
@@ -26,7 +26,7 @@ class _Events:
         self._second += 1
         return {
             'kind': event_kind,
-            'desk': 'general',
+            'trader': 'general',
             'payload': payload,
             'created_at': f'2026-10-19T04:30:{self._second:02d}+00:00',
         }
@@ -83,7 +83,7 @@ class TestChatTranscript:
         assert transcript.running_turn() is None
 
     def test_streamed_text_is_dropped_when_the_answer_arrives(self) -> None:
-        """Text deltas build up while the desk writes and are cleared by the final answer."""
+        """Text deltas build up while the trader writes and are cleared by the final answer."""
         events = _Events()
         transcript = chat_transcript.ChatTranscript()
         transcript.add(
@@ -235,7 +235,7 @@ class TestChatTranscript:
                 kind='permission',
                 status='pending',
                 content={
-                    'tool_name': 'flatten_desk',
+                    'tool_name': 'flatten_trader',
                 },
             )
         )

@@ -32,16 +32,16 @@ class GatewayConfiguration(pydantic.BaseModel):
     allowed_origins: list[str] = []
 
 
-class DeskConfiguration(pydantic.BaseModel):
-    """One trading desk, which is one independent agent.
+class TraderConfiguration(pydantic.BaseModel):
+    """One trader, which is one independent agent.
 
     Attributes:
-        name: The desk's name, used in folder names, order tags and the web interface.
-        enabled: Whether the desk starts with the gateway.
-        backend_order: The backends the desk may use, most preferred first, by their names in [backends].
+        name: The trader's name, used in folder names, order tags and the web interface.
+        enabled: Whether the trader starts with the gateway.
+        backend_order: The backends the trader may use, most preferred first, by their names in [backends].
         heartbeat_minutes: Minutes between heartbeats while NSE equities trade, or None for no heartbeat; each heartbeat is a model turn.
-        rollover_time: The India time on trading days, as HH:MM, when the desk's session rolls over with a summary.
-        scheduled_checks: India times on trading days, as HH:MM, when the desk is woken to do what its Persona.md says for that time of day.
+        rollover_time: The India time on trading days, as HH:MM, when the trader's session rolls over with a summary.
+        scheduled_checks: India times on trading days, as HH:MM, when the trader is woken to do what its Persona.md says for that time of day.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -71,7 +71,7 @@ class AgentLoopConfiguration(pydantic.BaseModel):
         maximum_rounds: The most model calls one turn may make before it is stopped.
         maximum_identical_tool_calls: How many times one tool may be called with the same arguments in a turn.
         tool_timeout_seconds: How long one tool call may run before it is stopped.
-        compression_threshold: The share of a model's context window at which, before the next turn, the desk saves what matters and its conversation is compressed into a summary.
+        compression_threshold: The share of a model's context window at which, before the next turn, the trader saves what matters and its conversation is compressed into a summary.
         emergency_compression_threshold: The higher share at which a conversation is compressed in the middle of a long turn, without the memory flush.
     """
 
@@ -183,7 +183,7 @@ class RiskConfiguration(pydantic.BaseModel):
     """How the risk engine works, apart from the limits in TradingRules.md.
 
     Attributes:
-        ownership_grace_minutes: How long a desk keeps its claim on an instrument it ordered but does not yet hold, before the claim lapses.
+        ownership_grace_minutes: How long a trader keeps its claim on an instrument it ordered but does not yet hold, before the claim lapses.
         margin_rates: The rates used to estimate an order's margin.
     """
 
@@ -194,10 +194,10 @@ class RiskConfiguration(pydantic.BaseModel):
 
 
 class SkillsConfiguration(pydantic.BaseModel):
-    """How the desks' skills are kept.
+    """How the traders' skills are kept.
 
     Attributes:
-        archive_after_days: How many days a desk's own skill may go unused before the daily curator archives it.
+        archive_after_days: How many days a trader's own skill may go unused before the daily curator archives it.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -206,10 +206,10 @@ class SkillsConfiguration(pydantic.BaseModel):
 
 
 class BrowserConfiguration(pydantic.BaseModel):
-    """How each desk's Chrome browser runs.
+    """How each trader's Chrome browser runs.
 
     Attributes:
-        headless: Whether Chrome runs without a window. Turn it off to watch a desk browse.
+        headless: Whether Chrome runs without a window. Turn it off to watch a trader browse.
         navigation_timeout_seconds: How long opening or changing a page may take.
         maximum_elements: The most clickable elements one snapshot lists.
         maximum_text_characters: How much of a page's visible text one snapshot returns.
@@ -224,7 +224,7 @@ class BrowserConfiguration(pydantic.BaseModel):
 
 
 class BackendConfiguration(pydantic.BaseModel):
-    """One model backend that a desk can use.
+    """One model backend that a trader can use.
 
     Attributes:
         kind: How the model is reached: "ollama", "openai_compatible", "deepseek" or "claude_code".
@@ -256,9 +256,15 @@ class BackendConfiguration(pydantic.BaseModel):
     api_key_variable: str | None = None
     vision: bool = True
     other_models: list[str] = []
-    usd_per_million_cache_hit_tokens: float | None = pydantic.Field(default=None, ge=0)
-    usd_per_million_cache_miss_tokens: float | None = pydantic.Field(default=None, ge=0)
-    usd_per_million_completion_tokens: float | None = pydantic.Field(default=None, ge=0)
+    usd_per_million_cache_hit_tokens: float | None = pydantic.Field(
+        default=None, ge=0
+    )
+    usd_per_million_cache_miss_tokens: float | None = pydantic.Field(
+        default=None, ge=0
+    )
+    usd_per_million_completion_tokens: float | None = pydantic.Field(
+        default=None, ge=0
+    )
     peak_hours_utc: list[str] = []
     off_peak_price_factor: float = pydantic.Field(default=1.0, gt=0, le=1)
     rupees_per_million_prompt_tokens: float | None = pydantic.Field(
@@ -288,7 +294,7 @@ TELEGRAM_NOTIFICATIONS = (
     'rejections',
     'model_switches',
     'job_results',
-    'desk_reports',
+    'trader_reports',
     'messages',
     'alerts',
     'halts',
@@ -301,7 +307,7 @@ PUSH_NOTIFICATIONS = (
     'rejections',
     'model_switches',
     'job_results',
-    'desk_reports',
+    'trader_reports',
     'messages',
     'alerts',
     'halts',
@@ -311,10 +317,10 @@ PUSH_NOTIFICATIONS = (
 
 
 class ApprovalConfiguration(pydantic.BaseModel):
-    """Which of the desks' actions wait for the user's permission.
+    """Which of the traders' actions wait for the user's permission.
 
     Attributes:
-        tools: The tools whose every call by a desk or subagent waits for the user's permission, such as "flatten_desk"; empty for none.
+        tools: The tools whose every call by a trader or subagent waits for the user's permission, such as "flatten_trader"; empty for none.
         expiry_minutes: How long a permission request stays open before it lapses and the action is not run.
     """
 
@@ -329,15 +335,15 @@ class TelegramConfiguration(pydantic.BaseModel):
 
     Attributes:
         enabled: Whether the gateway talks to Telegram; it also needs TRADING_AGENT_TELEGRAM_BOT_TOKEN in .env.
-        default_desk: The desk a paired chat talks to until it chooses another with /desk; when left out, the first desk in the configuration.
-        notifications: What is pushed to every paired chat without being asked: fills, rejections, model_switches, job_results, desk_reports, messages, alerts, halts, errors and daily_summaries.
+        default_trader: The trader a paired chat talks to until it chooses another with /trader; when left out, the first trader in the configuration.
+        notifications: What is pushed to every paired chat without being asked: fills, rejections, model_switches, job_results, trader_reports, messages, alerts, halts, errors and daily_summaries.
         poll_seconds: How long one long-poll request to Telegram waits for new messages before asking again.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
 
     enabled: bool = False
-    default_desk: str | None = None
+    default_trader: str | None = None
     notifications: list[str] = list(TELEGRAM_NOTIFICATIONS)
     poll_seconds: int = pydantic.Field(default=30, ge=1, le=50)
 
@@ -370,7 +376,7 @@ class PushConfiguration(pydantic.BaseModel):
 
     Attributes:
         enabled: Whether the gateway sends notifications; it also needs TRADING_AGENT_FIREBASE_SERVICE_ACCOUNT_FILE in .env.
-        notifications: What is pushed to every registered phone: fills, rejections, model_switches, job_results, desk_reports, messages, alerts, halts, errors and requests (permissions, questions and plans waiting for the user).
+        notifications: What is pushed to every registered phone: fills, rejections, model_switches, job_results, trader_reports, messages, alerts, halts, errors and requests (permissions, questions and plans waiting for the user).
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -407,19 +413,19 @@ class AgentConfiguration(pydantic.BaseModel):
 
     Attributes:
         mode: "dry_run" sends every order to UBI as a dry run, and "live" sends real orders.
-        workspace_directory: The folder holding the desks' files, memory and journals.
+        workspace_directory: The folder holding the traders' files, memory and journals.
         tradingmachine_environment_file: The .env file that tradingmachine reads its UBI and MongoDB settings from.
-        mcp_servers_file: The JSON file listing the MCP servers every desk can use.
+        mcp_servers_file: The JSON file listing the MCP servers every trader can use.
         market_calendar_directory: UBI's folder of yearly exchange calendars, or None to know weekends only.
         gateway: Where the web server listens.
-        desks: The desks to run.
-        backends: The model backends, keyed by the name desks refer to them by.
+        traders: The traders to run.
+        backends: The model backends, keyed by the name traders refer to them by.
         agent: The limits of the agent loop.
         sandbox: How the bash terminal's sandbox is built.
         web: Where web search goes and how pages are fetched.
-        browser: How each desk's Chrome browser runs.
+        browser: How each trader's Chrome browser runs.
         risk: How the risk engine works, apart from the limits in TradingRules.md.
-        skills: How the desks' skills are kept.
+        skills: How the traders' skills are kept.
         telegram: The Telegram channel.
         push: Push notifications to the Android app.
         approvals: Which actions wait for the user's permission.
@@ -433,7 +439,7 @@ class AgentConfiguration(pydantic.BaseModel):
     mcp_servers_file: Path = Path('mcp_servers.json')
     market_calendar_directory: Path | None = None
     gateway: GatewayConfiguration = GatewayConfiguration()
-    desks: list[DeskConfiguration] = pydantic.Field(min_length=1)
+    traders: list[TraderConfiguration] = pydantic.Field(min_length=1)
     backends: dict[str, BackendConfiguration] = {}
     agent: AgentLoopConfiguration = AgentLoopConfiguration()
     sandbox: SandboxConfiguration = SandboxConfiguration()
@@ -446,55 +452,55 @@ class AgentConfiguration(pydantic.BaseModel):
     approvals: ApprovalConfiguration = ApprovalConfiguration()
 
     @pydantic.model_validator(mode='after')
-    def _require_known_telegram_desk(self) -> AgentConfiguration:
-        """Fills in Telegram's default desk with the first desk when it is left out, and checks that it is one of the desks.
+    def _require_known_telegram_trader(self) -> AgentConfiguration:
+        """Fills in Telegram's default trader with the first trader when it is left out, and checks that it is one of the traders.
 
         Returns:
-            AgentConfiguration: This configuration, with the default desk filled in.
+            AgentConfiguration: This configuration, with the default trader filled in.
 
         Raises:
-            ValueError: The default desk does not exist.
+            ValueError: The default trader does not exist.
         """
-        if self.telegram.default_desk is None and self.desks:
-            self.telegram.default_desk = self.desks[0].name
-        for desk in self.desks:
-            if desk.name == self.telegram.default_desk:
+        if self.telegram.default_trader is None and self.traders:
+            self.telegram.default_trader = self.traders[0].name
+        for trader in self.traders:
+            if trader.name == self.telegram.default_trader:
                 return self
         raise ValueError(
-            f'[telegram] default_desk {self.telegram.default_desk!r} is not a desk'
+            f'[telegram] default_trader {self.telegram.default_trader!r} is not a trader'
         )
 
     @pydantic.model_validator(mode='after')
     def _require_known_backends(self) -> AgentConfiguration:
-        """Checks that every backend a desk names is defined in [backends].
+        """Checks that every backend a trader names is defined in [backends].
 
         Returns:
             AgentConfiguration: This configuration, unchanged.
 
         Raises:
-            ValueError: A desk names a backend that does not exist.
+            ValueError: A trader names a backend that does not exist.
         """
-        for desk in self.desks:
-            for backend_name in desk.backend_order:
+        for trader in self.traders:
+            for backend_name in trader.backend_order:
                 if backend_name not in self.backends:
                     raise ValueError(
-                        f'Desk {desk.name!r} names unknown backend {backend_name!r}'
+                        f'Trader {trader.name!r} names unknown backend {backend_name!r}'
                     )
         return self
 
     @pydantic.model_validator(mode='after')
-    def _require_unique_desk_names(self) -> AgentConfiguration:
-        """Checks that no two desks share a name.
+    def _require_unique_trader_names(self) -> AgentConfiguration:
+        """Checks that no two traders share a name.
 
         Returns:
             AgentConfiguration: This configuration, unchanged.
 
         Raises:
-            ValueError: Two desks have the same name.
+            ValueError: Two traders have the same name.
         """
         seen_names = set()
-        for desk in self.desks:
-            if desk.name in seen_names:
-                raise ValueError(f'Duplicate desk name: {desk.name!r}')
-            seen_names.add(desk.name)
+        for trader in self.traders:
+            if trader.name in seen_names:
+                raise ValueError(f'Duplicate trader name: {trader.name!r}')
+            seen_names.add(trader.name)
         return self

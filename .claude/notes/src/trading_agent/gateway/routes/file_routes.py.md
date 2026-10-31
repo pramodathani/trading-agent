@@ -1,14 +1,14 @@
 # file_routes.py
 
-The user's files (Agents.md, User.md, TradingRules.md and each desk's Persona.md) can be edited through the API, because the agents cannot edit them and the user needs a way to. Each desk's Memory.md is listed too, because the user may want to correct what a desk remembers.
+The user's files (Agents.md, User.md, TradingRules.md and each trader's Persona.md) can be edited through the API, because the agents cannot edit them and the user needs a way to. Each trader's Memory.md is listed too, because the user may want to correct what a trader remembers.
 
 ## Why TradingRules.md is checked before saving
 
-The risk engine reads its limits from TradingRules.md. If a typing mistake made the limits unreadable, the engine would refuse every new position. Saving first and finding out later would leave the desks stuck until the user noticed. So the new text is written to a temporary file and read with the same `TradingLimitsReader`; if that fails, nothing is saved and the answer is 400 with the reason.
+The risk engine reads its limits from TradingRules.md. If a typing mistake made the limits unreadable, the engine would refuse every new position. Saving first and finding out later would leave the traders stuck until the user noticed. So the new text is written to a temporary file and read with the same `TradingLimitsReader`; if that fails, nothing is saved and the answer is 400 with the reason.
 
 ## Why Memory.md is checkpointed first
 
-Memory.md is otherwise written only by the desk, and every desk write is checkpointed. A user edit is checkpointed in the same way, so it can be undone from the checkpoints page. If the snapshot fails, the edit still goes ahead and the failure is logged, because losing the ability to undo is less harmful than refusing the user's edit.
+Memory.md is otherwise written only by the trader, and every trader write is checkpointed. A user edit is checkpointed in the same way, so it can be undone from the checkpoints page. If the snapshot fails, the edit still goes ahead and the failure is logged, because losing the ability to undo is less harmful than refusing the user's edit.
 
 ## Paths
 

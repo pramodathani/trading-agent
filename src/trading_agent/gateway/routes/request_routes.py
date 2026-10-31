@@ -1,4 +1,4 @@
-"""Routes for the desks' questions, plans and permission requests to the user.
+"""Routes for the traders' questions, plans and permission requests to the user.
 
   GET  /api/requests                     the requests, pending ones only unless status=all
   POST /api/requests/{id}/answer         answer a question request
@@ -6,9 +6,9 @@
   POST /api/requests/{id}/permission     allow a held call once or always, or deny it
   POST /api/requests/{id}/dismiss        close a request without answering
   GET  /api/permissions                  the standing "Always allow" permissions
-  POST /api/permissions/revoke           make a desk ask again before using a tool
+  POST /api/permissions/revoke           make a trader ask again before using a tool
 
-Each response is handed to the desk as a new message; the desk never waited for it. A response is recorded as given "via web" unless the client names itself with the header X-Trading-Agent-Client: terminal.
+Each response is handed to the trader as a new message; the trader never waited for it. A response is recorded as given "via web" unless the client names itself with the header X-Trading-Agent-Client: terminal.
 
 Typical usage example:
 
@@ -25,8 +25,12 @@ from trading_agent.gateway import access_guard
 from trading_agent.gateway.routes import route_group
 from trading_agent.requests import permission_grants as permission_grants_module
 from trading_agent.requests import user_request as user_request_module
-from trading_agent.requests import user_request_responder as user_request_responder_module
-from trading_agent.requests import user_request_store as user_request_store_module
+from trading_agent.requests import (
+    user_request_responder as user_request_responder_module,
+)
+from trading_agent.requests import (
+    user_request_store as user_request_store_module,
+)
 
 _WEB = 'web'
 _CLIENTS = (
@@ -86,11 +90,11 @@ class RevokeRequest(pydantic.BaseModel):
     """The body of a revocation.
 
     Attributes:
-        desk: The desk.
+        trader: The trader.
         tool_name: The tool it must ask about again.
     """
 
-    desk: str
+    trader: str
     tool_name: str
 
 
@@ -109,7 +113,7 @@ class RequestRoutes(route_group.RouteGroup):
         Args:
             guard (access_guard.AccessGuard): Checks the access token.
             store (user_request_store_module.UserRequestStore): Where the requests are kept.
-            responder (user_request_responder_module.UserRequestResponder): Records responses and tells the desks.
+            responder (user_request_responder_module.UserRequestResponder): Records responses and tells the traders.
             grants (permission_grants_module.PermissionGrants | None): The standing permissions, or None when permissions are not used.
         """
         super().__init__(guard)
@@ -123,12 +127,16 @@ class RequestRoutes(route_group.RouteGroup):
         Args:
             router (fastapi.APIRouter): The router.
         """
-        router.add_api_route('/api/requests', self.list_requests, methods=['GET'])
+        router.add_api_route(
+            '/api/requests', self.list_requests, methods=['GET']
+        )
         router.add_api_route(
             '/api/requests/{request_id}/answer', self.answer, methods=['POST']
         )
         router.add_api_route(
-            '/api/requests/{request_id}/plan', self.decide_plan, methods=['POST']
+            '/api/requests/{request_id}/plan',
+            self.decide_plan,
+            methods=['POST'],
         )
         router.add_api_route(
             '/api/requests/{request_id}/permission',
@@ -245,7 +253,9 @@ class RequestRoutes(route_group.RouteGroup):
         try:
             self._store.get(request_id)
         except user_request_store_module.UserRequestError as error:
-            raise fastapi.HTTPException(status_code=404, detail=str(error)) from error
+            raise fastapi.HTTPException(
+                status_code=404, detail=str(error)
+            ) from error
         try:
             request = await self._responder.decide_permission(
                 request_id,
@@ -254,9 +264,13 @@ class RequestRoutes(route_group.RouteGroup):
                 self._via(client),
             )
         except user_request_store_module.UserRequestError as error:
-            raise fastapi.HTTPException(status_code=409, detail=str(error)) from error
+            raise fastapi.HTTPException(
+                status_code=409, detail=str(error)
+            ) from error
         except ValueError as error:
-            raise fastapi.HTTPException(status_code=422, detail=str(error)) from error
+            raise fastapi.HTTPException(
+                status_code=422, detail=str(error)
+            ) from error
         return request.to_json_dictionary()
 
     def list_permissions(self) -> dict[str, Any]:
@@ -270,7 +284,7 @@ class RequestRoutes(route_group.RouteGroup):
             for grant in self._grants.all():
                 grants.append(
                     {
-                        'desk': grant.desk,
+                        'trader': grant.trader,
                         'tool_name': grant.tool_name,
                         'granted_at': grant.granted_at,
                     }
@@ -280,10 +294,10 @@ class RequestRoutes(route_group.RouteGroup):
         }
 
     def revoke_permission(self, body: RevokeRequest) -> dict[str, Any]:
-        """Makes a desk ask again before using a tool.
+        """Makes a trader ask again before using a tool.
 
         Args:
-            body (RevokeRequest): The desk and the tool.
+            body (RevokeRequest): The trader and the tool.
 
         Returns:
             dict[str, Any]: Whether a grant was removed.
@@ -291,10 +305,12 @@ class RequestRoutes(route_group.RouteGroup):
         Raises:
             fastapi.HTTPException: There is no such grant (404).
         """
-        if self._grants is None or not self._grants.revoke(body.desk, body.tool_name):
+        if self._grants is None or not self._grants.revoke(
+            body.trader, body.tool_name
+        ):
             raise fastapi.HTTPException(
                 status_code=404,
-                detail=f'No standing permission for {body.tool_name!r} on desk {body.desk!r}',
+                detail=f'No standing permission for {body.tool_name!r} on trader {body.trader!r}',
             )
         return {
             'revoked': True,
@@ -355,11 +371,17 @@ class RequestRoutes(route_group.RouteGroup):
         try:
             self._store.get(request_id)
         except user_request_store_module.UserRequestError as error:
-            raise fastapi.HTTPException(status_code=404, detail=str(error)) from error
+            raise fastapi.HTTPException(
+                status_code=404, detail=str(error)
+            ) from error
         try:
             request = action()
         except user_request_store_module.UserRequestError as error:
-            raise fastapi.HTTPException(status_code=409, detail=str(error)) from error
+            raise fastapi.HTTPException(
+                status_code=409, detail=str(error)
+            ) from error
         except ValueError as error:
-            raise fastapi.HTTPException(status_code=422, detail=str(error)) from error
+            raise fastapi.HTTPException(
+                status_code=422, detail=str(error)
+            ) from error
         return request.to_json_dictionary()

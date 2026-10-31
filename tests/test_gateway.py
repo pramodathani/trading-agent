@@ -9,9 +9,9 @@ import starlette.websockets
 from trading_agent.configuration import agent_configuration
 from trading_agent.gateway import access_guard
 from trading_agent.gateway import gateway_application
-from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import no_model_turn_runner
+from trading_agent.runtime import trader_runtime
 
 _TOKEN = 'test-token-that-is-long-enough-1234567890'
 
@@ -19,25 +19,25 @@ _TOKEN = 'test-token-that-is-long-enough-1234567890'
 def _client(
     allowed_origins: tuple[str, ...] = (),
 ) -> fastapi.testclient.TestClient:
-    """Builds a gateway with one desk and a test client for it.
+    """Builds a gateway with one trader and a test client for it.
 
     Args:
         allowed_origins (tuple[str, ...]): The other web origins the gateway lets call its API.
 
     Returns:
-        fastapi.testclient.TestClient: A client for the gateway; use it in a with statement so the desk loop runs.
+        fastapi.testclient.TestClient: A client for the gateway; use it in a with statement so the trader loop runs.
     """
     event_bus = event_bus_module.EventBus()
-    desks = {
-        'main': desk_runtime.DeskRuntime(
-            agent_configuration.DeskConfiguration(name='main'),
+    traders = {
+        'main': trader_runtime.TraderRuntime(
+            agent_configuration.TraderConfiguration(name='main'),
             event_bus,
             no_model_turn_runner.NoModelTurnRunner(),
         ),
     }
     gateway = gateway_application.GatewayApplication(
         event_bus,
-        desks,
+        traders,
         access_guard.AccessGuard(_TOKEN),
         allowed_origins=allowed_origins,
     )
@@ -45,21 +45,21 @@ def _client(
 
 
 class TestGateway:
-    """Tests for the health, desk and event routes."""
+    """Tests for the health, trader and event routes."""
 
     def test_health_needs_no_token(self) -> None:
-        """The health route answers without a token and lists the desk."""
+        """The health route answers without a token and lists the trader."""
         with _client() as client:
             response = client.get('/api/health')
 
         assert response.status_code == 200
-        assert response.json()['desks'][0]['name'] == 'main'
+        assert response.json()['traders'][0]['name'] == 'main'
 
     def test_message_without_token_is_rejected(self) -> None:
         """Sending a message without the token gets HTTP 401."""
         with _client() as client:
             response = client.post(
-                '/api/desks/main/messages',
+                '/api/traders/main/messages',
                 json={
                     'text': 'hello',
                 },
@@ -67,11 +67,11 @@ class TestGateway:
 
         assert response.status_code == 401
 
-    def test_message_to_unknown_desk_is_404(self) -> None:
-        """Sending a message to a desk that does not exist gets HTTP 404."""
+    def test_message_to_unknown_trader_is_404(self) -> None:
+        """Sending a message to a trader that does not exist gets HTTP 404."""
         with _client() as client:
             response = client.post(
-                '/api/desks/nowhere/messages',
+                '/api/traders/nowhere/messages',
                 headers={
                     'Authorization': f'Bearer {_TOKEN}',
                 },
@@ -90,12 +90,12 @@ class TestGateway:
             client.websocket_connect(events_address) as websocket,
         ):
             response = client.post(
-                '/api/desks/main/messages',
+                '/api/traders/main/messages',
                 headers={
                     'Authorization': f'Bearer {_TOKEN}',
                 },
                 json={
-                    'text': 'hello desk',
+                    'text': 'hello trader',
                 },
             )
             trigger_id = response.json()['trigger_id']
@@ -115,7 +115,7 @@ class TestGateway:
             'text',
             'turn_finished',
         ]
-        assert 'hello desk' in reply_text
+        assert 'hello trader' in reply_text
 
     def test_event_stream_with_wrong_token_is_closed(self) -> None:
         """A WebSocket with the wrong token is closed before any event is sent."""
@@ -162,7 +162,7 @@ class TestAllowedOrigins:
         """A preflight request from an allowed origin is approved for the Authorization header."""
         with _client(('https://localhost',)) as client:
             response = client.options(
-                '/api/desks',
+                '/api/traders',
                 headers={
                     'Origin': 'https://localhost',
                     'Access-Control-Request-Method': 'GET',

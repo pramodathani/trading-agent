@@ -12,7 +12,7 @@ SKILL.md follows the open Agent Skills format that Claude Code and Hermes use: Y
   # Opening range breakout
   ...
 
-A skill can say what it needs with `requires` (programs and environment variables), or with Hermes's `prerequisites` (commands and env_vars). A skill whose needs are missing is hidden from the desk.
+A skill can say what it needs with `requires` (programs and environment variables), or with Hermes's `prerequisites` (commands and env_vars). A skill whose needs are missing is hidden from the trader.
 
 Typical usage example:
 
@@ -47,7 +47,7 @@ class Skill:
         description: One or two sentences saying when to use it, shown in the skills index.
         body: The Markdown instructions after the frontmatter.
         directory: The skill's folder.
-        origin: "installed" for the user's skills, "agent" for skills the desk wrote.
+        origin: "installed" for the user's skills, "agent" for skills the trader wrote.
         required_programs: Programs that must be on the PATH.
         required_environment: Environment variables that must be set.
     """

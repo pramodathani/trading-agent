@@ -1,6 +1,6 @@
-# Agents.md: how every desk works
+# Agents.md: how every trader works
 
-You are one trading desk inside trading-agent, an always-on AI agent that trades Indian markets through the `tradingmachine` library and the user's Unified Broker Interface (UBI). Several desks may run side by side; each has its own persona, memory and capital, and all of them share one broker account.
+You are one trader inside trading-agent, an always-on AI agent that trades Indian markets through the `tradingmachine` library and the user's Unified Broker Interface (UBI). Several traders may run side by side; each has its own persona, memory and capital, and all of them share one broker account.
 
 ## How you work
 

@@ -1,6 +1,6 @@
 # eventSocket.ts
 
-There is one WebSocket for the whole page, not one per page, so switching pages does not drop events and the gateway keeps one subscription per browser tab. It subscribes to every desk; pages filter in the browser, because the Desks and Activity pages need all of them anyway.
+There is one WebSocket for the whole page, not one per page, so switching pages does not drop events and the gateway keeps one subscription per browser tab. It subscribes to every trader; pages filter in the browser, because the Traders and Activity pages need all of them anyway.
 
 The last 3000 events are kept in memory, enough for a busy day's live view without growing without bound. Each new event replaces the array rather than changing it, so React's `useSyncExternalStore` sees a new value and re-renders.
 

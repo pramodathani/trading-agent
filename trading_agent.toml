@@ -9,7 +9,7 @@ allowed_origins = [
     "https://localhost",
 ]
 
-[[desks]]
+[[traders]]
 name = "general"
 backend_order = [
     "claude",
@@ -18,7 +18,7 @@ backend_order = [
     "gemma",
 ]
 
-[[desks]]
+[[traders]]
 name = "intraday"
 backend_order = [
     "claude",
@@ -33,7 +33,7 @@ scheduled_checks = [
     "15:35",
 ]
 
-[[desks]]
+[[traders]]
 name = "scalper"
 backend_order = [
     "claude_sonnet",
@@ -47,7 +47,7 @@ scheduled_checks = [
     "15:05",
 ]
 
-[[desks]]
+[[traders]]
 name = "positional"
 backend_order = [
     "claude",
@@ -119,10 +119,10 @@ enabled = true
 
 [telegram]
 enabled = true
-default_desk = "general"
+default_trader = "general"
 
 [approvals]
 tools = [
-    "flatten_desk",
+    "flatten_trader",
 ]
 expiry_minutes = 5

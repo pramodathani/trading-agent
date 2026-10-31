@@ -1,4 +1,4 @@
-"""The shallow base class of the browser tools, which share one desk's Chrome.
+"""The shallow base class of the browser tools, which share one trader's Chrome.
 
 Typical usage example:
 
@@ -17,7 +17,7 @@ _BROWSER_TIMEOUT_SECONDS = 90.0
 
 
 class BrowserTool(tool.Tool):
-    """A tool that works on the desk's browser."""
+    """A tool that works on the trader's browser."""
 
     timeout_seconds = _BROWSER_TIMEOUT_SECONDS
 
@@ -25,7 +25,7 @@ class BrowserTool(tool.Tool):
         """Creates the tool.
 
         Args:
-            session (browser_session_module.BrowserSession): The desk's browser.
+            session (browser_session_module.BrowserSession): The trader's browser.
         """
         self._session = session
 

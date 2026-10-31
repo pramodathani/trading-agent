@@ -62,7 +62,7 @@ class ChannelsScreen(page_screen.PageScreen):
             'Code', 'Name', 'Chat', 'Asked'
         )
         self.table('channels-paired').add_columns(
-            'Name', 'Chat', 'Desk', 'Paired'
+            'Name', 'Chat', 'Trader', 'Paired'
         )
         super().on_mount()
 
@@ -80,12 +80,12 @@ class ChannelsScreen(page_screen.PageScreen):
             state += f' ({telegram["error"]})'
         self.query_one('#channels-status', widgets.Static).update(
             Content.from_markup(
-                'Telegram [b]$enabled[/b] · token $token · state [b]$state[/b] · @$name · default desk $desk\n[dim]Notifications: $notifications[/dim]',
+                'Telegram [b]$enabled[/b] · token $token · state [b]$state[/b] · @$name · default trader $trader\n[dim]Notifications: $notifications[/dim]',
                 enabled='on' if telegram.get('enabled') else 'off',
                 token='set' if telegram.get('token_present') else 'missing',
                 state=state,
                 name=str(telegram.get('username') or '—'),
-                desk=str(telegram.get('default_desk', '')),
+                trader=str(telegram.get('default_trader', '')),
                 notifications=', '.join(
                     str(item) for item in telegram.get('notifications') or []
                 ),
@@ -111,7 +111,7 @@ class ChannelsScreen(page_screen.PageScreen):
             paired.add_row(
                 str(chat.get('name', '')),
                 str(chat.get('chat_id', '')),
-                str(chat.get('desk', '')),
+                str(chat.get('trader', '')),
                 clock.day_time(str(chat.get('paired_at', ''))),
                 key=str(chat.get('chat_id', '')),
             )

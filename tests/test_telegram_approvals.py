@@ -12,16 +12,16 @@ _OWNER = 111
 
 
 class _Approvals:
-    """A desk whose echo tool needs permission, and the Telegram commands that decide it.
+    """A trader whose echo tool needs permission, and the Telegram commands that decide it.
 
     Attributes:
-        permissions: The desk, its gate, store, grants and responder.
+        permissions: The trader, its gate, store, grants and responder.
         commands: The Telegram commands.
         chat: The owner's paired chat.
     """
 
     def __init__(self, directory: Path):
-        """Builds everything with the owner paired to the main desk.
+        """Builds everything with the owner paired to the main trader.
 
         Args:
             directory (Path): A scratch folder.
@@ -70,17 +70,17 @@ class TestTelegramApprovals:
     """Tests for /approve and /deny."""
 
     def test_approve_the_only_waiting_action(self, tmp_path: Path) -> None:
-        """With one action waiting, /approve needs no id, runs the action once, and tells the desk."""
+        """With one action waiting, /approve needs no id, runs the action once, and tells the trader."""
         approvals = _Approvals(tmp_path)
         approvals.permissions.call()
 
         reply = approvals.say('/approve')
 
         request = approvals.permissions.store.all()[0]
-        assert reply.startswith('Allowed echo for the main desk, this once.')
+        assert reply.startswith('Allowed echo for the main trader, this once.')
         assert request.status == user_request_module.ANSWERED
         assert request.responded_via == 'telegram'
-        assert len(approvals.permissions.desk.triggers) == 1
+        assert len(approvals.permissions.trader.triggers) == 1
         assert not approvals.permissions.grants.allows('main', 'echo')
 
     def test_approve_always_by_short_id(self, tmp_path: Path) -> None:
@@ -101,7 +101,7 @@ class TestTelegramApprovals:
         reply = approvals.say('/deny too risky today')
 
         request = approvals.permissions.store.all()[0]
-        assert reply.startswith('Denied echo for the main desk.')
+        assert reply.startswith('Denied echo for the main trader.')
         assert request.response['reason'] == 'too risky today'
 
     def test_several_waiting_actions_need_an_id(self, tmp_path: Path) -> None:

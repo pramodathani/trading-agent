@@ -33,7 +33,7 @@ maximum_order_value_percent = 25
 trading_window = "exchange_hours"
 allow_option_writing = false
 
-[desks.main]
+[traders.main]
 allowed_products = []
 allowed_instruments = []
 """
@@ -155,7 +155,7 @@ def _order(**changes) -> order_request.OrderRequest:
         order_request.OrderRequest: The order.
     """
     fields = {
-        'desk': 'main',
+        'trader': 'main',
         'instrument_id': 'infy',
         'exchange': 'nse',
         'segment': 'nse_equities',
@@ -254,7 +254,7 @@ class TestApprovalAndHours:
     def test_ordinary_buy_in_market_hours_is_approved_and_claimed(
         self, tmp_path: Path
     ) -> None:
-        """A small delivery buy on a Monday morning passes, and the desk now owns the instrument.
+        """A small delivery buy on a Monday morning passes, and the trader now owns the instrument.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
@@ -421,8 +421,8 @@ class TestLimits:
 
         assert 'cannot be read from UBI' in setup.reasons(_order())
 
-    def test_desk_product_list_is_enforced(self, tmp_path: Path) -> None:
-        """A desk limited to mis cannot place a cnc order.
+    def test_trader_product_list_is_enforced(self, tmp_path: Path) -> None:
+        """A trader limited to mis cannot place a cnc order.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
@@ -517,7 +517,7 @@ class TestOptions:
         assert decision.estimated_margin == 7500.0
 
     def test_selling_an_option_to_open_is_refused(self, tmp_path: Path) -> None:
-        """Selling an option the desk does not hold is option writing, which is refused.
+        """Selling an option the trader does not hold is option writing, which is refused.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
@@ -528,10 +528,10 @@ class TestOptions:
             self._option(transaction_type='sell')
         )
 
-    def test_selling_an_option_the_desk_holds_is_allowed(
+    def test_selling_an_option_the_trader_holds_is_allowed(
         self, tmp_path: Path
     ) -> None:
-        """Selling back an option the desk bought only closes a position, so it passes.
+        """Selling back an option the trader bought only closes a position, so it passes.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
@@ -580,12 +580,12 @@ class TestOptions:
 
 
 class TestOwnership:
-    """Tests for one desk per instrument and for the user's own holdings."""
+    """Tests for one trader per instrument and for the user's own holdings."""
 
-    def test_instrument_owned_by_another_desk_is_refused(
+    def test_instrument_owned_by_another_trader_is_refused(
         self, tmp_path: Path
     ) -> None:
-        """When the scalper desk owns INFY, the main desk cannot trade it.
+        """When the scalper trader owns INFY, the main trader cannot trade it.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
@@ -593,10 +593,10 @@ class TestOwnership:
         setup = _Setup(tmp_path)
         setup.ledger.claim('infy', 'scalper', setup.now)
 
-        assert 'belongs to the scalper desk' in setup.reasons(_order())
+        assert 'belongs to the scalper trader' in setup.reasons(_order())
 
     def test_users_own_holding_is_protected_by_id(self, tmp_path: Path) -> None:
-        """A desk cannot sell, or add to, shares the user holds outside the agent.
+        """A trader cannot sell, or add to, shares the user holds outside the agent.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
@@ -628,7 +628,7 @@ class TestOwnership:
     def test_claim_lapses_after_the_grace_period_without_a_position(
         self, tmp_path: Path
     ) -> None:
-        """A claim with no position is released after 30 minutes, so another desk may then trade.
+        """A claim with no position is released after 30 minutes, so another trader may then trade.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
@@ -679,7 +679,7 @@ class TestLossLimits:
     def test_closing_own_position_is_allowed_while_halted(
         self, tmp_path: Path
     ) -> None:
-        """After the switch fires, the desk may still sell what it bought.
+        """After the switch fires, the trader may still sell what it bought.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
@@ -746,10 +746,10 @@ class TestLimitsReader:
         with pytest.raises(trading_limits.LimitsError, match='not valid'):
             trading_limits.TradingLimitsReader(rules_file).read()
 
-    def test_desk_without_an_entry_gets_no_extra_limits(
+    def test_trader_without_an_entry_gets_no_extra_limits(
         self, tmp_path: Path
     ) -> None:
-        """A desk missing from [desks] has empty lists and no caps.
+        """A trader missing from [traders] has empty lists and no caps.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
@@ -760,14 +760,14 @@ class TestLimitsReader:
             encoding='utf-8',
         )
 
-        desk = (
+        trader = (
             trading_limits.TradingLimitsReader(rules_file)
             .read()
-            .desk('scalper')
+            .trader('scalper')
         )
 
-        assert desk.allowed_products == []
-        assert desk.maximum_orders_per_minute is None
+        assert trader.allowed_products == []
+        assert trader.maximum_orders_per_minute is None
 
 
 class TestAccountCheck:
@@ -803,26 +803,26 @@ class TestAccountCheck:
         assert setup.kill_switch.triggers == []
 
 
-_DESK_LIMITS = (
+_TRADER_LIMITS = (
     _LIMITS
     + """
-[desks.intraday]
+[traders.intraday]
 allowed_products = ["mis"]
 
-[desks.scalper]
+[traders.scalper]
 allowed_products = ["mis"]
 daily_loss_limit_percent = 2
 
-[desks.positional]
+[traders.positional]
 allowed_products = ["cnc", "nrml"]
 """
 )
 
 
-class TestDesks:
-    """Several desks share one account and one risk engine."""
+class TestTraders:
+    """Several traders share one account and one risk engine."""
 
-    def test_two_desks_cannot_trade_the_same_stock(
+    def test_two_traders_cannot_trade_the_same_stock(
         self, tmp_path: Path
     ) -> None:
         """Intraday gets INFY first; the scalper is then refused it; positional may not use mis.
@@ -830,13 +830,13 @@ class TestDesks:
         Args:
             tmp_path (Path): A temporary folder from pytest.
         """
-        setup = _Setup(tmp_path, _DESK_LIMITS)
+        setup = _Setup(tmp_path, _TRADER_LIMITS)
 
-        intraday = setup.evaluate(_order(desk='intraday', product='mis'))
-        scalper = setup.evaluate(_order(desk='scalper', product='mis'))
+        intraday = setup.evaluate(_order(trader='intraday', product='mis'))
+        scalper = setup.evaluate(_order(trader='scalper', product='mis'))
         positional = setup.evaluate(
             _order(
-                desk='positional',
+                trader='positional',
                 product='mis',
                 instrument_id='tcs',
                 symbol='TCS',
@@ -849,13 +849,15 @@ class TestDesks:
         assert not positional.approved
         assert 'mis' in '\n'.join(positional.reasons)
 
-    def test_desk_loss_limit_stops_only_that_desk(self, tmp_path: Path) -> None:
+    def test_trader_loss_limit_stops_only_that_trader(
+        self, tmp_path: Path
+    ) -> None:
         """A 5,000 loss on a stock the scalper held, closed and gave up, halts the scalper alone.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
         """
-        setup = _Setup(tmp_path, _DESK_LIMITS)
+        setup = _Setup(tmp_path, _TRADER_LIMITS)
         setup.ledger.claim('idea', 'scalper', setup.now)
         setup.ledger.release_unheld(set(), setup.now, datetime.timedelta(0))
         assert setup.ledger.owner('idea') is None
@@ -868,7 +870,7 @@ class TestDesks:
 
         intraday = setup.evaluate(
             _order(
-                desk='intraday',
+                trader='intraday',
                 product='mis',
                 instrument_id='tcs',
                 symbol='TCS',
@@ -876,19 +878,19 @@ class TestDesks:
         )
         scalper = setup.evaluate(
             _order(
-                desk='scalper',
+                trader='scalper',
                 product='mis',
                 instrument_id='sbin',
                 symbol='SBIN',
             )
         )
 
-        assert setup.engine.desk_day_pnl(setup.snapshots.snapshot) == {
+        assert setup.engine.trader_day_pnl(setup.snapshots.snapshot) == {
             'scalper': -5000.0,
         }
         assert intraday.approved
         assert not scalper.approved
-        assert "scalper desk's daily loss limit is reached" in '\n'.join(
+        assert "scalper trader's daily loss limit is reached" in '\n'.join(
             scalper.reasons
         )
         assert setup.kill_switch.triggers == []

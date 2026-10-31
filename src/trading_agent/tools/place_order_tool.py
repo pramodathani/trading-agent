@@ -19,7 +19,7 @@ class PlaceOrderTool(order_tool.OrderTool):
     """Places one plain order."""
 
     name = 'place_order'
-    description = 'Places one order in one instrument. The risk engine checks it first and refuses it, with every reason, if it breaks a limit in TradingRules.md, the exchange is closed, or the instrument belongs to another desk or to the user. Name the instrument as for get_quote. quantity is in units, so for futures and options it is lots times lot size. A plain limit order is held inside UBI until the market reaches its price; a market order follows the book for up to 30 seconds. The answer gives a parent_id, the handle for modify_order and cancel_order. Give a short reason; it goes in the journal.'
+    description = 'Places one order in one instrument. The risk engine checks it first and refuses it, with every reason, if it breaks a limit in TradingRules.md, the exchange is closed, or the instrument belongs to another trader or to the user. Name the instrument as for get_quote. quantity is in units, so for futures and options it is lots times lot size. A plain limit order is held inside UBI until the market reaches its price; a market order follows the book for up to 30 seconds. The answer gives a parent_id, the handle for modify_order and cancel_order. Give a short reason; it goes in the journal.'
     arguments_model = order_arguments.OrderArguments
 
     async def _act(

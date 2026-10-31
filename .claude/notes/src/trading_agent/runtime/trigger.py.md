@@ -1,6 +1,6 @@
 # trigger.py
 
-A trigger is one reason to wake a desk: a user message, a cron job, a heartbeat, a market-watcher event, a webhook, a rollover, a compression flush or a subagent task.
+A trigger is one reason to wake a trader: a user message, a cron job, a heartbeat, a market-watcher event, a webhook, a rollover, a compression flush or a subagent task.
 
 ## Attachments, since 2026-10-17
 

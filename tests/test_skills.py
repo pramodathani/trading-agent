@@ -53,13 +53,13 @@ def _write_skill(
 
 
 class _Skills:
-    """An installed folder, a desk folder, a library, checkpoints and a writer.
+    """An installed folder, a trader folder, a library, checkpoints and a writer.
 
     Attributes:
         installed: The installed skills folder.
-        desk_directory: The desk folder.
+        trader_directory: The trader folder.
         library: The library.
-        checkpoints: The desk's checkpoints.
+        checkpoints: The trader's checkpoints.
         ledger: The ledger file.
         writer: The writer.
     """
@@ -71,22 +71,22 @@ class _Skills:
             root (Path): The scratch folder.
         """
         self.installed = root / 'shared' / 'skills' / 'installed'
-        self.desk_directory = root / 'desk'
+        self.trader_directory = root / 'trader'
         self.installed.mkdir(parents=True)
-        self.desk_directory.mkdir()
+        self.trader_directory.mkdir()
         self.library = skill_library.SkillLibrary(
             self.installed,
-            self.desk_directory / 'skills' / 'agent',
+            self.trader_directory / 'skills' / 'agent',
             program_finder=self._find_program,
             environment={
                 'PRESENT_KEY': 'x',
             },
         )
         self.checkpoints = checkpoints_module.Checkpoints(
-            root / 'desk.git',
-            self.desk_directory,
+            root / 'trader.git',
+            self.trader_directory,
         )
-        self.ledger = self.desk_directory / 'skills' / 'ledger.jsonl'
+        self.ledger = self.trader_directory / 'skills' / 'ledger.jsonl'
         self.writer = skill_writer.SkillWriter(
             self.library,
             self.checkpoints,
@@ -183,7 +183,7 @@ class TestSkillLibrary:
         self,
         tmp_path: Path,
     ) -> None:
-        """The index shows the installed skill once, the desk's own marked, and no broken skill.
+        """The index shows the installed skill once, the trader's own marked, and no broken skill.
 
         Args:
             tmp_path (Path): A scratch folder.
@@ -191,19 +191,19 @@ class TestSkillLibrary:
         skills = _Skills(tmp_path)
         _write_skill(skills.installed, 'gap-playbook', 'Installed version.')
         _write_skill(
-            skills.library.agent_directory, 'gap-playbook', 'Desk copy.'
+            skills.library.agent_directory, 'gap-playbook', 'Trader copy.'
         )
         _write_skill(skills.library.agent_directory, 'my-routine', 'Mine.')
         (skills.library.agent_directory / 'broken').mkdir()
         index = skills.library.index_text()
         assert '- gap-playbook: Installed version.' in index
-        assert 'Desk copy.' not in index
+        assert 'Trader copy.' not in index
         assert '- my-routine (your own): Mine.' in index
         assert 'broken' not in index
 
 
 class TestSkillWriter:
-    """The desk creates, patches and archives its own skills."""
+    """The trader creates, patches and archives its own skills."""
 
     def test_create_patch_and_archive_are_snapshotted_and_recorded(
         self,

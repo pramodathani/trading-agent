@@ -1,6 +1,6 @@
 """Compresses a conversation into a summary when it fills too much of the model's context window.
 
-A model can only read so many tokens at once: 32,768 for Gemma and Qwen as configured. When a conversation passes 70% of that, the agent loop first gives the desk a silent memory-flush turn to save what matters with add_note or Memory.md, and then this compressor asks the same model to summarise the older messages. The conversation starts again from that summary, followed by the current turn's messages, which are kept word for word.
+A model can only read so many tokens at once: 32,768 for Gemma and Qwen as configured. When a conversation passes 70% of that, the agent loop first gives the trader a silent memory-flush turn to save what matters with add_note or Memory.md, and then this compressor asks the same model to summarise the older messages. The conversation starts again from that summary, followed by the current turn's messages, which are kept word for word.
 
 If a single long turn passes 85% between tool rounds, the compressor runs at once without the flush, because Ollama would otherwise drop the oldest text, the instructions included, without saying so.
 
@@ -27,10 +27,12 @@ _USER_TEXT_CHARACTERS = 4000
 _ASSISTANT_TEXT_CHARACTERS = 4000
 _ARGUMENT_CHARACTERS = 300
 _RESULT_CHARACTERS = 1500
-_SHORTENED_MARK = ' [… shortened for this summary; the desk saw the full text]'
+_SHORTENED_MARK = (
+    ' [… shortened for this summary; the trader saw the full text]'
+)
 FLUSH_REQUEST = "[Memory flush: your conversation is about to be compressed into a summary to free up context. Before it is, save anything you will need later that is not saved yet: record lessons with add_note, and put lasting facts in Memory.md. Do not place, change or cancel orders in this turn. Reply with one short line saying what you saved, or 'Nothing to save'.]"
 SUMMARY_FOCUS = "open positions and orders with their ids, prices and quantities; the decisions made and why; the user's instructions and preferences; plans and pending tasks; errors and what was learned from them"
-_SUMMARISER_PROMPT = f'You compress the conversation of a trading desk so it can continue in a smaller context. Write a factual summary in plain text, under 600 words, addressed to the desk as "you". Keep {SUMMARY_FOCUS}. Leave out greetings and anything finished that no longer matters. Never invent a number that is not in the transcript. Long tool results in the transcript were shortened only for this summary and are marked as shortened; the desk saw them in full at the time, so trust the answers it gave then and never report the shortening as missing or cut-off data.'
+_SUMMARISER_PROMPT = f'You compress the conversation of a trader so it can continue in a smaller context. Write a factual summary in plain text, under 600 words, addressed to the trader as "you". Keep {SUMMARY_FOCUS}. Leave out greetings and anything finished that no longer matters. Never invent a number that is not in the transcript. Long tool results in the transcript were shortened only for this summary and are marked as shortened; the trader saw them in full at the time, so trust the answers it gave then and never report the shortening as missing or cut-off data.'
 
 
 class ContextCompressor:
@@ -38,7 +40,7 @@ class ContextCompressor:
 
     def __init__(
         self,
-        desk_name: str,
+        trader_name: str,
         context_window: int,
         threshold: float,
         emergency_threshold: float,
@@ -47,13 +49,13 @@ class ContextCompressor:
         """Creates the compressor.
 
         Args:
-            desk_name (str): The desk, used to tag events.
+            trader_name (str): The trader, used to tag events.
             context_window (int): How many tokens the model is given.
             threshold (float): The share of the window at which to compress before a turn, such as 0.70.
             emergency_threshold (float): The share at which to compress in the middle of a turn, such as 0.85.
             event_bus (event_bus_module.EventBus): Where each compression is published.
         """
-        self._desk_name = desk_name
+        self._trader_name = trader_name
         self._context_window = context_window
         self._threshold = threshold
         self._emergency_threshold = emergency_threshold
@@ -132,7 +134,7 @@ class ContextCompressor:
         self._event_bus.publish(
             event_module.Event.now(
                 event_module.EventKind.CONTEXT_COMPRESSED,
-                self._desk_name,
+                self._trader_name,
                 {
                     'trigger_id': trigger_id,
                     'backend': backend.name,
@@ -172,7 +174,7 @@ class ContextCompressor:
         if reply.text.strip():
             return reply.text.strip()
         _LOGGER.warning(
-            'The model wrote an empty summary for desk %s', self._desk_name
+            'The model wrote an empty summary for trader %s', self._trader_name
         )
         return transcript[-_RESULT_CHARACTERS * 4 :]
 

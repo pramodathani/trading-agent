@@ -1,4 +1,4 @@
-"""Tests for the desks' questions and plans to the user: the tools, the store, the responses and the routes."""
+"""Tests for the traders' questions and plans to the user: the tools, the store, the responses and the routes."""
 
 import asyncio
 import dataclasses
@@ -25,15 +25,15 @@ from trading_agent.workspace import workspace_layout
 _TOKEN = 'test-access-token'
 
 
-class _StandInDesk:
-    """A desk that keeps what it is sent.
+class _StandInTrader:
+    """A trader that keeps what it is sent.
 
     Attributes:
         triggers: The triggers submitted.
     """
 
     def __init__(self):
-        """Creates the desk."""
+        """Creates the trader."""
         self.triggers: list[trigger_module.Trigger] = []
 
     def submit(self, trigger: trigger_module.Trigger) -> None:
@@ -46,12 +46,12 @@ class _StandInDesk:
 
 
 class _Setup:
-    """A store, a bus, one stand-in desk, the two tools and the responder.
+    """A store, a bus, one stand-in trader, the two tools and the responder.
 
     Attributes:
         store: The request store.
         event_bus: The event bus.
-        desk: The stand-in desk.
+        trader: The stand-in trader.
         ask_user: The ask_user tool.
         present_plan: The present_plan tool.
         responder: The responder.
@@ -66,18 +66,24 @@ class _Setup:
         layout = workspace_layout.WorkspaceLayout(directory)
         self.store = user_request_store.UserRequestStore(layout)
         self.event_bus = event_bus_module.EventBus()
-        self.desk = _StandInDesk()
-        self.ask_user = ask_user_tool.AskUserTool(self.store, self.event_bus, 'main')
-        self.present_plan = present_plan_tool.PresentPlanTool(self.store, self.event_bus, 'main')
+        self.trader = _StandInTrader()
+        self.ask_user = ask_user_tool.AskUserTool(
+            self.store, self.event_bus, 'main'
+        )
+        self.present_plan = present_plan_tool.PresentPlanTool(
+            self.store, self.event_bus, 'main'
+        )
         self.responder = user_request_responder.UserRequestResponder(
             self.store,
             self.event_bus,
             {
-                'main': self.desk,
+                'main': self.trader,
             },
         )
 
-    def ask(self, multi_select: bool = False) -> user_request_module.UserRequest:
+    def ask(
+        self, multi_select: bool = False
+    ) -> user_request_module.UserRequest:
         """Asks one question with two options.
 
         Args:
@@ -89,11 +95,17 @@ class _Setup:
         arguments = ask_user_tool.AskUserArguments(
             questions=[
                 ask_user_tool.Question(
-                    question='Which stop loss should the desk use?',
+                    question='Which stop loss should the trader use?',
                     header='Stop loss',
                     options=[
-                        ask_user_tool.QuestionOption(label='1% (Recommended)', description='Tight stop'),
-                        ask_user_tool.QuestionOption(label='2%', description='Wider stop', preview='| Level | Price |\n|---|---|\n| Stop | 98 |'),
+                        ask_user_tool.QuestionOption(
+                            label='1% (Recommended)', description='Tight stop'
+                        ),
+                        ask_user_tool.QuestionOption(
+                            label='2%',
+                            description='Wider stop',
+                            preview='| Level | Price |\n|---|---|\n| Stop | 98 |',
+                        ),
                     ],
                     multi_select=multi_select,
                 ),
@@ -188,7 +200,9 @@ class TestTools:
 
         assert request.kind == user_request_module.QUESTION
         assert request.status == user_request_module.PENDING
-        assert request.content['questions'][0]['options'][1]['preview'].startswith('| Level')
+        assert request.content['questions'][0]['options'][1][
+            'preview'
+        ].startswith('| Level')
         assert published.kind == event_module.EventKind.USER_REQUEST
         assert published.payload['request_id'] == request.request_id
 
@@ -205,8 +219,10 @@ class TestTools:
 class TestResponder:
     """Tests for answering, deciding and dismissing."""
 
-    def test_answer_reaches_the_desk_as_a_message_naming_the_request(self, tmp_path: Path) -> None:
-        """An answer is saved, and the desk gets a user message with the answer and the request id."""
+    def test_answer_reaches_the_trader_as_a_message_naming_the_request(
+        self, tmp_path: Path
+    ) -> None:
+        """An answer is saved, and the trader gets a user message with the answer and the request id."""
         setup = _Setup(tmp_path)
         request = setup.ask()
 
@@ -225,7 +241,7 @@ class TestResponder:
 
         assert answered.status == user_request_module.ANSWERED
         assert answered.responded_via == 'web'
-        trigger = setup.desk.triggers[-1]
+        trigger = setup.trader.triggers[-1]
         assert trigger.source == trigger_module.TriggerSource.USER_MESSAGE
         assert trigger.request_id == request.request_id
         assert '"2%"' in trigger.text
@@ -247,9 +263,11 @@ class TestResponder:
             'web',
         )
 
-        assert 'Use 1.5%' in setup.desk.triggers[-1].text
+        assert 'Use 1.5%' in setup.trader.triggers[-1].text
 
-    def test_single_choice_with_two_answers_is_refused(self, tmp_path: Path) -> None:
+    def test_single_choice_with_two_answers_is_refused(
+        self, tmp_path: Path
+    ) -> None:
         """A single-choice question with two answers is refused and stays pending."""
         setup = _Setup(tmp_path)
         request = setup.ask()
@@ -268,10 +286,15 @@ class TestResponder:
                 'web',
             )
 
-        assert setup.store.get(request.request_id).status == user_request_module.PENDING
-        assert setup.desk.triggers == []
+        assert (
+            setup.store.get(request.request_id).status
+            == user_request_module.PENDING
+        )
+        assert setup.trader.triggers == []
 
-    def test_multiple_choice_accepts_several_answers(self, tmp_path: Path) -> None:
+    def test_multiple_choice_accepts_several_answers(
+        self, tmp_path: Path
+    ) -> None:
         """A multiple-choice question accepts several options."""
         setup = _Setup(tmp_path)
         request = setup.ask(multi_select=True)
@@ -290,7 +313,10 @@ class TestResponder:
             'web',
         )
 
-        assert setup.store.get(request.request_id).status == user_request_module.ANSWERED
+        assert (
+            setup.store.get(request.request_id).status
+            == user_request_module.ANSWERED
+        )
 
     def test_unknown_option_is_refused(self, tmp_path: Path) -> None:
         """An option the question does not have is refused."""
@@ -326,7 +352,9 @@ class TestResponder:
         setup.responder.answer_question(request.request_id, answer, 'web')
 
         with pytest.raises(user_request_store.UserRequestError):
-            setup.responder.answer_question(request.request_id, answer, 'telegram')
+            setup.responder.answer_question(
+                request.request_id, answer, 'telegram'
+            )
 
     def test_plan_approval_and_revision(self, tmp_path: Path) -> None:
         """Approving says to carry the plan out; revising needs feedback and passes it on."""
@@ -337,20 +365,24 @@ class TestResponder:
         setup.responder.decide_plan(first.request_id, 'approve', '', 'web')
         with pytest.raises(ValueError):
             setup.responder.decide_plan(second.request_id, 'revise', '', 'web')
-        setup.responder.decide_plan(second.request_id, 'revise', 'Smaller size first', 'web')
+        setup.responder.decide_plan(
+            second.request_id, 'revise', 'Smaller size first', 'web'
+        )
 
-        assert 'approved your plan' in setup.desk.triggers[0].text
-        assert 'Smaller size first' in setup.desk.triggers[1].text
+        assert 'approved your plan' in setup.trader.triggers[0].text
+        assert 'Smaller size first' in setup.trader.triggers[1].text
 
-    def test_dismissal_tells_the_desk_to_use_its_judgment(self, tmp_path: Path) -> None:
-        """Dismissing closes the request and tells the desk."""
+    def test_dismissal_tells_the_trader_to_use_its_judgment(
+        self, tmp_path: Path
+    ) -> None:
+        """Dismissing closes the request and tells the trader."""
         setup = _Setup(tmp_path)
         request = setup.ask()
 
         dismissed = setup.responder.dismiss(request.request_id, 'web')
 
         assert dismissed.status == user_request_module.DISMISSED
-        assert 'without answering' in setup.desk.triggers[-1].text
+        assert 'without answering' in setup.trader.triggers[-1].text
 
     def test_lapsed_request_is_marked_expired(self, tmp_path: Path) -> None:
         """A request past its expiry time is listed as expired and cannot be answered."""
@@ -358,11 +390,17 @@ class TestResponder:
         request = setup.ask()
         lapsed = dataclasses.replace(
             request,
-            expires_at=(datetime.datetime.now(datetime.UTC) - datetime.timedelta(minutes=1)).isoformat(),
+            expires_at=(
+                datetime.datetime.now(datetime.UTC)
+                - datetime.timedelta(minutes=1)
+            ).isoformat(),
         )
         setup.store.save(lapsed)
 
-        assert setup.store.get(request.request_id).status == user_request_module.EXPIRED
+        assert (
+            setup.store.get(request.request_id).status
+            == user_request_module.EXPIRED
+        )
         assert setup.store.pending() == []
 
 
@@ -393,7 +431,9 @@ class TestRequestRoutes:
             },
         )
 
-    def test_pending_requests_are_listed_and_answered(self, tmp_path: Path) -> None:
+    def test_pending_requests_are_listed_and_answered(
+        self, tmp_path: Path
+    ) -> None:
         """A pending request is listed, answered, and then no longer pending."""
         setup = _Setup(tmp_path)
         request = setup.ask()
@@ -418,7 +458,9 @@ class TestRequestRoutes:
         ]
         assert answered.status_code == 200
         assert client.get('/api/requests').json()['requests'] == []
-        assert len(client.get('/api/requests?status=all').json()['requests']) == 1
+        assert (
+            len(client.get('/api/requests?status=all').json()['requests']) == 1
+        )
 
     def test_the_terminal_names_itself_as_the_channel(
         self, tmp_path: Path

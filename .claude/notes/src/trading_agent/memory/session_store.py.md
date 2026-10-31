@@ -1,10 +1,10 @@
 # session_store.py
 
-The session store is what lets a desk survive a restart (milestone 11, block 32). Before it, a gateway restart made every backend forget the conversation, including Claude, whose session id lived only in memory.
+The session store is what lets a trader survive a restart (milestone 11, block 32). Before it, a gateway restart made every backend forget the conversation, including Claude, whose session id lived only in memory.
 
 ## What is kept, and where
 
-Everything lives in `workspace/desks/<desk>/sessions/`, which is code-owned: the desk's file tools cannot write there (`path_policy.py` allows only `Memory.md`, `memory/`, `notes/` and `scratch/`), and the checkpoints do not track it, so restoring a checkpoint never rolls back the session record.
+Everything lives in `workspace/traders/<trader>/sessions/`, which is code-owned: the trader's file tools cannot write there (`path_policy.py` allows only `Memory.md`, `memory/`, `notes/` and `scratch/`), and the checkpoints do not track it, so restoring a checkpoint never rolls back the session record.
 
 | File | Written by | Read by |
 |---|---|---|
@@ -16,7 +16,7 @@ Everything lives in `workspace/desks/<desk>/sessions/`, which is code-owned: the
 
 - A session id is `<India date>-<n>`. `new_session_id` creates the empty log file at once, so the numbering stays unique even for a session that never finishes a turn, such as one started by `/new` and immediately replaced.
 - `state.json` is written to a temporary file and renamed over the old one. A rename is atomic on Linux, so a crash mid-write leaves the previous state, never half a file.
-- A damaged state file is treated as missing and logged. The desk then starts a new session instead of refusing to start, because a desk that does not start cannot trade or be flattened.
+- A damaged state file is treated as missing and logged. The trader then starts a new session instead of refusing to start, because a trader that does not start cannot trade or be flattened.
 - A damaged log line (typically the last one, cut short by a crash) is skipped rather than failing the whole read.
 - `Exchange` moved here from `model_router.py`, so the memory package does not import the backends package. It gained `finished_at`, used by search snippets and by anyone reading the logs.
 - "Today" is the India date, through an injectable date source, so tests can move from Monday to Tuesday without waiting.

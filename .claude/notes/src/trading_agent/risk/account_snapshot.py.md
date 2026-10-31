@@ -4,4 +4,4 @@ Three reads per order: funds (`summary.total_balance`, `summary.margin_utilized`
 
 ## Day view (milestone 16)
 
-The snapshot reads UBI's `day` positions too (closed trades included), giving each instrument's profit and loss today: `pnl.total`, or realized plus unrealized when no total is given, per UBI's portfolio documentation. The risk engine adds these up per desk.
+The snapshot reads UBI's `day` positions too (closed trades included), giving each instrument's profit and loss today: `pnl.total`, or realized plus unrealized when no total is given, per UBI's portfolio documentation. The risk engine adds these up per trader.

@@ -12,7 +12,6 @@ from trading_agent.terminal.screens import activity_screen
 from trading_agent.terminal.screens import apps_screen
 from trading_agent.terminal.screens import channels_screen
 from trading_agent.terminal.screens import checkpoints_screen
-from trading_agent.terminal.screens import desks_screen
 from trading_agent.terminal.screens import extensions_screen
 from trading_agent.terminal.screens import files_screen
 from trading_agent.terminal.screens import models_screen
@@ -21,6 +20,7 @@ from trading_agent.terminal.screens import schedule_screen
 from trading_agent.terminal.screens import sessions_screen
 from trading_agent.terminal.screens import settings_screen
 from trading_agent.terminal.screens import skills_screen
+from trading_agent.terminal.screens import traders_screen
 from trading_agent.terminal.screens import trading_screen
 
 
@@ -52,15 +52,15 @@ class PageCatalogue:
         """
         return [
             Page(
-                '/desks',
-                'Desks',
-                'every desk, with pause, resume, flatten and chat',
-                desks_screen.DesksScreen,
+                '/traders',
+                'Traders',
+                'every trader, with pause, resume, flatten and chat',
+                traders_screen.TradersScreen,
             ),
             Page(
                 '/activity',
                 'Activity',
-                "today's events from every desk, live",
+                "today's events from every trader, live",
                 activity_screen.ActivityScreen,
             ),
             Page(
@@ -72,31 +72,31 @@ class PageCatalogue:
             Page(
                 '/sessions',
                 'Sessions',
-                "a desk's sessions, memory search, summaries and notes",
+                "a trader's sessions, memory search, summaries and notes",
                 sessions_screen.SessionsScreen,
             ),
             Page(
                 '/files',
                 'Files',
-                "edit your files and review the desks' proposals",
+                "edit your files and review the traders' proposals",
                 files_screen.FilesScreen,
             ),
             Page(
                 '/checkpoints',
                 'Checkpoints',
-                "snapshots of a desk's own files, with restore",
+                "snapshots of a trader's own files, with restore",
                 checkpoints_screen.CheckpointsScreen,
             ),
             Page(
                 '/schedule',
                 'Schedule',
-                "a desk's scheduled jobs and price alerts",
+                "a trader's scheduled jobs and price alerts",
                 schedule_screen.ScheduleScreen,
             ),
             Page(
                 '/skills',
                 'Skills',
-                "a desk's usable and hidden skills",
+                "a trader's usable and hidden skills",
                 skills_screen.SkillsScreen,
             ),
             Page(

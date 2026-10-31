@@ -6,7 +6,7 @@ The four starter subagents from the plan, copied into `workspace/shared/agents/`
 |---|---|---|---|
 | news_reader | qwen | web_search, web_fetch, search_knowledge, get_time | dated news with sources, and what could move the price |
 | market_researcher | qwen | quotes, candles, instruments, bash_run, web, knowledge | levels, trend, support and resistance, computed in python3 |
-| trade_reviewer | the desk's order | read_file, search_sessions, orders, portfolio, candles, knowledge | checks a trade against TradingRules.md and the desk's history; never trades |
-| strategy_tester | the desk's order | candles, bash_run, bash_check, read_file, knowledge, time | tests a simple rule on daily candles without look-ahead, with costs and limitations |
+| trade_reviewer | the trader's order | read_file, search_sessions, orders, portfolio, candles, knowledge | checks a trade against TradingRules.md and the trader's history; never trades |
+| strategy_tester | the trader's order | candles, bash_run, bash_check, read_file, knowledge, time | tests a simple rule on daily candles without look-ahead, with costs and limitations |
 
-The two readers use Qwen so routine reading does not use the Max subscription's limits; the two that need judgement inherit the desk's order, which starts with Claude. If a named backend is removed from trading_agent.toml, the subagent falls back to the desk's order with a note.
+The two readers use Qwen so routine reading does not use the Max subscription's limits; the two that need judgement inherit the trader's order, which starts with Claude. If a named backend is removed from trading_agent.toml, the subagent falls back to the trader's order with a note.

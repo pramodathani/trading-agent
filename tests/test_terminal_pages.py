@@ -31,7 +31,7 @@ class _PagesGateway(chat_tests._StandInGateway):
         self.actions: list[tuple[str, Any]] = []
 
     async def journal(self, limit: int = 1500) -> dict[str, Any]:
-        """No events of no desk.
+        """No events of no trader.
 
         Args:
             limit (int): Ignored.
@@ -44,16 +44,16 @@ class _PagesGateway(chat_tests._StandInGateway):
             'events': [],
         }
 
-    async def sessions(self, desk_name: str) -> dict[str, Any]:
+    async def sessions(self, trader_name: str) -> dict[str, Any]:
         """One session.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: The sessions document.
         """
-        del desk_name
+        del trader_name
         return {
             'current': 's1',
             'sessions': [
@@ -64,30 +64,30 @@ class _PagesGateway(chat_tests._StandInGateway):
             ],
         }
 
-    async def summaries(self, desk_name: str) -> dict[str, Any]:
+    async def summaries(self, trader_name: str) -> dict[str, Any]:
         """No summaries.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: The summaries document.
         """
-        del desk_name
+        del trader_name
         return {
             'summaries': [],
         }
 
-    async def notes(self, desk_name: str) -> dict[str, Any]:
+    async def notes(self, trader_name: str) -> dict[str, Any]:
         """No notes.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: The notes document.
         """
-        del desk_name
+        del trader_name
         return {
             'notes': [],
         }
@@ -102,7 +102,7 @@ class _PagesGateway(chat_tests._StandInGateway):
             'files': [
                 {
                     'name': 'User.md',
-                    'desk': None,
+                    'trader': None,
                     'exists': True,
                     'characters': 5,
                 },
@@ -110,31 +110,31 @@ class _PagesGateway(chat_tests._StandInGateway):
         }
 
     async def file_text(
-        self, name: str, desk_name: str | None
+        self, name: str, trader_name: str | None
     ) -> dict[str, Any]:
         """The file's text.
 
         Args:
             name (str): The file.
-            desk_name (str | None): Its desk.
+            trader_name (str | None): Its trader.
 
         Returns:
             dict[str, Any]: The file document.
         """
         return {
             'name': name,
-            'desk': desk_name,
+            'trader': trader_name,
             'text': 'hello',
         }
 
     async def save_file(
-        self, name: str, desk_name: str | None, text: str
+        self, name: str, trader_name: str | None, text: str
     ) -> dict[str, Any]:
         """Records a save.
 
         Args:
             name (str): The file.
-            desk_name (str | None): Its desk.
+            trader_name (str | None): Its trader.
             text (str): The new text.
 
         Returns:
@@ -163,16 +163,16 @@ class _PagesGateway(chat_tests._StandInGateway):
             'proposals': [],
         }
 
-    async def checkpoints(self, desk_name: str) -> dict[str, Any]:
+    async def checkpoints(self, trader_name: str) -> dict[str, Any]:
         """Two checkpoints, newest first.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: The checkpoints document.
         """
-        del desk_name
+        del trader_name
         return {
             'checkpoints': [
                 {
@@ -188,45 +188,45 @@ class _PagesGateway(chat_tests._StandInGateway):
             ],
         }
 
-    async def jobs(self, desk_name: str) -> dict[str, Any]:
+    async def jobs(self, trader_name: str) -> dict[str, Any]:
         """No jobs.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: The jobs document.
         """
-        del desk_name
+        del trader_name
         return {
             'jobs': [],
             'recent_runs': [],
         }
 
-    async def alerts(self, desk_name: str) -> dict[str, Any]:
+    async def alerts(self, trader_name: str) -> dict[str, Any]:
         """No alerts.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: The alerts document.
         """
-        del desk_name
+        del trader_name
         return {
             'alerts': [],
         }
 
-    async def skills(self, desk_name: str) -> dict[str, Any]:
+    async def skills(self, trader_name: str) -> dict[str, Any]:
         """No skills.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: The skills document.
         """
-        del desk_name
+        del trader_name
         return {
             'available': [],
             'hidden': [],
@@ -260,7 +260,7 @@ class _PagesGateway(chat_tests._StandInGateway):
             dict[str, Any]: The usage document.
         """
         return {
-            'desks': {},
+            'traders': {},
             'rate_limits': {},
         }
 
@@ -304,11 +304,11 @@ class _PagesGateway(chat_tests._StandInGateway):
         """
         return []
 
-    async def flatten(self, desk_name: str, reason: str) -> dict[str, Any]:
+    async def flatten(self, trader_name: str, reason: str) -> dict[str, Any]:
         """Records a flatten.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             reason (str): The reason.
 
         Returns:
@@ -318,7 +318,7 @@ class _PagesGateway(chat_tests._StandInGateway):
             (
                 'flatten',
                 (
-                    desk_name,
+                    trader_name,
                     reason,
                 ),
             )
@@ -348,12 +348,12 @@ class _PagesGateway(chat_tests._StandInGateway):
         }
 
     async def restore_checkpoint(
-        self, desk_name: str, checkpoint_id: str
+        self, trader_name: str, checkpoint_id: str
     ) -> dict[str, Any]:
         """Records a restore.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             checkpoint_id (str): The checkpoint.
 
         Returns:
@@ -488,17 +488,17 @@ class TestPages:
         _run(scenario, tmp_path)
 
     def test_flatten_asks_for_a_reason(self, tmp_path: Path) -> None:
-        """f on the Desks page flattens the highlighted desk with the given reason."""
+        """f on the Traders page flattens the highlighted trader with the given reason."""
 
         async def scenario(program, pilot, gateway) -> None:
-            """Flattens the first desk.
+            """Flattens the first trader.
 
             Args:
                 program (terminal_application.TerminalApplication): The program.
                 pilot (Any): The test pilot.
                 gateway (_PagesGateway): The stand-in gateway.
             """
-            program.open_page('/desks')
+            program.open_page('/traders')
             await pilot.pause(0.4)
             await pilot.press('f')
             await pilot.pause(0.2)

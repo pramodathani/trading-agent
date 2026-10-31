@@ -1,6 +1,6 @@
 # ModelMenu.tsx
 
-Copies Claude Code's model menu under the prompt box: the button names the model tried first, and the list opens upward with each backend, its model in muted text and its number key, and a tick on the current choice. "Auto" returns to the configured order. A choice calls POST /api/desks/{desk}/model, which runs the same `ModelRouter.prefer` as the /model command, so it does not add a turn to the chat. The other backends keep their order behind the chosen one, so fallback still works.
+Copies Claude Code's model menu under the prompt box: the button names the model tried first, and the list opens upward with each backend, its model in muted text and its number key, and a tick on the current choice. "Auto" returns to the configured order. A choice calls POST /api/traders/{trader}/model, which runs the same `ModelRouter.prefer` as the /model command, so it does not add a turn to the chat. The other backends keep their order behind the chosen one, so fallback still works.
 
 Keys are heard on the whole page while the menu is open, not only inside it, because a click does not move focus to a button in every browser.
 

@@ -1,6 +1,6 @@
 <svg class="ta-svg" viewBox="0 0 1000 630" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="model-router-title model-router-description">
   <title id="model-router-title">The model router</title>
-  <desc id="model-router-description">Each desk tries its four models in order and falls back to the next when one is unavailable; a model that said how long to wait, such as Claude until its limit resets, is skipped until then.</desc>
+  <desc id="model-router-description">Each trader tries its four models in order and falls back to the next when one is unavailable; a model that said how long to wait, such as Claude until its limit resets, is skipped until then.</desc>
   <path class="wire" d="M130,80 L130,275 L290,275"/>
   <path class="wire" d="M510,275 L720,80"/>
   <path class="wire" d="M510,275 L720,210"/>
@@ -20,7 +20,7 @@
   <text class="small" x="130" y="70" text-anchor="middle">a message, a check, a fill</text>
   <rect class="accent-box" x="290" y="195" width="220" height="160" rx="8"/>
   <text class="title" x="400" y="222" text-anchor="middle">Model router</text>
-  <text class="small" x="400" y="244" text-anchor="middle">tries the desk's models in order</text>
+  <text class="small" x="400" y="244" text-anchor="middle">tries the trader's models in order</text>
   <text class="small" x="400" y="266" text-anchor="middle">a failed model waits</text>
   <text class="mono" x="400" y="284" text-anchor="middle">30 s → 1 min → 5 min</text>
   <text class="small" x="400" y="304" text-anchor="middle">or as long as it said to</text>

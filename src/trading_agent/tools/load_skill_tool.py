@@ -1,4 +1,4 @@
-"""The load_skill tool: reads one skill in full, so the desk can follow it.
+"""The load_skill tool: reads one skill in full, so the trader can follow it.
 
 Typical usage example:
 
@@ -35,7 +35,7 @@ class LoadSkillTool(tool.Tool):
         """Creates the tool.
 
         Args:
-            library (skill_library_module.SkillLibrary): The desk's skills.
+            library (skill_library_module.SkillLibrary): The trader's skills.
         """
         self._library = library
 

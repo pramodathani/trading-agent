@@ -19,7 +19,7 @@ from trading_agent.agent import prompt_builder
 from trading_agent.backends import backend
 from trading_agent.backends import model_router
 from trading_agent.gateway import access_guard
-from trading_agent.gateway.routes import desk_routes
+from trading_agent.gateway.routes import trader_routes
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.runtime import turn_runner
@@ -84,9 +84,7 @@ def _snapshot(backend_name: str) -> context_usage.ContextUsage:
         model='model',
         total_tokens=10,
         context_window=100,
-        categories=(
-            context_usage.ContextCategory('Messages', 10),
-        ),
+        categories=(context_usage.ContextCategory('Messages', 10),),
         measured=True,
         recorded_at='2026-10-18T00:00:00+00:00',
     )
@@ -175,27 +173,27 @@ class _ReportingClient:
         return _CLAUDE_REPORT
 
 
-class _StandInDesk:
-    """Stands in for a desk runtime, holding only its turn runner.
+class _StandInTrader:
+    """Stands in for a trader runtime, holding only its turn runner.
 
     Attributes:
-        turn_runner: The desk's runner.
+        turn_runner: The trader's runner.
     """
 
     def __init__(self, runner: turn_runner.TurnRunner):
-        """Creates the desk.
+        """Creates the trader.
 
         Args:
-            runner (turn_runner.TurnRunner): The desk's runner.
+            runner (turn_runner.TurnRunner): The trader's runner.
         """
         self.turn_runner = runner
 
 
 class _StandInParts:
-    """Stands in for a desk's parts, holding only its tools.
+    """Stands in for a trader's parts, holding only its tools.
 
     Attributes:
-        tools: The desk's tool registry.
+        tools: The trader's tool registry.
     """
 
     def __init__(self):
@@ -274,14 +272,18 @@ class TestContextUsage:
             [],
         )
 
-        tokens = {category.name: category.tokens for category in usage.categories}
+        tokens = {
+            category.name: category.tokens for category in usage.categories
+        }
         assert not usage.measured
         assert tokens[context_usage.SYSTEM_PROMPT] == 100
         assert tokens[context_usage.MESSAGES] == 20
         assert usage.total_tokens == 100 + tokens[context_usage.TOOLS] + 20
         assert tokens[context_usage.FREE_SPACE] == 1000 - usage.total_tokens
 
-    def test_estimate_after_a_call_is_scaled_to_the_measured_total(self) -> None:
+    def test_estimate_after_a_call_is_scaled_to_the_measured_total(
+        self,
+    ) -> None:
         """Once the model reports a count, the rough parts are scaled to add up to it, keeping their proportions."""
         conversation = conversation_module.Conversation('p' * 300)
         conversation.append(messages.ConversationMessage.user('m' * 300))
@@ -300,10 +302,23 @@ class TestContextUsage:
             definitions,
         )
 
-        tokens = {category.name: category.tokens for category in usage.categories}
+        tokens = {
+            category.name: category.tokens for category in usage.categories
+        }
         assert usage.total_tokens == 500
-        assert tokens[context_usage.SYSTEM_PROMPT] + tokens[context_usage.TOOLS] + tokens[context_usage.MESSAGES] == 500
-        assert abs(tokens[context_usage.SYSTEM_PROMPT] - tokens[context_usage.MESSAGES]) <= 1
+        assert (
+            tokens[context_usage.SYSTEM_PROMPT]
+            + tokens[context_usage.TOOLS]
+            + tokens[context_usage.MESSAGES]
+            == 500
+        )
+        assert (
+            abs(
+                tokens[context_usage.SYSTEM_PROMPT]
+                - tokens[context_usage.MESSAGES]
+            )
+            <= 1
+        )
         assert tokens[context_usage.TOOLS] > tokens[context_usage.SYSTEM_PROMPT]
         assert tokens[context_usage.FREE_SPACE] == 500
 
@@ -338,7 +353,9 @@ class TestRunnerSnapshots:
         assert usage is not None
         assert usage.backend == 'scripted'
         assert usage.context_window == 32768
-        tokens = {category.name: category.tokens for category in usage.categories}
+        tokens = {
+            category.name: category.tokens for category in usage.categories
+        }
         assert tokens[context_usage.TOOLS] > 0
 
     def test_claude_runner_records_the_report(self) -> None:
@@ -354,12 +371,16 @@ class TestRunnerSnapshots:
         asyncio.run(runner.reset())
         assert runner.context_usage() is None
 
-    def test_claude_runner_keeps_the_old_report_when_the_call_fails(self) -> None:
+    def test_claude_runner_keeps_the_old_report_when_the_call_fails(
+        self,
+    ) -> None:
         """A failed call leaves the previous snapshot in place."""
         runner = test_claude_code_backend._runner(event_bus_module.EventBus())
         asyncio.run(runner._record_context_usage(_ReportingClient()))
 
-        asyncio.run(runner._record_context_usage(_ReportingClient(failing=True)))
+        asyncio.run(
+            runner._record_context_usage(_ReportingClient(failing=True))
+        )
 
         assert runner.context_usage() is not None
 
@@ -368,8 +389,12 @@ class TestRunnerSnapshots:
         router = model_router.ModelRouter(
             'main',
             [
-                model_router.BackendRoute('claude', _SnapshotRunner('claude', available=False)),
-                model_router.BackendRoute('qwen', _SnapshotRunner('qwen', available=True)),
+                model_router.BackendRoute(
+                    'claude', _SnapshotRunner('claude', available=False)
+                ),
+                model_router.BackendRoute(
+                    'qwen', _SnapshotRunner('qwen', available=True)
+                ),
             ],
             event_bus_module.EventBus(),
         )
@@ -385,22 +410,24 @@ class TestRunnerSnapshots:
 
 
 class TestContextRoute:
-    """Tests for GET /api/desks/{desk}/context."""
+    """Tests for GET /api/traders/{trader}/context."""
 
-    def _client(self, runner: turn_runner.TurnRunner) -> fastapi.testclient.TestClient:
-        """Builds a client for the desk routes with one desk.
+    def _client(
+        self, runner: turn_runner.TurnRunner
+    ) -> fastapi.testclient.TestClient:
+        """Builds a client for the trader routes with one trader.
 
         Args:
-            runner (turn_runner.TurnRunner): The desk's runner.
+            runner (turn_runner.TurnRunner): The trader's runner.
 
         Returns:
             fastapi.testclient.TestClient: The client, sending the access token.
         """
         application = fastapi.FastAPI()
         application.include_router(
-            desk_routes.DeskRoutes(
+            trader_routes.TraderRoutes(
                 {
-                    'main': _StandInDesk(runner),
+                    'main': _StandInTrader(runner),
                 },
                 access_guard.AccessGuard(_TOKEN),
                 {
@@ -416,10 +443,10 @@ class TestContextRoute:
         )
 
     def test_snapshot_and_tools_are_returned(self) -> None:
-        """The route gives the runner's snapshot and the desk's tool names."""
+        """The route gives the runner's snapshot and the trader's tool names."""
         client = self._client(_SnapshotRunner('claude', available=True))
 
-        answer = client.get('/api/desks/main/context')
+        answer = client.get('/api/traders/main/context')
 
         assert answer.status_code == 200
         body = answer.json()
@@ -432,12 +459,12 @@ class TestContextRoute:
         """A runner with no snapshot gives null usage."""
         client = self._client(turn_runner.TurnRunner())
 
-        body = client.get('/api/desks/main/context').json()
+        body = client.get('/api/traders/main/context').json()
 
         assert body['usage'] is None
 
-    def test_unknown_desk_is_not_found(self) -> None:
-        """An unknown desk answers 404."""
+    def test_unknown_trader_is_not_found(self) -> None:
+        """An unknown trader answers 404."""
         client = self._client(turn_runner.TurnRunner())
 
-        assert client.get('/api/desks/nobody/context').status_code == 404
+        assert client.get('/api/traders/nobody/context').status_code == 404

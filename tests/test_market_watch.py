@@ -20,22 +20,22 @@ from trading_agent.runtime import trigger as trigger_module
 from trading_agent.scheduling import market_watcher
 from trading_agent.scheduling import price_alert_store
 from trading_agent.tools import set_price_alert_tool
-from trading_agent.trading import desk_order_book
+from trading_agent.trading import trader_order_book
 from trading_agent.workspace import workspace_layout
 
 _INDIA = zoneinfo.ZoneInfo('Asia/Kolkata')
 
 
-class _FakeDesk:
-    """Stands in for a running desk.
+class _FakeTrader:
+    """Stands in for a running trader.
 
     Attributes:
-        name: The desk's name.
+        name: The trader's name.
         submitted: The triggers it received.
     """
 
     def __init__(self, name: str = 'main'):
-        """Creates the desk.
+        """Creates the trader.
 
         Args:
             name (str): Its name.
@@ -150,14 +150,14 @@ class _FakeRiskEngine:
 
 
 class _Setup:
-    """A watcher over one desk with a real order book and alert store.
+    """A watcher over one trader with a real order book and alert store.
 
     Attributes:
-        desk: The fake desk.
+        trader: The fake trader.
         reader: The fake reader.
         risk_engine: The fake risk engine.
-        order_book: The desk order book.
-        alerts: The desk's alerts.
+        order_book: The trader order book.
+        alerts: The trader's alerts.
         state_file: The watcher's state file.
         event_bus: The bus.
     """
@@ -168,10 +168,12 @@ class _Setup:
         Args:
             tmp_path (Path): A scratch folder.
         """
-        self.desk = _FakeDesk()
+        self.trader = _FakeTrader()
         self.reader = _FakeReader()
         self.risk_engine = _FakeRiskEngine()
-        self.order_book = desk_order_book.DeskOrderBook(tmp_path / 'orders.db')
+        self.order_book = trader_order_book.TraderOrderBook(
+            tmp_path / 'orders.db'
+        )
         self.alerts = price_alert_store.PriceAlertStore(
             tmp_path / 'alerts.json'
         )
@@ -186,7 +188,7 @@ class _Setup:
         """
         return market_watcher.MarketWatcher(
             {
-                'main': self.desk,
+                'main': self.trader,
             },
             {
                 'main': self.alerts,
@@ -200,16 +202,16 @@ class _Setup:
         )
 
     def add_order(self, parent_id: str, dry_run: bool = False) -> None:
-        """Records one desk order.
+        """Records one trader order.
 
         Args:
             parent_id (str): Its parent id.
             dry_run (bool): Whether it was a dry run.
         """
         self.order_book.add(
-            desk_order_book.OrderRecord(
+            trader_order_book.OrderRecord(
                 record_id=parent_id,
-                desk='main',
+                trader='main',
                 kind='order',
                 parent_id=parent_id,
                 order_id=None,
@@ -222,19 +224,19 @@ class _Setup:
                 product='cnc',
                 price=12.21,
                 dry_run=dry_run,
-                state=desk_order_book.OPEN,
-                placed_at=desk_order_book.DeskOrderBook.now_text(),
+                state=trader_order_book.OPEN,
+                placed_at=trader_order_book.TraderOrderBook.now_text(),
             )
         )
 
 
 class TestFills:
-    """Finished broker orders are reported once to the desk that placed them."""
+    """Finished broker orders are reported once to the trader that placed them."""
 
     def test_fill_is_reported_once_even_after_a_restart(
         self, tmp_path: Path
     ) -> None:
-        """The desk's complete order is reported; another desk's is not; a new watcher does not repeat it.
+        """The trader's complete order is reported; another trader's is not; a new watcher does not repeat it.
 
         Args:
             tmp_path (Path): A scratch folder.
@@ -262,13 +264,13 @@ class TestFills:
         ]
         assert asyncio.run(setup.watcher().check_fills()) == 1
         assert asyncio.run(setup.watcher().check_fills()) == 0
-        text = setup.desk.submitted[0].text
+        text = setup.trader.submitted[0].text
         assert text == (
             '[Order update from the market watcher]\n'
             '- Order 9001 of your order buy 1 IDEA (parent_id P1): COMPLETE, 1 filled at an average of 12.21.'
         )
         assert (
-            setup.desk.submitted[0].source
+            setup.trader.submitted[0].source
             == trigger_module.TriggerSource.MARKET_WATCHER
         )
 
@@ -289,7 +291,7 @@ class TestFills:
 class TestPriceAlerts:
     """Alerts fire once when crossed, and cannot be set already crossed."""
 
-    def test_crossed_alert_wakes_the_desk_and_is_removed(
+    def test_crossed_alert_wakes_the_trader_and_is_removed(
         self, tmp_path: Path
     ) -> None:
         """IDEA at 12.30 crosses "above 12.25" but not "below 12.00".
@@ -314,7 +316,7 @@ class TestPriceAlerts:
         assert [alert.condition for alert in setup.alerts.alerts()] == [
             'below',
         ]
-        assert setup.desk.submitted[0].text == (
+        assert setup.trader.submitted[0].text == (
             '[Price alert from the market watcher]\n'
             '- IDEA traded at 12.30, above your alert at 12.25. Your note: sell half'
         )
@@ -384,14 +386,16 @@ class TestWatcherCycle:
 
 
 class TestWebhook:
-    """The webhook wakes a desk only with the right token."""
+    """The webhook wakes a trader only with the right token."""
 
-    def test_token_desk_and_body_handling(self) -> None:
+    def test_token_trader_and_body_handling(self) -> None:
         """No token configured means 404; a wrong token 401; the right one queues the JSON text."""
-        desk = _FakeDesk()
+        trader = _FakeTrader()
         application = fastapi.FastAPI()
         application.include_router(
-            webhook_routes.WebhookRoutes({'main': desk}, 'hook-secret').router()
+            webhook_routes.WebhookRoutes(
+                {'main': trader}, 'hook-secret'
+            ).router()
         )
         client = fastapi.testclient.TestClient(application)
         assert (
@@ -415,12 +419,14 @@ class TestWebhook:
             headers={'X-Webhook-Token': 'hook-secret'},
         )
         assert header.status_code == 202
-        assert desk.submitted[0].source == trigger_module.TriggerSource.WEBHOOK
-        assert desk.submitted[0].text.endswith('\nNIFTY crossed 24,000')
-        assert desk.submitted[1].text.endswith('\nplain text alert')
+        assert (
+            trader.submitted[0].source == trigger_module.TriggerSource.WEBHOOK
+        )
+        assert trader.submitted[0].text.endswith('\nNIFTY crossed 24,000')
+        assert trader.submitted[1].text.endswith('\nplain text alert')
         disabled = fastapi.FastAPI()
         disabled.include_router(
-            webhook_routes.WebhookRoutes({'main': desk}, '').router()
+            webhook_routes.WebhookRoutes({'main': trader}, '').router()
         )
         assert (
             fastapi.testclient.TestClient(disabled)
@@ -431,7 +437,7 @@ class TestWebhook:
 
 
 class TestUsageTracker:
-    """Usage is counted per desk and backend, priced, and survives a restart."""
+    """Usage is counted per trader and backend, priced, and survives a restart."""
 
     def test_counts_costs_limits_and_replay(self, tmp_path: Path) -> None:
         """A journal line from before the start and two live events are counted; OpenAI is priced; Claude's limit is shown.
@@ -441,11 +447,11 @@ class TestUsageTracker:
         """
         start = datetime.datetime(2026, 10, 19, 11, 0, tzinfo=_INDIA)
         layout = workspace_layout.WorkspaceLayout(tmp_path)
-        journal = layout.desk_directory('main') / 'journal'
+        journal = layout.trader_directory('main') / 'journal'
         journal.mkdir(parents=True)
         earlier = {
             'kind': 'model_usage',
-            'desk': 'main',
+            'trader': 'main',
             'payload': {
                 'backend': 'claude',
                 'prompt_tokens': 100,
@@ -481,7 +487,7 @@ class TestUsageTracker:
         tracker.record(
             event_module.Event(
                 kind=event_module.EventKind.MODEL_USAGE,
-                desk='main',
+                trader='main',
                 payload={
                     'backend': 'openai',
                     'prompt_tokens': 10000,
@@ -493,7 +499,7 @@ class TestUsageTracker:
         tracker.record(
             event_module.Event(
                 kind=event_module.EventKind.RATE_LIMIT,
-                desk='main',
+                trader='main',
                 payload={
                     'backend': 'claude',
                     'status': 'allowed_warning',

@@ -4,10 +4,10 @@ Hooks (block 28): the user's scripts, run as separate processes when events happ
 
 ## Decisions
 
-- **Folder per event.** `workspace/shared/hooks/<event>/` and each package's `hooks/<event>/`. Any event kind works as a folder name, plus two narrower names from the plan: `order_placed` (an order event with action "placed") and `risk_rejected` (a refused risk decision). The plan's other examples map to existing kinds: `desk_stopped` is a kind; `session_ended` is covered by `session_started`, whose payload names the previous session at a rollover.
+- **Folder per event.** `workspace/shared/hooks/<event>/` and each package's `hooks/<event>/`. Any event kind works as a folder name, plus two narrower names from the plan: `order_placed` (an order event with action "placed") and `risk_rejected` (a refused risk decision). The plan's other examples map to existing kinds: `trader_stopped` is a kind; `session_ended` is covered by `session_started`, whose payload names the previous session at a rollover.
 - **Never on text pieces.** `text_delta` events are skipped, as in the journal.
-- **Isolation.** A hook gets the event as JSON on stdin with secrets masked by the same redactor as the journal, and a minimal environment (HOME, LANG, LOGNAME, PATH, USER, plus TRADING_AGENT_EVENT and TRADING_AGENT_DESK). Hooks are the user's own scripts, so they are not sandboxed, like git hooks.
-- **Cannot hurt a desk.** At most four run at once, each for at most 30 seconds; failures, timeouts and missing interpreters are logged and nothing else happens. Hook failures are deliberately not published on the event bus, because an `error` hook reacting to its own failure could loop forever.
+- **Isolation.** A hook gets the event as JSON on stdin with secrets masked by the same redactor as the journal, and a minimal environment (HOME, LANG, LOGNAME, PATH, USER, plus TRADING_AGENT_EVENT and TRADING_AGENT_TRADER). Hooks are the user's own scripts, so they are not sandboxed, like git hooks.
+- **Cannot hurt a trader.** At most four run at once, each for at most 30 seconds; failures, timeouts and missing interpreters are logged and nothing else happens. Hook failures are deliberately not published on the event bus, because an `error` hook reacting to its own failure could loop forever.
 - **Found per event.** The folders are listed again for every event, so a hook added or a package installed while the gateway runs takes effect at once.
 
 ## A bug the live test found

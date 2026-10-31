@@ -2,7 +2,7 @@
 
 Status: template, not filled in yet.
 
-This file is filled in during the first-run interview. Until then, the desks know nothing about the user's capital, risk appetite or schedule, and must not trade.
+This file is filled in during the first-run interview. Until then, the traders know nothing about the user's capital, risk appetite or schedule, and must not trade.
 
 ## Who the user is
 

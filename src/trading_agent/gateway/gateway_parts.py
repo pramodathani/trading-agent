@@ -1,10 +1,10 @@
-"""What the gateway's API routes can reach: the parts of each desk, and the parts every desk shares.
+"""What the gateway's API routes can reach: the parts of each trader, and the parts every trader shares.
 
-The desk builder fills these in as it builds the desks, and the application hands them to the route groups. Each route group takes only the parts it uses, so it can be tested with stand-ins for the rest.
+The trader builder fills these in as it builds the traders, and the application hands them to the route groups. Each route group takes only the parts it uses, so it can be tested with stand-ins for the rest.
 
 Typical usage example:
 
-  parts = builder.desk_parts('main')
+  parts = builder.trader_parts('main')
   parts.sessions.exchanges(session_id)
 """
 
@@ -26,14 +26,14 @@ from trading_agent.skills import skill_library
 from trading_agent.subagents import subagent_library
 from trading_agent.tools import tool_registry
 from trading_agent.trading import broker_reader
-from trading_agent.trading import desk_order_book
+from trading_agent.trading import trader_order_book
 from trading_agent.workspace import proposal_store
 from trading_agent.workspace import workspace_layout
 
 
 @dataclasses.dataclass
-class DeskParts:
-    """One desk's stores and tools.
+class TraderParts:
+    """One trader's stores and tools.
 
     Attributes:
         sessions: Its sessions, exchanges and daily summaries.
@@ -42,7 +42,7 @@ class DeskParts:
         alerts: Its price alerts.
         skills: Its usable and hidden skills.
         checkpoints: The snapshots of its own files.
-        tools: Its tools, for actions such as flatten_desk.
+        tools: Its tools, for actions such as flatten_trader.
     """
 
     sessions: session_store.SessionStore
@@ -56,7 +56,7 @@ class DeskParts:
 
 @dataclasses.dataclass
 class SharedParts:
-    """The parts every desk shares.
+    """The parts every trader shares.
 
     Attributes:
         layout: Where the workspace's files are.
@@ -65,8 +65,8 @@ class SharedParts:
         risk_engine: The one risk engine.
         ledger: The risk ledger: ownership, halts, daily profit and loss.
         kill_switch: Halts and flattens the whole account.
-        order_book: Which desk placed which order.
-        proposals: The desks' proposed changes to the user's files.
+        order_book: Which trader placed which order.
+        proposals: The traders' proposed changes to the user's files.
         subagents: The subagent definitions.
         packages: The installed packages.
         calendar: The exchange calendar.
@@ -79,7 +79,7 @@ class SharedParts:
     risk_engine: risk_engine.RiskEngine
     ledger: risk_ledger.RiskLedger
     kill_switch: kill_switch.KillSwitch
-    order_book: desk_order_book.DeskOrderBook
+    order_book: trader_order_book.TraderOrderBook
     proposals: proposal_store.ProposalStore
     subagents: subagent_library.SubagentLibrary
     packages: installed_packages.InstalledPackages

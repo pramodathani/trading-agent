@@ -160,7 +160,7 @@ class DeviceRoutes(route_group.RouteGroup):
             'Trading Agent',
             'Test notification: push notifications reach this phone.',
             {
-                'desk': '',
+                'trader': '',
                 'kind': 'test',
             },
         )

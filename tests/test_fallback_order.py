@@ -90,19 +90,27 @@ def _router(
 class TestFallbackOrder:
     """Tests for the fallback from Claude to DeepSeek."""
 
-    def test_limited_backend_is_skipped_until_its_reset_then_used_again(self) -> None:
+    def test_limited_backend_is_skipped_until_its_reset_then_used_again(
+        self,
+    ) -> None:
         """After Claude refuses with a reset time, it is not tried until then, and is used again afterwards."""
         clock = test_model_router._Clock()
         claude = _LimitedRunner()
         deepseek = test_model_router._ScriptedRunner('deepseek')
         router = _router(claude, deepseek, clock)
 
-        first = asyncio.run(router.run_turn(test_model_router._trigger('one'))).text
+        first = asyncio.run(
+            router.run_turn(test_model_router._trigger('one'))
+        ).text
         clock.now += 3600
-        second = asyncio.run(router.run_turn(test_model_router._trigger('two'))).text
+        second = asyncio.run(
+            router.run_turn(test_model_router._trigger('two'))
+        ).text
         claude.limited = False
         clock.now += _FIVE_HOURS
-        third = asyncio.run(router.run_turn(test_model_router._trigger('three'))).text
+        third = asyncio.run(
+            router.run_turn(test_model_router._trigger('three'))
+        ).text
 
         assert first == 'deepseek answered'
         assert second == 'deepseek answered'
@@ -128,20 +136,27 @@ class TestFallbackOrder:
                 ),
             ],
         }
-        router = _router(claude, deepseek, clock, lambda trigger_id: made.get(trigger_id, []))
+        router = _router(
+            claude, deepseek, clock, lambda trigger_id: made.get(trigger_id, [])
+        )
 
         asyncio.run(router.run_turn(trigger))
 
         handed_over = deepseek.received_texts[-1]
         assert claude.received_texts[-1] == 'Buy 10 TCS if it dips'
         assert 'Do not repeat any of them' in handed_over
-        assert 'place_order {"symbol": "TCS", "quantity": 10} returned: Order placed: id 42' in handed_over
+        assert (
+            'place_order {"symbol": "TCS", "quantity": 10} returned: Order placed: id 42'
+            in handed_over
+        )
 
     def test_no_note_when_nothing_ran(self) -> None:
         """A backend taking over a turn in which no tool ran gets the trigger unchanged."""
         clock = test_model_router._Clock()
         deepseek = test_model_router._ScriptedRunner('deepseek')
-        router = _router(_LimitedRunner(), deepseek, clock, lambda trigger_id: [])
+        router = _router(
+            _LimitedRunner(), deepseek, clock, lambda trigger_id: []
+        )
 
         asyncio.run(router.run_turn(test_model_router._trigger('Hello')))
 
@@ -162,7 +177,11 @@ class TestFallbackOrder:
         )
         trigger = test_model_router._trigger('go')
 
-        asyncio.run(executor.execute(trigger, messages.ToolCall.new('echo', {'word': 'hi'})))
+        asyncio.run(
+            executor.execute(
+                trigger, messages.ToolCall.new('echo', {'word': 'hi'})
+            )
+        )
 
         calls = executor.completed_calls(trigger.trigger_id)
         assert [(call.name, call.result_text) for call in calls] == [
@@ -245,7 +264,12 @@ class TestModelSwitching:
     def test_deepseek_cost_is_unknown_for_a_model_without_prices(self) -> None:
         """Switched to a model whose prices are not configured, DeepSeek reports no cost rather than a wrong one."""
         model_backend = test_deepseek_backend._backend()
-        usage = types.SimpleNamespace(prompt_tokens=10, completion_tokens=10, prompt_cache_hit_tokens=0, prompt_cache_miss_tokens=10)
+        usage = types.SimpleNamespace(
+            prompt_tokens=10,
+            completion_tokens=10,
+            prompt_cache_hit_tokens=0,
+            prompt_cache_miss_tokens=10,
+        )
 
         model_backend.use_model('deepseek-flash')
 

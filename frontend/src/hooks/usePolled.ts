@@ -11,7 +11,7 @@ export interface PolledState<Answer> {
  * Asks for something now and again every few seconds while the component is shown.
  * @param load The request.
  * @param intervalMilliseconds How long to wait between requests.
- * @param key Asks again at once when this changes, such as the selected desk.
+ * @param key Asks again at once when this changes, such as the selected trader.
  * @returns The latest answer and error, and a refresh function.
  */
 export function usePolled<Answer>(

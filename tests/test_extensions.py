@@ -144,7 +144,7 @@ class TestInjectionScanner:
     def test_doctor_warns_about_a_poisoned_memory_file(
         self, tmp_path: Path
     ) -> None:
-        """A desk's Memory.md with an attack makes the check a warning.
+        """A trader's Memory.md with an attack makes the check a warning.
 
         Args:
             tmp_path (Path): A scratch folder.
@@ -291,7 +291,7 @@ class TestHookRunner:
         output = tmp_path / 'seen.txt'
         script = _write_executable(
             Path('hooks') / 'kill_switch' / 'record.sh',
-            f'#!/bin/sh\ncat > {output}\necho >> {output}\necho "event=$TRADING_AGENT_EVENT desk=$TRADING_AGENT_DESK secret=$GATEWAY_SECRET" >> {output}\n',
+            f'#!/bin/sh\ncat > {output}\necho >> {output}\necho "event=$TRADING_AGENT_EVENT trader=$TRADING_AGENT_TRADER secret=$GATEWAY_SECRET" >> {output}\n',
         )
         failing = _write_executable(
             Path('hooks') / 'kill_switch' / 'fail.sh',
@@ -325,7 +325,7 @@ class TestHookRunner:
         data = json.loads(seen[0])
         assert data['payload']['reason'] == 'loss limit'
         assert 'token-1234567890' not in seen[0]
-        assert seen[1] == 'event=kill_switch desk=main secret='
+        assert seen[1] == 'event=kill_switch trader=main secret='
 
 
 class TestPackages:

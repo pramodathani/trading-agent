@@ -1,6 +1,6 @@
-"""The Checkpoints page: snapshots of a desk's own files, with restore.
+"""The Checkpoints page: snapshots of a trader's own files, with restore.
 
-It copies the web page's CheckpointsPage.tsx. Restoring puts the desk's Memory.md, memory/ and notes/ back as they were; the gateway first takes a checkpoint of the present state, so a restore can be undone. The newest checkpoint is the present state and cannot be restored.
+It copies the web page's CheckpointsPage.tsx. Restoring puts the trader's Memory.md, memory/ and notes/ back as they were; the gateway first takes a checkpoint of the present state, so a restore can be undone. The newest checkpoint is the present state and cannot be restored.
 
 Typical usage example:
 
@@ -23,20 +23,20 @@ class CheckpointsScreen(page_screen.PageScreen):
     """The Checkpoints page."""
 
     TITLE_TEXT = 'Checkpoints'
-    PER_DESK = True
+    PER_TRADER = True
 
     BINDINGS: ClassVar[list[binding.BindingType]] = [
-        binding.Binding('d', 'next_desk', 'Next desk'),
+        binding.Binding('d', 'next_trader', 'Next trader'),
         binding.Binding('s', 'restore', 'Restore'),
     ]
 
-    def __init__(self, desk_name: str):
+    def __init__(self, trader_name: str):
         """Creates the page.
 
         Args:
-            desk_name (str): The desk the chat shows.
+            trader_name (str): The trader the chat shows.
         """
-        super().__init__(desk_name)
+        super().__init__(trader_name)
         self._checkpoints: list[dict[str, Any]] = []
         self._formatter = formatter.Formatter()
 
@@ -47,7 +47,7 @@ class CheckpointsScreen(page_screen.PageScreen):
             Widget: The note and the table.
         """
         yield widgets.Static(
-            "[dim]Restoring puts the desk's Memory.md, memory/ and notes/ back as they were. A checkpoint of the present is taken first, so it can be undone.[/dim]",
+            "[dim]Restoring puts the trader's Memory.md, memory/ and notes/ back as they were. A checkpoint of the present is taken first, so it can be undone.[/dim]",
             classes='page-summary',
         )
         yield widgets.DataTable(id='checkpoints', cursor_type='row')
@@ -59,9 +59,9 @@ class CheckpointsScreen(page_screen.PageScreen):
 
     @work(exclusive=True, group='page')
     async def refresh_page(self) -> None:
-        """Reads the desk's checkpoints."""
+        """Reads the trader's checkpoints."""
         try:
-            answer = await self.app.gateway.checkpoints(self.desk_name)
+            answer = await self.app.gateway.checkpoints(self.trader_name)
         except gateway_client.GatewayError as error:
             self.problem(error.message)
             return
@@ -104,7 +104,7 @@ class CheckpointsScreen(page_screen.PageScreen):
         self.app.push_screen(
             confirm_dialog.ConfirmDialog(
                 f'Restore checkpoint {checkpoint_id}',
-                f"{self.desk_name}'s Memory.md, memory/ and notes/ go back to how they were at this checkpoint.",
+                f"{self.trader_name}'s Memory.md, memory/ and notes/ go back to how they were at this checkpoint.",
                 'Restore',
             ),
             restore,
@@ -119,7 +119,7 @@ class CheckpointsScreen(page_screen.PageScreen):
         """
         try:
             answer = await self.app.gateway.restore_checkpoint(
-                self.desk_name, checkpoint_id
+                self.trader_name, checkpoint_id
             )
         except gateway_client.GatewayError as error:
             self.problem(error.message)

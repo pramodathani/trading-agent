@@ -1,6 +1,6 @@
-"""A tool with which a desk proposes a change to one of the user's files.
+"""A tool with which a trader proposes a change to one of the user's files.
 
-The desk cannot edit the user's files. It sends the complete new text and a reason, and the user accepts or rejects it with `trading-agent proposals`.
+The trader cannot edit the user's files. It sends the complete new text and a reason, and the user accepts or rejects it with `trading-agent proposals`.
 
 Typical usage example:
 
@@ -35,18 +35,18 @@ class ProposeFileChangeTool(tool.Tool):
     """Saves a proposed new version of one of the user's files."""
 
     name = 'propose_file_change'
-    description = "Proposes a new version of one of the user's files (Agents.md, User.md, TradingRules.md, or this desk's Persona.md). Give the complete new text, not a fragment, and a short reason. Nothing changes until the user accepts the proposal."
+    description = "Proposes a new version of one of the user's files (Agents.md, User.md, TradingRules.md, or this trader's Persona.md). Give the complete new text, not a fragment, and a short reason. Nothing changes until the user accepts the proposal."
     arguments_model = ProposeFileChangeArguments
 
-    def __init__(self, store: proposal_store.ProposalStore, desk_name: str):
-        """Creates the tool for one desk.
+    def __init__(self, store: proposal_store.ProposalStore, trader_name: str):
+        """Creates the tool for one trader.
 
         Args:
             store (proposal_store.ProposalStore): Where proposals are saved.
-            desk_name (str): The desk using the tool.
+            trader_name (str): The trader using the tool.
         """
         self._store = store
-        self._desk_name = desk_name
+        self._trader_name = trader_name
 
     async def run(
         self, arguments: ProposeFileChangeArguments
@@ -60,7 +60,7 @@ class ProposeFileChangeTool(tool.Tool):
             tool.ToolResult: The new proposal's id and how the user accepts it.
         """
         proposal = self._store.create(
-            self._desk_name,
+            self._trader_name,
             arguments.file_name,
             arguments.content,
             arguments.reason,

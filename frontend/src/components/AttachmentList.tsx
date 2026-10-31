@@ -9,14 +9,14 @@ import { PictureThumbnail } from './PictureThumbnail';
 
 /** What an attachment list shows. */
 interface AttachmentListProperties {
-  deskName: string;
+  traderName: string;
   attachments: Attachment[];
   large?: boolean;
 }
 
 /**
  * The pictures and documents sent with a message: pictures as thumbnails, documents as labels that open the file.
- * @param properties The desk, its attachments, and whether pictures are shown large, as for a picture the desk sent.
+ * @param properties The trader, its attachments, and whether pictures are shown large, as for a picture the trader sent.
  * @returns The list, or nothing when there are none.
  */
 export function AttachmentList(properties: AttachmentListProperties) {
@@ -27,9 +27,9 @@ export function AttachmentList(properties: AttachmentListProperties) {
     <div className={properties.large === true ? 'attachment-list large' : 'attachment-list'}>
       {properties.attachments.map((attachment) =>
         attachment.kind === 'image' ? (
-          <AttachmentPicture key={attachment.attachment_id} deskName={properties.deskName} attachment={attachment} />
+          <AttachmentPicture key={attachment.attachment_id} traderName={properties.traderName} attachment={attachment} />
         ) : (
-          <AttachmentDocument key={attachment.attachment_id} deskName={properties.deskName} attachment={attachment} />
+          <AttachmentDocument key={attachment.attachment_id} traderName={properties.traderName} attachment={attachment} />
         ),
       )}
     </div>
@@ -38,24 +38,24 @@ export function AttachmentList(properties: AttachmentListProperties) {
 
 /** What one attachment's view shows. */
 interface AttachmentProperties {
-  deskName: string;
+  traderName: string;
   attachment: Attachment;
 }
 
 /**
  * One uploaded picture, shown as a thumbnail that opens full size.
- * @param properties The desk and the picture.
+ * @param properties The trader and the picture.
  * @returns The thumbnail.
  */
 function AttachmentPicture(properties: AttachmentProperties) {
-  const deskName = properties.deskName;
+  const traderName = properties.traderName;
   const attachmentId = properties.attachment.attachment_id;
-  return <PictureThumbnail fileName={properties.attachment.file_name} loadKey={`${deskName}/${attachmentId}`} load={() => apiClient.attachmentFile(deskName, attachmentId)} />;
+  return <PictureThumbnail fileName={properties.attachment.file_name} loadKey={`${traderName}/${attachmentId}`} load={() => apiClient.attachmentFile(traderName, attachmentId)} />;
 }
 
 /**
  * One document: its name, size and pages, opening the file in a new tab when pressed.
- * @param properties The desk and the document.
+ * @param properties The trader and the document.
  * @returns The label.
  */
 function AttachmentDocument(properties: AttachmentProperties) {
@@ -76,7 +76,7 @@ function AttachmentDocument(properties: AttachmentProperties) {
     setError(null);
     if (platform.isApp()) {
       try {
-        const blob = await apiClient.attachmentFile(properties.deskName, attachment.attachment_id);
+        const blob = await apiClient.attachmentFile(properties.traderName, attachment.attachment_id);
         await appFiles.open(blob, attachment.file_name);
       } catch (failure) {
         setError(failure instanceof Error ? failure.message : String(failure));
@@ -85,7 +85,7 @@ function AttachmentDocument(properties: AttachmentProperties) {
     }
     const opened = window.open('', '_blank');
     try {
-      const blob = await apiClient.attachmentFile(properties.deskName, attachment.attachment_id);
+      const blob = await apiClient.attachmentFile(properties.traderName, attachment.attachment_id);
       const address = URL.createObjectURL(blob);
       if (opened !== null) {
         opened.location.href = address;

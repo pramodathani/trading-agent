@@ -1,6 +1,6 @@
-"""The cancel_order tool: cancels one of the desk's own orders, or one part of a bracket.
+"""The cancel_order tool: cancels one of the trader's own orders, or one part of a bracket.
 
-Cancelling takes risk away, so the risk engine is not asked; the desk order book only confirms that the desk placed the order. An order that has a parent_id is cancelled through UBI's order engine, which stops the whole order and every leg it has resting at a broker, so a bracket's exits go with it. A position the order already opened stays open.
+Cancelling takes risk away, so the risk engine is not asked; the trader order book only confirms that the trader placed the order. An order that has a parent_id is cancelled through UBI's order engine, which stops the whole order and every leg it has resting at a broker, so a bracket's exits go with it. A position the order already opened stays open.
 
 Typical usage example:
 
@@ -15,7 +15,7 @@ from tradingmachine.assets import instruments
 
 from trading_agent.tools import order_tool
 from trading_agent.tools import tool
-from trading_agent.trading import desk_order_book as desk_order_book_module
+from trading_agent.trading import trader_order_book as trader_order_book_module
 
 
 class CancelOrderArguments(pydantic.BaseModel):
@@ -25,7 +25,7 @@ class CancelOrderArguments(pydantic.BaseModel):
         parent_id: The parent_id that place_order or place_bracket_order answered with, or None.
         order_id: The broker's order_id, or None.
         part: With parent_id, the path of one part of a bracket to cancel alone, such as root.each_fill.children.1 for its target; or None for the whole order.
-        reason: Why the desk is cancelling, kept in the journal.
+        reason: Why the trader is cancelling, kept in the journal.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -53,10 +53,10 @@ class CancelOrderArguments(pydantic.BaseModel):
 
 
 class CancelOrderTool(order_tool.OrderTool):
-    """Cancels one of the desk's own orders."""
+    """Cancels one of the trader's own orders."""
 
     name = 'cancel_order'
-    description = "Cancels one of this desk's own orders, named by the parent_id from place_order or place_bracket_order, or by the broker's order_id. Cancelling a bracket by its parent_id cancels its exits too; give part to cancel only one exit. A position the order already opened stays open: close it with place_order or flatten_desk. Give a short reason; it goes in the journal."
+    description = "Cancels one of this trader's own orders, named by the parent_id from place_order or place_bracket_order, or by the broker's order_id. Cancelling a bracket by its parent_id cancels its exits too; give part to cancel only one exit. A position the order already opened stays open: close it with place_order or flatten_trader. Give a short reason; it goes in the journal."
     arguments_model = CancelOrderArguments
 
     async def _act(self, arguments: CancelOrderArguments) -> tool.ToolResult:
@@ -69,15 +69,15 @@ class CancelOrderTool(order_tool.OrderTool):
             tool.ToolResult: UBI's answer, or why nothing was cancelled.
         """
         record = self._services.order_book.find(
-            self._desk,
+            self._trader,
             arguments.parent_id,
             arguments.order_id,
         )
         if record is None:
             return tool.ToolResult.error(
-                'This desk placed no order with that id, so it cannot cancel it. Use the parent_id or order_id from place_order or place_bracket_order, and see get_orders for the open orders.'
+                'This trader placed no order with that id, so it cannot cancel it. Use the parent_id or order_id from place_order or place_bracket_order, and see get_orders for the open orders.'
             )
-        if record.state == desk_order_book_module.CANCELLED:
+        if record.state == trader_order_book_module.CANCELLED:
             return tool.ToolResult.error(
                 f'Order {record.record_id} is already cancelled.'
             )
@@ -121,14 +121,14 @@ class CancelOrderTool(order_tool.OrderTool):
     def _send(
         self,
         instrument: instruments.TradeableInstrument,
-        record: desk_order_book_module.OrderRecord,
+        record: trader_order_book_module.OrderRecord,
         part: str | None,
     ) -> Any:
         """Sends the cancellation to UBI. It runs in a worker thread, under the UBI lock.
 
         Args:
             instrument (instruments.TradeableInstrument): The order's instrument.
-            record (desk_order_book_module.OrderRecord): The order.
+            record (trader_order_book_module.OrderRecord): The order.
             part (str | None): One part of a bracket, or None for the whole order.
 
         Returns:

@@ -10,9 +10,9 @@ import type {
   CronJob,
   CronRun,
   DailySummary,
-  DeskOrder,
-  DeskSummary,
-  DesksDocument,
+  TraderOrder,
+  TraderSummary,
+  TradersDocument,
   DevicesDocument,
   EditableFile,
   Exchange,
@@ -55,13 +55,13 @@ export class ApiError extends Error {
 /** Calls the gateway's API with the access token. */
 export class ApiClient {
   /**
-   * Checks a token by asking for the desks with it.
+   * Checks a token by asking for the traders with it.
    * @param token The token to check.
    * @param address The gateway to ask, or the saved one when left out.
    * @returns True when the gateway accepts it.
    */
   async isAccepted(token: string, address?: string): Promise<boolean> {
-    const response = await fetch(gatewayAddress.url('/api/desks', address), {
+    const response = await fetch(gatewayAddress.url('/api/traders', address), {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -70,15 +70,15 @@ export class ApiClient {
   }
 
   /**
-   * Every desk's state.
-   * @returns The desks and the trading mode.
+   * Every trader's state.
+   * @returns The traders and the trading mode.
    */
-  desks(): Promise<DesksDocument> {
-    return this.request<DesksDocument>('GET', '/api/desks');
+  traders(): Promise<TradersDocument> {
+    return this.request<TradersDocument>('GET', '/api/traders');
   }
 
   /**
-   * The desks' questions, plans and permission requests.
+   * The traders' questions, plans and permission requests.
    * @param status "pending" for those waiting, or "all".
    * @returns The requests, oldest first.
    */
@@ -88,7 +88,7 @@ export class ApiClient {
   }
 
   /**
-   * Answers a desk's questions.
+   * Answers a trader's questions.
    * @param requestId The request.
    * @param answers One answer per question, in order.
    * @returns The answered request.
@@ -100,7 +100,7 @@ export class ApiClient {
   }
 
   /**
-   * Approves a desk's plan, or asks for changes.
+   * Approves a trader's plan, or asks for changes.
    * @param requestId The request.
    * @param decision "approve" or "revise".
    * @param feedback What should change, or a note with an approval.
@@ -137,20 +137,20 @@ export class ApiClient {
   }
 
   /**
-   * Makes a desk ask again before using a tool.
-   * @param desk The desk.
+   * Makes a trader ask again before using a tool.
+   * @param trader The trader.
    * @param toolName The tool.
    * @returns Whether a grant was removed.
    */
-  revokePermission(desk: string, toolName: string): Promise<{ revoked: boolean }> {
+  revokePermission(trader: string, toolName: string): Promise<{ revoked: boolean }> {
     return this.request('POST', '/api/permissions/revoke', {
-      desk,
+      trader,
       tool_name: toolName,
     });
   }
 
   /**
-   * Closes a desk's request without answering it.
+   * Closes a trader's request without answering it.
    * @param requestId The request.
    * @returns The dismissed request.
    */
@@ -160,70 +160,70 @@ export class ApiClient {
 
   /**
    * Tries one backend first from now on, optionally with another of its provider's models, or returns to the configured order.
-   * @param deskName The desk.
+   * @param traderName The trader.
    * @param backendName The backend, or null for the configured order.
    * @param model Another model the backend offers, or null for its configured one.
-   * @returns The desk's state afterwards.
+   * @returns The trader's state afterwards.
    */
-  chooseModel(deskName: string, backendName: string | null, model: string | null = null): Promise<DeskSummary> {
-    return this.request<DeskSummary>('POST', `/api/desks/${deskName}/model`, {
+  chooseModel(traderName: string, backendName: string | null, model: string | null = null): Promise<TraderSummary> {
+    return this.request<TraderSummary>('POST', `/api/traders/${traderName}/model`, {
       backend: backendName,
       model,
     });
   }
 
   /**
-   * How full a desk's context window is, and which tools it has.
-   * @param deskName The desk.
+   * How full a trader's context window is, and which tools it has.
+   * @param traderName The trader.
    * @returns The latest snapshot, or null usage before the first turn, and the tool names.
    */
-  deskContext(deskName: string): Promise<ContextDocument> {
-    return this.request<ContextDocument>('GET', `/api/desks/${deskName}/context`);
+  traderContext(traderName: string): Promise<ContextDocument> {
+    return this.request<ContextDocument>('GET', `/api/traders/${traderName}/context`);
   }
 
   /**
-   * A desk's slash commands and usable skills, as /help lists them.
-   * @param deskName The desk.
-   * @returns The desk and its command entries.
+   * A trader's slash commands and usable skills, as /help lists them.
+   * @param traderName The trader.
+   * @returns The trader and its command entries.
    */
-  deskCommands(deskName: string): Promise<CommandsDocument> {
-    return this.request<CommandsDocument>('GET', `/api/desks/${deskName}/commands`);
+  traderCommands(traderName: string): Promise<CommandsDocument> {
+    return this.request<CommandsDocument>('GET', `/api/traders/${traderName}/commands`);
   }
 
   /**
-   * Sends a message or slash command to a desk, with files uploaded beforehand.
-   * @param deskName The desk.
+   * Sends a message or slash command to a trader, with files uploaded beforehand.
+   * @param traderName The trader.
    * @param text The message; may be empty when files are attached.
    * @param attachmentIds The uploads to send with it.
    * @returns The new trigger's id.
    */
-  sendMessage(deskName: string, text: string, attachmentIds: string[] = []): Promise<{ trigger_id: string }> {
-    return this.request('POST', `/api/desks/${deskName}/messages`, {
+  sendMessage(traderName: string, text: string, attachmentIds: string[] = []): Promise<{ trigger_id: string }> {
+    return this.request('POST', `/api/traders/${traderName}/messages`, {
       text,
       attachment_ids: attachmentIds,
     });
   }
 
   /**
-   * Uploads one file for a desk, to send with a message.
-   * @param deskName The desk.
+   * Uploads one file for a trader, to send with a message.
+   * @param traderName The trader.
    * @param file The file.
    * @returns The stored attachment.
    */
-  uploadAttachment(deskName: string, file: File): Promise<Attachment> {
+  uploadAttachment(traderName: string, file: File): Promise<Attachment> {
     const form = new FormData();
     form.append('file', file, file.name);
-    return this.request('POST', `/api/desks/${deskName}/attachments`, form);
+    return this.request('POST', `/api/traders/${traderName}/attachments`, form);
   }
 
   /**
    * Fetches an uploaded file, to show a picture or open a document.
-   * @param deskName The desk.
+   * @param traderName The trader.
    * @param attachmentId The upload.
    * @returns The file's contents.
    */
-  async attachmentFile(deskName: string, attachmentId: string): Promise<Blob> {
-    const response = await fetch(gatewayAddress.url(`/api/desks/${deskName}/attachments/${attachmentId}`), {
+  async attachmentFile(traderName: string, attachmentId: string): Promise<Blob> {
+    const response = await fetch(gatewayAddress.url(`/api/traders/${traderName}/attachments/${attachmentId}`), {
       headers: {
         Authorization: `Bearer ${tokenStore.current() ?? ''}`,
       },
@@ -235,14 +235,14 @@ export class ApiClient {
   }
 
   /**
-   * Fetches a picture in a desk's folder, such as a screenshot shown in a tool's card.
-   * @param deskName The desk.
-   * @param picturePath The picture's path relative to the desk folder.
+   * Fetches a picture in a trader's folder, such as a screenshot shown in a tool's card.
+   * @param traderName The trader.
+   * @param picturePath The picture's path relative to the trader folder.
    * @returns The picture.
    */
-  async deskPicture(deskName: string, picturePath: string): Promise<Blob> {
+  async traderPicture(traderName: string, picturePath: string): Promise<Blob> {
     const encodedPath = picturePath.split('/').map(encodeURIComponent).join('/');
-    const response = await fetch(gatewayAddress.url(`/api/desks/${deskName}/pictures/${encodedPath}`), {
+    const response = await fetch(gatewayAddress.url(`/api/traders/${traderName}/pictures/${encodedPath}`), {
       headers: {
         Authorization: `Bearer ${tokenStore.current() ?? ''}`,
       },
@@ -254,31 +254,31 @@ export class ApiClient {
   }
 
   /**
-   * Pauses a desk.
-   * @param deskName The desk.
-   * @returns The desk's new state.
+   * Pauses a trader.
+   * @param traderName The trader.
+   * @returns The trader's new state.
    */
-  pause(deskName: string): Promise<DeskSummary> {
-    return this.request('POST', `/api/desks/${deskName}/pause`);
+  pause(traderName: string): Promise<TraderSummary> {
+    return this.request('POST', `/api/traders/${traderName}/pause`);
   }
 
   /**
-   * Resumes a desk.
-   * @param deskName The desk.
-   * @returns The desk's new state.
+   * Resumes a trader.
+   * @param traderName The trader.
+   * @returns The trader's new state.
    */
-  resume(deskName: string): Promise<DeskSummary> {
-    return this.request('POST', `/api/desks/${deskName}/resume`);
+  resume(traderName: string): Promise<TraderSummary> {
+    return this.request('POST', `/api/traders/${traderName}/resume`);
   }
 
   /**
-   * Cancels a desk's orders and closes its positions.
-   * @param deskName The desk.
+   * Cancels a trader's orders and closes its positions.
+   * @param traderName The trader.
    * @param reason Why, for the journal.
    * @returns The flatten tool's report.
    */
-  flatten(deskName: string, reason: string): Promise<ToolActionResult> {
-    return this.request('POST', `/api/desks/${deskName}/flatten`, {
+  flatten(traderName: string, reason: string): Promise<ToolActionResult> {
+    return this.request('POST', `/api/traders/${traderName}/flatten`, {
       reason,
     });
   }
@@ -292,11 +292,11 @@ export class ApiClient {
   }
 
   /**
-   * Each desk's open orders in the desk order book.
-   * @returns The orders, keyed by desk.
+   * Each trader's open orders in the trader order book.
+   * @returns The orders, keyed by trader.
    */
-  deskOrders(): Promise<Record<string, DeskOrder[]>> {
-    return this.request('GET', '/api/desk-orders');
+  traderOrders(): Promise<Record<string, TraderOrder[]>> {
+    return this.request('GET', '/api/trader-orders');
   }
 
   /**
@@ -308,7 +308,7 @@ export class ApiClient {
   }
 
   /**
-   * Halts every desk until tomorrow and flattens the account.
+   * Halts every trader until tomorrow and flattens the account.
    * @param reason Why.
    * @returns The kill switch's report.
    */
@@ -320,25 +320,25 @@ export class ApiClient {
   }
 
   /**
-   * One desk's journal for a day.
-   * @param deskName The desk.
+   * One trader's journal for a day.
+   * @param traderName The trader.
    * @param limit The most events.
    * @returns The day's events, oldest first.
    */
-  deskJournal(deskName: string, limit: number): Promise<JournalDocument> {
-    return this.request('GET', `/api/desks/${deskName}/journal?limit=${limit}`);
+  traderJournal(traderName: string, limit: number): Promise<JournalDocument> {
+    return this.request('GET', `/api/traders/${traderName}/journal?limit=${limit}`);
   }
 
   /**
-   * Every desk's journal for today, merged, plus the gateway's own.
-   * @param deskNames The desks.
-   * @param limit The most events per desk.
+   * Every trader's journal for today, merged, plus the gateway's own.
+   * @param traderNames The traders.
+   * @param limit The most events per trader.
    * @returns The events, oldest first.
    */
-  async allJournals(deskNames: string[], limit: number): Promise<JournalDocument> {
+  async allJournals(traderNames: string[], limit: number): Promise<JournalDocument> {
     const documents = [];
-    for (const deskName of deskNames) {
-      documents.push(this.deskJournal(deskName, limit));
+    for (const traderName of traderNames) {
+      documents.push(this.traderJournal(traderName, limit));
     }
     documents.push(this.request<JournalDocument>('GET', `/api/journal?limit=${limit}`));
     const answers = await Promise.all(documents);
@@ -354,50 +354,50 @@ export class ApiClient {
   }
 
   /**
-   * One desk's sessions.
-   * @param deskName The desk.
+   * One trader's sessions.
+   * @param traderName The trader.
    * @returns The current session and every session with its size.
    */
-  sessions(deskName: string): Promise<{ current: string | null; sessions: SessionEntry[] }> {
-    return this.request('GET', `/api/desks/${deskName}/sessions`);
+  sessions(traderName: string): Promise<{ current: string | null; sessions: SessionEntry[] }> {
+    return this.request('GET', `/api/traders/${traderName}/sessions`);
   }
 
   /**
    * One session's exchanges.
-   * @param deskName The desk.
+   * @param traderName The trader.
    * @param sessionId The session.
    * @returns The exchanges, oldest first.
    */
-  session(deskName: string, sessionId: string): Promise<{ session_id: string; exchanges: Exchange[] }> {
-    return this.request('GET', `/api/desks/${deskName}/sessions/${sessionId}`);
+  session(traderName: string, sessionId: string): Promise<{ session_id: string; exchanges: Exchange[] }> {
+    return this.request('GET', `/api/traders/${traderName}/sessions/${sessionId}`);
   }
 
   /**
-   * One desk's daily summaries.
-   * @param deskName The desk.
+   * One trader's daily summaries.
+   * @param traderName The trader.
    * @returns The summaries, newest first.
    */
-  summaries(deskName: string): Promise<{ summaries: DailySummary[] }> {
-    return this.request('GET', `/api/desks/${deskName}/summaries`);
+  summaries(traderName: string): Promise<{ summaries: DailySummary[] }> {
+    return this.request('GET', `/api/traders/${traderName}/summaries`);
   }
 
   /**
-   * One desk's notes files.
-   * @param deskName The desk.
+   * One trader's notes files.
+   * @param traderName The trader.
    * @returns The notes, newest first.
    */
-  notes(deskName: string): Promise<{ notes: NotesFile[] }> {
-    return this.request('GET', `/api/desks/${deskName}/notes`);
+  notes(traderName: string): Promise<{ notes: NotesFile[] }> {
+    return this.request('GET', `/api/traders/${traderName}/notes`);
   }
 
   /**
-   * Searches a desk's past sessions, summaries, journal and notes.
-   * @param deskName The desk.
+   * Searches a trader's past sessions, summaries, journal and notes.
+   * @param traderName The trader.
    * @param keywords The words to look for.
    * @returns The hits, and whether they hold every word.
    */
-  search(deskName: string, keywords: string): Promise<{ matched_every_word: boolean; hits: SearchHit[] }> {
-    return this.request('GET', `/api/desks/${deskName}/search?keywords=${encodeURIComponent(keywords)}&limit=40`);
+  search(traderName: string, keywords: string): Promise<{ matched_every_word: boolean; hits: SearchHit[] }> {
+    return this.request('GET', `/api/traders/${traderName}/search?keywords=${encodeURIComponent(keywords)}&limit=40`);
   }
 
   /**
@@ -411,25 +411,25 @@ export class ApiClient {
   /**
    * One file's text.
    * @param name The file's name.
-   * @param desk Its desk, or null for a shared file.
+   * @param trader Its trader, or null for a shared file.
    * @returns The text.
    */
-  fileText(name: string, desk: string | null): Promise<{ name: string; desk: string | null; text: string }> {
-    const deskPart = desk === null ? '' : `&desk=${encodeURIComponent(desk)}`;
-    return this.request('GET', `/api/files/content?name=${encodeURIComponent(name)}${deskPart}`);
+  fileText(name: string, trader: string | null): Promise<{ name: string; trader: string | null; text: string }> {
+    const traderPart = trader === null ? '' : `&trader=${encodeURIComponent(trader)}`;
+    return this.request('GET', `/api/files/content?name=${encodeURIComponent(name)}${traderPart}`);
   }
 
   /**
    * Saves one file.
    * @param name The file's name.
-   * @param desk Its desk, or null for a shared file.
+   * @param trader Its trader, or null for a shared file.
    * @param text The new text.
    * @returns The saved size.
    */
-  saveFile(name: string, desk: string | null, text: string): Promise<{ characters: number }> {
+  saveFile(name: string, trader: string | null, text: string): Promise<{ characters: number }> {
     return this.request('PUT', '/api/files/content', {
       name,
-      desk,
+      trader,
       text,
     });
   }
@@ -453,70 +453,70 @@ export class ApiClient {
   }
 
   /**
-   * One desk's jobs and recent runs.
-   * @param deskName The desk.
+   * One trader's jobs and recent runs.
+   * @param traderName The trader.
    * @returns The jobs and runs.
    */
-  jobs(deskName: string): Promise<{ jobs: CronJob[]; recent_runs: CronRun[] }> {
-    return this.request('GET', `/api/desks/${deskName}/jobs`);
+  jobs(traderName: string): Promise<{ jobs: CronJob[]; recent_runs: CronRun[] }> {
+    return this.request('GET', `/api/traders/${traderName}/jobs`);
   }
 
   /**
    * Creates a job.
-   * @param deskName The desk.
+   * @param traderName The trader.
    * @param job The job.
    * @returns The job with its next runs.
    */
-  createJob(deskName: string, job: NewJob): Promise<CronJob> {
-    return this.request('POST', `/api/desks/${deskName}/jobs`, job);
+  createJob(traderName: string, job: NewJob): Promise<CronJob> {
+    return this.request('POST', `/api/traders/${traderName}/jobs`, job);
   }
 
   /**
    * Deletes a job.
-   * @param deskName The desk.
+   * @param traderName The trader.
    * @param jobId The job.
    * @returns The deleted job's description.
    */
-  deleteJob(deskName: string, jobId: string): Promise<{ deleted: string }> {
-    return this.request('DELETE', `/api/desks/${deskName}/jobs/${jobId}`);
+  deleteJob(traderName: string, jobId: string): Promise<{ deleted: string }> {
+    return this.request('DELETE', `/api/traders/${traderName}/jobs/${jobId}`);
   }
 
   /**
    * Starts a job now.
-   * @param deskName The desk.
+   * @param traderName The trader.
    * @param jobId The job.
    * @returns A confirmation.
    */
-  runJob(deskName: string, jobId: string): Promise<{ started: string }> {
-    return this.request('POST', `/api/desks/${deskName}/jobs/${jobId}/run`);
+  runJob(traderName: string, jobId: string): Promise<{ started: string }> {
+    return this.request('POST', `/api/traders/${traderName}/jobs/${jobId}/run`);
   }
 
   /**
-   * One desk's price alerts.
-   * @param deskName The desk.
+   * One trader's price alerts.
+   * @param traderName The trader.
    * @returns The alerts.
    */
-  alerts(deskName: string): Promise<{ alerts: PriceAlert[] }> {
-    return this.request('GET', `/api/desks/${deskName}/alerts`);
+  alerts(traderName: string): Promise<{ alerts: PriceAlert[] }> {
+    return this.request('GET', `/api/traders/${traderName}/alerts`);
   }
 
   /**
    * Removes a price alert.
-   * @param deskName The desk.
+   * @param traderName The trader.
    * @param alertId The alert.
    * @returns The removed alert's description.
    */
-  deleteAlert(deskName: string, alertId: string): Promise<{ deleted: string }> {
-    return this.request('DELETE', `/api/desks/${deskName}/alerts/${alertId}`);
+  deleteAlert(traderName: string, alertId: string): Promise<{ deleted: string }> {
+    return this.request('DELETE', `/api/traders/${traderName}/alerts/${alertId}`);
   }
 
   /**
-   * One desk's skills.
-   * @param deskName The desk.
+   * One trader's skills.
+   * @param traderName The trader.
    * @returns The usable and hidden skills.
    */
-  skills(deskName: string): Promise<{ available: SkillEntry[]; hidden: HiddenSkillEntry[] }> {
-    return this.request('GET', `/api/desks/${deskName}/skills`);
+  skills(traderName: string): Promise<{ available: SkillEntry[]; hidden: HiddenSkillEntry[] }> {
+    return this.request('GET', `/api/traders/${traderName}/skills`);
   }
 
   /**
@@ -544,27 +544,27 @@ export class ApiClient {
   }
 
   /**
-   * One desk's checkpoints.
-   * @param deskName The desk.
+   * One trader's checkpoints.
+   * @param traderName The trader.
    * @returns The checkpoints, newest first.
    */
-  checkpoints(deskName: string): Promise<{ checkpoints: CheckpointEntry[] }> {
-    return this.request('GET', `/api/desks/${deskName}/checkpoints`);
+  checkpoints(traderName: string): Promise<{ checkpoints: CheckpointEntry[] }> {
+    return this.request('GET', `/api/traders/${traderName}/checkpoints`);
   }
 
   /**
-   * Restores a desk's files from a checkpoint.
-   * @param deskName The desk.
+   * Restores a trader's files from a checkpoint.
+   * @param traderName The trader.
    * @param checkpointId The checkpoint.
    * @returns The restored checkpoint and the one that undoes the restore.
    */
-  restoreCheckpoint(deskName: string, checkpointId: string): Promise<{ restored: string; undo_checkpoint_id: string }> {
-    return this.request('POST', `/api/desks/${deskName}/checkpoints/${checkpointId}/restore`);
+  restoreCheckpoint(traderName: string, checkpointId: string): Promise<{ restored: string; undo_checkpoint_id: string }> {
+    return this.request('POST', `/api/traders/${traderName}/checkpoints/${checkpointId}/restore`);
   }
 
   /**
    * Today's model usage.
-   * @returns Usage per desk and backend, and rate-limit reports.
+   * @returns Usage per trader and backend, and rate-limit reports.
    */
   usage(): Promise<UsageDocument> {
     return this.request('GET', '/api/usage');

@@ -1,6 +1,6 @@
 """Records each use of a skill, and whether the turn that used it went smoothly.
 
-The tracker listens to the event bus, like the journal. A `load_skill` call opens a use; every failed tool call after it in the same turn counts against it; when the desk's turn finishes, the use is written as one JSON line to `workspace/desks/<desk>/skills/usage.jsonl`. A turn that ends in an error marks the use as failed.
+The tracker listens to the event bus, like the journal. A `load_skill` call opens a use; every failed tool call after it in the same turn counts against it; when the trader's turn finishes, the use is written as one JSON line to `workspace/traders/<trader>/skills/usage.jsonl`. A turn that ends in an error marks the use as failed.
 
 "Went smoothly" is a rough signal, not a verdict: a tool can fail for reasons the skill did not cause. The curator reads these numbers as hints about which skills to review.
 
@@ -70,12 +70,12 @@ class SkillUsageTracker:
 
         Args:
             event_bus (event_bus_module.EventBus): The bus to listen to.
-            layout (workspace_layout.WorkspaceLayout): Where each desk's usage file goes.
+            layout (workspace_layout.WorkspaceLayout): Where each trader's usage file goes.
         """
         self._layout = layout
         self._subscription = event_bus.subscribe(maximum_queued=_QUEUE_SIZE)
         self._open_uses: dict[str, list[_OpenUse]] = {}
-        self._failed_desks = set()
+        self._failed_traders = set()
 
     async def run(self) -> None:
         """Handles events until the task is cancelled."""
@@ -92,15 +92,15 @@ class SkillUsageTracker:
         Args:
             published_event (event_module.Event): The event.
         """
-        desk = published_event.desk
-        if desk is None:
+        trader = published_event.trader
+        if trader is None:
             return
         kind = published_event.kind
         payload = published_event.payload
         if kind == event_module.EventKind.TOOL_CALL:
             if payload.get('name') == _LOAD_SKILL_TOOL_NAME:
                 arguments = payload.get('arguments') or {}
-                self._open_uses.setdefault(desk, []).append(
+                self._open_uses.setdefault(trader, []).append(
                     _OpenUse(
                         skill=str(arguments.get('name', '')),
                         call_id=str(payload.get('call_id', '')),
@@ -108,23 +108,23 @@ class SkillUsageTracker:
                     )
                 )
         elif kind == event_module.EventKind.TOOL_RESULT:
-            self._count_result(desk, payload)
+            self._count_result(trader, payload)
         elif kind == event_module.EventKind.ERROR:
-            if self._open_uses.get(desk):
-                self._failed_desks.add(desk)
+            if self._open_uses.get(trader):
+                self._failed_traders.add(trader)
         elif kind == event_module.EventKind.TURN_FINISHED:
-            self._finish(desk)
+            self._finish(trader)
 
-    def _count_result(self, desk: str, payload: dict) -> None:
+    def _count_result(self, trader: str, payload: dict) -> None:
         """Drops a use whose load failed, and counts other failed calls against open uses.
 
         Args:
-            desk (str): The desk.
+            trader (str): The trader.
             payload (dict): The tool_result event's payload.
         """
         if not payload.get('is_error'):
             return
-        open_uses = self._open_uses.get(desk, [])
+        open_uses = self._open_uses.get(trader, [])
         call_id = payload.get('call_id')
         kept = []
         for use in open_uses:
@@ -132,25 +132,25 @@ class SkillUsageTracker:
                 continue
             kept.append(use)
         if len(kept) != len(open_uses):
-            self._open_uses[desk] = kept
+            self._open_uses[trader] = kept
             return
         for use in open_uses:
             use.tool_errors += 1
 
-    def _finish(self, desk: str) -> None:
-        """Writes the desk's open uses when its turn ends.
+    def _finish(self, trader: str) -> None:
+        """Writes the trader's open uses when its turn ends.
 
-        Turns run one at a time per desk, so every open use belongs to the turn that just ended, or to a rollover or compression turn inside it.
+        Turns run one at a time per trader, so every open use belongs to the turn that just ended, or to a rollover or compression turn inside it.
 
         Args:
-            desk (str): The desk.
+            trader (str): The trader.
         """
-        open_uses = self._open_uses.pop(desk, [])
-        turn_failed = desk in self._failed_desks
-        self._failed_desks.discard(desk)
+        open_uses = self._open_uses.pop(trader, [])
+        turn_failed = trader in self._failed_traders
+        self._failed_traders.discard(trader)
         if not open_uses:
             return
-        path = self._layout.skill_usage_file(desk)
+        path = self._layout.skill_usage_file(trader)
         now = datetime.datetime.now(datetime.UTC).isoformat()
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -169,13 +169,13 @@ class SkillUsageTracker:
 
 
 class SkillUsageReader:
-    """Summarises one desk's usage file."""
+    """Summarises one trader's usage file."""
 
     def __init__(self, usage_file: Path):
         """Creates the reader.
 
         Args:
-            usage_file (Path): The desk's usage.jsonl.
+            usage_file (Path): The trader's usage.jsonl.
         """
         self._usage_file = usage_file
 

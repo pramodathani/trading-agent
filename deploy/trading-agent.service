@@ -1,5 +1,5 @@
 [Unit]
-Description=trading-agent, an always-on multi-desk AI trading agent
+Description=trading-agent, an always-on multi-trader AI trading agent
 Wants=network-online.target
 After=network-online.target
 

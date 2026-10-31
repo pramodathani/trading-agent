@@ -85,5 +85,5 @@ class TestEventBus:
         dictionary = _text_event('hello').to_json_dictionary()
 
         assert dictionary['kind'] == 'text'
-        assert dictionary['desk'] == 'main'
+        assert dictionary['trader'] == 'main'
         assert dictionary['created_at'].endswith('+00:00')

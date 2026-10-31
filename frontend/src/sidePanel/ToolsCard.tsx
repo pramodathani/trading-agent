@@ -8,7 +8,7 @@ interface ToolsCardProperties {
 }
 
 /**
- * The desk's own tools and the MCP servers it can reach, each list folded until opened.
+ * The trader's own tools and the MCP servers it can reach, each list folded until opened.
  * @param properties The tool names and the MCP servers.
  * @returns The card.
  */
@@ -22,7 +22,7 @@ export function ToolsCard(properties: ToolsCardProperties) {
     <SideCard cardId="tools" title="Tools" aside={properties.tools.length + serverTools}>
       <details className="side-fold">
         <summary>
-          <span>Desk tools</span>
+          <span>Trader tools</span>
           <span className="side-row-value">{properties.tools.length}</span>
         </summary>
         <ul className="side-list mono">

@@ -1,6 +1,6 @@
 """Keeps the gateway's event stream open, reconnecting after a drop, as the web page's eventSocket.ts does.
 
-Each event is a JSON object with kind, desk, payload and created_at. The stream never replays old events, so a client reads today's history from the journal routes.
+Each event is a JSON object with kind, trader, payload and created_at. The stream never replays old events, so a client reads today's history from the journal routes.
 
 Typical usage example:
 

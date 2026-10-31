@@ -14,7 +14,7 @@ from trading_agent.terminal.screens import page_catalogue
 
 
 class PageCommands(command.Provider):
-    """Offers every page, and switching desk, model and theme, in the command palette."""
+    """Offers every page, and switching trader, model and theme, in the command palette."""
 
     async def search(self, query: str) -> command.Hits:
         """Finds the pages and actions that match the typed text.
@@ -78,16 +78,16 @@ class PageCommands(command.Provider):
         if chat is not None:
             actions.append(
                 (
-                    'Switch desk',
-                    chat.action_pick_desk,
-                    'show another desk in the chat',
+                    'Switch trader',
+                    chat.action_pick_trader,
+                    'show another trader in the chat',
                 )
             )
             actions.append(
                 (
                     'Choose model',
                     chat.action_pick_model,
-                    'the model the desk tries first',
+                    'the model the trader tries first',
                 )
             )
         return actions

@@ -1,14 +1,14 @@
-"""Routes for what the desks remember: sessions, summaries, notes, the journal and session search.
+"""Routes for what the traders remember: sessions, summaries, notes, the journal and session search.
 
-  GET /api/desks/{desk}/sessions                the desk's sessions, newest first
-  GET /api/desks/{desk}/sessions/{session_id}   one session's exchanges
-  GET /api/desks/{desk}/summaries               the daily summaries
-  GET /api/desks/{desk}/notes                   the daily notes files
-  GET /api/desks/{desk}/search?keywords=...     search_sessions, as the desk sees it
-  GET /api/desks/{desk}/journal?day=...         the desk's journal for a day
-  GET /api/journal?day=...                      the gateway's own journal, for events without a desk
+  GET /api/traders/{trader}/sessions                the trader's sessions, newest first
+  GET /api/traders/{trader}/sessions/{session_id}   one session's exchanges
+  GET /api/traders/{trader}/summaries               the daily summaries
+  GET /api/traders/{trader}/notes                   the daily notes files
+  GET /api/traders/{trader}/search?keywords=...     search_sessions, as the trader sees it
+  GET /api/traders/{trader}/journal?day=...         the trader's journal for a day
+  GET /api/journal?day=...                      the gateway's own journal, for events without a trader
 
-Session ids and days are checked against a strict pattern before they become file names, so a request cannot reach outside the desk's folder.
+Session ids and days are checked against a strict pattern before they become file names, so a request cannot reach outside the trader's folder.
 
 Typical usage example:
 
@@ -43,14 +43,14 @@ class MemoryRoutes(route_group.RouteGroup):
     def __init__(
         self,
         guard: access_guard.AccessGuard,
-        parts: Mapping[str, gateway_parts.DeskParts],
+        parts: Mapping[str, gateway_parts.TraderParts],
         layout: workspace_layout.WorkspaceLayout,
     ):
         """Creates the routes.
 
         Args:
             guard (access_guard.AccessGuard): Checks the access token.
-            parts (Mapping[str, gateway_parts.DeskParts]): Each desk's stores, keyed by desk name.
+            parts (Mapping[str, gateway_parts.TraderParts]): Each trader's stores, keyed by trader name.
             layout (workspace_layout.WorkspaceLayout): Where the journals and notes are.
         """
         super().__init__(guard)
@@ -64,39 +64,45 @@ class MemoryRoutes(route_group.RouteGroup):
             router (fastapi.APIRouter): The router.
         """
         router.add_api_route(
-            '/api/desks/{desk_name}/sessions', self.sessions, methods=['GET']
+            '/api/traders/{trader_name}/sessions',
+            self.sessions,
+            methods=['GET'],
         )
         router.add_api_route(
-            '/api/desks/{desk_name}/sessions/{session_id}',
+            '/api/traders/{trader_name}/sessions/{session_id}',
             self.session,
             methods=['GET'],
         )
         router.add_api_route(
-            '/api/desks/{desk_name}/summaries', self.summaries, methods=['GET']
+            '/api/traders/{trader_name}/summaries',
+            self.summaries,
+            methods=['GET'],
         )
         router.add_api_route(
-            '/api/desks/{desk_name}/notes', self.notes, methods=['GET']
+            '/api/traders/{trader_name}/notes', self.notes, methods=['GET']
         )
         router.add_api_route(
-            '/api/desks/{desk_name}/search', self.search, methods=['GET']
+            '/api/traders/{trader_name}/search', self.search, methods=['GET']
         )
         router.add_api_route(
-            '/api/desks/{desk_name}/journal', self.desk_journal, methods=['GET']
+            '/api/traders/{trader_name}/journal',
+            self.trader_journal,
+            methods=['GET'],
         )
         router.add_api_route(
             '/api/journal', self.gateway_journal, methods=['GET']
         )
 
-    def sessions(self, desk_name: str) -> dict[str, Any]:
-        """The desk's sessions.
+    def sessions(self, trader_name: str) -> dict[str, Any]:
+        """The trader's sessions.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: The current session's id and every session with its number of exchanges.
         """
-        store = self._find(self._parts, desk_name, 'desk').sessions
+        store = self._find(self._parts, trader_name, 'trader').sessions
         state = store.load_state()
         sessions = []
         for session_id in store.session_ids():
@@ -111,11 +117,11 @@ class MemoryRoutes(route_group.RouteGroup):
             'sessions': sessions,
         }
 
-    def session(self, desk_name: str, session_id: str) -> dict[str, Any]:
+    def session(self, trader_name: str, session_id: str) -> dict[str, Any]:
         """One session's exchanges.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             session_id (str): The session, such as 2026-10-19-1.
 
         Returns:
@@ -124,7 +130,7 @@ class MemoryRoutes(route_group.RouteGroup):
         Raises:
             fastapi.HTTPException: The id is not a session id (status 400).
         """
-        store = self._find(self._parts, desk_name, 'desk').sessions
+        store = self._find(self._parts, trader_name, 'trader').sessions
         if not _SESSION_PATTERN.match(session_id):
             raise fastapi.HTTPException(
                 status_code=400, detail='Not a session id'
@@ -137,16 +143,16 @@ class MemoryRoutes(route_group.RouteGroup):
             'exchanges': exchanges,
         }
 
-    def summaries(self, desk_name: str) -> dict[str, Any]:
-        """The desk's daily summaries.
+    def summaries(self, trader_name: str) -> dict[str, Any]:
+        """The trader's daily summaries.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: The summaries, newest first.
         """
-        store = self._find(self._parts, desk_name, 'desk').sessions
+        store = self._find(self._parts, trader_name, 'trader').sessions
         summaries = []
         for summary in store.summaries():
             summaries.append(
@@ -159,17 +165,17 @@ class MemoryRoutes(route_group.RouteGroup):
             'summaries': summaries,
         }
 
-    def notes(self, desk_name: str) -> dict[str, Any]:
-        """The desk's notes files.
+    def notes(self, trader_name: str) -> dict[str, Any]:
+        """The trader's notes files.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: Each notes file's name and text, newest first.
         """
-        self._find(self._parts, desk_name, 'desk')
-        folder = self._layout.notes_directory(desk_name)
+        self._find(self._parts, trader_name, 'trader')
+        folder = self._layout.notes_directory(trader_name)
         files = []
         if folder.is_dir():
             for path in sorted(folder.glob('*.md'), reverse=True):
@@ -184,21 +190,21 @@ class MemoryRoutes(route_group.RouteGroup):
         }
 
     def search(
-        self, desk_name: str, keywords: str, limit: int = 20
+        self, trader_name: str, keywords: str, limit: int = 20
     ) -> dict[str, Any]:
-        """Searches the desk's past, as search_sessions does.
+        """Searches the trader's past, as search_sessions does.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             keywords (str): The keywords.
             limit (int): The most results.
 
         Returns:
             dict[str, Any]: The hits, best and newest first, and whether they hold every keyword.
         """
-        self._find(self._parts, desk_name, 'desk')
+        self._find(self._parts, trader_name, 'trader')
         result = session_search.SessionSearch(
-            self._layout.desk_directory(desk_name)
+            self._layout.trader_directory(trader_name)
         ).search(keywords, max(1, min(limit, 100)))
         hits = []
         for hit in result.hits:
@@ -214,17 +220,17 @@ class MemoryRoutes(route_group.RouteGroup):
             'hits': hits,
         }
 
-    def desk_journal(
+    def trader_journal(
         self,
-        desk_name: str,
+        trader_name: str,
         day: str | None = None,
         kinds: str | None = None,
         limit: int = 500,
     ) -> dict[str, Any]:
-        """A desk's journal for one day.
+        """A trader's journal for one day.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             day (str | None): The India date as YYYY-MM-DD, or None for today.
             kinds (str | None): Comma-separated event kinds to keep, or None for all.
             limit (int): The most events, the latest kept.
@@ -232,8 +238,8 @@ class MemoryRoutes(route_group.RouteGroup):
         Returns:
             dict[str, Any]: The day and its events, oldest first.
         """
-        self._find(self._parts, desk_name, 'desk')
-        folder = self._layout.desk_directory(desk_name) / 'journal'
+        self._find(self._parts, trader_name, 'trader')
+        folder = self._layout.trader_directory(trader_name) / 'journal'
         return self._journal(folder, day, kinds, limit)
 
     def gateway_journal(

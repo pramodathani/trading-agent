@@ -1,6 +1,6 @@
 # claude_code_turn_runner.py
 
-Claude Code runs its own agent loop, so Claude is a turn runner rather than a `ModelBackend`. It keeps one `ClaudeSDKClient`, and therefore one Claude Code process and session, per desk; Claude remembers earlier turns because the session continues. After a failure the client is dropped and the next turn starts a new process with `resume=<session_id>`, so the memory survives a crash of Claude Code.
+Claude Code runs its own agent loop, so Claude is a turn runner rather than a `ModelBackend`. It keeps one `ClaudeSDKClient`, and therefore one Claude Code process and session, per trader; Claude remembers earlier turns because the session continues. After a failure the client is dropped and the next turn starts a new process with `resume=<session_id>`, so the memory survives a crash of Claude Code.
 
 ## Changed workspace files reach Claude inside the message
 
@@ -25,7 +25,7 @@ A `RateLimitEvent` with status `rejected` (the 5-hour or weekly limit) raises `B
 
 ## Shutdown
 
-`close` disconnects the client. The first live run showed Claude Code outliving the gateway briefly after shutdown, so the desk now closes its runner when it stops; afterwards the process count went from 1 while serving to 0 after shutdown.
+`close` disconnects the client. The first live run showed Claude Code outliving the gateway briefly after shutdown, so the trader now closes its runner when it stops; afterwards the process count went from 1 while serving to 0 after shutdown.
 
 ## Measured on 2026-10-16
 
@@ -43,7 +43,7 @@ From milestone 8 the gateway loads tradingmachine's `.env`, which copies its set
 
 Before resuming, the runner checks that Claude Code still has the session's file (`<sessions_directory>/*/<session_id>.jsonl`; the folder name encodes the working directory, so every folder is searched). Without that check, a deleted session would make every Claude turn fail with "no conversation found", the router would put Claude into its waiting periods, and Claude would never recover because the bad id would be retried each time. With the check, a missing session simply means a new one, and the router's hand-over fills it in.
 
-`sessions_directory` is `$CLAUDE_CONFIG_DIR/projects`, or `~/.claude/projects` when that variable is not set (`desk_builder.py`).
+`sessions_directory` is `$CLAUDE_CONFIG_DIR/projects`, or `~/.claude/projects` when that variable is not set (`trader_builder.py`).
 
 ## Compaction (milestone 12)
 
@@ -71,7 +71,7 @@ Claude Code limits how long one MCP tool call may take, and its default is not d
 
 ## Steering and /stop (milestone 18)
 
-The PostToolUse hook list holds the steering hook when the desk has an inbox. A cancelled turn disconnects Claude Code, which stops its process; the next turn starts a new process and resumes the saved session, as after any failure.
+The PostToolUse hook list holds the steering hook when the trader has an inbox. A cancelled turn disconnects Claude Code, which stops its process; the next turn starts a new process and resumes the saved session, as after any failure.
 
 ## Pictures, since 2026-10-17
 
@@ -79,7 +79,7 @@ The PostToolUse hook list holds the steering hook when the desk has an inbox. A 
 
 `_one_message` is an async generator because `query` iterates its argument with `async for`. It yields no `session_id`; `query` fills it in.
 
-Checked on 2026-10-17: the main desk (opus) described a test picture exactly, and a picture dropped on the chat page ("9035" on green) came back correctly.
+Checked on 2026-10-17: the main trader (opus) described a test picture exactly, and a picture dropped on the chat page ("9035" on green) came back correctly.
 
 ## /think, since 2026-10-18
 
@@ -91,10 +91,10 @@ Claude Code reads `effort` and `thinking` only when its process starts; the SDK 
 
 ## Side questions, since 2026-10-18
 
-The desk's long-lived Claude Code client would add a side question to the session, so `side_question` uses the SDK's standalone `query()` instead, with `resume=<session id>` and `fork_session=True`. Claude Code then copies the session into a new one, answers there, and leaves the desk's session file untouched. This runs in a second, short-lived Claude Code process, so it can run while the desk's own turn is in progress.
+The trader's long-lived Claude Code client would add a side question to the session, so `side_question` uses the SDK's standalone `query()` instead, with `resume=<session id>` and `fork_session=True`. Claude Code then copies the session into a new one, answers there, and leaves the trader's session file untouched. This runs in a second, short-lived Claude Code process, so it can run while the trader's own turn is in progress.
 
-The fork keeps the desk's MCP server, because Claude's API refuses a conversation that holds tool calls when no tools are defined. Every call is refused instead, by `ClaudeToolAllowlistHook` with an empty allowlist, and the prompt asks for no tools. `max_turns` is 3, so a model that tries a tool anyway still has room to answer after the refusal.
+The fork keeps the trader's MCP server, because Claude's API refuses a conversation that holds tool calls when no tools are defined. Every call is refused instead, by `ClaudeToolAllowlistHook` with an empty allowlist, and the prompt asks for no tools. `max_turns` is 3, so a model that tries a tool anyway still has room to answer after the refusal.
 
-The fork's session file is deleted afterwards (`_delete_fork`), so session search and `/resume` never find it. A fork id equal to the desk's session id is never deleted, as a guard.
+The fork's session file is deleted afterwards (`_delete_fork`), so session search and `/resume` never find it. A fork id equal to the trader's session id is never deleted, as a guard.
 
 The fork's cost is not recorded by the usage tracker; it counts against the Max subscription like any Claude Code call.

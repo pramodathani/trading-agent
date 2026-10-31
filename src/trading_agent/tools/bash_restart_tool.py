@@ -1,4 +1,4 @@
-"""The bash_restart tool: gives the desk a fresh terminal.
+"""The bash_restart tool: gives the trader a fresh terminal.
 
 Typical usage example:
 
@@ -10,7 +10,7 @@ from trading_agent.tools import tool
 
 
 class BashRestartTool(bash_tool.BashTool):
-    """Restarts the desk's terminal."""
+    """Restarts the trader's terminal."""
 
     name = 'bash_restart'
     description = 'Restarts your terminal, which resets the current folder and variables and stops background jobs. Use it when the terminal is stuck or in a confusing state.'

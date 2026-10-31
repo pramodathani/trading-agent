@@ -9,19 +9,19 @@ import { SideCard } from './SideCard';
 
 /** What the outputs card shows. */
 interface OutputsCardProperties {
-  deskName: string;
+  traderName: string;
   events: AgentEvent[];
 }
 
-/** One file the desk sent, with when it sent it. */
+/** One file the trader sent, with when it sent it. */
 interface Output {
   attachment: Attachment;
   sentAt: string;
 }
 
 /**
- * The pictures and documents the desk sent today, newest first; each opens in a new tab.
- * @param properties The desk and today's events.
+ * The pictures and documents the trader sent today, newest first; each opens in a new tab.
+ * @param properties The trader and today's events.
  * @returns The card.
  */
 export function OutputsCard(properties: OutputsCardProperties) {
@@ -40,10 +40,10 @@ export function OutputsCard(properties: OutputsCardProperties) {
   outputs.reverse();
   return (
     <SideCard cardId="outputs" title="Outputs" aside={outputs.length}>
-      {outputs.length === 0 && <p className="side-empty">Pictures and documents the desk sends appear here.</p>}
+      {outputs.length === 0 && <p className="side-empty">Pictures and documents the trader sends appear here.</p>}
       <ul className="output-list">
         {outputs.map((output) => (
-          <OutputRow key={output.attachment.attachment_id} deskName={properties.deskName} output={output} />
+          <OutputRow key={output.attachment.attachment_id} traderName={properties.traderName} output={output} />
         ))}
       </ul>
     </SideCard>
@@ -52,10 +52,10 @@ export function OutputsCard(properties: OutputsCardProperties) {
 
 /**
  * One file: an icon, its name and the time it was sent.
- * @param properties The desk and the file.
+ * @param properties The trader and the file.
  * @returns The row.
  */
-function OutputRow(properties: { deskName: string; output: Output }) {
+function OutputRow(properties: { traderName: string; output: Output }) {
   const attachment = properties.output.attachment;
   const [error, setError] = useState<string | null>(null);
 
@@ -64,7 +64,7 @@ function OutputRow(properties: { deskName: string; output: Output }) {
     setError(null);
     if (platform.isApp()) {
       try {
-        const blob = await apiClient.attachmentFile(properties.deskName, attachment.attachment_id);
+        const blob = await apiClient.attachmentFile(properties.traderName, attachment.attachment_id);
         await appFiles.open(blob, attachment.file_name);
       } catch (failure) {
         setError(failure instanceof Error ? failure.message : String(failure));
@@ -73,7 +73,7 @@ function OutputRow(properties: { deskName: string; output: Output }) {
     }
     const opened = window.open('', '_blank');
     try {
-      const blob = await apiClient.attachmentFile(properties.deskName, attachment.attachment_id);
+      const blob = await apiClient.attachmentFile(properties.traderName, attachment.attachment_id);
       const address = URL.createObjectURL(blob);
       if (opened !== null) {
         opened.location.href = address;

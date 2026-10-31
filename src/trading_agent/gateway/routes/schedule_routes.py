@@ -1,11 +1,11 @@
-"""Routes for each desk's scheduled jobs and price alerts.
+"""Routes for each trader's scheduled jobs and price alerts.
 
-  GET    /api/desks/{desk}/jobs              the jobs, built-in ones included, with their next runs, and the recent runs
-  POST   /api/desks/{desk}/jobs              create a job, as cron_create does
-  DELETE /api/desks/{desk}/jobs/{job_id}     delete a job; the built-in ones cannot be deleted here
-  POST   /api/desks/{desk}/jobs/{job_id}/run start a job now
-  GET    /api/desks/{desk}/alerts            the desk's price alerts
-  DELETE /api/desks/{desk}/alerts/{alert_id} remove an alert
+  GET    /api/traders/{trader}/jobs              the jobs, built-in ones included, with their next runs, and the recent runs
+  POST   /api/traders/{trader}/jobs              create a job, as cron_create does
+  DELETE /api/traders/{trader}/jobs/{job_id}     delete a job; the built-in ones cannot be deleted here
+  POST   /api/traders/{trader}/jobs/{job_id}/run start a job now
+  GET    /api/traders/{trader}/alerts            the trader's price alerts
+  DELETE /api/traders/{trader}/alerts/{alert_id} remove an alert
 
 Typical usage example:
 
@@ -37,7 +37,7 @@ class JobRequest(pydantic.BaseModel):
         run_at: The ISO 8601 time of a one-off job, or None.
         instructions: For an agent job, the message or the subagent's task.
         command: For a command job instead, the shell command.
-        target: "desk" or "subagent:<name>".
+        target: "trader" or "subagent:<name>".
         trading_days_only: Whether to skip weekends and exchange holidays.
         market_hours_only: Whether to run only while NSE equities trade.
         deliver_url: An address to POST the result to, or None.
@@ -48,7 +48,7 @@ class JobRequest(pydantic.BaseModel):
     run_at: str | None = None
     instructions: str | None = None
     command: str | None = None
-    target: str = cron_job.DESK_TARGET
+    target: str = cron_job.TRADER_TARGET
     trading_days_only: bool = True
     market_hours_only: bool = False
     deliver_url: str | None = None
@@ -60,14 +60,14 @@ class ScheduleRoutes(route_group.RouteGroup):
     def __init__(
         self,
         guard: access_guard.AccessGuard,
-        parts: Mapping[str, gateway_parts.DeskParts],
+        parts: Mapping[str, gateway_parts.TraderParts],
         scheduler: cron_scheduler_module.CronScheduler,
     ):
         """Creates the routes.
 
         Args:
             guard (access_guard.AccessGuard): Checks the access token.
-            parts (Mapping[str, gateway_parts.DeskParts]): Each desk's stores.
+            parts (Mapping[str, gateway_parts.TraderParts]): Each trader's stores.
             scheduler (cron_scheduler_module.CronScheduler): Works out next runs and starts jobs now.
         """
         super().__init__(guard)
@@ -81,43 +81,45 @@ class ScheduleRoutes(route_group.RouteGroup):
             router (fastapi.APIRouter): The router.
         """
         router.add_api_route(
-            '/api/desks/{desk_name}/jobs', self.list_jobs, methods=['GET']
+            '/api/traders/{trader_name}/jobs', self.list_jobs, methods=['GET']
         )
         router.add_api_route(
-            '/api/desks/{desk_name}/jobs',
+            '/api/traders/{trader_name}/jobs',
             self.create_job,
             methods=['POST'],
             status_code=201,
         )
         router.add_api_route(
-            '/api/desks/{desk_name}/jobs/{job_id}',
+            '/api/traders/{trader_name}/jobs/{job_id}',
             self.delete_job,
             methods=['DELETE'],
         )
         router.add_api_route(
-            '/api/desks/{desk_name}/jobs/{job_id}/run',
+            '/api/traders/{trader_name}/jobs/{job_id}/run',
             self.run_job,
             methods=['POST'],
         )
         router.add_api_route(
-            '/api/desks/{desk_name}/alerts', self.list_alerts, methods=['GET']
+            '/api/traders/{trader_name}/alerts',
+            self.list_alerts,
+            methods=['GET'],
         )
         router.add_api_route(
-            '/api/desks/{desk_name}/alerts/{alert_id}',
+            '/api/traders/{trader_name}/alerts/{alert_id}',
             self.delete_alert,
             methods=['DELETE'],
         )
 
-    def list_jobs(self, desk_name: str) -> dict[str, Any]:
-        """The desk's jobs and recent runs.
+    def list_jobs(self, trader_name: str) -> dict[str, Any]:
+        """The trader's jobs and recent runs.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: Each job with its description, next three runs and last run, and the latest runs.
         """
-        parts = self._find(self._parts, desk_name, 'desk')
+        parts = self._find(self._parts, trader_name, 'trader')
         jobs = []
         for job in [*parts.built_in_jobs, *parts.jobs.jobs()]:
             entry = dataclasses.asdict(job)
@@ -134,11 +136,13 @@ class ScheduleRoutes(route_group.RouteGroup):
             'recent_runs': parts.jobs.recent_runs(_RECENT_RUNS),
         }
 
-    def create_job(self, desk_name: str, request: JobRequest) -> dict[str, Any]:
+    def create_job(
+        self, trader_name: str, request: JobRequest
+    ) -> dict[str, Any]:
         """Creates a job.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             request (JobRequest): The job.
 
         Returns:
@@ -147,7 +151,7 @@ class ScheduleRoutes(route_group.RouteGroup):
         Raises:
             fastapi.HTTPException: The job is not valid (status 400).
         """
-        parts = self._find(self._parts, desk_name, 'desk')
+        parts = self._find(self._parts, trader_name, 'trader')
         if (request.instructions is None) == (request.command is None):
             raise fastapi.HTTPException(
                 status_code=400, detail='Give instructions or command, not both'
@@ -178,11 +182,11 @@ class ScheduleRoutes(route_group.RouteGroup):
         ]
         return entry
 
-    def delete_job(self, desk_name: str, job_id: str) -> dict[str, Any]:
+    def delete_job(self, trader_name: str, job_id: str) -> dict[str, Any]:
         """Deletes a job.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             job_id (str): The job.
 
         Returns:
@@ -191,7 +195,7 @@ class ScheduleRoutes(route_group.RouteGroup):
         Raises:
             fastapi.HTTPException: The job is built in (status 400) or unknown (status 404).
         """
-        parts = self._find(self._parts, desk_name, 'desk')
+        parts = self._find(self._parts, trader_name, 'trader')
         for job in parts.built_in_jobs:
             if job.job_id == job_id:
                 raise fastapi.HTTPException(
@@ -208,21 +212,21 @@ class ScheduleRoutes(route_group.RouteGroup):
             'deleted': removed.describe(),
         }
 
-    async def run_job(self, desk_name: str, job_id: str) -> dict[str, Any]:
+    async def run_job(self, trader_name: str, job_id: str) -> dict[str, Any]:
         """Starts a job now.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             job_id (str): The job.
 
         Returns:
             dict[str, Any]: A confirmation; results arrive as events.
 
         Raises:
-            fastapi.HTTPException: The desk or job is unknown (status 404).
+            fastapi.HTTPException: The trader or job is unknown (status 404).
         """
-        self._find(self._parts, desk_name, 'desk')
-        if not await self._scheduler.run_now(desk_name, job_id):
+        self._find(self._parts, trader_name, 'trader')
+        if not await self._scheduler.run_now(trader_name, job_id):
             raise fastapi.HTTPException(
                 status_code=404, detail=f'No job {job_id!r}'
             )
@@ -230,16 +234,16 @@ class ScheduleRoutes(route_group.RouteGroup):
             'started': job_id,
         }
 
-    def list_alerts(self, desk_name: str) -> dict[str, Any]:
-        """The desk's price alerts.
+    def list_alerts(self, trader_name: str) -> dict[str, Any]:
+        """The trader's price alerts.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: The alerts, oldest first.
         """
-        parts = self._find(self._parts, desk_name, 'desk')
+        parts = self._find(self._parts, trader_name, 'trader')
         alerts = []
         for alert in parts.alerts.alerts():
             entry = dataclasses.asdict(alert)
@@ -249,11 +253,11 @@ class ScheduleRoutes(route_group.RouteGroup):
             'alerts': alerts,
         }
 
-    def delete_alert(self, desk_name: str, alert_id: str) -> dict[str, Any]:
+    def delete_alert(self, trader_name: str, alert_id: str) -> dict[str, Any]:
         """Removes a price alert.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             alert_id (str): The alert.
 
         Returns:
@@ -262,7 +266,7 @@ class ScheduleRoutes(route_group.RouteGroup):
         Raises:
             fastapi.HTTPException: The alert is unknown (status 404).
         """
-        parts = self._find(self._parts, desk_name, 'desk')
+        parts = self._find(self._parts, trader_name, 'trader')
         removed = parts.alerts.remove(alert_id)
         if removed is None:
             raise fastapi.HTTPException(

@@ -19,18 +19,18 @@ class PairingCommands:
     def __init__(
         self,
         store: pairing_store_module.PairingStore,
-        default_desk: str,
+        default_trader: str,
         output: TextIO = sys.stdout,
     ):
         """Creates the commands.
 
         Args:
             store (pairing_store_module.PairingStore): The pairing file.
-            default_desk (str): The desk a newly paired chat talks to.
+            default_trader (str): The trader a newly paired chat talks to.
             output (TextIO): Where to print.
         """
         self._store = store
-        self._default_desk = default_desk
+        self._default_trader = default_trader
         self._output = output
 
     def list(self) -> int:
@@ -44,7 +44,7 @@ class PairingCommands:
             self._print('No chat is paired.')
         for chat in chats:
             self._print(
-                f'paired: {chat.name or "(no name)"}, chat {chat.chat_id}, desk {chat.desk}, since {chat.paired_at}'
+                f'paired: {chat.name or "(no name)"}, chat {chat.chat_id}, trader {chat.trader}, since {chat.paired_at}'
             )
         for pending in self._store.pending():
             self._print(
@@ -62,12 +62,12 @@ class PairingCommands:
             int: 0 when paired, 1 when no valid code matches.
         """
         try:
-            chat = self._store.approve(code, self._default_desk)
+            chat = self._store.approve(code, self._default_trader)
         except pairing_store_module.PairingError as error:
             self._print(str(error))
             return 1
         self._print(
-            f'Paired {chat.name or "the chat"} (chat {chat.chat_id}); it talks to {chat.desk}. Send the bot any message to start.'
+            f'Paired {chat.name or "the chat"} (chat {chat.chat_id}); it talks to {chat.trader}. Send the bot any message to start.'
         )
         return 0
 

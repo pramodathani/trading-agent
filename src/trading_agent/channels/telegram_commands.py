@@ -1,10 +1,10 @@
 """The Telegram commands answered by code, with no model.
 
-These work even when every model is unavailable or a desk is paused, which is exactly when the user most needs them: what is happening, what is open, how much is made or lost, stop a desk, or stop everything. Any other message, including the desks' own slash commands such as /usage or /stop, goes to the chat's desk.
+These work even when every model is unavailable or a trader is paused, which is exactly when the user most needs them: what is happening, what is open, how much is made or lost, stop a trader, or stop everything. Any other message, including the traders' own slash commands such as /usage or /stop, goes to the chat's trader.
 
 Typical usage example:
 
-  commands = TelegramCommands(desks, shared, pairing, 'dry_run')
+  commands = TelegramCommands(traders, shared, pairing, 'dry_run')
   if commands.handles('/pnl'):
       reply = await commands.answer(chat, '/pnl')
 """
@@ -20,15 +20,15 @@ from trading_agent.gateway import gateway_parts
 from trading_agent.requests import user_request as user_request_module
 from trading_agent.requests import user_request_responder
 from trading_agent.requests import user_request_store
-from trading_agent.runtime import desk_runtime
+from trading_agent.runtime import trader_runtime
 
 _INDIA = zoneinfo.ZoneInfo('Asia/Kolkata')
 _KILL_CONFIRMATION = 'CONFIRM'
-_ALL_DESKS = 'all'
+_ALL_TRADERS = 'all'
 _COMMANDS = (
     '/start',
     '/help',
-    '/desk',
+    '/trader',
     '/status',
     '/positions',
     '/pnl',
@@ -42,23 +42,23 @@ _ALWAYS = 'always'
 _MENU = (
     (
         'status',
-        'Every desk, and the account',
+        'Every trader, and the account',
     ),
     (
         'positions',
-        'Open positions and which desk owns each',
+        'Open positions and which trader owns each',
     ),
     (
         'pnl',
-        "Today's and this week's profit or loss, by desk",
+        "Today's and this week's profit or loss, by trader",
     ),
     (
-        'desk',
-        'Talk to another desk: /desk <name>',
+        'trader',
+        'Talk to another trader: /trader <name>',
     ),
     (
         'stop',
-        "Stop the desk's running turn",
+        "Stop the trader's running turn",
     ),
     (
         'usage',
@@ -66,7 +66,7 @@ _MENU = (
     ),
     (
         'btw',
-        "Ask a side question, not kept in the desk's conversation",
+        "Ask a side question, not kept in the trader's conversation",
     ),
     (
         'review',
@@ -74,19 +74,19 @@ _MENU = (
     ),
     (
         'context',
-        "How full the desk's context window is",
+        "How full the trader's context window is",
     ),
     (
         'tools',
-        'The tools the desk can call',
+        'The tools the trader can call',
     ),
     (
         'skills',
-        'The skills the desk can follow',
+        'The skills the trader can follow',
     ),
     (
         'subagents',
-        "The desk's subagents and today's runs",
+        "The trader's subagents and today's runs",
     ),
     (
         'model',
@@ -98,19 +98,19 @@ _MENU = (
     ),
     (
         'compact',
-        "Compress the desk's conversation",
+        "Compress the trader's conversation",
     ),
     (
         'new',
-        'Start a fresh conversation with the desk',
+        'Start a fresh conversation with the trader',
     ),
     (
         'pause',
-        'Stop a desk asking its models: /pause [desk|all]',
+        'Stop a trader asking its models: /pause [trader|all]',
     ),
     (
         'resume',
-        'Start it again: /resume [desk|all]',
+        'Start it again: /resume [trader|all]',
     ),
     (
         'approve',
@@ -122,7 +122,7 @@ _MENU = (
     ),
     (
         'kill',
-        'Halt every desk and flatten: /kill CONFIRM <reason>',
+        'Halt every trader and flatten: /kill CONFIRM <reason>',
     ),
     (
         'help',
@@ -136,7 +136,7 @@ class TelegramCommands:
 
     def __init__(
         self,
-        desks: Mapping[str, desk_runtime.DeskRuntime],
+        traders: Mapping[str, trader_runtime.TraderRuntime],
         shared: gateway_parts.SharedParts,
         pairing: pairing_store_module.PairingStore,
         mode: str,
@@ -147,15 +147,15 @@ class TelegramCommands:
         """Creates the commands.
 
         Args:
-            desks (Mapping[str, desk_runtime.DeskRuntime]): The running desks.
+            traders (Mapping[str, trader_runtime.TraderRuntime]): The running traders.
             shared (gateway_parts.SharedParts): The snapshot reader, risk engine, ledger and kill switch.
-            pairing (pairing_store_module.PairingStore): Where each chat's desk is kept.
+            pairing (pairing_store_module.PairingStore): Where each chat's trader is kept.
             mode (str): "dry_run" or "live".
             clock (Callable[[], datetime.datetime] | None): Returns the current India time; None uses the system clock.
-            request_store (user_request_store.UserRequestStore | None): The desks' requests, searched by /approve and /deny, or None.
+            request_store (user_request_store.UserRequestStore | None): The traders' requests, searched by /approve and /deny, or None.
             responder (user_request_responder.UserRequestResponder | None): Decides permission requests for /approve and /deny, or None.
         """
-        self._desks = desks
+        self._traders = traders
         self._shared = shared
         self._pairing = pairing
         self._mode = mode
@@ -170,7 +170,7 @@ class TelegramCommands:
             text (str): The message.
 
         Returns:
-            bool: True for /start, /help, /desk, /status, /positions, /pnl, /pause, /resume, /kill, /approve and /deny.
+            bool: True for /start, /help, /trader, /status, /positions, /pnl, /pause, /resume, /kill, /approve and /deny.
         """
         return self._command_name(text) in _COMMANDS
 
@@ -196,8 +196,8 @@ class TelegramCommands:
         """
         name = self._command_name(text)
         argument = text.strip()[len(text.strip().split()[0]) :].strip()
-        if name == '/desk':
-            return self._desk(chat, argument)
+        if name == '/trader':
+            return self._trader(chat, argument)
         if name == '/status':
             return await self._status(chat)
         if name == '/positions':
@@ -217,7 +217,7 @@ class TelegramCommands:
         return self._help(chat)
 
     async def _decide(self, argument: str, allow: bool) -> str:
-        """Allows or refuses an action a desk is holding for permission.
+        """Allows or refuses an action a trader is holding for permission.
 
         The request id may be left out when only one permission request is waiting, and may be shortened to its last six characters.
 
@@ -262,10 +262,10 @@ class TelegramCommands:
             return f'Could not decide request {request.request_id}: {error}'
         tool_name = request.content.get('tool_name')
         if decision == 'deny':
-            return f'Denied {tool_name} for the {request.desk} desk. The desk is told.'
+            return f'Denied {tool_name} for the {request.trader} trader. The trader is told.'
         if decision == 'always_allow':
-            return f'Allowed {tool_name} for the {request.desk} desk, now and from now on until you revoke it on Settings. The desk is told the result.'
-        return f'Allowed {tool_name} for the {request.desk} desk, this once. The desk is told the result.'
+            return f'Allowed {tool_name} for the {request.trader} trader, now and from now on until you revoke it on Settings. The trader is told the result.'
+        return f'Allowed {tool_name} for the {request.trader} trader, this once. The trader is told the result.'
 
     def _matching_request(
         self,
@@ -305,7 +305,7 @@ class TelegramCommands:
         for request in waiting:
             short_id = request.request_id.rsplit('-', 1)[-1]
             lines.append(
-                f'{short_id} - {request.desk}: {request.content.get("tool_name")}'
+                f'{short_id} - {request.trader}: {request.content.get("tool_name")}'
             )
         return '\n'.join(lines)
 
@@ -334,56 +334,56 @@ class TelegramCommands:
         """
         return '\n'.join(
             [
-                f'You are talking to the {chat.desk} desk. Anything that is not one of these commands goes to it.',
+                f'You are talking to the {chat.trader} trader. Anything that is not one of these commands goes to it.',
                 '',
-                '/status - every desk, and the account',
-                '/positions - open positions and which desk owns each',
-                "/pnl - today's and this week's profit or loss, by desk",
-                '/desk <name> - talk to another desk',
-                '/pause [desk|all] - stop a desk asking its models',
-                '/resume [desk|all] - start it again',
-                '/kill CONFIRM <reason> - halt every desk until tomorrow and flatten the account',
-                '/approve [id] [always] - allow an action a desk is holding for your permission',
+                '/status - every trader, and the account',
+                '/positions - open positions and which trader owns each',
+                "/pnl - today's and this week's profit or loss, by trader",
+                '/trader <name> - talk to another trader',
+                '/pause [trader|all] - stop a trader asking its models',
+                '/resume [trader|all] - start it again',
+                '/kill CONFIRM <reason> - halt every trader until tomorrow and flatten the account',
+                '/approve [id] [always] - allow an action a trader is holding for your permission',
                 '/deny [id] [reason] - refuse it',
                 '',
-                'These go to your desk:',
-                "/stop - stop the desk's running turn",
-                "/btw <question> - a side question, answered beside the desk's work and not kept",
+                'These go to your trader:',
+                "/stop - stop the trader's running turn",
+                "/btw <question> - a side question, answered beside the trader's work and not kept",
                 "/review [notes] - the trade reviewer judges today's orders and fills",
                 "/usage - today's model calls, tokens and costs",
-                "/context - how full the desk's context window is",
-                '/tools, /skills, /subagents - what the desk can use',
+                "/context - how full the trader's context window is",
+                '/tools, /skills, /subagents - what the trader can use',
                 '/model [name|auto] - show or change the model order',
                 '/think [off|low|medium|high|xhigh|max|default] - how hard the models think',
-                "/compact - compress the desk's conversation",
+                "/compact - compress the trader's conversation",
                 '/new - start a fresh conversation',
                 '/rollover - summarise the day and start a fresh session',
-                '/<skill-name> - ask the desk to follow one of its skills',
+                '/<skill-name> - ask the trader to follow one of its skills',
             ]
         )
 
-    def _desk(
+    def _trader(
         self, chat: pairing_store_module.PairedChat, argument: str
     ) -> str:
-        """Shows or changes the chat's desk.
+        """Shows or changes the chat's trader.
 
         Args:
             chat (pairing_store_module.PairedChat): The chat.
-            argument (str): The desk to talk to, or empty to show the current one.
+            argument (str): The trader to talk to, or empty to show the current one.
 
         Returns:
             str: The reply.
         """
-        names = ', '.join(self._desks)
+        names = ', '.join(self._traders)
         if not argument:
-            return f'You are talking to {chat.desk}. The desks are {names}.'
-        if argument not in self._desks:
-            return f'There is no desk {argument!r}. The desks are {names}.'
-        self._pairing.choose_desk(chat.chat_id, argument)
+            return f'You are talking to {chat.trader}. The traders are {names}.'
+        if argument not in self._traders:
+            return f'There is no trader {argument!r}. The traders are {names}.'
+        self._pairing.choose_trader(chat.chat_id, argument)
         return f'You are now talking to {argument}.'
 
     async def _status(self, chat: pairing_store_module.PairedChat) -> str:
-        """Describes every desk and the account.
+        """Describes every trader and the account.
 
         Args:
             chat (pairing_store_module.PairedChat): The chat.
@@ -395,13 +395,13 @@ class TelegramCommands:
         lines = [
             f'Mode: {mode}',
         ]
-        for name, desk in self._desks.items():
-            marker = ' (yours)' if name == chat.desk else ''
-            state = str(desk.state)
-            if desk.paused:
+        for name, trader in self._traders.items():
+            marker = ' (yours)' if name == chat.trader else ''
+            state = str(trader.state)
+            if trader.paused:
                 state = f'{state}, paused'
-            if desk.queued_count:
-                state = f'{state}, {desk.queued_count} waiting'
+            if trader.queued_count:
+                state = f'{state}, {trader.queued_count} waiting'
             lines.append(f'{name}{marker}: {state}')
         try:
             snapshot = await self._shared.snapshot_reader.read()
@@ -455,35 +455,35 @@ class TelegramCommands:
             f'Today: {snapshot.day_pnl:+,.2f}',
             f'This week: {week:+,.2f}',
         ]
-        desk_pnl = self._shared.risk_engine.desk_day_pnl(snapshot)
-        for name in self._desks:
-            if name in desk_pnl:
-                lines.append(f'{name}: {desk_pnl[name]:+,.2f}')
+        trader_pnl = self._shared.risk_engine.trader_day_pnl(snapshot)
+        for name in self._traders:
+            if name in trader_pnl:
+                lines.append(f'{name}: {trader_pnl[name]:+,.2f}')
         return '\n'.join(lines)
 
     def _set_paused(
         self, chat: pairing_store_module.PairedChat, argument: str, paused: bool
     ) -> str:
-        """Pauses or resumes a desk, or every desk.
+        """Pauses or resumes a trader, or every trader.
 
         Args:
             chat (pairing_store_module.PairedChat): The chat.
-            argument (str): A desk, "all", or empty for the chat's desk.
+            argument (str): A trader, "all", or empty for the chat's trader.
             paused (bool): True to pause, False to resume.
 
         Returns:
             str: The reply.
         """
         names = [
-            argument or chat.desk,
+            argument or chat.trader,
         ]
-        if argument == _ALL_DESKS:
-            names = list(self._desks)
+        if argument == _ALL_TRADERS:
+            names = list(self._traders)
         for name in names:
-            if name not in self._desks:
-                return f'There is no desk {name!r}.'
+            if name not in self._traders:
+                return f'There is no trader {name!r}.'
         for name in names:
-            self._desks[name].paused = paused
+            self._traders[name].paused = paused
         word = 'Paused' if paused else 'Resumed'
         return f'{word} {", ".join(names)}.'
 
@@ -498,7 +498,7 @@ class TelegramCommands:
         """
         words = argument.split(maxsplit=1)
         if not words or words[0] != _KILL_CONFIRMATION:
-            return 'This halts every desk until tomorrow and flattens the whole account. To do it, send: /kill CONFIRM <reason>'
+            return 'This halts every trader until tomorrow and flattens the whole account. To do it, send: /kill CONFIRM <reason>'
         reason = words[1] if len(words) > 1 else 'no reason given'
         now = self._now()
         outcome = await self._shared.kill_switch.trigger(
@@ -507,7 +507,7 @@ class TelegramCommands:
             now,
         )
         mode = ' as a dry run' if self._mode != 'live' else ''
-        return f'Kill switch fired{mode}. Every desk is halted until tomorrow.\n{outcome}'
+        return f'Kill switch fired{mode}. Every trader is halted until tomorrow.\n{outcome}'
 
     def _today(self) -> datetime.date:
         """Today in India.

@@ -1,4 +1,4 @@
-"""Tests for the desk command catalogue and GET /api/desks/{desk}/commands."""
+"""Tests for the trader command catalogue and GET /api/traders/{trader}/commands."""
 
 import asyncio
 
@@ -7,10 +7,10 @@ import fastapi.testclient
 from trading_agent.configuration import agent_configuration
 from trading_agent.gateway import access_guard
 from trading_agent.gateway import gateway_application
-from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import no_model_turn_runner
 from trading_agent.runtime import slash_commands
+from trading_agent.runtime import trader_runtime
 
 _TOKEN = 'test-token-that-is-long-enough-1234567890'
 
@@ -78,9 +78,9 @@ class TestCommandCatalogue:
         help_text = asyncio.run(commands.handle('/help'))
 
         assert help_text.startswith(
-            '/status              what the desk is doing'
+            '/status              what the trader is doing'
         )
-        assert '/<skill-name> ...    ask the desk' in help_text
+        assert '/<skill-name> ...    ask the trader' in help_text
 
 
 class TestCommandsRoute:
@@ -89,21 +89,21 @@ class TestCommandsRoute:
     def test_route_lists_commands_with_how_they_run(self) -> None:
         """The route lists the built-in commands with how each one runs."""
         event_bus = event_bus_module.EventBus()
-        desks = {
-            'general': desk_runtime.DeskRuntime(
-                agent_configuration.DeskConfiguration(name='general'),
+        traders = {
+            'general': trader_runtime.TraderRuntime(
+                agent_configuration.TraderConfiguration(name='general'),
                 event_bus,
                 no_model_turn_runner.NoModelTurnRunner(),
             ),
         }
         gateway = gateway_application.GatewayApplication(
             event_bus,
-            desks,
+            traders,
             access_guard.AccessGuard(_TOKEN),
         )
         with fastapi.testclient.TestClient(gateway.build()) as client:
             response = client.get(
-                '/api/desks/general/commands',
+                '/api/traders/general/commands',
                 headers={
                     'Authorization': f'Bearer {_TOKEN}',
                 },

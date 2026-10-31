@@ -1,4 +1,4 @@
-"""The card for a desk's questions (ask_user), as the web page's QuestionCard.tsx shows them.
+"""The card for a trader's questions (ask_user), as the web page's QuestionCard.tsx shows them.
 
 One to four questions, each with two to four options and an "Other" answer. With several questions there is one tab per question and a final tab to review and submit. A single question with a single choice is sent as soon as an option is picked.
 
@@ -24,7 +24,7 @@ from trading_agent.terminal import gateway_client
 
 
 class QuestionCard(containers.Vertical):
-    """A card for answering the desk's questions."""
+    """A card for answering the trader's questions."""
 
     can_focus = True
 
@@ -207,7 +207,7 @@ class QuestionCard(containers.Vertical):
         self._send_answers()
 
     def action_dismiss_request(self) -> None:
-        """Dismisses the questions without answering; the desk uses its own judgment."""
+        """Dismisses the questions without answering; the trader uses its own judgment."""
         self._dismiss()
 
     def _choose(self, label: str) -> None:
@@ -277,8 +277,8 @@ class QuestionCard(containers.Vertical):
             count = f'{len(self._questions)} questions'
         self.query_one('.request-heading', widgets.Static).update(
             Content.from_markup(
-                '[b]$desk[/b] asks you $count',
-                desk=self._request.get('desk', ''),
+                '[b]$trader[/b] asks you $count',
+                trader=self._request.get('trader', ''),
                 count=count,
             )
         )

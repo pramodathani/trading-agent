@@ -10,7 +10,7 @@ const STATUS_WORDS: Record<string, string> = {
 };
 
 /**
- * What stays in the transcript once a desk asked something: each question with your answer, or the plan with your decision, as Claude Code keeps a summary of answered questions.
+ * What stays in the transcript once a trader asked something: each question with your answer, or the plan with your decision, as Claude Code keeps a summary of answered questions.
  * @param properties The request, with its latest status.
  * @returns The summary.
  */
@@ -26,7 +26,7 @@ export function RequestSummary(properties: { request: UserRequest }) {
   const answers = request.response?.answers ?? [];
   return (
     <div className="request-summary">
-      <div className="request-summary-title">{request.status === 'answered' ? `You answered ${request.desk}'s ${questions.length > 1 ? 'questions' : 'question'}` : `${request.desk} asked you ${questions.length > 1 ? `${questions.length} questions` : 'a question'}`}</div>
+      <div className="request-summary-title">{request.status === 'answered' ? `You answered ${request.trader}'s ${questions.length > 1 ? 'questions' : 'question'}` : `${request.trader} asked you ${questions.length > 1 ? `${questions.length} questions` : 'a question'}`}</div>
       {questions.map((question, index) => {
         const answer = answers[index];
         let answerText = STATUS_WORDS[request.status] ?? '';

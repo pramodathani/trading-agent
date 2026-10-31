@@ -1,4 +1,4 @@
-"""Tests for the pictures desks show: view_image, send_image, tool-card pictures and Telegram photos."""
+"""Tests for the pictures traders show: view_image, send_image, tool-card pictures and Telegram photos."""
 
 import asyncio
 import io
@@ -53,26 +53,26 @@ def _picture(width: int = 40, height: int = 30) -> bytes:
     return output.getvalue()
 
 
-def _desk(directory: Path) -> tuple[Path, path_policy.PathPolicy]:
-    """Makes a main desk folder with a picture in scratch/ and a secret beside it.
+def _trader(directory: Path) -> tuple[Path, path_policy.PathPolicy]:
+    """Makes a main trader folder with a picture in scratch/ and a secret beside it.
 
     Args:
         directory (Path): A scratch workspace.
 
     Returns:
-        tuple[Path, path_policy.PathPolicy]: The desk folder and its file rules, with secrets/ hidden.
+        tuple[Path, path_policy.PathPolicy]: The trader folder and its file rules, with secrets/ hidden.
     """
     layout = workspace_layout.WorkspaceLayout(directory)
-    desk_directory = layout.desk_directory('main')
-    (desk_directory / 'scratch').mkdir(parents=True)
-    (desk_directory / 'scratch' / 'chart.png').write_bytes(_picture())
-    (desk_directory / 'scratch' / 'notes.txt').write_text('not a picture')
-    (desk_directory / 'scratch' / 'fake.png').write_text('not a picture')
+    trader_directory = layout.trader_directory('main')
+    (trader_directory / 'scratch').mkdir(parents=True)
+    (trader_directory / 'scratch' / 'chart.png').write_bytes(_picture())
+    (trader_directory / 'scratch' / 'notes.txt').write_text('not a picture')
+    (trader_directory / 'scratch' / 'fake.png').write_text('not a picture')
     secrets = directory / 'secrets'
     secrets.mkdir()
     (secrets / 'key.png').write_bytes(_picture())
-    return desk_directory, path_policy.PathPolicy(
-        desk_directory,
+    return trader_directory, path_policy.PathPolicy(
+        trader_directory,
         [
             secrets,
         ],
@@ -83,8 +83,8 @@ class TestViewImageTool:
     """Tests for looking at a picture file."""
 
     def test_picture_is_shown_with_its_path(self, tmp_path: Path) -> None:
-        """A picture in the desk folder comes back as an image, with its path for the web page."""
-        _desk_directory, policy = _desk(tmp_path)
+        """A picture in the trader folder comes back as an image, with its path for the web page."""
+        _trader_directory, policy = _trader(tmp_path)
         viewer = view_image_tool.ViewImageTool(policy)
 
         result = asyncio.run(
@@ -96,11 +96,11 @@ class TestViewImageTool:
         assert not result.is_error
         assert result.image is not None
         assert result.image.media_type == 'image/jpeg'
-        assert result.picture_desk_path == 'scratch/chart.png'
+        assert result.picture_trader_path == 'scratch/chart.png'
 
     def test_text_file_is_refused(self, tmp_path: Path) -> None:
         """A file that is not a picture, even one named .png, gives an error and no image."""
-        _desk_directory, policy = _desk(tmp_path)
+        _trader_directory, policy = _trader(tmp_path)
         viewer = view_image_tool.ViewImageTool(policy)
 
         result = asyncio.run(
@@ -115,7 +115,7 @@ class TestViewImageTool:
 
     def test_secret_picture_is_refused(self, tmp_path: Path) -> None:
         """A picture inside a hidden secret folder cannot be looked at."""
-        _desk_directory, policy = _desk(tmp_path)
+        _trader_directory, policy = _trader(tmp_path)
         viewer = view_image_tool.ViewImageTool(policy)
 
         result = asyncio.run(
@@ -140,7 +140,7 @@ class TestSendImageTool:
         event_bus_module.EventSubscription,
         attachment_store_module.AttachmentStore,
     ]:
-        """Builds the tool for a main desk.
+        """Builds the tool for a main trader.
 
         Args:
             directory (Path): A scratch workspace.
@@ -148,7 +148,7 @@ class TestSendImageTool:
         Returns:
             tuple[send_image_tool.SendImageTool, event_bus_module.EventSubscription, attachment_store_module.AttachmentStore]: The tool, a subscription to its events, and the upload store.
         """
-        _desk_directory, policy = _desk(directory)
+        _trader_directory, policy = _trader(directory)
         event_bus = event_bus_module.EventBus()
         subscription = event_bus.subscribe()
         store = attachment_store_module.AttachmentStore(
@@ -172,12 +172,12 @@ class TestSendImageTool:
 
         assert not result.is_error
         assert published.kind == event_module.EventKind.MESSAGE
-        assert published.desk == 'main'
+        assert published.trader == 'main'
         assert published.payload['text'] == 'Today'
         sent = published.payload['attachments'][0]
         kept = store.find('main', sent['attachment_id'])
         assert kept.is_image
-        assert kept.desk_path.startswith('uploads/')
+        assert kept.trader_path.startswith('uploads/')
         assert kept.stored_file().read_bytes() == _picture()
 
     def test_document_is_refused(self, tmp_path: Path) -> None:
@@ -208,7 +208,7 @@ class TestSendImageTool:
 
 
 class _PictureTool(tool.Tool):
-    """A tool that returns a picture saved in the desk folder."""
+    """A tool that returns a picture saved in the trader folder."""
 
     name = 'show_picture'
     description = 'Returns a picture.'
@@ -220,13 +220,13 @@ class _PictureTool(tool.Tool):
             arguments (tool.NoArguments): No arguments.
 
         Returns:
-            tool.ToolResult: A picture with its desk path.
+            tool.ToolResult: A picture with its trader path.
         """
         del arguments
         return tool.ToolResult(
             text='A picture.',
             image=messages.MessageImage('image/png', _picture()),
-            picture_desk_path='scratch/chart.png',
+            picture_trader_path='scratch/chart.png',
         )
 
 
@@ -318,15 +318,15 @@ class TestToolPictures:
         ]
 
 
-class _StandInDesk:
-    """A desk the routes can find."""
+class _StandInTrader:
+    """A trader the routes can find."""
 
 
 class TestPictureRoute:
-    """Tests for GET /api/desks/{desk}/pictures/{path}."""
+    """Tests for GET /api/traders/{trader}/pictures/{path}."""
 
     def _client(self, directory: Path) -> fastapi.testclient.TestClient:
-        """Mounts the attachment routes over a desk with pictures.
+        """Mounts the attachment routes over a trader with pictures.
 
         Args:
             directory (Path): A scratch workspace.
@@ -334,13 +334,13 @@ class TestPictureRoute:
         Returns:
             fastapi.testclient.TestClient: A client sending the token.
         """
-        _desk(directory)
+        _trader(directory)
         layout = workspace_layout.WorkspaceLayout(directory)
         application = fastapi.FastAPI()
         application.include_router(
             attachment_routes.AttachmentRoutes(
                 {
-                    'main': _StandInDesk(),
+                    'main': _StandInTrader(),
                 },
                 attachment_store_module.AttachmentStore(layout),
                 layout,
@@ -354,22 +354,24 @@ class TestPictureRoute:
             },
         )
 
-    def test_picture_in_the_desk_folder_is_served(self, tmp_path: Path) -> None:
+    def test_picture_in_the_trader_folder_is_served(
+        self, tmp_path: Path
+    ) -> None:
         """A screenshot-like picture comes back with its media type."""
         client = self._client(tmp_path)
 
-        answer = client.get('/api/desks/main/pictures/scratch/chart.png')
+        answer = client.get('/api/traders/main/pictures/scratch/chart.png')
 
         assert answer.status_code == 200
         assert answer.headers['content-type'] == 'image/png'
         assert answer.content == _picture()
 
-    def test_path_outside_the_desk_is_refused(self, tmp_path: Path) -> None:
-        """A path climbing out of the desk folder finds nothing."""
+    def test_path_outside_the_trader_is_refused(self, tmp_path: Path) -> None:
+        """A path climbing out of the trader folder finds nothing."""
         client = self._client(tmp_path)
 
         answer = client.get(
-            '/api/desks/main/pictures/scratch/%2E%2E/%2E%2E/%2E%2E/secrets/key.png'
+            '/api/traders/main/pictures/scratch/%2E%2E/%2E%2E/%2E%2E/secrets/key.png'
         )
 
         assert answer.status_code == 404
@@ -380,7 +382,7 @@ class TestPictureRoute:
         """A text file named .png is not served."""
         client = self._client(tmp_path)
 
-        answer = client.get('/api/desks/main/pictures/scratch/fake.png')
+        answer = client.get('/api/traders/main/pictures/scratch/fake.png')
 
         assert answer.status_code == 404
 
@@ -419,7 +421,7 @@ class _PhotoTelegram:
 
 
 class TestTelegramPictures:
-    """Tests for sending the pictures desks show to Telegram."""
+    """Tests for sending the pictures traders show to Telegram."""
 
     def _channel(
         self,

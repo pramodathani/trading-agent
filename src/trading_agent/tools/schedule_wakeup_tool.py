@@ -1,4 +1,4 @@
-"""The schedule_wakeup tool: wakes the desk once, later, with a message to itself.
+"""The schedule_wakeup tool: wakes the trader once, later, with a message to itself.
 
 Typical usage example:
 
@@ -50,7 +50,7 @@ class ScheduleWakeupArguments(pydantic.BaseModel):
 
 
 class ScheduleWakeupTool(tool.Tool):
-    """Adds a one-off job that messages the desk."""
+    """Adds a one-off job that messages the trader."""
 
     name = 'schedule_wakeup'
     description = 'Wakes you once, later, with a message to yourself: in a number of minutes, or at an India time today (tomorrow if it has passed). Use it to come back to something, such as checking whether a limit order filled by 14:00. It runs even on a holiday; check the market calendar yourself if that matters.'
@@ -60,7 +60,7 @@ class ScheduleWakeupTool(tool.Tool):
         """Creates the tool.
 
         Args:
-            store (cron_job_store_module.CronJobStore): The desk's jobs.
+            store (cron_job_store_module.CronJobStore): The trader's jobs.
         """
         self._store = store
 
@@ -71,7 +71,7 @@ class ScheduleWakeupTool(tool.Tool):
             arguments (ScheduleWakeupArguments): When, and the message.
 
         Returns:
-            tool.ToolResult: When the desk will wake.
+            tool.ToolResult: When the trader will wake.
         """
         now = datetime.datetime.now(_INDIA)
         if arguments.minutes is not None:
@@ -91,7 +91,7 @@ class ScheduleWakeupTool(tool.Tool):
             run_at=moment.isoformat(timespec='seconds'),
             text=arguments.message,
             trading_days_only=False,
-            created_by='desk',
+            created_by='trader',
         )
         self._store.add(job)
         return tool.ToolResult.success(

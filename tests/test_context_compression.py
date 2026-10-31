@@ -256,7 +256,7 @@ class TestConversationSize:
 
 
 class TestCompressionBeforeATurn:
-    """At 70% the desk flushes its memory, then the conversation is summarised."""
+    """At 70% the trader flushes its memory, then the conversation is summarised."""
 
     def test_full_conversation_is_flushed_then_summarised(self) -> None:
         """The flush turn comes first, then a tool-less summary call, then the trigger on a fresh conversation."""
@@ -401,7 +401,7 @@ class TestTranscript:
         )
         assert text.startswith('Tool get_candles returned: ')
         assert text.endswith(
-            '[… shortened for this summary; the desk saw the full text]'
+            '[… shortened for this summary; the trader saw the full text]'
         )
 
 

@@ -24,7 +24,7 @@ export interface SteeringStep {
   message: ChatTurn;
 }
 
-/** A question, plan or permission request the desk made during the turn, with its latest status. */
+/** A question, plan or permission request the trader made during the turn, with its latest status. */
 export interface RequestStep {
   type: 'request';
   request: UserRequest;
@@ -32,7 +32,7 @@ export interface RequestStep {
 
 export type TurnStep = ToolStep | EventStep | SteeringStep | RequestStep;
 
-/** One trigger and everything the desk did about it. */
+/** One trigger and everything the trader did about it. */
 export interface ChatTurn {
   type: 'turn';
   triggerId: string;
@@ -55,7 +55,7 @@ export interface ChatTurn {
   requestId: string | null;
 }
 
-/** An event that belongs to no turn, such as a fill reported while the desk was idle. */
+/** An event that belongs to no turn, such as a fill reported while the trader was idle. */
 export interface LooseEvent {
   type: 'loose';
   event: AgentEvent;
@@ -69,7 +69,7 @@ const TURN_LESS_KINDS_SHOWN = new Set([
   'fill',
   'price_alert',
   'message',
-  'desk_halt',
+  'trader_halt',
   'kill_switch',
   'session_started',
   'cron_fired',
@@ -87,11 +87,11 @@ const STEP_KINDS_SHOWN = new Set([
   'message',
 ]);
 
-/** Groups one desk's events into chat turns, one per trigger. */
+/** Groups one trader's events into chat turns, one per trigger. */
 export class ChatTurnBuilder {
   /**
-   * Builds the chat from a desk's events.
-   * @param events The desk's events, oldest first.
+   * Builds the chat from a trader's events.
+   * @param events The trader's events, oldest first.
    * @returns The turns and loose events, oldest first.
    */
   build(events: AgentEvent[]): ChatItem[] {

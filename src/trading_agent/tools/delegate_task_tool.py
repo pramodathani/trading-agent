@@ -51,7 +51,7 @@ class DelegateTaskTool(tool.Tool):
         """Creates the tool.
 
         Args:
-            runner (subagent_runner_module.SubagentRunner): The desk's subagent runner.
+            runner (subagent_runner_module.SubagentRunner): The trader's subagent runner.
         """
         self._runner = runner
 

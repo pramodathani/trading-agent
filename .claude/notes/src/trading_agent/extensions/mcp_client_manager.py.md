@@ -2,9 +2,9 @@
 
 Connections to MCP servers (block 25) and the data behind tool search (block 22). Built on the MCP Python SDK 2.3.0, whose client API differs from version 1 (for example `FastMCP` became `MCPServer`, and result fields are snake_case such as `is_error` and `input_schema`).
 
-## One connection per server, shared by all desks
+## One connection per server, shared by all traders
 
-Each `McpServerConnection` runs in its own task, owned by the manager, which the gateway runs as a background worker beside the journal. The SDK's transports use anyio task groups that must be entered and exited in the same task, so the connection task enters them and keeps them open; desk tasks only send requests through the session, which is safe from any task.
+Each `McpServerConnection` runs in its own task, owned by the manager, which the gateway runs as a background worker beside the journal. The SDK's transports use anyio task groups that must be entered and exited in the same task, so the connection task enters them and keeps them open; trader tasks only send requests through the session, which is safe from any task.
 
 ## Environment isolation
 
@@ -16,7 +16,7 @@ A server that fails to start, or whose connection breaks during a call, is marke
 
 ## Why not one native tool per MCP tool
 
-The plan said MCP tools start "deferred", listed by name, with `tool_search` loading a description. The desks get exactly two tools, `tool_search` and `call_mcp_tool`, instead of the MCP tools themselves being added to their tool lists. Reasons:
+The plan said MCP tools start "deferred", listed by name, with `tool_search` loading a description. The traders get exactly two tools, `tool_search` and `call_mcp_tool`, instead of the MCP tools themselves being added to their tool lists. Reasons:
 
 - The agent loop could add tool definitions between rounds, but Claude's tools are fixed when its Claude Code process starts, so native dynamic tools would work differently per backend.
 - Every MCP call then goes through trading-agent's own executor: the journal, the loop guard, secret redaction and the event stream see it like any other tool.

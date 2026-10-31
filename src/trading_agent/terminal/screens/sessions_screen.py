@@ -1,4 +1,4 @@
-"""The Sessions page: a desk's memory search, its sessions with their exchanges, its daily summaries and its notes.
+"""The Sessions page: a trader's memory search, its sessions with their exchanges, its daily summaries and its notes.
 
 It copies the web page's SessionsPage.tsx.
 
@@ -26,20 +26,20 @@ class SessionsScreen(page_screen.PageScreen):
 
     TITLE_TEXT = 'Sessions'
     REFRESH_SECONDS = 30.0
-    PER_DESK = True
+    PER_TRADER = True
 
     BINDINGS: ClassVar[list[binding.BindingType]] = [
-        binding.Binding('d', 'next_desk', 'Next desk'),
+        binding.Binding('d', 'next_trader', 'Next trader'),
         binding.Binding('slash', 'focus_search', 'Search memory'),
     ]
 
-    def __init__(self, desk_name: str):
+    def __init__(self, trader_name: str):
         """Creates the page.
 
         Args:
-            desk_name (str): The desk the chat shows.
+            trader_name (str): The trader the chat shows.
         """
-        super().__init__(desk_name)
+        super().__init__(trader_name)
         self._sessions: list[dict[str, Any]] = []
         self._formatter = formatter.Formatter()
         self._detail_shown = False
@@ -51,7 +51,7 @@ class SessionsScreen(page_screen.PageScreen):
             Widget: The page's parts.
         """
         yield widgets.Input(
-            placeholder="Search the desk's memory, then press enter (/ to focus)",
+            placeholder="Search the trader's memory, then press enter (/ to focus)",
             id='sessions-search',
         )
         with containers.Horizontal(classes='page-columns'):
@@ -65,12 +65,12 @@ class SessionsScreen(page_screen.PageScreen):
 
     @work(exclusive=True, group='page')
     async def refresh_page(self) -> None:
-        """Reads the desk's sessions, summaries and notes."""
+        """Reads the trader's sessions, summaries and notes."""
         gateway = self.app.gateway
         try:
-            sessions = await gateway.sessions(self.desk_name)
-            summaries = await gateway.summaries(self.desk_name)
-            notes = await gateway.notes(self.desk_name)
+            sessions = await gateway.sessions(self.trader_name)
+            summaries = await gateway.summaries(self.trader_name)
+            notes = await gateway.notes(self.trader_name)
         except gateway_client.GatewayError as error:
             self.problem(error.message)
             return
@@ -102,10 +102,10 @@ class SessionsScreen(page_screen.PageScreen):
                 summaries.get('summaries') or [], notes.get('notes') or []
             )
 
-    def action_next_desk(self) -> None:
-        """Shows the next desk, starting again from its summaries and notes."""
+    def action_next_trader(self) -> None:
+        """Shows the next trader, starting again from its summaries and notes."""
         self._detail_shown = False
-        super().action_next_desk()
+        super().action_next_trader()
 
     def action_focus_search(self) -> None:
         """Moves to the search box."""
@@ -125,7 +125,7 @@ class SessionsScreen(page_screen.PageScreen):
         )
 
     def on_input_submitted(self, event: widgets.Input.Submitted) -> None:
-        """Searches the desk's memory.
+        """Searches the trader's memory.
 
         Args:
             event (widgets.Input.Submitted): The search words.
@@ -142,7 +142,9 @@ class SessionsScreen(page_screen.PageScreen):
             session_id (str): The session.
         """
         try:
-            session = await self.app.gateway.session(self.desk_name, session_id)
+            session = await self.app.gateway.session(
+                self.trader_name, session_id
+            )
         except gateway_client.GatewayError as error:
             self.problem(error.message)
             return
@@ -166,13 +168,13 @@ class SessionsScreen(page_screen.PageScreen):
 
     @work(exclusive=True, group='detail')
     async def _search(self, keywords: str) -> None:
-        """Searches the desk's memory and shows the hits.
+        """Searches the trader's memory and shows the hits.
 
         Args:
             keywords (str): The words to look for.
         """
         try:
-            answer = await self.app.gateway.search(self.desk_name, keywords)
+            answer = await self.app.gateway.search(self.trader_name, keywords)
         except gateway_client.GatewayError as error:
             self.problem(error.message)
             return

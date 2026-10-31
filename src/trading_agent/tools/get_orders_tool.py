@@ -36,7 +36,7 @@ class GetOrdersTool(broker_tool.BrokerTool):
     """Reads the order book."""
 
     name = 'get_orders'
-    description = "Returns today's orders, today's trades (fills), or the open parents: orders UBI's own engine is still holding or working, which is where plain limit orders and stops wait. Every desk shares this account. Read-only."
+    description = "Returns today's orders, today's trades (fills), or the open parents: orders UBI's own engine is still holding or working, which is where plain limit orders and stops wait. Every trader shares this account. Read-only."
     arguments_model = GetOrdersArguments
 
     async def run(self, arguments: GetOrdersArguments) -> tool.ToolResult:

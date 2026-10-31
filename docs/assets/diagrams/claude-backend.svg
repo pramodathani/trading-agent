@@ -19,7 +19,7 @@
   <text class="small" x="130" y="70" text-anchor="middle">"What time is it?"</text>
   <rect class="accent-box" x="290" y="235" width="220" height="130" rx="8"/>
   <text class="title" x="400" y="264" text-anchor="middle">Claude turn runner</text>
-  <text class="small" x="400" y="288" text-anchor="middle">one session per desk, resumed</text>
+  <text class="small" x="400" y="288" text-anchor="middle">one session per trader, resumed</text>
   <text class="small" x="400" y="304" text-anchor="middle">after a crash</text>
   <text class="small" x="400" y="330" text-anchor="middle">refuses to start while</text>
   <text class="mono" x="400" y="348" text-anchor="middle">ANTHROPIC_API_KEY is set</text>

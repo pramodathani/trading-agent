@@ -5,18 +5,18 @@ import type { CheckpointEntry } from '../api/types';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Loadable } from '../components/Loadable';
 import { usePolled } from '../hooks/usePolled';
-import { useSelectedDesk } from '../layout/selectedDeskStore';
+import { useSelectedTrader } from '../layout/selectedTraderStore';
 import { formatter } from '../utilities/formatter';
 
 const REFRESH_MILLISECONDS = 30000;
 
 /**
- * Snapshots of the chosen desk's own files, taken before every change, and a way to go back to one.
+ * Snapshots of the chosen trader's own files, taken before every change, and a way to go back to one.
  * @returns The page.
  */
 export function CheckpointsPage() {
-  const deskName = useSelectedDesk();
-  const checkpoints = usePolled(() => apiClient.checkpoints(deskName), REFRESH_MILLISECONDS, deskName);
+  const traderName = useSelectedTrader();
+  const checkpoints = usePolled(() => apiClient.checkpoints(traderName), REFRESH_MILLISECONDS, traderName);
   const [restoring, setRestoring] = useState<CheckpointEntry | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -25,7 +25,7 @@ export function CheckpointsPage() {
    * @param checkpoint The checkpoint.
    */
   async function restore(checkpoint: CheckpointEntry): Promise<void> {
-    const result = await apiClient.restoreCheckpoint(deskName, checkpoint.checkpoint_id);
+    const result = await apiClient.restoreCheckpoint(traderName, checkpoint.checkpoint_id);
     setNotice(`Restored ${result.restored}. To undo this, restore ${result.undo_checkpoint_id}, which holds the files as they were just before.`);
     checkpoints.refresh();
   }
@@ -33,8 +33,8 @@ export function CheckpointsPage() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1>Checkpoints of {deskName}</h1>
-        <p className="muted">A snapshot of Memory.md, memory/, notes/ and the desk&apos;s own skills is taken before every change the desk, the curator or you make. Your own files are not part of it.</p>
+        <h1>Checkpoints of {traderName}</h1>
+        <p className="muted">A snapshot of Memory.md, memory/, notes/ and the trader&apos;s own skills is taken before every change the trader, the curator or you make. Your own files are not part of it.</p>
       </div>
       {notice !== null && (
         <div className="notice" role="status">
@@ -82,7 +82,7 @@ export function CheckpointsPage() {
       {restoring !== null && (
         <ConfirmDialog
           title={`Restore ${restoring.checkpoint_id}`}
-          explanation={`The desk's own files go back to how they were at ${formatter.dayTime(restoring.created_at)} (${restoring.reason}). The current files are snapshotted first, so this can be undone.`}
+          explanation={`The trader's own files go back to how they were at ${formatter.dayTime(restoring.created_at)} (${restoring.reason}). The current files are snapshotted first, so this can be undone.`}
           confirmLabel="Restore"
           onConfirm={() => restore(restoring)}
           onClose={() => setRestoring(null)}

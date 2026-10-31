@@ -47,7 +47,7 @@
   <text class="small" x="410" y="255" text-anchor="middle">to steer the model</text>
 
   <rect class="box" x="600" y="160" width="170" height="90" rx="8"/>
-  <text class="title" x="685" y="188" text-anchor="middle">A desk turn</text>
+  <text class="title" x="685" y="188" text-anchor="middle">A trader turn</text>
   <text class="small" x="685" y="210" text-anchor="middle">reads the label and the</text>
   <text class="small" x="685" y="225" text-anchor="middle">warning; the risk engine</text>
   <text class="small" x="685" y="240" text-anchor="middle">checks orders regardless</text>
@@ -70,7 +70,7 @@
   <text class="small" x="900" y="106" text-anchor="middle">used in place from</text>
   <text class="mono" x="900" y="122" text-anchor="middle">shared/packages/</text>
   <text class="mono" x="900" y="160" text-anchor="middle">skills/</text>
-  <text class="small" x="900" y="176" text-anchor="middle">into every desk's index</text>
+  <text class="small" x="900" y="176" text-anchor="middle">into every trader's index</text>
   <text class="mono" x="900" y="214" text-anchor="middle">mcp_servers.json</text>
   <text class="small" x="900" y="230" text-anchor="middle">started with the gateway</text>
   <text class="mono" x="900" y="268" text-anchor="middle">hooks/&lt;event&gt;/</text>

@@ -29,13 +29,13 @@ class ToolResult:
         text: The output the model reads.
         is_error: Whether the tool failed, so the model knows to change course.
         image: A picture for the model to look at, such as a screenshot, or None.
-        picture_desk_path: Where that picture is saved, relative to the desk folder, so the web page can show it in the tool's card; None when it is not saved in the desk folder.
+        picture_trader_path: Where that picture is saved, relative to the trader folder, so the web page can show it in the tool's card; None when it is not saved in the trader folder.
     """
 
     text: str
     is_error: bool = False
     image: messages.MessageImage | None = None
-    picture_desk_path: str | None = None
+    picture_trader_path: str | None = None
 
     @classmethod
     def success(cls, text: str) -> Self:

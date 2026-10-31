@@ -42,5 +42,5 @@ class BrowserOpenTool(browser_tool.BrowserTool):
         return await self._text_result(self._session.open(arguments.url))
 
     async def close(self) -> None:
-        """Closes Chrome when the desk stops."""
+        """Closes Chrome when the trader stops."""
         await self._session.close()

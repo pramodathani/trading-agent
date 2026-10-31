@@ -1,6 +1,6 @@
-"""The subagents every desk can delegate to.
+"""The subagents every trader can delegate to.
 
-Definitions are Markdown files in workspace/shared/agents/, which belongs to the user, and in the agents/ folder of each installed package. When two files define the same name, the user's own folder wins. The folders are read afresh every time, so a new definition is available on the desk's next turn.
+Definitions are Markdown files in workspace/shared/agents/, which belongs to the user, and in the agents/ folder of each installed package. When two files define the same name, the user's own folder wins. The folders are read afresh every time, so a new definition is available on the trader's next turn.
 
 Typical usage example:
 
@@ -82,7 +82,7 @@ class SubagentLibrary:
         return None
 
     def index_text(self) -> str:
-        """The section of the desk's prompt listing its subagents.
+        """The section of the trader's prompt listing its subagents.
 
         Returns:
             str: The section, or an empty string when there are no subagents.

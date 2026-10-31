@@ -57,7 +57,7 @@ export class GatewayAddress {
 
   /**
    * The full address of an API path on the gateway.
-   * @param path A path starting with "/", such as "/api/desks".
+   * @param path A path starting with "/", such as "/api/traders".
    * @param address The gateway to use instead of the saved one, such as while checking a new address.
    * @returns The address to fetch.
    */

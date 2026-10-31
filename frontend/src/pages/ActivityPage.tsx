@@ -4,38 +4,38 @@ import { apiClient } from '../api/apiClient';
 import type { AgentEvent } from '../api/types';
 import { EventRow } from '../components/EventRow';
 import { useLiveEvents } from '../hooks/useLiveEvents';
-import { useDesks } from '../layout/desksContext';
+import { useTraders } from '../layout/tradersContext';
 import { eventDescriber } from '../utilities/eventDescriber';
 import { eventMerger } from '../utilities/eventMerger';
 
 const JOURNAL_LIMIT = 1000;
 const MOST_ROWS_SHOWN = 600;
-const ALL_DESKS = '';
+const ALL_TRADERS = '';
 
 /**
- * A live feed of every desk's events today, newest first, with filters.
+ * A live feed of every trader's events today, newest first, with filters.
  * @returns The page.
  */
 export function ActivityPage() {
-  const desks = useDesks();
+  const traders = useTraders();
   const liveEvents = useLiveEvents();
   const [loaded, setLoaded] = useState<AgentEvent[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [deskFilter, setDeskFilter] = useState(ALL_DESKS);
+  const [traderFilter, setTraderFilter] = useState(ALL_TRADERS);
   const [showQuiet, setShowQuiet] = useState(false);
   const [search, setSearch] = useState('');
-  const deskNames = useMemo(() => (desks.document?.desks ?? []).map((desk) => desk.name), [
-    desks.document,
+  const traderNames = useMemo(() => (traders.document?.traders ?? []).map((trader) => trader.name), [
+    traders.document,
   ]);
-  const deskNamesKey = deskNames.join(',');
+  const traderNamesKey = traderNames.join(',');
 
   useEffect(() => {
-    if (!deskNamesKey) {
+    if (!traderNamesKey) {
       return;
     }
     let cancelled = false;
     apiClient
-      .allJournals(deskNamesKey.split(','), JOURNAL_LIMIT)
+      .allJournals(traderNamesKey.split(','), JOURNAL_LIMIT)
       .then((document) => {
         if (!cancelled) {
           setLoaded(document.events);
@@ -50,7 +50,7 @@ export function ActivityPage() {
       cancelled = true;
     };
   }, [
-    deskNamesKey,
+    traderNamesKey,
   ]);
 
   const rows = useMemo(() => {
@@ -62,7 +62,7 @@ export function ActivityPage() {
       if (event.kind === 'text_delta') {
         continue;
       }
-      if (deskFilter !== ALL_DESKS && event.desk !== deskFilter && event.desk !== null) {
+      if (traderFilter !== ALL_TRADERS && event.trader !== traderFilter && event.trader !== null) {
         continue;
       }
       const description = eventDescriber.describe(event);
@@ -78,7 +78,7 @@ export function ActivityPage() {
   }, [
     loaded,
     liveEvents,
-    deskFilter,
+    traderFilter,
     showQuiet,
     search,
   ]);
@@ -87,12 +87,12 @@ export function ActivityPage() {
     <div className="page">
       <div className="page-header">
         <h1>Activity</h1>
-        <p className="muted">Everything the desks did today, newest first. New events appear as they happen.</p>
+        <p className="muted">Everything the traders did today, newest first. New events appear as they happen.</p>
       </div>
       <div className="filters">
-        <select value={deskFilter} onChange={(change) => setDeskFilter(change.target.value)} aria-label="Desk">
-          <option value={ALL_DESKS}>All desks</option>
-          {deskNames.map((name) => (
+        <select value={traderFilter} onChange={(change) => setTraderFilter(change.target.value)} aria-label="Trader">
+          <option value={ALL_TRADERS}>All traders</option>
+          {traderNames.map((name) => (
             <option key={name} value={name}>
               {name}
             </option>
@@ -108,7 +108,7 @@ export function ActivityPage() {
       <div className="panel feed">
         {rows.length === 0 && <p className="muted">Nothing matches.</p>}
         {rows.map((event) => (
-          <EventRow key={eventMerger.key(event)} event={event} showDesk={deskFilter === ALL_DESKS} />
+          <EventRow key={eventMerger.key(event)} event={event} showTrader={traderFilter === ALL_TRADERS} />
         ))}
       </div>
     </div>

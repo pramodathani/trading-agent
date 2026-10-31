@@ -1,6 +1,6 @@
 <svg class="ta-svg" viewBox="0 0 1000 570" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="gateway-api-title gateway-api-description">
   <title id="gateway-api-title">The gateway API</title>
-  <desc id="gateway-api-description">The web page and your scripts reach each desk parts and the shared parts through seven route groups, all behind the access token.</desc>
+  <desc id="gateway-api-description">The web page and your scripts reach each trader parts and the shared parts through seven route groups, all behind the access token.</desc>
 
   <path class="wire" d="M210,195 L290,195"/>
   <path class="wire" d="M290,235 L210,235"/>
@@ -9,16 +9,16 @@
   <path class="wire" d="M510,345 L620,345"/>
   <path class="wire" d="M800,335 L850,335"/>
   <path class="wire" d="M620,480 L120,480 L120,270"/>
-  <text class="small" x="140" y="472">/ws/events?desk=intraday: that desk, plus account-wide events</text>
+  <text class="small" x="140" y="472">/ws/events?trader=intraday: that trader, plus account-wide events</text>
   <text class="small" x="808" y="326">dry run</text>
 
-  <path id="gateway-api-ask-desk" class="hidden-path" d="M150,195 L210,195 L290,195 L510,140 L620,140 L700,140"/>
-  <path id="gateway-api-answer-desk" class="hidden-path" d="M700,150 L620,150 L510,150 L290,235 L210,235 L150,235"/>
+  <path id="gateway-api-ask-trader" class="hidden-path" d="M150,195 L210,195 L290,195 L510,140 L620,140 L700,140"/>
+  <path id="gateway-api-answer-trader" class="hidden-path" d="M700,150 L620,150 L510,150 L290,235 L210,235 L150,235"/>
   <path id="gateway-api-kill" class="hidden-path" d="M150,195 L210,195 L290,195 L510,345 L620,345 L800,335 L850,335 L910,335"/>
   <path id="gateway-api-event" class="hidden-path" d="M700,480 L620,480 L120,480 L120,270 L120,240"/>
 
-  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.16;1" keyPoints="0;1;1"><mpath href="#gateway-api-ask-desk"/></animateMotion></circle>
-  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.2;0.36;1" keyPoints="0;0;1;1"><mpath href="#gateway-api-answer-desk"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.16;1" keyPoints="0;1;1"><mpath href="#gateway-api-ask-trader"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.2;0.36;1" keyPoints="0;0;1;1"><mpath href="#gateway-api-answer-trader"/></animateMotion></circle>
   <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.4;0.62;1" keyPoints="0;0;1;1"><mpath href="#gateway-api-kill"/></animateMotion></circle>
   <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.66;0.88;1" keyPoints="0;0;1;1"><mpath href="#gateway-api-event"/></animateMotion></circle>
 
@@ -31,7 +31,7 @@
   <rect class="accent-box" x="290" y="60" width="220" height="370" rx="8"/>
   <text class="title" x="400" y="88" text-anchor="middle">Gateway API</text>
   <text class="small" x="400" y="106" text-anchor="middle">every route checks the token</text>
-  <text class="mono" x="310" y="136">desks</text>
+  <text class="mono" x="310" y="136">traders</text>
   <text class="small" x="370" y="136">state, chat, pause, flatten</text>
   <text class="mono" x="310" y="174">account</text>
   <text class="small" x="370" y="174">P&amp;L, owners, kill</text>
@@ -48,19 +48,19 @@
   <text class="small" x="400" y="410" text-anchor="middle">7 route groups, 37 routes</text>
 
   <rect class="store" x="620" y="60" width="180" height="170" rx="8"/>
-  <text class="title" x="710" y="88" text-anchor="middle">Each desk's parts</text>
+  <text class="title" x="710" y="88" text-anchor="middle">Each trader's parts</text>
   <text class="small" x="710" y="112" text-anchor="middle">sessions and summaries</text>
   <text class="small" x="710" y="130" text-anchor="middle">cron jobs and runs</text>
   <text class="small" x="710" y="148" text-anchor="middle">price alerts</text>
   <text class="small" x="710" y="166" text-anchor="middle">skills</text>
   <text class="small" x="710" y="184" text-anchor="middle">checkpoints</text>
-  <text class="small" x="710" y="202" text-anchor="middle">tools (flatten_desk)</text>
+  <text class="small" x="710" y="202" text-anchor="middle">tools (flatten_trader)</text>
 
   <rect class="store" x="620" y="260" width="180" height="170" rx="8"/>
   <text class="title" x="710" y="288" text-anchor="middle">Shared parts</text>
   <text class="small" x="710" y="312" text-anchor="middle">risk engine and ledger</text>
   <text class="small" x="710" y="330" text-anchor="middle">kill switch</text>
-  <text class="small" x="710" y="348" text-anchor="middle">desk order book</text>
+  <text class="small" x="710" y="348" text-anchor="middle">trader order book</text>
   <text class="small" x="710" y="366" text-anchor="middle">proposals</text>
   <text class="small" x="710" y="384" text-anchor="middle">subagents, packages</text>
   <text class="small" x="710" y="402" text-anchor="middle">UBI reader</text>

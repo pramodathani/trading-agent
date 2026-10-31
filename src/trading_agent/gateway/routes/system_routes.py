@@ -1,11 +1,11 @@
 """Routes for the gateway itself: model usage and the configuration.
 
-  GET /api/usage          today's tokens per desk and backend, and the latest rate-limit reports
+  GET /api/usage          today's tokens per trader and backend, and the latest rate-limit reports
   GET /api/configuration  trading_agent.toml as the gateway read it, with every known secret masked
 
 Typical usage example:
 
-  application.include_router(SystemRoutes(guard, configuration, usage, redactor, desk_names).router())
+  application.include_router(SystemRoutes(guard, configuration, usage, redactor, trader_names).router())
 """
 
 import dataclasses
@@ -30,7 +30,7 @@ class SystemRoutes(route_group.RouteGroup):
         configuration: agent_configuration.AgentConfiguration,
         usage: usage_tracker.UsageTracker,
         redactor: secret_redactor.SecretRedactor,
-        desk_names: Sequence[str],
+        trader_names: Sequence[str],
     ):
         """Creates the routes.
 
@@ -39,13 +39,13 @@ class SystemRoutes(route_group.RouteGroup):
             configuration (agent_configuration.AgentConfiguration): The configuration the gateway runs with.
             usage (usage_tracker.UsageTracker): Today's model usage.
             redactor (secret_redactor.SecretRedactor): Masks secrets in the configuration.
-            desk_names (Sequence[str]): The running desks.
+            trader_names (Sequence[str]): The running traders.
         """
         super().__init__(guard)
         self._configuration = configuration
         self._usage = usage
         self._redactor = redactor
-        self._desk_names = list(desk_names)
+        self._trader_names = list(trader_names)
 
     def _add_routes(self, router: fastapi.APIRouter) -> None:
         """Adds the system routes.
@@ -62,16 +62,16 @@ class SystemRoutes(route_group.RouteGroup):
         """Today's model usage.
 
         Returns:
-            dict[str, Any]: For each desk, the calls, tokens and cost per backend, and each backend's latest rate-limit report.
+            dict[str, Any]: For each trader, the calls, tokens and cost per backend, and each backend's latest rate-limit report.
         """
-        desks = {}
-        for desk_name in self._desk_names:
+        traders = {}
+        for trader_name in self._trader_names:
             backends = {}
-            for backend_name, counts in self._usage.today(desk_name).items():
+            for backend_name, counts in self._usage.today(trader_name).items():
                 backends[backend_name] = dataclasses.asdict(counts)
-            desks[desk_name] = backends
+            traders[trader_name] = backends
         return {
-            'desks': desks,
+            'traders': traders,
             'rate_limits': self._usage.rate_limits(),
         }
 

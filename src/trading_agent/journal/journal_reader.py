@@ -2,7 +2,7 @@
 
 Typical usage example:
 
-  reader = JournalReader(layout.desk_directory('general') / 'journal')
+  reader = JournalReader(layout.trader_directory('general') / 'journal')
   events = reader.events(reader.today(), ['order', 'fill'])
 """
 
@@ -17,7 +17,7 @@ _INDIA = zoneinfo.ZoneInfo('Asia/Kolkata')
 
 
 class JournalReader:
-    """The journal files of one desk, or of the gateway."""
+    """The journal files of one trader, or of the gateway."""
 
     def __init__(
         self,
@@ -57,7 +57,7 @@ class JournalReader:
             kinds (Collection[str] | None): The event kinds to keep, such as "order"; None keeps every kind.
 
         Returns:
-            list[dict[str, Any]]: The events, each with kind, desk, payload and created_at. The list is empty when the day has no file.
+            list[dict[str, Any]]: The events, each with kind, trader, payload and created_at. The list is empty when the day has no file.
         """
         path = self._folder / f'{day}.jsonl'
         if not path.is_file():

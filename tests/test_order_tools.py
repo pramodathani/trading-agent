@@ -16,14 +16,14 @@ from trading_agent.risk import risk_ledger
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.tools import cancel_order_tool
-from trading_agent.tools import flatten_desk_tool
+from trading_agent.tools import flatten_trader_tool
 from trading_agent.tools import modify_order_tool
 from trading_agent.tools import order_tool
 from trading_agent.tools import place_bracket_order_tool
 from trading_agent.tools import place_order_tool
-from trading_agent.trading import desk_order_book
 from trading_agent.trading import order_arguments
 from trading_agent.trading import result_formatter
+from trading_agent.trading import trader_order_book
 
 _INFY_ID = 'infy-id'
 _NIFTY_FUTURE_ID = 'nifty-future-id'
@@ -260,7 +260,7 @@ class _Setup:
         share: A fake INFY share.
         future: A fake NIFTY future with a lot of 75.
         engine: The fake risk engine.
-        order_book: A real desk order book in a temporary folder.
+        order_book: A real trader order book in a temporary folder.
         ledger: A real risk ledger in a temporary folder.
         subscription: A subscription to every event.
         services: The services the tools use.
@@ -309,8 +309,8 @@ class _Setup:
             failure,
         )
         self.engine = _FakeEngine(reasons)
-        self.order_book = desk_order_book.DeskOrderBook(
-            tmp_path / 'desk_orders.db'
+        self.order_book = trader_order_book.TraderOrderBook(
+            tmp_path / 'trader_orders.db'
         )
         self.ledger = risk_ledger.RiskLedger(tmp_path / 'risk_ledger.db')
         event_bus = event_bus_module.EventBus()
@@ -418,7 +418,7 @@ class TestPlaceOrderTool:
     """Tests for place_order."""
 
     def test_dry_run_sends_a_tagged_dry_run(self, tmp_path: Path) -> None:
-        """In dry_run mode the order goes to UBI as a dry run tagged with the desk.
+        """In dry_run mode the order goes to UBI as a dry run tagged with the trader.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
@@ -604,19 +604,19 @@ class TestPlaceOrderTool:
         assert 'Check get_orders' in result.text
 
     def test_tag_keeps_only_letters_and_digits(self, tmp_path: Path) -> None:
-        """UBI's tag allows only letters and digits, so the desk name is cleaned.
+        """UBI's tag allows only letters and digits, so the trader name is cleaned.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
         """
         setup = _Setup(tmp_path)
         tool = place_order_tool.PlaceOrderTool(
-            setup.services, 'intraday-desk_1', 'dry_run'
+            setup.services, 'intraday-trader_1', 'dry_run'
         )
 
         asyncio.run(tool.run(_limit_buy()))
 
-        assert setup.share.requests[0][1]['tag'] == 'intradaydesk1'
+        assert setup.share.requests[0][1]['tag'] == 'intradaytrader1'
 
 
 def _bracket(
@@ -708,34 +708,34 @@ class TestPlaceBracketOrderTool:
             )
 
 
-def _place_dry_run(setup: _Setup, desk: str = 'main') -> str:
+def _place_dry_run(setup: _Setup, trader: str = 'main') -> str:
     """Places a dry-run limit buy and returns its parent_id.
 
     Args:
         setup (_Setup): The services.
-        desk (str): The desk placing it.
+        trader (str): The trader placing it.
 
     Returns:
         str: The made-up parent_id.
     """
-    tool = place_order_tool.PlaceOrderTool(setup.services, desk, 'dry_run')
+    tool = place_order_tool.PlaceOrderTool(setup.services, trader, 'dry_run')
     asyncio.run(tool.run(_limit_buy()))
-    return setup.order_book.open_orders(desk)[0].parent_id
+    return setup.order_book.open_orders(trader)[0].parent_id
 
 
 class TestModifyOrderTool:
     """Tests for modify_order."""
 
-    def test_another_desks_order_cannot_be_changed(
+    def test_another_traders_order_cannot_be_changed(
         self, tmp_path: Path
     ) -> None:
-        """A desk cannot change an order another desk placed.
+        """A trader cannot change an order another trader placed.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
         """
         setup = _Setup(tmp_path)
-        parent_id = _place_dry_run(setup, desk='scalper')
+        parent_id = _place_dry_run(setup, trader='scalper')
         tool = modify_order_tool.ModifyOrderTool(
             setup.services, 'main', 'dry_run'
         )
@@ -920,13 +920,13 @@ class TestCancelOrderTool:
         assert setup.order_book.open_orders('main') == []
 
 
-class TestFlattenDeskTool:
-    """Tests for flatten_desk."""
+class TestFlattenTraderTool:
+    """Tests for flatten_trader."""
 
     def test_flatten_cancels_orders_and_closes_only_owned_positions(
         self, tmp_path: Path
     ) -> None:
-        """The desk's open order is cancelled and its own position closed, while a position it does not own is left alone.
+        """The trader's open order is cancelled and its own position closed, while a position it does not own is left alone.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
@@ -956,12 +956,12 @@ class TestFlattenDeskTool:
             'main',
             datetime.datetime.now(datetime.UTC),
         )
-        tool = flatten_desk_tool.FlattenDeskTool(
+        tool = flatten_trader_tool.FlattenTraderTool(
             setup.services, 'main', 'dry_run'
         )
 
         result = asyncio.run(
-            tool.run(flatten_desk_tool.FlattenDeskArguments(reason='test'))
+            tool.run(flatten_trader_tool.FlattenTraderArguments(reason='test'))
         )
 
         assert not result.is_error
@@ -978,18 +978,18 @@ class TestFlattenDeskTool:
         assert setup.engine.requests[-1].transaction_type == 'sell'
 
     def test_flatten_with_nothing_to_do_says_so(self, tmp_path: Path) -> None:
-        """A desk with no orders and no positions is told it was already flat.
+        """A trader with no orders and no positions is told it was already flat.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
         """
         setup = _Setup(tmp_path)
-        tool = flatten_desk_tool.FlattenDeskTool(
+        tool = flatten_trader_tool.FlattenTraderTool(
             setup.services, 'main', 'dry_run'
         )
 
         result = asyncio.run(
-            tool.run(flatten_desk_tool.FlattenDeskArguments(reason='test'))
+            tool.run(flatten_trader_tool.FlattenTraderArguments(reason='test'))
         )
 
         assert 'no open orders and no positions' in result.text

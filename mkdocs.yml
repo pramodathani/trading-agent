@@ -1,5 +1,5 @@
 site_name: trading-agent
-site_description: An always-on, multi-desk AI trading agent on tradingmachine and UBI - four desks with their own personas, models and memory, and one risk engine between them and the market.
+site_description: An always-on, multi-trader AI trading agent on tradingmachine and UBI - four traders with their own personas, models and memory, and one risk engine between them and the market.
 site_author: Pramod Athani
 copyright: Copyright &copy; Pramod Athani
 site_url: https://pramodathani.github.io/trading-agent/
@@ -155,17 +155,17 @@ nav:
       - The web page: using/web-page.md
       - The terminal program: using/terminal.md
       - The Android app: using/android-app.md
-      - Talking to a desk: using/chat.md
+      - Talking to a trader: using/chat.md
       - Pictures and documents: using/pictures-and-documents.md
       - Questions, plans and permissions: using/questions-and-permissions.md
       - Telegram: telegram_setup.md
       - Going live: going_live.md
       - Commands: using/commands.md
-  - Desks and risk:
-      - desks/index.md
-      - Your files: desks/your-files.md
-      - The risk engine: desks/risk-engine.md
-      - Orders: desks/orders.md
+  - Traders and risk:
+      - traders/index.md
+      - Your files: traders/your-files.md
+      - The risk engine: traders/risk-engine.md
+      - Orders: traders/orders.md
   - The agent:
       - agent/index.md
       - Models: agent/models.md

@@ -1,6 +1,6 @@
-"""The card for a plan a desk presents for approval (present_plan), as the web page's PlanCard.tsx shows it.
+"""The card for a plan a trader presents for approval (present_plan), as the web page's PlanCard.tsx shows it.
 
-The plan is drawn as Markdown. The user approves it, optionally with notes, or sends it back with feedback, which "Keep planning" requires. The desk does not act on the plan until it is approved.
+The plan is drawn as Markdown. The user approves it, optionally with notes, or sends it back with feedback, which "Keep planning" requires. The trader does not act on the plan until it is approved.
 
 Keys: 1 or Enter on "Approve" approves, 2 keeps planning, Tab moves to the feedback box and back, Ctrl+X dismisses without deciding. Typing a letter while the choices have the focus goes into the feedback box.
 
@@ -29,7 +29,7 @@ _DECISIONS = (
 
 
 class PlanCard(containers.Vertical):
-    """A card for approving or revising the desk's plan."""
+    """A card for approving or revising the trader's plan."""
 
     can_focus = True
 
@@ -67,8 +67,8 @@ class PlanCard(containers.Vertical):
         content = self._request.get('content') or {}
         yield widgets.Static(
             Content.from_markup(
-                '[b]$desk[/b] presents a plan for your approval',
-                desk=self._request.get('desk', ''),
+                '[b]$trader[/b] presents a plan for your approval',
+                trader=self._request.get('trader', ''),
             ),
             classes='request-heading',
         )
@@ -83,7 +83,7 @@ class PlanCard(containers.Vertical):
         yield widgets.OptionList(
             option_list.Option(
                 Content.from_markup(
-                    '1  [b]Approve[/b]  [dim]the desk may act on the plan; feedback is optional[/dim]'
+                    '1  [b]Approve[/b]  [dim]the trader may act on the plan; feedback is optional[/dim]'
                 )
             ),
             option_list.Option(
@@ -94,7 +94,7 @@ class PlanCard(containers.Vertical):
             classes='question-options',
         )
         yield widgets.Input(
-            placeholder='Feedback for the desk: needed for Keep planning, optional with Approve',
+            placeholder='Feedback for the trader: needed for Keep planning, optional with Approve',
             classes='plan-feedback',
             select_on_focus=False,
         )
@@ -160,7 +160,7 @@ class PlanCard(containers.Vertical):
             self._decide('revise')
 
     def action_dismiss_request(self) -> None:
-        """Dismisses the plan without deciding; the desk uses its own judgment."""
+        """Dismisses the plan without deciding; the trader uses its own judgment."""
         self._dismiss()
 
     def _decide(self, decision: str) -> None:

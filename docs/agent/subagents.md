@@ -1,10 +1,10 @@
 # Subagents
 
-A desk can hand self-contained tasks to **subagents** with `delegate_task`: one to four tasks at once, run in parallel, each by a helper with its own instructions, tools, model and limits. A subagent reports back and the desk carries on. It cannot start subagents of its own, and it has no order tools unless its definition lists one.
+A trader can hand self-contained tasks to **subagents** with `delegate_task`: one to four tasks at once, run in parallel, each by a helper with its own instructions, tools, model and limits. A subagent reports back and the trader carries on. It cannot start subagents of its own, and it has no order tools unless its definition lists one.
 
 <figure class="diagram">
 --8<-- "docs/assets/diagrams/subagents.svg"
-<figcaption>The desk hands two tasks to the subagent runner, which runs news_reader and market_researcher at the same time; each reaches the web or market data, and the blue dots are their reports coming back.</figcaption>
+<figcaption>The trader hands two tasks to the subagent runner, which runs news_reader and market_researcher at the same time; each reaches the web or market data, and the blue dots are their reports coming back.</figcaption>
 </figure>
 
 ## The starter subagents
@@ -13,8 +13,8 @@ A desk can hand self-contained tasks to **subagents** with `delegate_task`: one 
 |---|---|---|
 | `news_reader` | Qwen | Reads recent news about a company, sector or index and reports what could move the price, with dates and sources |
 | `market_researcher` | Qwen | Studies a stock or index with prices and candles, adds the news context, and reports levels, trend and what to watch |
-| `trade_reviewer` | the desk's | Reviews a planned or finished trade against TradingRules.md and the desk's history |
-| `strategy_tester` | the desk's | Tests a simple trading rule on past daily candles with Python and reports how it would have done |
+| `trade_reviewer` | the trader's | Reviews a planned or finished trade against TradingRules.md and the trader's history |
+| `strategy_tester` | the trader's | Tests a simple trading rule on past daily candles with Python and reports how it would have done |
 
 ## Defining one
 
@@ -29,7 +29,7 @@ model: qwen
 max_turns: 12
 timeout: 300
 ---
-You read news for an Indian trading desk.
+You read news for an Indian trader.
 ```
 
-Without `tools`, a subagent gets a default read-only set; without `model`, it uses the desk's model order. `bin/trading-agent subagents list` checks every definition.
+Without `tools`, a subagent gets a default read-only set; without `model`, it uses the trader's model order. `bin/trading-agent subagents list` checks every definition.

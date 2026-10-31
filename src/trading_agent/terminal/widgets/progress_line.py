@@ -1,6 +1,6 @@
-"""The live line above the message box while a desk works, as in Claude Code.
+"""The live line above the message box while a trader works, as in Claude Code.
 
-It shows a turning spark, words saying what the desk is doing, the tool's most telling argument, and the time so far. The words follow the web page's TurnProgress.tsx: "Waiting in the queue", the running tool's activity, "Writing the answer", or a thinking word that stays the same for the whole turn.
+It shows a turning spark, words saying what the trader is doing, the tool's most telling argument, and the time so far. The words follow the web page's TurnProgress.tsx: "Waiting in the queue", the running tool's activity, "Writing the answer", or a thinking word that stays the same for the whole turn.
 
 Typical usage example:
 
@@ -63,7 +63,7 @@ class ProgressLine(widgets.Static):
         """Shows the progress of a turn, or hides the line.
 
         Args:
-            turn (chat_items.ChatTurn | None): The turn that is waiting or running, or None when the desk is idle.
+            turn (chat_items.ChatTurn | None): The turn that is waiting or running, or None when the trader is idle.
         """
         self._turn = turn
         self.display = turn is not None

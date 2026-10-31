@@ -1,4 +1,4 @@
-"""A desk's conversation with its model: the system prompt and the messages so far.
+"""A trader's conversation with its model: the system prompt and the messages so far.
 
 Messages are appended, and only ever changed in two ways: compression replaces the whole history at once with a summary and the current turn, which is a fresh conversation as far as the model can tell, and older pictures are taken out so that only the newest few are sent with every model call.
 
@@ -6,7 +6,7 @@ The conversation also remembers how many tokens the model said it held at the la
 
 Typical usage example:
 
-  conversation = Conversation('You are a trading desk.')
+  conversation = Conversation('You are a trader.')
   conversation.append(ConversationMessage.user('Hello'))
 """
 

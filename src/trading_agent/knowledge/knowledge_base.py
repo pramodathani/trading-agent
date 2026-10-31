@@ -1,6 +1,6 @@
 """A searchable index of the user's documents in workspace/shared/knowledge/.
 
-Put Markdown, text or CSV files in the folder, such as strategy write-ups, broker rules or exchange circulars, and every desk can search them with search_knowledge. Each file is cut into passages of about 1,500 characters, kept under the nearest Markdown heading, and indexed with SQLite's FTS5 full-text search. Words are matched by their stem, so "gapped" finds "gap", and results are ranked by BM25, the usual relevance score of search engines.
+Put Markdown, text or CSV files in the folder, such as strategy write-ups, broker rules or exchange circulars, and every trader can search them with search_knowledge. Each file is cut into passages of about 1,500 characters, kept under the nearest Markdown heading, and indexed with SQLite's FTS5 full-text search. Words are matched by their stem, so "gapped" finds "gap", and results are ranked by BM25, the usual relevance score of search engines.
 
 The index lives in workspace/shared/knowledge.db. Before each search, files that were added, changed or removed since the last search are indexed again, so there is no separate import step.
 

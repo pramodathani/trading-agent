@@ -1,4 +1,4 @@
-"""One turn in the chat: what woke the desk, its steps, the text it is writing, and its answer.
+"""One turn in the chat: what woke the trader, its steps, the text it is writing, and its answer.
 
 The steps of a turn are only ever added at the end, and only the last tool run grows, so the view updates its step views by position and mounts views for new ones.
 
@@ -17,12 +17,12 @@ from textual.content import Content
 from trading_agent.terminal import chat_items
 from trading_agent.terminal import event_describer
 from trading_agent.terminal import formatter
-from trading_agent.terminal.widgets import desk_message_view
 from trading_agent.terminal.widgets import event_step_view
 from trading_agent.terminal.widgets import picture_view
 from trading_agent.terminal.widgets import request_step_view
 from trading_agent.terminal.widgets import steering_view
 from trading_agent.terminal.widgets import tool_run_view
+from trading_agent.terminal.widgets import trader_message_view
 
 
 class TurnView(containers.Vertical):
@@ -32,16 +32,16 @@ class TurnView(containers.Vertical):
         trigger_id: The trigger the turn belongs to.
     """
 
-    def __init__(self, desk_name: str, turn: chat_items.ChatTurn):
+    def __init__(self, trader_name: str, turn: chat_items.ChatTurn):
         """Creates the view.
 
         Args:
-            desk_name (str): The desk the turn belongs to, for its pictures.
+            trader_name (str): The trader the turn belongs to, for its pictures.
             turn (chat_items.ChatTurn): The turn.
         """
         super().__init__(classes='turn')
         self.trigger_id = turn.trigger_id
-        self._desk_name = desk_name
+        self._trader_name = trader_name
         self._user_pictures = containers.Vertical(classes='turn-pictures')
         self._shown_user_pictures: set[str] = set()
         self._turn = turn
@@ -141,7 +141,7 @@ class TurnView(containers.Vertical):
                     view,
                     (
                         event_step_view.EventStepView,
-                        desk_message_view.DeskMessageView,
+                        trader_message_view.TraderMessageView,
                     ),
                 ):
                     continue
@@ -161,14 +161,14 @@ class TurnView(containers.Vertical):
             Any: Its view.
         """
         if isinstance(segment, chat_items.ToolRun):
-            return tool_run_view.ToolRunView(self._desk_name, segment)
+            return tool_run_view.ToolRunView(self._trader_name, segment)
         if isinstance(segment, chat_items.SteeringStep):
             return steering_view.SteeringView(segment)
         if isinstance(segment, chat_items.RequestStep):
             return request_step_view.RequestStepView(segment)
         if segment.event.get('kind') == 'message':
-            return desk_message_view.DeskMessageView(
-                self._desk_name, segment.event
+            return trader_message_view.TraderMessageView(
+                self._trader_name, segment.event
             )
         return event_step_view.EventStepView(segment.event)
 
@@ -186,11 +186,13 @@ class TurnView(containers.Vertical):
                 continue
             self._shown_user_pictures.add(attachment_id)
             self._user_pictures.mount(
-                picture_view.PictureView(self._desk_name, attachment=attachment)
+                picture_view.PictureView(
+                    self._trader_name, attachment=attachment
+                )
             )
 
     def _heading_content(self, turn: chat_items.ChatTurn) -> Content:
-        """The line above the message: who or what woke the desk, and when.
+        """The line above the message: who or what woke the trader, and when.
 
         Args:
             turn (chat_items.ChatTurn): The turn.
@@ -200,7 +202,7 @@ class TurnView(containers.Vertical):
         """
         who = 'You'
         if turn.request_id is not None:
-            who = 'Your response went to the desk'
+            who = 'Your response went to the trader'
         elif turn.source != 'user_message':
             who = event_describer.EventDescriber().source_words(turn.source)
         return Content.from_markup(

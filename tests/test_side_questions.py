@@ -63,14 +63,16 @@ class _FixedPromptBuilder:
         Returns:
             prompt_builder.SystemPrompt: The prompt.
         """
-        return prompt_builder.SystemPrompt(text='desk prompt', fingerprint='f')
+        return prompt_builder.SystemPrompt(
+            text='trader prompt', fingerprint='f'
+        )
 
 
 class TestAgentSideQuestion:
     """Tests for AgentTurnRunner.side_question."""
 
     def test_question_sees_the_conversation_but_is_not_kept(self) -> None:
-        """The model sees the conversation plus the question and no tools, and the desk's conversation is unchanged afterwards."""
+        """The model sees the conversation plus the question and no tools, and the trader's conversation is unchanged afterwards."""
         event_bus = event_bus_module.EventBus()
         model = _RecordingBackend()
         executor = tool_call_executor.ToolCallExecutor(

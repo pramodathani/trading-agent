@@ -1,4 +1,4 @@
-"""Groups one desk's events into chat turns, one per trigger, as the web page does.
+"""Groups one trader's events into chat turns, one per trigger, as the web page does.
 
 It follows the rules of the web page's chatTurnBuilder.ts and eventSocket.ts, but it is fed one event at a time, and each call says which item changed, so a screen only redraws that item.
 
@@ -21,7 +21,7 @@ _TURN_LESS_KINDS_SHOWN = (
     'fill',
     'price_alert',
     'message',
-    'desk_halt',
+    'trader_halt',
     'kill_switch',
     'session_started',
     'cron_fired',
@@ -42,7 +42,7 @@ ChatItem: TypeAlias = chat_items.ChatTurn | chat_items.LooseEvent
 
 
 class ChatTranscript:
-    """The chat of one desk, built from its events.
+    """The chat of one trader, built from its events.
 
     Attributes:
         items: The turns and loose events, oldest first.
@@ -65,7 +65,7 @@ class ChatTranscript:
         An event already added, such as one read from the journal and received live too, is ignored.
 
         Args:
-            event (dict[str, Any]): The event, with kind, desk, payload and created_at.
+            event (dict[str, Any]): The event, with kind, trader, payload and created_at.
 
         Returns:
             ChatItem | None: The turn or loose event that changed or was added, or None when nothing shown changed.
@@ -177,8 +177,8 @@ class ChatTranscript:
         trigger_id = payload.get('trigger_id')
         if not isinstance(trigger_id, str):
             trigger_id = ''
-        desk = event.get('desk') or ''
-        return f'{event.get("created_at", "")}|{event.get("kind", "")}|{desk}|{trigger_id}|{call_id}'
+        trader = event.get('trader') or ''
+        return f'{event.get("created_at", "")}|{event.get("kind", "")}|{trader}|{trigger_id}|{call_id}'
 
     def _shown_item(
         self,

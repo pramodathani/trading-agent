@@ -1,11 +1,11 @@
-"""Remembers the terminal program's choices between runs: the desk, the theme, the side panel and its folded cards.
+"""Remembers the terminal program's choices between runs: the trader, the theme, the side panel and its folded cards.
 
 They are kept in ~/.local/state/trading-agent/terminal.json, beside the prompt history. A missing or unreadable file gives the defaults.
 
 Typical usage example:
 
   settings = TerminalSettings.load()
-  settings.desk = 'scalper'
+  settings.trader = 'scalper'
   settings.save()
 """
 
@@ -21,7 +21,7 @@ class TerminalSettings:
     """The remembered choices.
 
     Attributes:
-        desk: The desk the chat opened on last, or None.
+        trader: The trader the chat opened on last, or None.
         theme: The theme's name.
         side_panel_open: Whether the right-hand panel is shown.
         collapsed_cards: The side panel cards that are folded, by short name.
@@ -34,7 +34,7 @@ class TerminalSettings:
         Args:
             file (Path): Where the choices are kept.
         """
-        self.desk: str | None = None
+        self.trader: str | None = None
         self.theme = terminal_themes.TerminalThemes.DARK
         self.side_panel_open = True
         self.collapsed_cards: list[str] = []
@@ -71,8 +71,8 @@ class TerminalSettings:
             return settings
         if not isinstance(stored, dict):
             return settings
-        if isinstance(stored.get('desk'), str):
-            settings.desk = stored['desk']
+        if isinstance(stored.get('trader'), str):
+            settings.trader = stored['trader']
         if stored.get('theme') in (
             terminal_themes.TerminalThemes.DARK,
             terminal_themes.TerminalThemes.LIGHT,
@@ -94,7 +94,7 @@ class TerminalSettings:
             self.file.write_text(
                 json.dumps(
                     {
-                        'desk': self.desk,
+                        'trader': self.trader,
                         'theme': self.theme,
                         'side_panel_open': self.side_panel_open,
                         'collapsed_cards': self.collapsed_cards,

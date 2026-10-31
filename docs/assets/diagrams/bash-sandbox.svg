@@ -1,8 +1,8 @@
 <svg class="ta-svg" viewBox="0 0 1000 630" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="bash-sandbox-title bash-sandbox-description">
   <title id="bash-sandbox-title">The bash sandbox</title>
-  <desc id="bash-sandbox-description">Each desk has one long-running bash session inside bwrap, with its own scratch folder writable, the project read-only and secrets hidden.</desc>
+  <desc id="bash-sandbox-description">Each trader has one long-running bash session inside bwrap, with its own scratch folder writable, the project read-only and secrets hidden.</desc>
   <rect class="container" x="300" y="110" width="350" height="420" rx="12"/>
-  <text class="small" x="318" y="132">bwrap sandbox, one per desk</text>
+  <text class="small" x="318" y="132">bwrap sandbox, one per trader</text>
   <path class="wire" d="M140,300 L470,190"/>
   <path class="wire" d="M470,190 L840,105"/>
   <path class="wire" d="M470,190 L840,265"/>
@@ -16,7 +16,7 @@
   <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.4;0.66;1" keyPoints="0;0;1;1"><mpath href="#bash-sandbox-to-broker"/></animateMotion></circle>
   <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.7;0.88;1" keyPoints="0;0;1;1"><mpath href="#bash-sandbox-output-back"/></animateMotion></circle>
   <rect class="box" x="40" y="255" width="200" height="90" rx="8"/>
-  <text class="title" x="140" y="283" text-anchor="middle">Desk</text>
+  <text class="title" x="140" y="283" text-anchor="middle">Trader</text>
   <text class="small" x="140" y="305" text-anchor="middle">Claude, Qwen or Gemma</text>
   <text class="mono" x="140" y="327" text-anchor="middle">bash_run · read_file</text>
   <rect class="accent-box" x="340" y="150" width="260" height="80" rx="8"/>
@@ -25,7 +25,7 @@
   <text class="small" x="470" y="214" text-anchor="middle">stuck command → fresh terminal</text>
   <rect class="box" x="340" y="250" width="260" height="56" rx="8"/>
   <text class="title" x="470" y="274" text-anchor="middle">Writable</text>
-  <text class="small" x="470" y="292" text-anchor="middle">the desk's scratch folder and /tmp</text>
+  <text class="small" x="470" y="292" text-anchor="middle">the trader's scratch folder and /tmp</text>
   <rect class="box" x="340" y="320" width="260" height="56" rx="8"/>
   <text class="title" x="470" y="344" text-anchor="middle">Read-only</text>
   <text class="small" x="470" y="362" text-anchor="middle">code, TradingRules.md, everything else</text>

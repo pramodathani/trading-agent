@@ -2,7 +2,7 @@
   <title id="agent-loop-title">The agent loop</title>
   <desc id="agent-loop-description">A trigger starts a turn; the model is asked, its tool calls run through the tool registry and the loop guard, and the loop repeats until the model answers without a tool.</desc>
   <rect class="container" x="20" y="150" width="620" height="410" rx="10"/>
-  <text class="small" x="360" y="172">one desk inside the gateway</text>
+  <text class="small" x="360" y="172">one trader inside the gateway</text>
   <path class="wire" d="M130,55 L130,300 L430,300"/>
   <path class="wire" d="M430,300 L840,130"/>
   <path class="wire" d="M430,300 L840,470"/>

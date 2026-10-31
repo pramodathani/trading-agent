@@ -1,4 +1,4 @@
-"""Reads mcp_servers.json, which lists the MCP servers every desk can use.
+"""Reads mcp_servers.json, which lists the MCP servers every trader can use.
 
 The file uses the "mcpServers" format of Claude Code and Claude Desktop, so a server can be copied from their documentation unchanged:
 

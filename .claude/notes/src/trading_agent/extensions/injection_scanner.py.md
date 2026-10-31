@@ -14,7 +14,7 @@ The patterns need an instruction-like phrase, not single words: a news paragraph
 
 ## Limits
 
-Pattern matching cannot catch every phrasing. The main defence is the label every piece of outside text carries (`untrusted_text.py`), the risk engine that checks every order in code whatever the model was persuaded of, and the desks' instructions. The scanner makes attacks visible to the model and the user.
+Pattern matching cannot catch every phrasing. The main defence is the label every piece of outside text carries (`untrusted_text.py`), the risk engine that checks every order in code whatever the model was persuaded of, and the traders' instructions. The scanner makes attacks visible to the model and the user.
 
 ## A bug this file had
 

@@ -1,6 +1,6 @@
-"""Holds a desk's tools and runs them by name.
+"""Holds a trader's tools and runs them by name.
 
-The registry is the one place where a tool call from the model meets real code. It checks the arguments, applies a time limit, catches failures and caps the size of the output, so a misbehaving tool cannot crash the desk or flood the model's context.
+The registry is the one place where a tool call from the model meets real code. It checks the arguments, applies a time limit, catches failures and caps the size of the output, so a misbehaving tool cannot crash the trader or flood the model's context.
 
 Typical usage example:
 
@@ -24,7 +24,7 @@ _MAXIMUM_OUTPUT_CHARACTERS = 20000
 
 
 class ToolRegistry:
-    """The tools available to one desk."""
+    """The tools available to one trader."""
 
     def __init__(
         self,
@@ -149,5 +149,5 @@ class ToolRegistry:
             text=text,
             is_error=result.is_error,
             image=result.image,
-            picture_desk_path=result.picture_desk_path,
+            picture_trader_path=result.picture_trader_path,
         )

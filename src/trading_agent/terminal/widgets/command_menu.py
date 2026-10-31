@@ -1,6 +1,6 @@
 """The menu that opens above the message box when the user types a slash, as in Claude Code.
 
-It lists the terminal program's own commands, then the desk's commands and skills, keeping those whose names start with what was typed. After an @ it lists files and folders instead, for attaching a file. Each name appears once, with the usage and description of its first entry.
+It lists the terminal program's own commands, then the trader's commands and skills, keeping those whose names start with what was typed. After an @ it lists files and folders instead, for attaching a file. Each name appears once, with the usage and description of its first entry.
 
 Typical usage example:
 

@@ -1,4 +1,4 @@
-"""The bash_run tool: runs one command in the desk's terminal and waits for it.
+"""The bash_run tool: runs one command in the trader's terminal and waits for it.
 
 Typical usage example:
 
@@ -24,7 +24,7 @@ class BashRunTool(bash_tool.BashTool):
         """Creates the tool, with a time limit just above the terminal's own.
 
         Args:
-            session (bash_session_module.BashSession): The desk's terminal.
+            session (bash_session_module.BashSession): The trader's terminal.
         """
         super().__init__(session)
         self.timeout_seconds = session.timeout_seconds + _TIMEOUT_MARGIN_SECONDS
@@ -44,5 +44,5 @@ class BashRunTool(bash_tool.BashTool):
         return self._result_from(await self._session.run(arguments.command))
 
     async def close(self) -> None:
-        """Stops the terminal when the desk stops."""
+        """Stops the terminal when the trader stops."""
         await self._session.close()

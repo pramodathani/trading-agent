@@ -1,6 +1,6 @@
 # TradingPage.tsx
 
-The account as the risk engine sees it: balance, margin, today and this week, each desk's profit or loss and owned stocks, halts, positions with their owning desk, and the desks' open orders. A position no desk owns is labelled "yours", because it came from the user's own trading.
+The account as the risk engine sees it: balance, margin, today and this week, each trader's profit or loss and owned stocks, halts, positions with their owning trader, and the traders' open orders. A position no trader owns is labelled "yours", because it came from the user's own trading.
 
 UBI's own order book is read only when the user presses Load, because it is a heavier call and includes the user's own orders.
 

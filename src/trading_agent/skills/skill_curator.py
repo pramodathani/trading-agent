@@ -1,9 +1,9 @@
-"""Keeps a desk's own skills tidy, once a day when its session rolls over.
+"""Keeps a trader's own skills tidy, once a day when its session rolls over.
 
 The curator has two halves:
 
-- In code, `archive_unused` archives the desk's skills that have not been used for a number of days (30 by default). A skill never used counts from the day its file was last changed.
-- For the model, `review_request` writes the text of a review turn: each of the desk's skills with its use counts, and instructions to patch skills that keep running into trouble, merge duplicates, and turn any procedure worth repeating from the day into a new skill. The session keeper runs that turn right after the day's summary, while the whole day is still in the desk's context.
+- In code, `archive_unused` archives the trader's skills that have not been used for a number of days (30 by default). A skill never used counts from the day its file was last changed.
+- For the model, `review_request` writes the text of a review turn: each of the trader's skills with its use counts, and instructions to patch skills that keep running into trouble, merge duplicates, and turn any procedure worth repeating from the day into a new skill. The session keeper runs that turn right after the day's summary, while the whole day is still in the trader's context.
 
 Installed skills are never touched; they belong to the user.
 
@@ -26,7 +26,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class SkillCurator:
-    """Reviews one desk's own skills."""
+    """Reviews one trader's own skills."""
 
     def __init__(
         self,
@@ -38,8 +38,8 @@ class SkillCurator:
         """Creates the curator.
 
         Args:
-            library (skill_library_module.SkillLibrary): The desk's skills.
-            usage_reader (skill_usage_module.SkillUsageReader): The desk's usage statistics.
+            library (skill_library_module.SkillLibrary): The trader's skills.
+            usage_reader (skill_usage_module.SkillUsageReader): The trader's usage statistics.
             writer (skill_writer_module.SkillWriter): Archives skills.
             archive_after_days (int): How many days without use before a skill is archived.
         """
@@ -49,7 +49,7 @@ class SkillCurator:
         self._archive_after_days = archive_after_days
 
     def archive_unused(self, today: datetime.date) -> list[str]:
-        """Archives the desk's skills unused for too long.
+        """Archives the trader's skills unused for too long.
 
         Args:
             today (datetime.date): Today's India date.
@@ -84,7 +84,7 @@ class SkillCurator:
 
         Args:
             trading_date (datetime.date): The day being closed.
-            archived (list[str]): Skills archived just before, so the desk knows.
+            archived (list[str]): Skills archived just before, so the trader knows.
 
         Returns:
             str: The request.
@@ -118,7 +118,7 @@ class SkillCurator:
         return '\n'.join(lines)
 
     def _own_skills(self) -> list[skill_module.Skill]:
-        """The desk's own skills, usable or not.
+        """The trader's own skills, usable or not.
 
         Returns:
             list[skill_module.Skill]: The skills.

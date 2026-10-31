@@ -29,7 +29,7 @@ _QUIET_KINDS = (
     'turn_finished',
     'model_usage',
     'rate_limit',
-    'desk_started',
+    'trader_started',
     'account_status',
 )
 
@@ -60,7 +60,7 @@ class EventDescriber:
         """Describes one event.
 
         Args:
-            event (dict[str, Any]): The event, with kind, desk, payload and created_at.
+            event (dict[str, Any]): The event, with kind, trader, payload and created_at.
 
         Returns:
             EventDescription: Its title, detail and tone.
@@ -153,9 +153,9 @@ class EventDescriber:
             return self._fill(payload)
         if kind == 'price_alert':
             return self._price_alert(payload)
-        if kind == 'desk_halt':
+        if kind == 'trader_halt':
             return self._make(
-                'Desk halted at its loss limit',
+                'Trader halted at its loss limit',
                 self._text(payload.get('reason')),
                 'bad',
             )
@@ -247,17 +247,17 @@ class EventDescriber:
             return self._make(title, self._text(payload.get('title')), 'good')
         if kind == 'stopped':
             return self._make('Turn stopped by you', '', 'warning')
-        if kind == 'desk_started':
-            return self._make('Desk started', '', 'quiet')
-        if kind == 'desk_stopped':
-            return self._make('Desk stopped', '', 'warning')
+        if kind == 'trader_started':
+            return self._make('Trader started', '', 'quiet')
+        if kind == 'trader_stopped':
+            return self._make('Trader stopped', '', 'warning')
         tone = 'normal'
         if kind in _QUIET_KINDS:
             tone = 'quiet'
         return self._make(kind.replace('_', ' '), self._json(payload), tone)
 
     def source_words(self, source: object) -> str:
-        """Names what woke a desk.
+        """Names what woke a trader.
 
         Args:
             source (object): The trigger's source, such as "user_message".
@@ -370,7 +370,7 @@ class EventDescriber:
         return self._make(f'Telegram: connected as @{name}', '', 'quiet')
 
     def _user_request(self, payload: dict[str, Any]) -> EventDescription:
-        """Describes a question, plan or permission request from a desk.
+        """Describes a question, plan or permission request from a trader.
 
         Args:
             payload (dict[str, Any]): The event's payload, which is the whole request.
@@ -383,17 +383,17 @@ class EventDescriber:
             content = {}
         if payload.get('kind') == 'plan':
             return self._make(
-                'The desk presented a plan for your approval',
+                'The trader presented a plan for your approval',
                 self._text(content.get('title')),
                 'warning',
             )
         if payload.get('kind') == 'permission':
             return self._make(
-                'The desk needs your permission',
+                'The trader needs your permission',
                 self._text(content.get('tool_name')),
                 'warning',
             )
-        return self._make('The desk asked you a question', '', 'warning')
+        return self._make('The trader asked you a question', '', 'warning')
 
     def _make(self, title: str, detail: str, tone: str) -> EventDescription:
         """Builds a description.

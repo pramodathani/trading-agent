@@ -1,6 +1,6 @@
-"""The add_note tool: records one to three short lessons in the desk's notes for today.
+"""The add_note tool: records one to three short lessons in the trader's notes for today.
 
-Notes go to `notes/YYYY-MM-DD.md` in the desk folder, one bullet per note with the India time. When a session ends, the desk folds the day's notes into Memory.md. The notes file is snapshotted before every change, so a note can be undone.
+Notes go to `notes/YYYY-MM-DD.md` in the trader folder, one bullet per note with the India time. When a session ends, the trader folds the day's notes into Memory.md. The notes file is snapshotted before every change, so a note can be undone.
 
 Typical usage example:
 
@@ -77,8 +77,8 @@ class AddNoteTool(tool.Tool):
         """Creates the tool.
 
         Args:
-            notes_directory (Path): The desk's notes folder.
-            checkpoints (checkpoints_module.Checkpoints | None): Snapshots the desk's files before the note is written, or None to take none.
+            notes_directory (Path): The trader's notes folder.
+            checkpoints (checkpoints_module.Checkpoints | None): Snapshots the trader's files before the note is written, or None to take none.
             clock (Callable[[], datetime.datetime] | None): Returns the current India time; None uses the system clock. Tests replace it.
         """
         self._notes_directory = notes_directory

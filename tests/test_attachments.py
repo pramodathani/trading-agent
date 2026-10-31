@@ -28,9 +28,9 @@ from trading_agent.channels import telegram_channel
 from trading_agent.configuration import agent_configuration
 from trading_agent.gateway import access_guard
 from trading_agent.gateway.routes import attachment_routes
-from trading_agent.gateway.routes import desk_routes
-from trading_agent.runtime import desk_runtime
+from trading_agent.gateway.routes import trader_routes
 from trading_agent.runtime import event_bus as event_bus_module
+from trading_agent.runtime import trader_runtime
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.runtime import turn_runner
 from trading_agent.workspace import workspace_layout
@@ -145,7 +145,7 @@ def _workbook() -> bytes:
 
 
 def _store(directory: Path) -> attachment_store_module.AttachmentStore:
-    """Builds a store over a scratch workspace with a main desk.
+    """Builds a store over a scratch workspace with a main trader.
 
     Args:
         directory (Path): A scratch folder.
@@ -171,8 +171,8 @@ class TestAttachmentStore:
         assert found == attachment
         assert attachment.is_image
         assert attachment.media_type == 'image/png'
-        assert attachment.desk_path.startswith('uploads/')
-        assert attachment.desk_path.endswith(
+        assert attachment.trader_path.startswith('uploads/')
+        assert attachment.trader_path.endswith(
             f'/{attachment.attachment_id}/chart.png'
         )
         assert attachment.stored_file().read_bytes() == _picture()
@@ -195,7 +195,7 @@ class TestAttachmentStore:
             assert 'chart.png' in str(error)
         else:
             raise AssertionError('The fake picture was accepted')
-        uploads = tmp_path / 'desks' / 'main' / 'uploads'
+        uploads = tmp_path / 'traders' / 'main' / 'uploads'
         assert list(uploads.rglob('*.png')) == []
 
     def test_empty_large_and_unknown_files_are_refused(
@@ -212,12 +212,12 @@ class TestAttachmentStore:
             (
                 'huge.txt',
                 b'x' * (attachment_store_module.MAXIMUM_BYTES + 1),
-                'the most a desk takes is 20 MB',
+                'the most a trader takes is 20 MB',
             ),
             (
                 'tool.exe',
                 b'MZ',
-                'not a type the desks can use',
+                'not a type the traders can use',
             ),
         ]
         for file_name, data, reason in cases:
@@ -234,7 +234,7 @@ class TestAttachmentStore:
             'main', 'trades.csv', b'symbol,quantity\nINFY,10\n'
         )
 
-        text_file = tmp_path / 'desks' / 'main' / attachment.text_desk_path
+        text_file = tmp_path / 'traders' / 'main' / attachment.text_trader_path
         text = text_file.read_text(encoding='utf-8')
         assert text.startswith(
             '[Content from the uploaded file trades.csv begins.'
@@ -253,23 +253,25 @@ class TestAttachmentStore:
         word = store.save('main', 'plan.docx', _word_document())
         excel = store.save('main', 'book.xlsx', _workbook())
 
-        desk = tmp_path / 'desks' / 'main'
+        trader = tmp_path / 'traders' / 'main'
         assert pdf.page_count == 1
-        assert 'Hello from the PDF' in (desk / pdf.text_desk_path).read_text()
-        word_text = (desk / word.text_desk_path).read_text()
+        assert (
+            'Hello from the PDF' in (trader / pdf.text_trader_path).read_text()
+        )
+        word_text = (trader / word.text_trader_path).read_text()
         assert 'Buy RELIANCE below 2400.' in word_text
         assert 'Symbol | Target' in word_text
-        excel_text = (desk / excel.text_desk_path).read_text()
+        excel_text = (trader / excel.text_trader_path).read_text()
         assert '--- Sheet Positions ---' in excel_text
         assert 'INFY\t10' in excel_text
 
     def test_unreadable_document_is_kept_with_the_reason(
         self, tmp_path: Path
     ) -> None:
-        """A damaged Word file is kept, and the desk is told why it cannot read it."""
+        """A damaged Word file is kept, and the trader is told why it cannot read it."""
         attachment = _store(tmp_path).save('main', 'broken.docx', b'garbage')
 
-        assert attachment.text_desk_path is None
+        assert attachment.text_trader_path is None
         assert 'cannot be read' in attachment.problem
         assert 'Its text could not be read' in attachment.describe_for_model()
 
@@ -284,7 +286,7 @@ class TestAttachmentStore:
             'main', 'scan.pdf', output.getvalue()
         )
 
-        assert attachment.text_desk_path is None
+        assert attachment.text_trader_path is None
         assert 'send the pages as pictures' in attachment.problem
 
     def test_folders_in_the_name_are_dropped(self, tmp_path: Path) -> None:
@@ -293,7 +295,7 @@ class TestAttachmentStore:
             'main', '../../shared/TradingRules.md', b'# rules'
         )
 
-        assert attachment.desk_path.endswith(
+        assert attachment.trader_path.endswith(
             f'/{attachment.attachment_id}/TradingRules.md'
         )
         assert not (tmp_path / 'shared' / 'TradingRules.md').exists()
@@ -367,25 +369,25 @@ class _RecordingRunner(turn_runner.TurnRunner):
 
 
 async def _run_one(
-    desk: desk_runtime.DeskRuntime,
+    trader: trader_runtime.TraderRuntime,
     runner: _RecordingRunner,
     trigger: trigger_module.Trigger,
 ) -> None:
-    """Submits a trigger and runs the desk until the runner has it.
+    """Submits a trigger and runs the trader until the runner has it.
 
     Args:
-        desk (desk_runtime.DeskRuntime): The desk.
+        trader (trader_runtime.TraderRuntime): The trader.
         runner (_RecordingRunner): Its runner.
         trigger (trigger_module.Trigger): The trigger.
     """
-    task = asyncio.create_task(desk.run())
-    desk.submit(trigger)
+    task = asyncio.create_task(trader.run())
+    trader.submit(trigger)
     try:
         for _ in range(200):
             if runner.triggers:
                 return
             await asyncio.sleep(0.01)
-        raise AssertionError('The desk never ran the turn')
+        raise AssertionError('The trader never ran the turn')
     finally:
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)
@@ -411,14 +413,16 @@ class TestMessagesWithAttachments:
         )
         assert trigger.images == (attachment,)
 
-    def test_desk_adds_a_note_for_each_attachment(self, tmp_path: Path) -> None:
+    def test_trader_adds_a_note_for_each_attachment(
+        self, tmp_path: Path
+    ) -> None:
         """The turn's text names each attachment and says where a document's text is."""
         store = _store(tmp_path)
         picture = store.save('main', 'chart.png', _picture())
         document = store.save('main', 'trades.csv', b'symbol\nINFY\n')
         runner = _RecordingRunner()
-        desk = desk_runtime.DeskRuntime(
-            agent_configuration.DeskConfiguration(name='main'),
+        trader = trader_runtime.TraderRuntime(
+            agent_configuration.TraderConfiguration(name='main'),
             event_bus_module.EventBus(),
             runner,
         )
@@ -432,15 +436,15 @@ class TestMessagesWithAttachments:
             ),
         )
 
-        asyncio.run(_run_one(desk, runner, trigger))
+        asyncio.run(_run_one(trader, runner, trigger))
 
         text = runner.triggers[0].text
         assert 'Look at these.' in text
         assert (
-            f'[Picture attached: chart.png (1 KB), saved at {picture.desk_path}.'
+            f'[Picture attached: chart.png (1 KB), saved at {picture.trader_path}.'
             in text
         )
-        assert f'Its text is at {document.text_desk_path}' in text
+        assert f'Its text is at {document.text_trader_path}' in text
         assert runner.triggers[0].attachments == trigger.attachments
 
     def test_message_with_attachments_never_steers(
@@ -448,14 +452,14 @@ class TestMessagesWithAttachments:
     ) -> None:
         """A message with a picture waits for its own turn instead of joining the running one."""
         attachment = _store(tmp_path).save('main', 'chart.png', _picture())
-        desk = desk_runtime.DeskRuntime(
-            agent_configuration.DeskConfiguration(name='main'),
+        trader = trader_runtime.TraderRuntime(
+            agent_configuration.TraderConfiguration(name='main'),
             event_bus_module.EventBus(),
             _RecordingRunner(),
         )
-        desk._running_trigger_id = 'running'
+        trader._running_trigger_id = 'running'
 
-        desk.submit(
+        trader.submit(
             trigger_module.Trigger.now(
                 trigger_module.TriggerSource.USER_MESSAGE,
                 'main',
@@ -464,8 +468,8 @@ class TestMessagesWithAttachments:
             )
         )
 
-        assert desk.queued_count == 1
-        assert desk.steering_inbox.take_text() is None
+        assert trader.queued_count == 1
+        assert trader.steering_inbox.take_text() is None
 
     def test_agent_loop_puts_pictures_on_the_user_message(
         self, tmp_path: Path
@@ -591,15 +595,15 @@ class TestMessagesWithAttachments:
         assert conversation.estimated_tokens() == 3000
 
 
-class _StandInDesk:
-    """A desk that keeps what it is sent.
+class _StandInTrader:
+    """A trader that keeps what it is sent.
 
     Attributes:
         triggers: The triggers submitted.
     """
 
     def __init__(self):
-        """Creates the desk."""
+        """Creates the trader."""
         self.triggers: list[trigger_module.Trigger] = []
 
     def submit(self, trigger: trigger_module.Trigger) -> None:
@@ -613,13 +617,13 @@ class _StandInDesk:
 
 def _client(
     directory: Path,
-    desk: _StandInDesk,
+    trader: _StandInTrader,
 ) -> fastapi.testclient.TestClient:
-    """Mounts the desk and attachment routes for one stand-in desk.
+    """Mounts the trader and attachment routes for one stand-in trader.
 
     Args:
         directory (Path): The scratch workspace.
-        desk (_StandInDesk): The desk.
+        trader (_StandInTrader): The trader.
 
     Returns:
         fastapi.testclient.TestClient: A client sending the token.
@@ -627,15 +631,19 @@ def _client(
     layout = workspace_layout.WorkspaceLayout(directory)
     store = attachment_store_module.AttachmentStore(layout)
     guard = access_guard.AccessGuard(_TOKEN)
-    desks = {
-        'main': desk,
+    traders = {
+        'main': trader,
     }
     application = fastapi.FastAPI()
     application.include_router(
-        desk_routes.DeskRoutes(desks, guard, attachment_store=store).router()
+        trader_routes.TraderRoutes(
+            traders, guard, attachment_store=store
+        ).router()
     )
     application.include_router(
-        attachment_routes.AttachmentRoutes(desks, store, layout, guard).router()
+        attachment_routes.AttachmentRoutes(
+            traders, store, layout, guard
+        ).router()
     )
     return fastapi.testclient.TestClient(
         application,
@@ -649,12 +657,12 @@ class TestAttachmentRoutes:
     """Tests for uploading files and sending them with a message."""
 
     def test_upload_then_send_with_the_message(self, tmp_path: Path) -> None:
-        """An uploaded picture is named in the message and reaches the desk with it."""
-        desk = _StandInDesk()
-        client = _client(tmp_path, desk)
+        """An uploaded picture is named in the message and reaches the trader with it."""
+        trader = _StandInTrader()
+        client = _client(tmp_path, trader)
 
         uploaded = client.post(
-            '/api/desks/main/attachments',
+            '/api/traders/main/attachments',
             files={
                 'file': (
                     'chart.png',
@@ -665,7 +673,7 @@ class TestAttachmentRoutes:
         )
         attachment_id = uploaded.json()['attachment_id']
         sent = client.post(
-            '/api/desks/main/messages',
+            '/api/traders/main/messages',
             json={
                 'text': '',
                 'attachment_ids': [
@@ -676,16 +684,16 @@ class TestAttachmentRoutes:
 
         assert uploaded.status_code == 201
         assert sent.status_code == 202
-        assert desk.triggers[0].attachments[0].attachment_id == attachment_id
+        assert trader.triggers[0].attachments[0].attachment_id == attachment_id
 
     def test_uploaded_picture_can_be_fetched(self, tmp_path: Path) -> None:
         """The chat page can fetch an uploaded picture to show it."""
         store = _store(tmp_path)
         attachment = store.save('main', 'chart.png', _picture())
-        client = _client(tmp_path, _StandInDesk())
+        client = _client(tmp_path, _StandInTrader())
 
         answer = client.get(
-            f'/api/desks/main/attachments/{attachment.attachment_id}'
+            f'/api/traders/main/attachments/{attachment.attachment_id}'
         )
 
         assert answer.status_code == 200
@@ -694,10 +702,10 @@ class TestAttachmentRoutes:
 
     def test_refused_upload_explains_why(self, tmp_path: Path) -> None:
         """A program is refused with 422 and the reason."""
-        client = _client(tmp_path, _StandInDesk())
+        client = _client(tmp_path, _StandInTrader())
 
         answer = client.post(
-            '/api/desks/main/attachments',
+            '/api/traders/main/attachments',
             files={
                 'file': (
                     'tool.exe',
@@ -708,18 +716,18 @@ class TestAttachmentRoutes:
         )
 
         assert answer.status_code == 422
-        assert 'not a type the desks can use' in answer.json()['detail']
+        assert 'not a type the traders can use' in answer.json()['detail']
 
     def test_empty_message_and_unknown_upload_are_refused(
         self, tmp_path: Path
     ) -> None:
         """A message with neither text nor files, or naming an upload that does not exist, is refused."""
-        desk = _StandInDesk()
-        client = _client(tmp_path, desk)
+        trader = _StandInTrader()
+        client = _client(tmp_path, trader)
 
-        empty = client.post('/api/desks/main/messages', json={'text': '  '})
+        empty = client.post('/api/traders/main/messages', json={'text': '  '})
         unknown = client.post(
-            '/api/desks/main/messages',
+            '/api/traders/main/messages',
             json={
                 'text': 'see this',
                 'attachment_ids': [
@@ -730,16 +738,16 @@ class TestAttachmentRoutes:
 
         assert empty.status_code == 422
         assert unknown.status_code == 422
-        assert desk.triggers == []
+        assert trader.triggers == []
 
     def test_files_need_the_token(self, tmp_path: Path) -> None:
         """Uploads cannot be fetched without the access token."""
         store = _store(tmp_path)
         attachment = store.save('main', 'chart.png', _picture())
-        client = _client(tmp_path, _StandInDesk())
+        client = _client(tmp_path, _StandInTrader())
 
         answer = client.get(
-            f'/api/desks/main/attachments/{attachment.attachment_id}',
+            f'/api/traders/main/attachments/{attachment.attachment_id}',
             headers={
                 'Authorization': 'Bearer wrong',
             },
@@ -829,20 +837,20 @@ class _StandInTelegram:
 
 async def _run_channel(
     channel: telegram_channel.TelegramChannel,
-    desk: desk_runtime.DeskRuntime,
+    trader: trader_runtime.TraderRuntime,
     api: _StandInTelegram,
     chat_id: int,
 ) -> None:
-    """Runs the channel and the desk until a chat has had one reply.
+    """Runs the channel and the trader until a chat has had one reply.
 
     Args:
         channel (telegram_channel.TelegramChannel): The channel.
-        desk (desk_runtime.DeskRuntime): The desk.
+        trader (trader_runtime.TraderRuntime): The trader.
         api (_StandInTelegram): The stand-in.
         chat_id (int): The chat to watch.
     """
     tasks = [
-        asyncio.create_task(desk.run()),
+        asyncio.create_task(trader.run()),
         asyncio.create_task(channel.run()),
     ]
     try:
@@ -864,22 +872,22 @@ class TestTelegramAttachments:
         self, directory: Path, api: _StandInTelegram
     ) -> tuple[
         telegram_channel.TelegramChannel,
-        desk_runtime.DeskRuntime,
+        trader_runtime.TraderRuntime,
         _RecordingRunner,
     ]:
-        """Builds a channel with the owner paired to the main desk.
+        """Builds a channel with the owner paired to the main trader.
 
         Args:
             directory (Path): A scratch folder.
             api (_StandInTelegram): The stand-in.
 
         Returns:
-            tuple[telegram_channel.TelegramChannel, desk_runtime.DeskRuntime, _RecordingRunner]: The channel, its desk and the desk's runner.
+            tuple[telegram_channel.TelegramChannel, trader_runtime.TraderRuntime, _RecordingRunner]: The channel, its trader and the trader's runner.
         """
         event_bus = event_bus_module.EventBus()
         runner = _RecordingRunner()
-        desk = desk_runtime.DeskRuntime(
-            agent_configuration.DeskConfiguration(name='main'),
+        trader = trader_runtime.TraderRuntime(
+            agent_configuration.TraderConfiguration(name='main'),
             event_bus,
             runner,
         )
@@ -893,23 +901,23 @@ class TestTelegramAttachments:
             _NoCommands(),
             notification_formatter.NotificationFormatter([]),
             {
-                'main': desk,
+                'main': trader,
             },
             {},
             event_bus,
             'main',
             _store(directory),
         )
-        return channel, desk, runner
+        return channel, trader, runner
 
-    def test_paired_photo_reaches_the_desk(self, tmp_path: Path) -> None:
-        """A photo with a caption from the owner is downloaded and sent to the desk with it."""
+    def test_paired_photo_reaches_the_trader(self, tmp_path: Path) -> None:
+        """A photo with a caption from the owner is downloaded and sent to the trader with it."""
         api = _StandInTelegram(
             {
                 'photo-file': _picture(picture_format='JPEG'),
             }
         )
-        channel, desk, runner = self._channel(tmp_path, api)
+        channel, trader, runner = self._channel(tmp_path, api)
         api.receive(
             telegram_api.IncomingMessage(
                 chat_id=_OWNER,
@@ -925,7 +933,7 @@ class TestTelegramAttachments:
             )
         )
 
-        asyncio.run(_run_channel(channel, desk, api, _OWNER))
+        asyncio.run(_run_channel(channel, trader, api, _OWNER))
 
         attachments = runner.triggers[0].attachments
         assert api.downloads == [
@@ -942,7 +950,7 @@ class TestTelegramAttachments:
                 'stranger-file': b'anything',
             }
         )
-        channel, desk, runner = self._channel(tmp_path, api)
+        channel, trader, runner = self._channel(tmp_path, api)
         api.receive(
             telegram_api.IncomingMessage(
                 chat_id=_STRANGER,
@@ -958,7 +966,7 @@ class TestTelegramAttachments:
             )
         )
 
-        asyncio.run(_run_channel(channel, desk, api, _STRANGER))
+        asyncio.run(_run_channel(channel, trader, api, _STRANGER))
 
         assert api.downloads == []
         assert runner.triggers == []
@@ -968,7 +976,7 @@ class TestTelegramAttachments:
     ) -> None:
         """A file Telegram reports as over 20 MB is refused without downloading it."""
         api = _StandInTelegram({})
-        channel, desk, runner = self._channel(tmp_path, api)
+        channel, trader, runner = self._channel(tmp_path, api)
         api.receive(
             telegram_api.IncomingMessage(
                 chat_id=_OWNER,
@@ -984,7 +992,7 @@ class TestTelegramAttachments:
             )
         )
 
-        asyncio.run(_run_channel(channel, desk, api, _OWNER))
+        asyncio.run(_run_channel(channel, trader, api, _OWNER))
 
         assert api.downloads == []
         assert 'larger than 20 MB' in api.sent[0][1]
@@ -992,7 +1000,7 @@ class TestTelegramAttachments:
 
 
 class _NoCommands:
-    """Telegram commands that recognise nothing, so every message goes to the desk."""
+    """Telegram commands that recognise nothing, so every message goes to the trader."""
 
     def handles(self, text: str) -> bool:
         """Recognises nothing.

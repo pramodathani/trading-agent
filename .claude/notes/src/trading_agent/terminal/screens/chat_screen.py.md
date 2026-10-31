@@ -2,15 +2,15 @@
 
 ## Keys
 
-The keys follow Claude Code where the meaning carries over: Enter sends, Esc stops the running turn (it sends `/stop`, which the desk handles at once), Ctrl+C clears, then stops, then exits on a second press, Ctrl+D exits on a second press when the box is empty, Ctrl+O opens every tool call, Ctrl+R searches history and `?` in the empty box lists the keys. The desk picker is Alt+D, not Ctrl+K as first planned, because Ctrl+K is the text area's delete-to-end-of-line. Ctrl+C and Ctrl+D are priority bindings so they work while the text area has the focus; Ctrl+D falls back to deleting forward when the box has text.
+The keys follow Claude Code where the meaning carries over: Enter sends, Esc stops the running turn (it sends `/stop`, which the trader handles at once), Ctrl+C clears, then stops, then exits on a second press, Ctrl+D exits on a second press when the box is empty, Ctrl+O opens every tool call, Ctrl+R searches history and `?` in the empty box lists the keys. The trader picker is Alt+D, not Ctrl+K as first planned, because Ctrl+K is the text area's delete-to-end-of-line. Ctrl+C and Ctrl+D are priority bindings so they work while the text area has the focus; Ctrl+D falls back to deleting forward when the box has text.
 
-## Terminal commands and desk commands
+## Terminal commands and trader commands
 
-Only `/desk`, `/model` with no argument, `/theme`, `/keys`, `/exit` and `/quit` are handled by the terminal. Everything else, including `/model qwen`, goes to the desk, so the terminal never needs to know a desk command to support it. The menu lists the terminal's own commands first, then `GET /api/desks/{desk}/commands`, leaving out desk entries that a terminal command shadows.
+Only `/trader`, `/model` with no argument, `/theme`, `/keys`, `/exit` and `/quit` are handled by the terminal. Everything else, including `/model qwen`, goes to the trader, so the terminal never needs to know a trader command to support it. The menu lists the terminal's own commands first, then `GET /api/traders/{trader}/commands`, leaving out trader entries that a terminal command shadows.
 
 ## Loading and live events
 
-`load_desk` reads the desk's journal of today while live events are held, then adds both; `ChatTranscript` drops duplicates. After a reconnect the chat is loaded again, because the stream never replays what was missed.
+`load_trader` reads the trader's journal of today while live events are held, then adds both; `ChatTranscript` drops duplicates. After a reconnect the chat is loaded again, because the stream never replays what was missed.
 
 ## Scrolling
 
@@ -18,7 +18,7 @@ The transcript uses Textual's `anchor()`, which keeps a scroll area at its botto
 
 ## Shutdown
 
-`_show_status` looks its widgets up with `query()` and returns when they are gone, because a desk poll can finish after the screen's widgets have been removed at exit; `query_one` raised there and failed the worker.
+`_show_status` looks its widgets up with `query()` and returns when they are gone, because a trader poll can finish after the screen's widgets have been removed at exit; `query_one` raised there and failed the worker.
 
 ## Attaching files
 

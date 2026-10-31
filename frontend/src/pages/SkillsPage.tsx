@@ -1,27 +1,27 @@
 import { apiClient } from '../api/apiClient';
 import { Loadable } from '../components/Loadable';
 import { usePolled } from '../hooks/usePolled';
-import { useSelectedDesk } from '../layout/selectedDeskStore';
+import { useSelectedTrader } from '../layout/selectedTraderStore';
 import { formatter } from '../utilities/formatter';
 
 const REFRESH_MILLISECONDS = 30000;
 const ORIGIN_WORDS: Record<string, string> = {
   installed: 'yours',
-  agent: 'written by the desk',
+  agent: 'written by the trader',
 };
 
 /**
- * The chosen desk's skills: the ones it can use, with how often they helped, and the ones hidden for a missing program or variable.
+ * The chosen trader's skills: the ones it can use, with how often they helped, and the ones hidden for a missing program or variable.
  * @returns The page.
  */
 export function SkillsPage() {
-  const deskName = useSelectedDesk();
-  const skills = usePolled(() => apiClient.skills(deskName), REFRESH_MILLISECONDS, deskName);
+  const traderName = useSelectedTrader();
+  const skills = usePolled(() => apiClient.skills(traderName), REFRESH_MILLISECONDS, traderName);
   return (
     <div className="page">
       <div className="page-header">
-        <h1>Skills of {deskName}</h1>
-        <p className="muted">A skill is a written procedure the desk loads when a task matches it. The desk writes its own after complex work; the curator archives those it stops using.</p>
+        <h1>Skills of {traderName}</h1>
+        <p className="muted">A skill is a written procedure the trader loads when a task matches it. The trader writes its own after complex work; the curator archives those it stops using.</p>
       </div>
       <Loadable data={skills.data} error={skills.error}>
         {(document) => (
@@ -29,7 +29,7 @@ export function SkillsPage() {
             <section className="panel">
               <h2>Usable</h2>
               {document.available.length === 0 ? (
-                <p className="muted">No skills yet. Import one with trading-agent skills import, or let the desk write its own.</p>
+                <p className="muted">No skills yet. Import one with trading-agent skills import, or let the trader write its own.</p>
               ) : (
                 <div className="table-scroll">
                   <table>
@@ -63,7 +63,7 @@ export function SkillsPage() {
             {document.hidden.length > 0 && (
               <section className="panel">
                 <h2>Hidden</h2>
-                <p className="muted small">These need a program or an environment variable this machine does not have, so the desk is not offered them.</p>
+                <p className="muted small">These need a program or an environment variable this machine does not have, so the trader is not offered them.</p>
                 {document.hidden.map((skill) => (
                   <p key={skill.name}>
                     <span className="mono">{skill.name}</span> <span className="muted">needs {skill.missing.join(', ')}</span>

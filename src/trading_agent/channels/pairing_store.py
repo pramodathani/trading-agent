@@ -1,8 +1,8 @@
-"""Which Telegram chats may command the desks, and the pairing codes waiting for the user's approval.
+"""Which Telegram chats may command the traders, and the pairing codes waiting for the user's approval.
 
 Anyone who finds the bot can message it, so the bot obeys only chats the user has approved. A chat that is not paired gets an eight-character code. The user approves the code in the web page or with `trading-agent pairing approve`, which proves the chat is theirs: only someone who can see the bot's reply and reach this machine can do both. A code expires after an hour.
 
-The store is one JSON file in workspace/shared, which the desks can read but never write, so no desk can pair a chat by itself. The file is read afresh for every question, so an approval made by the command line reaches the running gateway at once.
+The store is one JSON file in workspace/shared, which the traders can read but never write, so no trader can pair a chat by itself. The file is read afresh for every question, so an approval made by the command line reaches the running gateway at once.
 
 Typical usage example:
 
@@ -54,19 +54,19 @@ class PendingPairing:
 
 @dataclasses.dataclass(frozen=True)
 class PairedChat:
-    """A chat the desks obey.
+    """A chat the traders obey.
 
     Attributes:
         chat_id: Telegram's id for the chat.
         name: The sender's name when it was paired.
         paired_at: When it was approved, as an ISO 8601 string in UTC.
-        desk: The desk the chat talks to.
+        trader: The trader the chat talks to.
     """
 
     chat_id: int
     name: str
     paired_at: str
-    desk: str
+    trader: str
 
 
 class PairingStore:
@@ -116,12 +116,12 @@ class PairingStore:
             self._write(data)
             return code
 
-    def approve(self, code: str, desk: str) -> PairedChat:
+    def approve(self, code: str, trader: str) -> PairedChat:
         """Pairs the chat that was given a code.
 
         Args:
             code (str): The code, with or without a dash, in any case.
-            desk (str): The desk the chat starts talking to.
+            trader (str): The trader the chat starts talking to.
 
         Returns:
             PairedChat: The newly paired chat.
@@ -139,7 +139,7 @@ class PairingStore:
                         chat_id=pending['chat_id'],
                         name=pending['name'],
                         paired_at=self._now().isoformat(timespec='seconds'),
-                        desk=desk,
+                        trader=trader,
                     )
                     data['paired'] = [
                         entry
@@ -154,7 +154,7 @@ class PairingStore:
         )
 
     def revoke(self, chat_id: int) -> PairedChat:
-        """Unpairs a chat, so the desks stop obeying it.
+        """Unpairs a chat, so the traders stop obeying it.
 
         Args:
             chat_id (int): The chat.
@@ -214,12 +214,12 @@ class PairingStore:
             pending.append(PendingPairing(**entry))
         return pending
 
-    def choose_desk(self, chat_id: int, desk: str) -> None:
-        """Changes the desk a paired chat talks to.
+    def choose_trader(self, chat_id: int, trader: str) -> None:
+        """Changes the trader a paired chat talks to.
 
         Args:
             chat_id (int): The chat.
-            desk (str): The desk.
+            trader (str): The trader.
 
         Raises:
             PairingError: The chat is not paired.
@@ -228,7 +228,7 @@ class PairingStore:
             data = self._read_live()
             for entry in data['paired']:
                 if entry['chat_id'] == chat_id:
-                    entry['desk'] = desk
+                    entry['trader'] = trader
                     self._write(data)
                     return
         raise PairingError(f'Chat {chat_id} is not paired')

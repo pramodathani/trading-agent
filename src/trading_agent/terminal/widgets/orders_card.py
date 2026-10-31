@@ -1,6 +1,6 @@
 """The side panel's Orders and trades card: today's orders placed and cancelled, trades, open orders and stocks held.
 
-The counts of orders and trades come from today's events of the desk, as on the web page; open orders and stocks held come from the gateway.
+The counts of orders and trades come from today's events of the trader, as on the web page; open orders and stocks held come from the gateway.
 
 Typical usage example:
 
@@ -28,7 +28,7 @@ class OrdersCard(side_card.SideCard):
 
     def show(
         self,
-        desk_name: str,
+        trader_name: str,
         events: Sequence[dict[str, Any]],
         open_orders: list[dict[str, Any]] | None,
         account: dict[str, Any] | None,
@@ -36,9 +36,9 @@ class OrdersCard(side_card.SideCard):
         """Shows the counts.
 
         Args:
-            desk_name (str): The desk the chat shows.
-            events (Sequence[dict[str, Any]]): The desk's events of today.
-            open_orders (list[dict[str, Any]] | None): The desk's open orders, or None when not known.
+            trader_name (str): The trader the chat shows.
+            events (Sequence[dict[str, Any]]): The trader's events of today.
+            open_orders (list[dict[str, Any]] | None): The trader's open orders, or None when not known.
             account (dict[str, Any] | None): The account, or None when not known.
         """
         placed = 0
@@ -70,7 +70,7 @@ class OrdersCard(side_card.SideCard):
         if account is not None:
             count = 0
             for owner in account.get('owners') or []:
-                if owner.get('desk') == desk_name:
+                if owner.get('trader') == trader_name:
                     count += 1
             held = str(count)
         self.show_body(

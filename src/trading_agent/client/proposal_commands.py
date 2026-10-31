@@ -46,7 +46,7 @@ class ProposalCommands:
             elif action == 'accept':
                 target = self._store.accept(proposal_id)
                 self._print(
-                    f"Accepted {proposal_id}: {target} now holds the proposed text. The previous version is in the desk's proposals/replaced folder."
+                    f"Accepted {proposal_id}: {target} now holds the proposed text. The previous version is in the trader's proposals/replaced folder."
                 )
             elif action == 'reject':
                 self._store.reject(proposal_id)
@@ -64,7 +64,7 @@ class ProposalCommands:
             return
         for proposal in proposals:
             self._print(
-                f'{proposal.proposal_id}  {proposal.status:8}  {proposal.desk:10}  {proposal.file_name:16}  {proposal.reason}'
+                f'{proposal.proposal_id}  {proposal.status:8}  {proposal.trader:10}  {proposal.file_name:16}  {proposal.reason}'
             )
 
     def _show(self, proposal_id: str) -> None:
@@ -75,7 +75,7 @@ class ProposalCommands:
         """
         proposal = self._store.get(proposal_id)
         self._print(
-            f'{proposal.proposal_id} ({proposal.status}) from desk {proposal.desk} for {proposal.file_name}'
+            f'{proposal.proposal_id} ({proposal.status}) from trader {proposal.trader} for {proposal.file_name}'
         )
         self._print(f'Reason: {proposal.reason}')
         self._print('')

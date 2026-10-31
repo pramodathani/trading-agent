@@ -1,6 +1,6 @@
-"""Builds a desk's system prompt from the workspace files.
+"""Builds a trader's system prompt from the workspace files.
 
-The prompt is read fresh before every turn, so an edit to a file reaches the desk on its next turn. It holds only slow-changing text, so that it stays identical between turns and the model's prompt cache keeps working; the time and the trigger go in the user message instead.
+The prompt is read fresh before every turn, so an edit to a file reaches the trader on its next turn. It holds only slow-changing text, so that it stays identical between turns and the model's prompt cache keeps working; the time and the trigger go in the user message instead.
 
 Typical usage example:
 
@@ -37,36 +37,36 @@ class SystemPrompt:
 
 
 class PromptBuilder:
-    """Assembles one desk's prompt."""
+    """Assembles one trader's prompt."""
 
     def __init__(
         self,
         layout: workspace_layout.WorkspaceLayout,
-        desk_name: str,
+        trader_name: str,
         mode: str,
         skill_library: skill_library_module.SkillLibrary | None = None,
         mcp_manager: mcp_client_manager.McpClientManager | None = None,
         subagent_library: subagent_library_module.SubagentLibrary | None = None,
-        other_desks: Sequence[str] = (),
+        other_traders: Sequence[str] = (),
     ):
         """Creates the builder.
 
         Args:
             layout (workspace_layout.WorkspaceLayout): Where the files are.
-            desk_name (str): The desk the prompt is for.
+            trader_name (str): The trader the prompt is for.
             mode (str): "dry_run" or "live", stated in the prompt.
-            skill_library (skill_library_module.SkillLibrary | None): The desk's skills, listed as an index at the end, or None for no index.
+            skill_library (skill_library_module.SkillLibrary | None): The trader's skills, listed as an index at the end, or None for no index.
             mcp_manager (mcp_client_manager.McpClientManager | None): The MCP connections, whose tool names are listed last, or None.
-            subagent_library (subagent_library_module.SubagentLibrary | None): The subagents the desk can delegate to, listed after the skills, or None.
-            other_desks (Sequence[str]): The other desks sharing the account, named in the header.
+            subagent_library (subagent_library_module.SubagentLibrary | None): The subagents the trader can delegate to, listed after the skills, or None.
+            other_traders (Sequence[str]): The other traders sharing the account, named in the header.
         """
         self._layout = layout
-        self._desk_name = desk_name
+        self._trader_name = trader_name
         self._mode = mode
         self._skill_library = skill_library
         self._mcp_manager = mcp_manager
         self._subagent_library = subagent_library
-        self._other_desks = list(other_desks)
+        self._other_traders = list(other_traders)
 
     def build(self) -> SystemPrompt:
         """Reads the files and assembles the prompt.
@@ -79,12 +79,12 @@ class PromptBuilder:
             self._memory_guide(),
             self._section('Agents.md', self._layout.agents_file),
             self._section(
-                'Persona.md', self._layout.persona_file(self._desk_name)
+                'Persona.md', self._layout.persona_file(self._trader_name)
             ),
             self._section('User.md', self._layout.user_file),
             self._section('TradingRules.md', self._layout.trading_rules_file),
             self._section(
-                'Memory.md', self._layout.memory_file(self._desk_name)
+                'Memory.md', self._layout.memory_file(self._trader_name)
             ),
         ]
         if self._skill_library is not None:
@@ -109,7 +109,7 @@ class PromptBuilder:
         return SystemPrompt(text=text, fingerprint=fingerprint)
 
     def _header(self) -> str:
-        """States which desk this is and whether orders are real.
+        """States which trader this is and whether orders are real.
 
         Returns:
             str: The prompt's opening lines.
@@ -121,22 +121,22 @@ class PromptBuilder:
         else:
             mode_line = 'Mode: dry_run. Orders go to UBI as dry runs and never reach the exchange.'
         lines = [
-            f'You are the "{self._desk_name}" desk of trading-agent.',
+            f'You are the "{self._trader_name}" trader of trading-agent.',
             mode_line,
         ]
-        if self._other_desks:
+        if self._other_traders:
             lines.append(
-                f'Other desks share the same broker account: {", ".join(self._other_desks)}. The risk engine gives each instrument to one desk at a time, so an instrument another desk holds or is trading is not yours to trade, and positions you do not own are not yours to close.'
+                f'Other traders share the same broker account: {", ".join(self._other_traders)}. The risk engine gives each instrument to one trader at a time, so an instrument another trader holds or is trading is not yours to trade, and positions you do not own are not yours to close.'
             )
         return '\n'.join(
             [
                 *lines,
-                'After a note on how your memory works, the files below are your instructions, in this order: how every desk works, your persona, the user, the trading rules, and your own memory. An index of your skills comes last.',
+                'After a note on how your memory works, the files below are your instructions, in this order: how every trader works, your persona, the user, the trading rules, and your own memory. An index of your skills comes last.',
             ]
         )
 
     def _memory_guide(self) -> str:
-        """Explains how the desk's memory works, which is part of the code rather than of any file.
+        """Explains how the trader's memory works, which is part of the code rather than of any file.
 
         Returns:
             str: The section.

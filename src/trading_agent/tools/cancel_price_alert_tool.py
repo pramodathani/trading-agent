@@ -1,4 +1,4 @@
-"""The cancel_price_alert tool: removes one of the desk's price alerts.
+"""The cancel_price_alert tool: removes one of the trader's price alerts.
 
 Typical usage example:
 
@@ -38,7 +38,7 @@ class CancelPriceAlertTool(tool.Tool):
         """Creates the tool.
 
         Args:
-            store (price_alert_store_module.PriceAlertStore): The desk's alerts.
+            store (price_alert_store_module.PriceAlertStore): The trader's alerts.
         """
         self._store = store
 

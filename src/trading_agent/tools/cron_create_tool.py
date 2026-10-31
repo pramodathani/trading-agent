@@ -1,4 +1,4 @@
-"""The cron_create tool: schedules a repeating job for the desk.
+"""The cron_create tool: schedules a repeating job for the trader.
 
 Typical usage example:
 
@@ -27,7 +27,7 @@ class CronCreateArguments(pydantic.BaseModel):
         schedule: Five cron fields in India time: minute hour day month weekday, such as "30 9 * * 1-5".
         instructions: For an agent job: the message you will receive at each run, or the subagent's task.
         command: For a command job instead: the exact shell command to run, such as "python3 scan.py".
-        target: "desk" for yourself, or "subagent:<name>" to have a subagent do it.
+        target: "trader" for yourself, or "subagent:<name>" to have a subagent do it.
         trading_days_only: Whether to skip weekends and exchange holidays.
         market_hours_only: Whether to run only while NSE equities trade.
         deliver_url: An address to POST the result to, or None.
@@ -39,7 +39,7 @@ class CronCreateArguments(pydantic.BaseModel):
     schedule: str = pydantic.Field(min_length=9)
     instructions: str | None = None
     command: str | None = None
-    target: str = cron_job_module.DESK_TARGET
+    target: str = cron_job_module.TRADER_TARGET
     trading_days_only: bool = True
     market_hours_only: bool = False
     deliver_url: str | None = None
@@ -77,7 +77,7 @@ class CronCreateTool(tool.Tool):
         """Creates the tool.
 
         Args:
-            store (cron_job_store_module.CronJobStore): The desk's jobs.
+            store (cron_job_store_module.CronJobStore): The trader's jobs.
             calendar (market_calendar_module.MarketCalendar): Decides trading days.
             hours (exchange_hours_module.ExchangeHours): Decides market hours.
         """
@@ -110,7 +110,7 @@ class CronCreateTool(tool.Tool):
                 trading_days_only=arguments.trading_days_only,
                 market_hours_only=arguments.market_hours_only,
                 deliver_url=arguments.deliver_url,
-                created_by='desk',
+                created_by='trader',
             )
         except cron_job_module.CronJobError as error:
             return tool.ToolResult.error(str(error))

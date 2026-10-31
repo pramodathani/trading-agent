@@ -1,4 +1,4 @@
-"""Downloads a file the desk sent, or a picture a tool showed it, and opens it with the desktop's default program.
+"""Downloads a file the trader sent, or a picture a tool showed it, and opens it with the desktop's default program.
 
 Files are saved under the state folder's "downloads" folder and opened with xdg-open, so a picture opens in the image viewer and a PDF in the PDF reader, as a new browser tab does on the web page.
 
@@ -21,7 +21,7 @@ _UNSAFE_CHARACTERS = re.compile(r'[^A-Za-z0-9._-]+')
 
 
 class AttachmentOpener:
-    """Saves desk files locally and opens them."""
+    """Saves trader files locally and opens them."""
 
     def __init__(
         self,
@@ -43,12 +43,12 @@ class AttachmentOpener:
         self.folder = folder
 
     async def save_attachment(
-        self, desk_name: str, attachment: dict[str, Any]
+        self, trader_name: str, attachment: dict[str, Any]
     ) -> Path:
         """Downloads an attachment.
 
         Args:
-            desk_name (str): The desk it belongs to.
+            trader_name (str): The trader it belongs to.
             attachment (dict[str, Any]): The attachment, with attachment_id and file_name.
 
         Returns:
@@ -59,17 +59,17 @@ class AttachmentOpener:
             OSError: The file could not be written.
         """
         data = await self._gateway.attachment_bytes(
-            desk_name, attachment['attachment_id']
+            trader_name, attachment['attachment_id']
         )
         name = f'{attachment["attachment_id"]}-{attachment.get("file_name", "file")}'
         return self._write(name, data)
 
-    async def save_picture(self, desk_name: str, picture_path: str) -> Path:
-        """Downloads a picture from inside a desk's folder.
+    async def save_picture(self, trader_name: str, picture_path: str) -> Path:
+        """Downloads a picture from inside a trader's folder.
 
         Args:
-            desk_name (str): The desk.
-            picture_path (str): The picture's path relative to the desk folder.
+            trader_name (str): The trader.
+            picture_path (str): The picture's path relative to the trader folder.
 
         Returns:
             Path: Where it was saved.
@@ -78,8 +78,8 @@ class AttachmentOpener:
             gateway_client.GatewayError: The gateway could not send it.
             OSError: The file could not be written.
         """
-        data = await self._gateway.picture_bytes(desk_name, picture_path)
-        return self._write(f'{desk_name}-{picture_path}', data)
+        data = await self._gateway.picture_bytes(trader_name, picture_path)
+        return self._write(f'{trader_name}-{picture_path}', data)
 
     def open(self, path: Path) -> bool:
         """Opens a saved file with the desktop's default program, without waiting for it.

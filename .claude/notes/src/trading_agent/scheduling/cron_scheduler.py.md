@@ -14,11 +14,11 @@ At start, a job with `catch_up` whose previous scheduled run was within 24 hours
 
 ## What each job does
 
-- Agent job for the desk: a trigger in the desk's queue (source `cron`, or `heartbeat`), prefixed with the job's name and id, so it never runs beside one of the desk's turns. The built-in rollover's text is `/rollover`, a command, so it runs without a model.
-- Heartbeat: skipped and recorded as skipped when the desk is busy or has triggers waiting, so heartbeats never pile up behind a long turn.
+- Agent job for the trader: a trigger in the trader's queue (source `cron`, or `heartbeat`), prefixed with the job's name and id, so it never runs beside one of the trader's turns. The built-in rollover's text is `/rollover`, a command, so it runs without a model.
+- Heartbeat: skipped and recorded as skipped when the trader is busy or has triggers waiting, so heartbeats never pile up behind a long turn.
 - Subagent job (`target: subagent:<name>`) and command job: run as background tasks; the result is published as `cron_result`.
 - One-off job: deleted from jobs.json when it starts.
-- `deliver_url`: the result (the desk's answer for an agent job, read from its `text` event; the report or output otherwise) is POSTed as JSON with secrets masked; a failure is logged.
+- `deliver_url`: the result (the trader's answer for an agent job, read from its `text` event; the report or output otherwise) is POSTed as JSON with secrets masked; a failure is logged.
 
 ## Events
 

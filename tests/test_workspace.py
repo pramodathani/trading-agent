@@ -91,7 +91,7 @@ class TestPromptBuilder:
     def test_sections_appear_in_order_with_the_mode(
         self, tmp_path: Path
     ) -> None:
-        """The prompt names the desk and mode and holds the files in their order.
+        """The prompt names the trader and mode and holds the files in their order.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
@@ -111,7 +111,7 @@ class TestPromptBuilder:
             ]
         ]
         assert positions == sorted(positions)
-        assert 'You are the "main" desk' in prompt.text
+        assert 'You are the "main" trader' in prompt.text
         assert 'Mode: dry_run' in prompt.text
 
     def test_interview_is_added_only_while_user_file_is_a_template(
@@ -198,10 +198,10 @@ class TestProposalStore:
         assert '+Name: Pramod' in difference
         assert store.get(proposal.proposal_id).status == 'accepted'
 
-    def test_persona_proposal_targets_the_desk_file(
+    def test_persona_proposal_targets_the_trader_file(
         self, tmp_path: Path
     ) -> None:
-        """A Persona.md proposal changes the proposing desk's persona.
+        """A Persona.md proposal changes the proposing trader's persona.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.

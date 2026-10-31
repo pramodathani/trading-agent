@@ -1,4 +1,4 @@
-"""The Skills page: the skills a desk can follow, with their use counts, and the skills hidden from it with what each is missing.
+"""The Skills page: the skills a trader can follow, with their use counts, and the skills hidden from it with what each is missing.
 
 It copies the web page's SkillsPage.tsx.
 
@@ -24,10 +24,10 @@ class SkillsScreen(page_screen.PageScreen):
 
     TITLE_TEXT = 'Skills'
     REFRESH_SECONDS = 30.0
-    PER_DESK = True
+    PER_TRADER = True
 
     BINDINGS: ClassVar[list[binding.BindingType]] = [
-        binding.Binding('d', 'next_desk', 'Next desk'),
+        binding.Binding('d', 'next_trader', 'Next trader'),
     ]
 
     def compose_page(self):
@@ -60,9 +60,9 @@ class SkillsScreen(page_screen.PageScreen):
 
     @work(exclusive=True, group='page')
     async def refresh_page(self) -> None:
-        """Reads the desk's skills."""
+        """Reads the trader's skills."""
         try:
-            answer = await self.app.gateway.skills(self.desk_name)
+            answer = await self.app.gateway.skills(self.trader_name)
         except gateway_client.GatewayError as error:
             self.problem(error.message)
             return
@@ -72,7 +72,7 @@ class SkillsScreen(page_screen.PageScreen):
         for skill in answer.get('available') or []:
             origin = 'yours'
             if skill.get('origin') == 'agent':
-                origin = 'written by the desk'
+                origin = 'written by the trader'
             last_used = '—'
             if skill.get('last_used'):
                 last_used = clock.day_time(str(skill['last_used']))

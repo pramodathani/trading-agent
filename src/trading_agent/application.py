@@ -14,7 +14,7 @@ from pathlib import Path
 import uvicorn
 
 from trading_agent import command_line
-from trading_agent import desk_builder
+from trading_agent import trader_builder
 from trading_agent.channels import notification_formatter
 from trading_agent.channels import pairing_store
 from trading_agent.channels import telegram_api
@@ -45,11 +45,11 @@ from trading_agent.extensions import mcp_server_configuration
 from trading_agent.extensions import systemd_user_units
 from trading_agent.gateway import access_guard
 from trading_agent.gateway import gateway_application
+from trading_agent.gateway import token_redacting_filter
 from trading_agent.gateway.routes import account_routes
 from trading_agent.gateway.routes import app_routes
 from trading_agent.gateway.routes import attachment_routes
 from trading_agent.gateway.routes import channel_routes
-from trading_agent.gateway.routes import desk_routes
 from trading_agent.gateway.routes import device_routes
 from trading_agent.gateway.routes import extension_routes
 from trading_agent.gateway.routes import file_routes
@@ -58,15 +58,15 @@ from trading_agent.gateway.routes import request_routes
 from trading_agent.gateway.routes import route_group
 from trading_agent.gateway.routes import schedule_routes
 from trading_agent.gateway.routes import system_routes
-from trading_agent.gateway import token_redacting_filter
+from trading_agent.gateway.routes import trader_routes
 from trading_agent.journal import secret_redactor
 from trading_agent.journal import trade_journal
 from trading_agent.journal import usage_tracker as usage_tracker_module
 from trading_agent.memory import checkpoints as checkpoints_module
 from trading_agent.requests import request_expiry_watcher
 from trading_agent.requests import user_request_responder
-from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event_bus as event_bus_module
+from trading_agent.runtime import trader_runtime
 from trading_agent.scheduling import cron_scheduler
 from trading_agent.skills import skill_usage
 from trading_agent.subagents import subagent_library
@@ -82,7 +82,7 @@ _LOG_FORMAT = '%(asctime)s %(levelname)s %(name)s: %(message)s'
 
 
 class Application:
-    """The whole of trading-agent: its configuration, desks and gateway."""
+    """The whole of trading-agent: its configuration, traders and gateway."""
 
     def __init__(self, argument_list: Sequence[str] | None = None):
         """Creates the application without reading or starting anything.
@@ -114,8 +114,8 @@ class Application:
         layout = workspace_layout.WorkspaceLayout(
             configuration.workspace_directory
         )
-        desk_names = [desk.name for desk in configuration.desks]
-        for created in layout.create_missing(desk_names):
+        trader_names = [trader.name for trader in configuration.traders]
+        for created in layout.create_missing(trader_names):
             logging.getLogger(__name__).info(
                 'Created %s from its template', created
             )
@@ -130,7 +130,7 @@ class Application:
                 f'http://{configuration.gateway.host}:{configuration.gateway.port}',
                 secrets.gateway_access_token,
             )
-            sys.exit(asyncio.run(client.send(arguments.desk, arguments.text)))
+            sys.exit(asyncio.run(client.send(arguments.trader, arguments.text)))
         if arguments.command == 'print':
             client = message_client.MessageClient(
                 f'http://{configuration.gateway.host}:{configuration.gateway.port}',
@@ -144,7 +144,7 @@ class Application:
                     text = f'{piped}\n\n{text}'
             sys.exit(
                 asyncio.run(
-                    client.send(arguments.chosen_desk or 'general', text)
+                    client.send(arguments.chosen_trader or 'general', text)
                 )
             )
         if arguments.command == 'terminal':
@@ -152,7 +152,7 @@ class Application:
                 self._terminal(
                     f'http://{configuration.gateway.host}:{configuration.gateway.port}',
                     secrets.gateway_access_token,
-                    arguments.chosen_desk,
+                    arguments.chosen_trader,
                 )
             )
         if arguments.command == 'proposals':
@@ -166,13 +166,13 @@ class Application:
                 )
             )
         if arguments.command == 'checkpoints':
-            if arguments.desk not in desk_names:
-                print(f'No desk named {arguments.desk!r}', file=sys.stderr)
+            if arguments.trader not in trader_names:
+                print(f'No trader named {arguments.trader!r}', file=sys.stderr)
                 sys.exit(1)
             commands = checkpoint_commands.CheckpointCommands(
                 checkpoints_module.Checkpoints(
-                    layout.checkpoint_repository(arguments.desk),
-                    layout.desk_directory(arguments.desk),
+                    layout.checkpoint_repository(arguments.trader),
+                    layout.trader_directory(arguments.trader),
                 )
             )
             sys.exit(
@@ -190,7 +190,7 @@ class Application:
             )
             commands = skill_commands.SkillCommands(
                 layout,
-                desk_names,
+                trader_names,
                 sandbox.passed_environment(),
             )
             sys.exit(
@@ -230,7 +230,7 @@ class Application:
         if arguments.command == 'pairing':
             commands = pairing_commands.PairingCommands(
                 pairing_store.PairingStore(layout.telegram_pairing_file),
-                configuration.telegram.default_desk,
+                configuration.telegram.default_trader,
             )
             if arguments.pairing_action == 'approve':
                 sys.exit(commands.approve(arguments.code))
@@ -259,14 +259,14 @@ class Application:
         self,
         base_url: str,
         access_token: str,
-        desk_name: str | None,
+        trader_name: str | None,
     ) -> int:
         """Runs the terminal program until the user leaves it.
 
         Args:
             base_url (str): The gateway's address.
             access_token (str): The gateway's access token.
-            desk_name (str | None): The desk to open on, or None for the one used last.
+            trader_name (str | None): The trader to open on, or None for the one used last.
 
         Returns:
             int: 0 when the user left normally, 1 when the gateway refused the token.
@@ -279,7 +279,7 @@ class Application:
             gateway_client.GatewayClient(base_url, access_token),
             settings,
             history,
-            desk_name,
+            trader_name,
         )
         exit_code = program.run()
         if program.problem is not None:
@@ -293,45 +293,47 @@ class Application:
         manager: mcp_client_manager.McpClientManager,
         packages: installed_packages.InstalledPackages,
     ) -> None:
-        """Builds the desks and the gateway and serves until stopped.
+        """Builds the traders and the gateway and serves until stopped.
 
         Args:
             configuration (agent_configuration.AgentConfiguration): The agent's configuration.
             secrets (secrets_module.Secrets): The secrets read from the environment and .env.
-            manager (mcp_client_manager.McpClientManager): The MCP connections, run beside the desks.
+            manager (mcp_client_manager.McpClientManager): The MCP connections, run beside the traders.
             packages (installed_packages.InstalledPackages): The installed packages, whose hooks run beside the user's.
         """
         event_bus = event_bus_module.EventBus()
-        enabled_desk_names = []
-        for desk_configuration in configuration.desks:
-            if desk_configuration.enabled:
-                enabled_desk_names.append(desk_configuration.name)
+        enabled_trader_names = []
+        for trader_configuration in configuration.traders:
+            if trader_configuration.enabled:
+                enabled_trader_names.append(trader_configuration.name)
         model_usage = usage_tracker_module.UsageTracker(
             event_bus,
             workspace_layout.WorkspaceLayout(configuration.workspace_directory),
-            enabled_desk_names,
+            enabled_trader_names,
             configuration.backends,
         )
-        builder = desk_builder.DeskBuilder(
+        builder = trader_builder.TraderBuilder(
             configuration,
             secrets,
             event_bus,
             manager,
             model_usage,
         )
-        desks = {}
-        for desk_configuration in configuration.desks:
-            if not desk_configuration.enabled:
+        traders = {}
+        for trader_configuration in configuration.traders:
+            if not trader_configuration.enabled:
                 continue
-            desks[desk_configuration.name] = builder.build(desk_configuration)
+            traders[trader_configuration.name] = builder.build(
+                trader_configuration
+            )
         guard = access_guard.AccessGuard(secrets.gateway_access_token)
         tool_registries = {}
-        for desk_name, desk_parts in builder.desk_parts().items():
-            tool_registries[desk_name] = desk_parts.tools
+        for trader_name, trader_parts in builder.trader_parts().items():
+            tool_registries[trader_name] = trader_parts.tools
         responder = user_request_responder.UserRequestResponder(
             builder.user_request_store,
             event_bus,
-            desks,
+            traders,
             tool_registries,
             builder.permission_grants,
         )
@@ -348,8 +350,8 @@ class Application:
             configuration.workspace_directory
         )
         schedules = {}
-        for name, desk in desks.items():
-            schedules[name] = builder.desk_schedule(desk)
+        for name, trader in traders.items():
+            schedules[name] = builder.trader_schedule(trader)
         scheduler = cron_scheduler.CronScheduler(
             schedules,
             builder.calendar,
@@ -372,7 +374,7 @@ class Application:
             configuration,
             secrets,
             builder,
-            desks,
+            traders,
             event_bus,
             pairing,
             responder,
@@ -384,7 +386,7 @@ class Application:
             manager,
             hooks,
             scheduler,
-            builder.market_watcher(desks),
+            builder.market_watcher(traders),
             request_expiry_watcher.RequestExpiryWatcher(
                 builder.user_request_store,
                 responder,
@@ -401,7 +403,7 @@ class Application:
         route_groups = self._route_groups(
             configuration,
             builder,
-            desks,
+            traders,
             guard,
             scheduler,
             model_usage,
@@ -417,7 +419,7 @@ class Application:
         )
         gateway = gateway_application.GatewayApplication(
             event_bus,
-            desks,
+            traders,
             guard,
             workers,
             redactor,
@@ -440,8 +442,8 @@ class Application:
     def _route_groups(
         self,
         configuration: agent_configuration.AgentConfiguration,
-        builder: desk_builder.DeskBuilder,
-        desks: Mapping[str, desk_runtime.DeskRuntime],
+        builder: trader_builder.TraderBuilder,
+        traders: Mapping[str, trader_runtime.TraderRuntime],
         guard: access_guard.AccessGuard,
         scheduler: cron_scheduler.CronScheduler,
         model_usage: usage_tracker_module.UsageTracker,
@@ -456,8 +458,8 @@ class Application:
 
         Args:
             configuration (agent_configuration.AgentConfiguration): The agent's configuration.
-            builder (desk_builder.DeskBuilder): The builder that made the desks, holding their parts.
-            desks (Mapping[str, desk_runtime.DeskRuntime]): The running desks.
+            builder (trader_builder.TraderBuilder): The builder that made the traders, holding their parts.
+            traders (Mapping[str, trader_runtime.TraderRuntime]): The running traders.
             guard (access_guard.AccessGuard): Checks the access token.
             scheduler (cron_scheduler.CronScheduler): The cron scheduler.
             model_usage (usage_tracker_module.UsageTracker): Today's model usage.
@@ -466,17 +468,17 @@ class Application:
             pairing (pairing_store.PairingStore): The Telegram pairing file.
             telegram_token_present (bool): Whether a Telegram bot token is set.
             telegram (telegram_channel.TelegramChannel | None): The running Telegram channel, or None.
-            responder (user_request_responder.UserRequestResponder): Records the user's responses to the desks' requests.
+            responder (user_request_responder.UserRequestResponder): Records the user's responses to the traders' requests.
 
         Returns:
             list[route_group.RouteGroup]: The route groups.
         """
-        parts = builder.desk_parts()
+        parts = builder.trader_parts()
         shared = builder.shared_parts()
-        desk_names = list(desks)
+        trader_names = list(traders)
         return [
-            desk_routes.DeskRoutes(
-                desks,
+            trader_routes.TraderRoutes(
+                traders,
                 guard,
                 parts,
                 shared.layout,
@@ -485,12 +487,12 @@ class Application:
                 configuration.backends,
             ),
             attachment_routes.AttachmentRoutes(
-                desks,
+                traders,
                 shared.attachments,
                 shared.layout,
                 guard,
             ),
-            account_routes.AccountRoutes(guard, shared, desk_names),
+            account_routes.AccountRoutes(guard, shared, trader_names),
             memory_routes.MemoryRoutes(guard, parts, shared.layout),
             file_routes.FileRoutes(
                 guard,
@@ -505,7 +507,7 @@ class Application:
                 configuration,
                 model_usage,
                 redactor,
-                desk_names,
+                trader_names,
             ),
             channel_routes.ChannelRoutes(
                 guard,
@@ -580,8 +582,8 @@ class Application:
         self,
         configuration: agent_configuration.AgentConfiguration,
         secrets: secrets_module.Secrets,
-        builder: desk_builder.DeskBuilder,
-        desks: Mapping[str, desk_runtime.DeskRuntime],
+        builder: trader_builder.TraderBuilder,
+        traders: Mapping[str, trader_runtime.TraderRuntime],
         event_bus: event_bus_module.EventBus,
         pairing: pairing_store.PairingStore,
         responder: user_request_responder.UserRequestResponder,
@@ -591,8 +593,8 @@ class Application:
         Args:
             configuration (agent_configuration.AgentConfiguration): The agent's configuration.
             secrets (secrets_module.Secrets): The secrets, holding the bot token.
-            builder (desk_builder.DeskBuilder): The builder, for the shared and desk parts.
-            desks (Mapping[str, desk_runtime.DeskRuntime]): The running desks.
+            builder (trader_builder.TraderBuilder): The builder, for the shared and trader parts.
+            traders (Mapping[str, trader_runtime.TraderRuntime]): The running traders.
             event_bus (event_bus_module.EventBus): The event bus.
             pairing (pairing_store.PairingStore): The pairing file.
             responder (user_request_responder.UserRequestResponder): Records answers given with Telegram's buttons.
@@ -615,7 +617,7 @@ class Application:
             api,
             pairing,
             telegram_commands.TelegramCommands(
-                desks,
+                traders,
                 builder.shared_parts(),
                 pairing,
                 configuration.mode,
@@ -625,10 +627,10 @@ class Application:
             notification_formatter.NotificationFormatter(
                 settings.notifications
             ),
-            desks,
-            builder.desk_parts(),
+            traders,
+            builder.trader_parts(),
             event_bus,
-            settings.default_desk,
+            settings.default_trader,
             builder.shared_parts().attachments,
             telegram_requests.TelegramRequests(
                 api,

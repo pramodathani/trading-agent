@@ -32,13 +32,13 @@ class AppsScreen(page_screen.PageScreen):
         binding.Binding('e', 'restart', 'Restart'),
     ]
 
-    def __init__(self, desk_name: str):
+    def __init__(self, trader_name: str):
         """Creates the page.
 
         Args:
-            desk_name (str): The desk the chat shows.
+            trader_name (str): The trader the chat shows.
         """
-        super().__init__(desk_name)
+        super().__init__(trader_name)
         self._apps: list[dict[str, Any]] = []
 
     def compose_page(self):

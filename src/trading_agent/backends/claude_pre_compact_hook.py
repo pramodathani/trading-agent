@@ -1,4 +1,4 @@
-"""A PreCompact hook that records each time Claude Code compacts a desk's session.
+"""A PreCompact hook that records each time Claude Code compacts a trader's session.
 
 trading-agent normally compacts Claude's session itself, between turns at 70% of the window, after a memory-flush turn. Claude Code's own automatic compaction is the safety net for one very long turn. When it fires, this hook publishes the event and tells the turn runner, so the runner can send the instruction files again on the next turn, because a compacted session may have lost updated instructions that were delivered inside earlier messages.
 
@@ -23,7 +23,7 @@ class ClaudePreCompactHook:
 
     def __init__(
         self,
-        desk_name: str,
+        trader_name: str,
         backend_name: str,
         event_bus: event_bus_module.EventBus,
         on_compaction: Callable[[], None],
@@ -31,12 +31,12 @@ class ClaudePreCompactHook:
         """Creates the hook.
 
         Args:
-            desk_name (str): The desk, used to tag the event.
+            trader_name (str): The trader, used to tag the event.
             backend_name (str): The backend's name in trading_agent.toml.
             event_bus (event_bus_module.EventBus): Where the event is published.
             on_compaction (Callable[[], None]): Called once per compaction, so the runner can resend its instructions.
         """
-        self._desk_name = desk_name
+        self._trader_name = trader_name
         self._backend_name = backend_name
         self._event_bus = event_bus
         self._on_compaction = on_compaction
@@ -65,7 +65,7 @@ class ClaudePreCompactHook:
         self._event_bus.publish(
             event_module.Event.now(
                 event_module.EventKind.CONTEXT_COMPRESSED,
-                self._desk_name,
+                self._trader_name,
                 {
                     'backend': self._backend_name,
                     'reason': f'claude_code_{trigger}',

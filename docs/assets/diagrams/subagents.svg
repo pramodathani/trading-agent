@@ -1,6 +1,6 @@
 <svg class="ta-svg" viewBox="0 0 1000 570" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="subagents-title subagents-description">
   <title id="subagents-title">Subagents</title>
-  <desc id="subagents-description">A desk hands tasks to subagents, which run in parallel with their own tools and models and report back.</desc>
+  <desc id="subagents-description">A trader hands tasks to subagents, which run in parallel with their own tools and models and report back.</desc>
 
   <path class="wire" d="M200,245 L260,245"/>
   <path class="wire" d="M260,305 L200,305"/>
@@ -22,7 +22,7 @@
   <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.56;0.92;1" keyPoints="0;0;1;1"><mpath href="#subagents-back-one"/></animateMotion></circle>
 
   <rect class="box" x="30" y="215" width="170" height="120" rx="8"/>
-  <text class="title" x="115" y="245" text-anchor="middle">The desk</text>
+  <text class="title" x="115" y="245" text-anchor="middle">The trader</text>
   <text class="small" x="115" y="267" text-anchor="middle">calls delegate_task with</text>
   <text class="small" x="115" y="282" text-anchor="middle">one to four tasks, then</text>
   <text class="small" x="115" y="297" text-anchor="middle">checks important claims</text>

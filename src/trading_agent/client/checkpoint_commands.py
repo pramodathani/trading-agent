@@ -1,4 +1,4 @@
-"""The `trading-agent checkpoints` commands: list and restore a desk's snapshots.
+"""The `trading-agent checkpoints` commands: list and restore a trader's snapshots.
 
 Typical usage example:
 
@@ -12,7 +12,7 @@ from trading_agent.memory import checkpoints as checkpoints_module
 
 
 class CheckpointCommands:
-    """Prints and restores one desk's checkpoints for the user."""
+    """Prints and restores one trader's checkpoints for the user."""
 
     def __init__(
         self,
@@ -22,7 +22,7 @@ class CheckpointCommands:
         """Creates the commands.
 
         Args:
-            checkpoints (checkpoints_module.Checkpoints): The desk's checkpoint repository.
+            checkpoints (checkpoints_module.Checkpoints): The trader's checkpoint repository.
             output (TextIO): Where to print.
         """
         self._checkpoints = checkpoints
@@ -50,7 +50,7 @@ class CheckpointCommands:
             elif action == 'restore':
                 before = self._checkpoints.restore(checkpoint_id)
                 self._print(
-                    f'Restored the desk files to checkpoint {checkpoint_id}. The files as they were just before are checkpoint {before}; restore that to undo this.'
+                    f'Restored the trader files to checkpoint {checkpoint_id}. The files as they were just before are checkpoint {before}; restore that to undo this.'
                 )
         except checkpoints_module.CheckpointError as error:
             self._print(str(error))

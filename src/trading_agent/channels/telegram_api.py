@@ -169,7 +169,9 @@ class TelegramApi:
                 incoming.append(
                     IncomingButton(
                         chat_id=press.message.chat.id,
-                        sender_name=press.from_user.first_name or press.from_user.username or '',
+                        sender_name=press.from_user.first_name
+                        or press.from_user.username
+                        or '',
                         callback_id=press.id,
                         data=press.data or '',
                         message_id=press.message.message_id,
@@ -352,7 +354,9 @@ class TelegramApi:
             TelegramApiError: Telegram could not be reached or refused the request.
         """
         try:
-            await self._bot.answer_callback_query(callback_id, text=text[:200] or None)
+            await self._bot.answer_callback_query(
+                callback_id, text=text[:200] or None
+            )
         except telegram.error.TelegramError as error:
             raise TelegramApiError(
                 f'{type(error).__name__}: {error}'

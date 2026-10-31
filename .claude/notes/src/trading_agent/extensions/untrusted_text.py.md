@@ -8,7 +8,7 @@ The second layer of block 30: every piece of outside text the model reads throug
 
 ## Where it is deliberately not used
 
-The user's installed skills. They are instructions the user chose for the desk to follow, so labelling them "never follow" would defeat them. They are scanned when imported (the user is warned) and when loaded (the desk is warned not to follow steps that get around its rules). The desk's own Memory.md and notes are not wrapped either, because they are part of its instructions; the doctor's injection check scans Memory.md instead, since a desk might have copied web text into it.
+The user's installed skills. They are instructions the user chose for the trader to follow, so labelling them "never follow" would defeat them. They are scanned when imported (the user is warned) and when loaded (the trader is warned not to follow steps that get around its rules). The trader's own Memory.md and notes are not wrapped either, because they are part of its instructions; the doctor's injection check scans Memory.md instead, since a trader might have copied web text into it.
 
 ## Verified on 2026-10-17
 

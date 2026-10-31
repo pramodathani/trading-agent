@@ -1,4 +1,4 @@
-"""A dialog that asks for a reason, and sometimes a typed word, before a serious action such as flattening a desk or firing the kill switch.
+"""A dialog that asks for a reason, and sometimes a typed word, before a serious action such as flattening a trader or firing the kill switch.
 
 It copies the web page's ConfirmDialog.tsx: the action cannot be confirmed until a reason is written, and, when a word is required, until that exact word is typed. It returns the reason, or None when cancelled.
 

@@ -15,14 +15,14 @@
   <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.55;0.88;1" keyPoints="0;0;1;1"><mpath href="#read-and-journal-record"/></animateMotion></circle>
   <circle class="dot" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.74;0.88;1" keyPoints="0;0;1;1"><mpath href="#read-and-journal-stream"/></animateMotion></circle>
   <rect class="box" x="40" y="80" width="180" height="120" rx="8"/>
-  <text class="title" x="130" y="108" text-anchor="middle">Desk</text>
+  <text class="title" x="130" y="108" text-anchor="middle">Trader</text>
   <text class="mono" x="130" y="132" text-anchor="middle">get_quote</text>
   <text class="mono" x="130" y="148" text-anchor="middle">get_candles</text>
   <text class="mono" x="130" y="164" text-anchor="middle">get_portfolio</text>
   <text class="mono" x="130" y="180" text-anchor="middle">get_orders</text>
   <rect class="accent-box" x="290" y="75" width="240" height="130" rx="8"/>
   <text class="title" x="410" y="103" text-anchor="middle">Broker reader</text>
-  <text class="small" x="410" y="125" text-anchor="middle">one UBI call at a time, all desks</text>
+  <text class="small" x="410" y="125" text-anchor="middle">one UBI call at a time, all traders</text>
   <text class="small" x="410" y="141" text-anchor="middle">in a worker thread</text>
   <text class="small" x="410" y="165" text-anchor="middle">plain Instruments, which have</text>
   <text class="small" x="410" y="181" text-anchor="middle">no order methods at all</text>
@@ -48,7 +48,7 @@
   <text class="mono" x="690" y="418" text-anchor="middle">→ [redacted]</text>
   <rect class="store" x="840" y="320" width="140" height="120" rx="8"/>
   <text class="title" x="910" y="350" text-anchor="middle">Trade journal</text>
-  <text class="small" x="910" y="372" text-anchor="middle">one file per desk</text>
+  <text class="small" x="910" y="372" text-anchor="middle">one file per trader</text>
   <text class="small" x="910" y="388" text-anchor="middle">per India date,</text>
   <text class="small" x="910" y="404" text-anchor="middle">lines only added</text>
   <text class="mono" x="910" y="426" text-anchor="middle">2026-10-17.jsonl</text>

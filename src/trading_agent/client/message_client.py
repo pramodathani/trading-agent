@@ -1,8 +1,8 @@
 """Sends one message to a running gateway and prints the reply as it streams in.
 
-It is what `trading-agent send` and `trading-agent -p` use, so a desk can be talked to from a script, a pipe, or with `!` from Claude Code.
+It is what `trading-agent send` and `trading-agent -p` use, so a trader can be talked to from a script, a pipe, or with `!` from Claude Code.
 
-When the desk is busy, the gateway hands a plain message to the running turn instead of queueing it. The client then follows that turn until it ends, as the Telegram channel does. Questions, plans and permission requests the desk raises meanwhile are printed with their ids, to be answered in the terminal program or on the web page.
+When the trader is busy, the gateway hands a plain message to the running turn instead of queueing it. The client then follows that turn until it ends, as the Telegram channel does. Questions, plans and permission requests the trader raises meanwhile are printed with their ids, to be answered in the terminal program or on the web page.
 
 Three output formats are offered, as in `claude -p`:
 
@@ -62,11 +62,11 @@ class MessageClient:
         self._output = output
         self._output_format = output_format
 
-    async def send(self, desk_name: str, text: str) -> int:
-        """Sends the message and prints everything the desk does until its turn ends.
+    async def send(self, trader_name: str, text: str) -> int:
+        """Sends the message and prints everything the trader does until its turn ends.
 
         Args:
-            desk_name (str): The desk to talk to.
+            trader_name (str): The trader to talk to.
             text (str): The message, or a /command.
 
         Returns:
@@ -78,7 +78,7 @@ class MessageClient:
         async with gateway:
             try:
                 socket = await websockets.connect(
-                    gateway.events_address(desk_name)
+                    gateway.events_address(trader_name)
                 )
             except (OSError, websockets.InvalidStatus) as error:
                 self._problem(
@@ -87,12 +87,12 @@ class MessageClient:
                 return 1
             async with socket:
                 try:
-                    trigger_id = await gateway.send_message(desk_name, text)
+                    trigger_id = await gateway.send_message(trader_name, text)
                 except gateway_client.GatewayError as error:
                     self._problem(f'The gateway refused the message: {error}')
                     return 1
                 follower = TurnFollower(
-                    desk_name,
+                    trader_name,
                     trigger_id,
                     self._output,
                     self._output_format,
@@ -130,7 +130,7 @@ class TurnFollower:
 
     def __init__(
         self,
-        desk_name: str,
+        trader_name: str,
         trigger_id: str,
         output: TextIO,
         output_format: str,
@@ -138,12 +138,12 @@ class TurnFollower:
         """Creates the follower.
 
         Args:
-            desk_name (str): The desk the message went to.
+            trader_name (str): The trader the message went to.
             trigger_id (str): The message's trigger id.
             output (TextIO): Where to print.
             output_format (str): "text", "json" or "stream-json".
         """
-        self._desk_name = desk_name
+        self._trader_name = trader_name
         self._trigger_id = trigger_id
         self._followed_id = trigger_id
         self._output = output
@@ -181,7 +181,7 @@ class TurnFollower:
         """
         kind = event.get('kind', '')
         payload = event.get('payload') or {}
-        if kind == 'user_request' and event.get('desk') == self._desk_name:
+        if kind == 'user_request' and event.get('trader') == self._trader_name:
             self._stream(event)
             self._show_request(payload)
             return False
@@ -190,7 +190,7 @@ class TurnFollower:
             self._stream(event)
             if isinstance(payload.get('steering_into'), str):
                 self._note(
-                    'The desk is busy, so your message goes to the running turn at its next tool call.'
+                    'The trader is busy, so your message goes to the running turn at its next tool call.'
                 )
             return False
         if event_trigger == self._trigger_id and kind == 'steering':
@@ -224,7 +224,7 @@ class TurnFollower:
             request_ids.append(request.get('request_id'))
         result = {
             'kind': 'result',
-            'desk': self._desk_name,
+            'trader': self._trader_name,
             'trigger_id': self._trigger_id,
             'answered_in_trigger_id': self._followed_id,
             'is_error': self._error is not None,
@@ -314,14 +314,14 @@ class TurnFollower:
         if kind == 'permission':
             arguments = json.dumps(content.get('arguments'), ensure_ascii=False)
             lines.append(
-                f'\n  [permission] The desk wants to run {content.get("tool_name")}({arguments[:200]}).'
+                f'\n  [permission] The trader wants to run {content.get("tool_name")}({arguments[:200]}).'
             )
         elif kind == 'plan':
             lines.append(
-                f'\n  [plan] The desk presents a plan: {content.get("title")}'
+                f'\n  [plan] The trader presents a plan: {content.get("title")}'
             )
         else:
-            lines.append('\n  [question] The desk asks:')
+            lines.append('\n  [question] The trader asks:')
             questions = content.get('questions')
             if not isinstance(questions, list):
                 questions = []

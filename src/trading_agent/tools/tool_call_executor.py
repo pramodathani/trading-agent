@@ -21,7 +21,6 @@ from trading_agent.runtime import trigger as trigger_module
 from trading_agent.tools import tool as tool_module
 from trading_agent.tools import tool_registry as tool_registry_module
 
-
 _REMEMBERED_TRIGGERS = 50
 
 
@@ -43,15 +42,15 @@ class CompletedCall:
 
 
 class ToolCallExecutor:
-    """Runs a desk's tool calls through the loop guard and the registry.
+    """Runs a trader's tool calls through the loop guard and the registry.
 
     Attributes:
-        tool_registry: The desk's tools.
+        tool_registry: The trader's tools.
     """
 
     def __init__(
         self,
-        desk_name: str,
+        trader_name: str,
         tool_registry: tool_registry_module.ToolRegistry,
         event_bus: event_bus_module.EventBus,
         loop_guard: loop_guard_module.LoopGuard,
@@ -60,13 +59,13 @@ class ToolCallExecutor:
         """Creates the executor.
 
         Args:
-            desk_name (str): The desk the calls belong to, used to tag events.
-            tool_registry (tool_registry_module.ToolRegistry): The desk's tools.
+            trader_name (str): The trader the calls belong to, used to tag events.
+            tool_registry (tool_registry_module.ToolRegistry): The trader's tools.
             event_bus (event_bus_module.EventBus): Where calls and results are published.
             loop_guard (loop_guard_module.LoopGuard): The guard against repeated identical calls.
             permission_gate (permission_gate_module.PermissionGate | None): Holds calls that need the user's permission, or None when none do.
         """
-        self._desk_name = desk_name
+        self._trader_name = trader_name
         self._permission_gate = permission_gate
         self._completed: dict[str, list[CompletedCall]] = {}
         self.tool_registry = tool_registry
@@ -105,8 +104,10 @@ class ToolCallExecutor:
             result = tool_module.ToolResult.error(
                 self._loop_guard.refusal_text(call)
             )
-        elif gate is not None and gate.needs_permission(self._desk_name, call.name):
-            result = gate.hold(self._desk_name, call)
+        elif gate is not None and gate.needs_permission(
+            self._trader_name, call.name
+        ):
+            result = gate.hold(self._trader_name, call)
         else:
             result = await self.tool_registry.run(call)
         self._remember(trigger.trigger_id, call, result)
@@ -117,8 +118,8 @@ class ToolCallExecutor:
             'is_error': result.is_error,
             'text': result.text,
         }
-        if result.picture_desk_path is not None:
-            payload['picture_path'] = result.picture_desk_path
+        if result.picture_trader_path is not None:
+            payload['picture_path'] = result.picture_trader_path
         self._publish(event_module.EventKind.TOOL_RESULT, payload)
         return result
 
@@ -148,7 +149,10 @@ class ToolCallExecutor:
             call (messages.ToolCall): The call.
             result (tool_module.ToolResult): What it returned.
         """
-        if trigger_id not in self._completed and len(self._completed) >= _REMEMBERED_TRIGGERS:
+        if (
+            trigger_id not in self._completed
+            and len(self._completed) >= _REMEMBERED_TRIGGERS
+        ):
             oldest = next(iter(self._completed))
             del self._completed[oldest]
         self._completed.setdefault(trigger_id, []).append(
@@ -161,12 +165,12 @@ class ToolCallExecutor:
         )
 
     def _publish(self, kind: event_module.EventKind, payload: dict) -> None:
-        """Publishes an event from this desk.
+        """Publishes an event from this trader.
 
         Args:
             kind (event_module.EventKind): What happened.
             payload (dict): The event's details.
         """
         self._event_bus.publish(
-            event_module.Event.now(kind, self._desk_name, payload)
+            event_module.Event.now(kind, self._trader_name, payload)
         )

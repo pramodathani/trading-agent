@@ -1,6 +1,6 @@
 """The place_bracket_order tool: an entry order that sets up its own stop-loss and target when it fills.
 
-UBI's order engine works the exits, so they act in real time even while the desk's model is busy or asleep: on the entry's first fill it places a stop-limit and a target sized to what filled, and when either exit fills it cancels the other. The risk engine checks the entry, because only the entry adds risk.
+UBI's order engine works the exits, so they act in real time even while the trader's model is busy or asleep: on the entry's first fill it places a stop-limit and a target sized to what filled, and when either exit fills it cancels the other. The risk engine checks the entry, because only the entry adds risk.
 
 Typical usage example:
 

@@ -1,13 +1,13 @@
-"""Routes for the user's files and the desks' proposals to change them.
+"""Routes for the user's files and the traders' proposals to change them.
 
-  GET  /api/files                          every editable file: the shared files, each desk's Persona.md and Memory.md
-  GET  /api/files/content?name=&desk=      one file's text
+  GET  /api/files                          every editable file: the shared files, each trader's Persona.md and Memory.md
+  GET  /api/files/content?name=&trader=      one file's text
   PUT  /api/files/content                  replace one file's text
   GET  /api/proposals                      every proposal, with the change it would make
   POST /api/proposals/{id}/accept          apply a proposal, keeping a copy of the old file
   POST /api/proposals/{id}/reject          reject a proposal
 
-The user may edit their own files and a desk's Memory.md. A desk's Memory.md is snapshotted first, as when the desk writes it. A new TradingRules.md is checked before it is saved: limits the risk engine could not read would stop every desk from opening positions, so such a version is refused.
+The user may edit their own files and a trader's Memory.md. A trader's Memory.md is snapshotted first, as when the trader writes it. A new TradingRules.md is checked before it is saved: limits the risk engine could not read would stop every trader from opening positions, so such a version is refused.
 
 Typical usage example:
 
@@ -40,12 +40,12 @@ class FileWrite(pydantic.BaseModel):
 
     Attributes:
         name: The file's name, such as TradingRules.md or Persona.md.
-        desk: The desk, for Persona.md and Memory.md.
+        trader: The trader, for Persona.md and Memory.md.
         text: The complete new text.
     """
 
     name: str
-    desk: str | None = None
+    trader: str | None = None
     text: str
 
 
@@ -56,7 +56,7 @@ class FileRoutes(route_group.RouteGroup):
         self,
         guard: access_guard.AccessGuard,
         layout: workspace_layout.WorkspaceLayout,
-        parts: Mapping[str, gateway_parts.DeskParts],
+        parts: Mapping[str, gateway_parts.TraderParts],
         proposals: proposal_store_module.ProposalStore,
     ):
         """Creates the routes.
@@ -64,7 +64,7 @@ class FileRoutes(route_group.RouteGroup):
         Args:
             guard (access_guard.AccessGuard): Checks the access token.
             layout (workspace_layout.WorkspaceLayout): Where the files are.
-            parts (Mapping[str, gateway_parts.DeskParts]): Each desk's parts, for its checkpoints.
+            parts (Mapping[str, gateway_parts.TraderParts]): Each trader's parts, for its checkpoints.
             proposals (proposal_store_module.ProposalStore): The proposals.
         """
         super().__init__(guard)
@@ -99,33 +99,33 @@ class FileRoutes(route_group.RouteGroup):
         """Every editable file.
 
         Returns:
-            dict[str, Any]: Each file's name, desk (or None for shared files) and size in characters.
+            dict[str, Any]: Each file's name, trader (or None for shared files) and size in characters.
         """
         files = []
         for name in workspace_layout.SHARED_FILE_NAMES:
             files.append(self._file_entry(name, None))
-        for desk_name in self._parts:
-            files.append(self._file_entry('Persona.md', desk_name))
-            files.append(self._file_entry(_MEMORY_FILE_NAME, desk_name))
+        for trader_name in self._parts:
+            files.append(self._file_entry('Persona.md', trader_name))
+            files.append(self._file_entry(_MEMORY_FILE_NAME, trader_name))
         return {
             'files': files,
         }
 
-    def read_file(self, name: str, desk: str | None = None) -> dict[str, Any]:
+    def read_file(self, name: str, trader: str | None = None) -> dict[str, Any]:
         """One file's text.
 
         Args:
             name (str): The file's name.
-            desk (str | None): The desk, for Persona.md and Memory.md.
+            trader (str | None): The trader, for Persona.md and Memory.md.
 
         Returns:
-            dict[str, Any]: The name, desk and text; an empty text for a file not created yet.
+            dict[str, Any]: The name, trader and text; an empty text for a file not created yet.
         """
-        path = self._path(name, desk)
+        path = self._path(name, trader)
         text = path.read_text(encoding='utf-8') if path.is_file() else ''
         return {
             'name': name,
-            'desk': desk,
+            'trader': trader,
             'text': text,
         }
 
@@ -136,16 +136,16 @@ class FileRoutes(route_group.RouteGroup):
             request (FileWrite): The file and its new text.
 
         Returns:
-            dict[str, Any]: The name, desk and new size.
+            dict[str, Any]: The name, trader and new size.
 
         Raises:
             fastapi.HTTPException: The new TradingRules.md cannot be read by the risk engine (status 400).
         """
-        path = self._path(request.name, request.desk)
+        path = self._path(request.name, request.trader)
         if request.name == 'TradingRules.md':
             self._check_limits(request.text)
         if request.name == _MEMORY_FILE_NAME:
-            parts = self._find(self._parts, request.desk or '', 'desk')
+            parts = self._find(self._parts, request.trader or '', 'trader')
             try:
                 parts.checkpoints.snapshot('before the user edited Memory.md')
             except checkpoints_module.CheckpointError:
@@ -156,7 +156,7 @@ class FileRoutes(route_group.RouteGroup):
         path.write_text(request.text, encoding='utf-8')
         return {
             'name': request.name,
-            'desk': request.desk,
+            'trader': request.trader,
             'characters': len(request.text),
         }
 
@@ -222,45 +222,45 @@ class FileRoutes(route_group.RouteGroup):
             'rejected': proposal_id,
         }
 
-    def _path(self, name: str, desk: str | None) -> Path:
-        """The file a name and desk refer to.
+    def _path(self, name: str, trader: str | None) -> Path:
+        """The file a name and trader refer to.
 
         Args:
             name (str): The file's name.
-            desk (str | None): The desk, for Persona.md and Memory.md.
+            trader (str | None): The trader, for Persona.md and Memory.md.
 
         Returns:
             Path: The file.
 
         Raises:
-            fastapi.HTTPException: The desk is unknown (status 404), or the name is not an editable file (status 400).
+            fastapi.HTTPException: The trader is unknown (status 404), or the name is not an editable file (status 400).
         """
         if name in ('Persona.md', _MEMORY_FILE_NAME):
-            self._find(self._parts, desk or '', 'desk')
+            self._find(self._parts, trader or '', 'trader')
         if name == _MEMORY_FILE_NAME:
-            return self._layout.memory_file(desk)
+            return self._layout.memory_file(trader)
         try:
-            return self._layout.user_owned_file(desk or '', name)
+            return self._layout.user_owned_file(trader or '', name)
         except ValueError as error:
             raise fastapi.HTTPException(
                 status_code=400, detail=str(error)
             ) from error
 
-    def _file_entry(self, name: str, desk: str | None) -> dict[str, Any]:
+    def _file_entry(self, name: str, trader: str | None) -> dict[str, Any]:
         """One file in the list.
 
         Args:
             name (str): The file's name.
-            desk (str | None): Its desk, or None.
+            trader (str | None): Its trader, or None.
 
         Returns:
-            dict[str, Any]: The name, desk, whether it exists and its size.
+            dict[str, Any]: The name, trader, whether it exists and its size.
         """
-        path = self._path(name, desk)
+        path = self._path(name, trader)
         exists = path.is_file()
         return {
             'name': name,
-            'desk': desk,
+            'trader': trader,
             'exists': exists,
             'characters': len(path.read_text(encoding='utf-8'))
             if exists

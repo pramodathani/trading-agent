@@ -33,7 +33,7 @@ export class EventMerger {
    */
   key(event: AgentEvent): string {
     const callId = typeof event.payload.call_id === 'string' ? event.payload.call_id : '';
-    return `${event.created_at}|${event.kind}|${event.desk ?? ''}|${callId}`;
+    return `${event.created_at}|${event.kind}|${event.trader ?? ''}|${callId}`;
   }
 }
 

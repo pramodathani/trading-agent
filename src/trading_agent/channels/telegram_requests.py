@@ -1,6 +1,6 @@
-"""The desks' questions and plans on Telegram, answered with buttons.
+"""The traders' questions and plans on Telegram, answered with buttons.
 
-Each question becomes one message with a button per option. A single-choice question is settled by one press; a multiple-choice one ticks options and is settled with Done. "Other…" and a plan's "Keep planning" ask the user to type a reply, and the chat's next message is taken as that reply instead of going to the desk. Once every question of a request is settled, the answers go to the desk through the same responder the web page uses.
+Each question becomes one message with a button per option. A single-choice question is settled by one press; a multiple-choice one ticks options and is settled with Done. "Other…" and a plan's "Keep planning" ask the user to type a reply, and the chat's next message is taken as that reply instead of going to the trader. Once every question of a request is settled, the answers go to the trader through the same responder the web page uses.
 
 When a request is answered anywhere, on the web page or in another chat, its Telegram messages lose their buttons and say how it was settled.
 
@@ -20,8 +20,12 @@ from typing import Any
 from trading_agent.channels import pairing_store as pairing_store_module
 from trading_agent.channels import telegram_api as telegram_api_module
 from trading_agent.requests import user_request as user_request_module
-from trading_agent.requests import user_request_responder as user_request_responder_module
-from trading_agent.requests import user_request_store as user_request_store_module
+from trading_agent.requests import (
+    user_request_responder as user_request_responder_module,
+)
+from trading_agent.requests import (
+    user_request_store as user_request_store_module,
+)
 
 _LOGGER = logging.getLogger(__name__)
 _VIA = 'telegram'
@@ -63,7 +67,7 @@ class TelegramRequests:
             api (telegram_api_module.TelegramApi): The connection to Telegram.
             pairing (pairing_store_module.PairingStore): The paired chats.
             store (user_request_store_module.UserRequestStore): Where requests are kept.
-            responder (user_request_responder_module.UserRequestResponder): Records the answers and tells the desks.
+            responder (user_request_responder_module.UserRequestResponder): Records the answers and tells the traders.
         """
         self._api = api
         self._pairing = pairing
@@ -112,7 +116,7 @@ class TelegramRequests:
                 )
             return
         if request.kind == user_request_module.PLAN:
-            text = f'📋 {request.desk} presents a plan for your approval: {request.content["title"]}\n\n{request.content["plan"]}\n\nApprove it, or ask for changes?'
+            text = f'📋 {request.trader} presents a plan for your approval: {request.content["title"]}\n\n{request.content["plan"]}\n\nApprove it, or ask for changes?'
             for chat in self._pairing.paired_chats():
                 await self._send(
                     request,
@@ -146,7 +150,9 @@ class TelegramRequests:
         if purpose == _FEEDBACK:
             await self._respond(
                 chat_id,
-                lambda: self._responder.decide_plan(request_id, 'revise', text, _VIA),
+                lambda: self._responder.decide_plan(
+                    request_id, 'revise', text, _VIA
+                ),
             )
             return
         drafts = self._drafts.get(request_id)
@@ -202,22 +208,32 @@ class TelegramRequests:
             await self._acknowledge(button, 'Approved')
             await self._respond(
                 button.chat_id,
-                lambda: self._responder.decide_plan(request_id, 'approve', '', _VIA),
+                lambda: self._responder.decide_plan(
+                    request_id, 'approve', '', _VIA
+                ),
             )
         elif action == _REVISE:
             self._awaiting_text[button.chat_id] = (request_id, _FEEDBACK, -1)
             await self._acknowledge(button, '')
-            await self._note(button.chat_id, 'Type what should change in the plan and send it.')
+            await self._note(
+                button.chat_id,
+                'Type what should change in the plan and send it.',
+            )
         elif action == _OTHER:
             self._awaiting_text[button.chat_id] = (request_id, _OTHER, index)
             await self._acknowledge(button, '')
             question = request.content['questions'][index]['question']
-            await self._note(button.chat_id, f'Type your own answer to "{question}" and send it.')
+            await self._note(
+                button.chat_id,
+                f'Type your own answer to "{question}" and send it.',
+            )
         elif action == _PICK:
             await self._pick(request, index, option, button)
         elif action == _DONE:
             drafts = self._drafts.get(request_id, [])
-            if index >= len(drafts) or not (drafts[index]['selected'] or drafts[index]['other']):
+            if index >= len(drafts) or not (
+                drafts[index]['selected'] or drafts[index]['other']
+            ):
                 await self._acknowledge(button, 'Choose at least one first')
                 return
             await self._acknowledge(button, '')
@@ -250,7 +266,9 @@ class TelegramRequests:
             try:
                 await self._api.edit(chat_id, message_id, text, None)
             except telegram_api_module.TelegramApiError as error:
-                _LOGGER.warning('Could not update a Telegram request message: %s', error)
+                _LOGGER.warning(
+                    'Could not update a Telegram request message: %s', error
+                )
 
     async def _pick(
         self,
@@ -318,9 +336,13 @@ class TelegramRequests:
         """
         settled = self._settled.setdefault(request.request_id, set())
         settled.add(index)
-        for chat, message_id, question_index in self._messages.get(request.request_id, []):
+        for chat, message_id, question_index in self._messages.get(
+            request.request_id, []
+        ):
             if question_index == index:
-                answer = self._answer_words(self._drafts[request.request_id][index])
+                answer = self._answer_words(
+                    self._drafts[request.request_id][index]
+                )
                 try:
                     await self._api.edit(
                         chat,
@@ -329,13 +351,17 @@ class TelegramRequests:
                         None,
                     )
                 except telegram_api_module.TelegramApiError as error:
-                    _LOGGER.warning('Could not update a Telegram question: %s', error)
+                    _LOGGER.warning(
+                        'Could not update a Telegram question: %s', error
+                    )
         if len(settled) < len(request.content['questions']):
             return
         drafts = self._drafts[request.request_id]
         await self._respond(
             chat_id,
-            lambda: self._responder.answer_question(request.request_id, drafts, _VIA),
+            lambda: self._responder.answer_question(
+                request.request_id, drafts, _VIA
+            ),
         )
 
     async def _respond(
@@ -374,7 +400,11 @@ class TelegramRequests:
         try:
             message_id = await self._api.send_with_buttons(chat_id, text, rows)
         except telegram_api_module.TelegramApiError as error:
-            _LOGGER.warning('Could not send a request to Telegram chat %s: %s', chat_id, error)
+            _LOGGER.warning(
+                'Could not send a request to Telegram chat %s: %s',
+                chat_id,
+                error,
+            )
             return
         self._messages.setdefault(request.request_id, []).append(
             (chat_id, message_id, index)
@@ -390,7 +420,9 @@ class TelegramRequests:
         try:
             await self._api.send(chat_id, text)
         except telegram_api_module.TelegramApiError as error:
-            _LOGGER.warning('Could not send to Telegram chat %s: %s', chat_id, error)
+            _LOGGER.warning(
+                'Could not send to Telegram chat %s: %s', chat_id, error
+            )
 
     async def _acknowledge(
         self,
@@ -406,7 +438,9 @@ class TelegramRequests:
         try:
             await self._api.acknowledge(button.callback_id, text)
         except telegram_api_module.TelegramApiError as error:
-            _LOGGER.warning('Could not acknowledge a Telegram button: %s', error)
+            _LOGGER.warning(
+                'Could not acknowledge a Telegram button: %s', error
+            )
 
     def _question_text(
         self,
@@ -424,15 +458,19 @@ class TelegramRequests:
         """
         questions = request.content['questions']
         question = questions[index]
-        counter = f' ({index + 1}/{len(questions)})' if len(questions) > 1 else ''
+        counter = (
+            f' ({index + 1}/{len(questions)})' if len(questions) > 1 else ''
+        )
         lines = [
-            f'❓ {request.desk} asks{counter} · {question["header"]}',
+            f'❓ {request.trader} asks{counter} · {question["header"]}',
             '',
             question['question'],
             '',
         ]
         for position, option in enumerate(question['options'], start=1):
-            lines.append(f'{position}. {option["label"]}: {option["description"]}')
+            lines.append(
+                f'{position}. {option["label"]}: {option["description"]}'
+            )
         for position, option in enumerate(question['options'], start=1):
             if option.get('preview'):
                 lines.append('')
@@ -470,14 +508,19 @@ class TelegramRequests:
                 label = f'{mark} {label}'
             rows.append(
                 [
-                    (label, self._data(_PICK, request.request_id, index, position)),
+                    (
+                        label,
+                        self._data(_PICK, request.request_id, index, position),
+                    ),
                 ]
             )
         last_row = [
             ('Other…', self._data(_OTHER, request.request_id, index, 0)),
         ]
         if question.get('multi_select'):
-            last_row.append(('Done', self._data(_DONE, request.request_id, index, 0)))
+            last_row.append(
+                ('Done', self._data(_DONE, request.request_id, index, 0))
+            )
         rows.append(last_row)
         rows.append(
             [
@@ -495,16 +538,22 @@ class TelegramRequests:
         Returns:
             str: The message.
         """
-        arguments = json.dumps(request.content.get('arguments') or {}, indent=2, ensure_ascii=False)
+        arguments = json.dumps(
+            request.content.get('arguments') or {}, indent=2, ensure_ascii=False
+        )
         lines = [
-            f'🔐 {request.desk} wants to run {request.content["tool_name"]}',
+            f'🔐 {request.trader} wants to run {request.content["tool_name"]}',
             '',
             arguments,
         ]
         if request.expires_at is not None:
-            lapse = datetime.datetime.fromisoformat(request.expires_at).astimezone(_INDIA)
+            lapse = datetime.datetime.fromisoformat(
+                request.expires_at
+            ).astimezone(_INDIA)
             lines.append('')
-            lines.append(f'Lapses at {lapse:%H:%M} India time if you do not answer.')
+            lines.append(
+                f'Lapses at {lapse:%H:%M} India time if you do not answer.'
+            )
         return '\n'.join(lines)
 
     def _permission_buttons(
@@ -522,10 +571,16 @@ class TelegramRequests:
         tool_name = request.content['tool_name']
         return [
             [
-                ('✅ Allow once', self._data(_ALLOW_ONCE, request.request_id, -1, 0)),
+                (
+                    '✅ Allow once',
+                    self._data(_ALLOW_ONCE, request.request_id, -1, 0),
+                ),
             ],
             [
-                (f'Always allow {tool_name}', self._data(_ALWAYS_ALLOW, request.request_id, -1, 0)),
+                (
+                    f'Always allow {tool_name}',
+                    self._data(_ALWAYS_ALLOW, request.request_id, -1, 0),
+                ),
             ],
             [
                 ('⛔ Deny', self._data(_DENY, request.request_id, -1, 0)),
@@ -547,7 +602,10 @@ class TelegramRequests:
         return [
             [
                 ('✅ Approve', self._data(_APPROVE, request.request_id, -1, 0)),
-                ('✏️ Keep planning', self._data(_REVISE, request.request_id, -1, 0)),
+                (
+                    '✏️ Keep planning',
+                    self._data(_REVISE, request.request_id, -1, 0),
+                ),
             ],
             [
                 ('Dismiss', self._data(_DISMISS, request.request_id, -1, 0)),
@@ -576,12 +634,18 @@ class TelegramRequests:
         if request.kind == user_request_module.PERMISSION:
             if response.get('decision') == 'deny':
                 return f'⛔ Denied {place}.'
-            always = ' and allowed from now on' if response.get('decision') == 'always_allow' else ''
+            always = (
+                ' and allowed from now on'
+                if response.get('decision') == 'always_allow'
+                else ''
+            )
             return f'✅ Allowed {place}{always}. Result: {str(response.get("result", ""))[:500]}'
         if request.kind == user_request_module.PLAN:
             if response.get('decision') == 'approve':
                 return f'✓ Approved {place}.'
-            return f'✏️ Changes asked for {place}: {response.get("feedback", "")}'
+            return (
+                f'✏️ Changes asked for {place}: {response.get("feedback", "")}'
+            )
         answers = []
         for answer in response.get('answers', []):
             answers.append(self._answer_words(answer))

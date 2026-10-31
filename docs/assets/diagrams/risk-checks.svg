@@ -33,7 +33,7 @@
   <text class="small" x="272" y="373">NSE/BSE 09:15–15:30 · currency 09:00–17:00 · MCX to 23:30/23:55</text>
   <rect class="box" x="255" y="400" width="420" height="56" rx="6"/>
   <text class="title" x="272" y="423">5  Whose instrument is it?</text>
-  <text class="small" x="272" y="443">another desk's, or your own holding (INFY, KWIL…) → refused</text>
+  <text class="small" x="272" y="443">another trader's, or your own holding (INFY, KWIL…) → refused</text>
   <rect class="box" x="255" y="470" width="420" height="56" rx="6"/>
   <text class="title" x="272" y="493">6  Opening a position? Then every limit</text>
   <text class="small" x="272" y="513">halts · trading switch · no option writing · margin ≤ 25% · capital</text>

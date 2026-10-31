@@ -1,4 +1,4 @@
-"""Tries a desk's backends in order, so the desk keeps working when one model is unavailable.
+"""Tries a trader's backends in order, so the trader keeps working when one model is unavailable.
 
 A backend that fails is not tried again until its waiting period ends: 30 seconds after the first failure in a row, then 1 minute, then 5 minutes. A success resets it. Each backend keeps its own conversation, so when a backend takes over it is first told what was asked and answered on the turns it missed.
 
@@ -35,14 +35,14 @@ _COMPLETED_RESULT_CHARACTERS = 400
 
 
 class BackendRoute:
-    """One backend in a desk's order, with its failure record.
+    """One backend in a trader's order, with its failure record.
 
     Attributes:
         name: The backend's name in trading_agent.toml.
         turn_runner: What runs a turn on this backend.
         consecutive_failures: How many turns in a row have failed on it.
         available_at: The monotonic time from which it may be tried again.
-        exchanges_seen: How many of the desk's exchanges this backend already knows about.
+        exchanges_seen: How many of the trader's exchanges this backend already knows about.
     """
 
     def __init__(self, name: str, runner: turn_runner.TurnRunner):
@@ -94,7 +94,7 @@ class BackendRoute:
 
 
 class ModelRouter(turn_runner.TurnRunner):
-    """Runs each turn on the first backend in the desk's order that is available.
+    """Runs each turn on the first backend in the trader's order that is available.
 
     Attributes:
         session_id: The current session's identifier, or None without a session store or before the session starts.
@@ -103,7 +103,7 @@ class ModelRouter(turn_runner.TurnRunner):
 
     def __init__(
         self,
-        desk_name: str,
+        trader_name: str,
         routes: Sequence[BackendRoute],
         event_bus: event_bus_module.EventBus,
         waiting_periods_seconds: Sequence[
@@ -111,13 +111,16 @@ class ModelRouter(turn_runner.TurnRunner):
         ] = DEFAULT_WAITING_PERIODS_SECONDS,
         clock: Callable[[], float] = time.monotonic,
         session_store: session_store_module.SessionStore | None = None,
-        completed_calls: Callable[[str], Sequence[tool_call_executor_module.CompletedCall]] | None = None,
+        completed_calls: Callable[
+            [str], Sequence[tool_call_executor_module.CompletedCall]
+        ]
+        | None = None,
     ):
         """Creates the router.
 
         Args:
-            desk_name (str): The desk the router belongs to.
-            routes (Sequence[BackendRoute]): The desk's backends, most preferred first.
+            trader_name (str): The trader the router belongs to.
+            routes (Sequence[BackendRoute]): The trader's backends, most preferred first.
             event_bus (event_bus_module.EventBus): Where failures and switches are published.
             waiting_periods_seconds (Sequence[float]): The waits after the first, second and later failures in a row.
             clock (Callable[[], float]): The source of monotonic time, replaceable in tests.
@@ -129,7 +132,7 @@ class ModelRouter(turn_runner.TurnRunner):
         """
         if not routes:
             raise ValueError('A model router needs at least one backend')
-        self._desk_name = desk_name
+        self._trader_name = trader_name
         self._routes = list(routes)
         self._event_bus = event_bus
         self._waiting_periods_seconds = waiting_periods_seconds
@@ -307,7 +310,7 @@ class ModelRouter(turn_runner.TurnRunner):
 
     @property
     def backend_names(self) -> list[str]:
-        """The desk's backends in their configured order."""
+        """The trader's backends in their configured order."""
         return [route.name for route in self._routes]
 
     @property
@@ -320,7 +323,9 @@ class ModelRouter(turn_runner.TurnRunner):
         """The backend tried first because of /model, or None for the configured order."""
         return self._preferred_backend_name
 
-    def choose(self, backend_name: str | None, model: str | None = None) -> None:
+    def choose(
+        self, backend_name: str | None, model: str | None = None
+    ) -> None:
         """Tries one backend first, optionally with another of its provider's models, or returns to the configured order and models.
 
         The chosen model applies only to the chosen backend; every other backend goes back to its configured model.
@@ -330,7 +335,7 @@ class ModelRouter(turn_runner.TurnRunner):
             model (str | None): The model that backend should use, or None for its configured one.
 
         Raises:
-            ValueError: No backend of the desk has that name, or a model was given without a backend.
+            ValueError: No backend of the trader has that name, or a model was given without a backend.
         """
         if backend_name is None and model is not None:
             raise ValueError('Choose a backend to use another model')
@@ -361,11 +366,11 @@ class ModelRouter(turn_runner.TurnRunner):
             backend_name (str | None): The backend to try first, or None for the configured order.
 
         Raises:
-            ValueError: No backend of the desk has that name.
+            ValueError: No backend of the trader has that name.
         """
         if backend_name is not None and backend_name not in self.backend_names:
             raise ValueError(
-                f'No backend named {backend_name!r}; this desk has: {", ".join(self.backend_names)}'
+                f'No backend named {backend_name!r}; this trader has: {", ".join(self.backend_names)}'
             )
         self._preferred_backend_name = backend_name
 
@@ -490,7 +495,9 @@ class ModelRouter(turn_runner.TurnRunner):
             result = call.result_text
             if len(result) > _COMPLETED_RESULT_CHARACTERS:
                 result = f'{result[:_COMPLETED_RESULT_CHARACTERS]}…'
-            lines.append(f'- {call.name} {json.dumps(call.arguments, ensure_ascii=False)} {outcome}: {result}')
+            lines.append(
+                f'- {call.name} {json.dumps(call.arguments, ensure_ascii=False)} {outcome}: {result}'
+            )
         lines.append('[End of harness note.]')
         return dataclasses.replace(trigger, text='\n'.join(lines))
 
@@ -580,12 +587,12 @@ class ModelRouter(turn_runner.TurnRunner):
         )
 
     def _publish(self, kind: event_module.EventKind, payload: dict) -> None:
-        """Publishes an event from this desk.
+        """Publishes an event from this trader.
 
         Args:
             kind (event_module.EventKind): What happened.
             payload (dict): The event's details.
         """
         self._event_bus.publish(
-            event_module.Event.now(kind, self._desk_name, payload)
+            event_module.Event.now(kind, self._trader_name, payload)
         )

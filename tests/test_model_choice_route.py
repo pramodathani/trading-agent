@@ -1,4 +1,4 @@
-"""Tests for choosing a desk's first model through POST /api/desks/{desk}/model."""
+"""Tests for choosing a trader's first model through POST /api/traders/{trader}/model."""
 
 import fastapi
 import fastapi.testclient
@@ -6,7 +6,7 @@ import fastapi.testclient
 from trading_agent.backends import model_router
 from trading_agent.configuration import agent_configuration
 from trading_agent.gateway import access_guard
-from trading_agent.gateway.routes import desk_routes
+from trading_agent.gateway.routes import trader_routes
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.runtime import turn_runner
@@ -62,11 +62,11 @@ class _AnsweringRunner(turn_runner.TurnRunner):
         return turn_runner.TurnResult(text='answered')
 
 
-class _StandInDesk:
-    """Stands in for a desk runtime with the fields the desk summary reads.
+class _StandInTrader:
+    """Stands in for a trader runtime with the fields the trader summary reads.
 
     Attributes:
-        name: The desk's name.
+        name: The trader's name.
         state: Its state.
         paused: Whether it is paused.
         queued_count: How many triggers wait.
@@ -74,10 +74,10 @@ class _StandInDesk:
     """
 
     def __init__(self, runner: turn_runner.TurnRunner):
-        """Creates the desk.
+        """Creates the trader.
 
         Args:
-            runner (turn_runner.TurnRunner): The desk's runner.
+            runner (turn_runner.TurnRunner): The trader's runner.
         """
         self.name = 'main'
         self.state = 'idle'
@@ -103,19 +103,19 @@ def _router() -> model_router.ModelRouter:
 
 
 def _client(runner: turn_runner.TurnRunner) -> fastapi.testclient.TestClient:
-    """Builds a client for the desk routes with one desk.
+    """Builds a client for the trader routes with one trader.
 
     Args:
-        runner (turn_runner.TurnRunner): The desk's runner.
+        runner (turn_runner.TurnRunner): The trader's runner.
 
     Returns:
         fastapi.testclient.TestClient: The client, sending the access token.
     """
     application = fastapi.FastAPI()
     application.include_router(
-        desk_routes.DeskRoutes(
+        trader_routes.TraderRoutes(
             {
-                'main': _StandInDesk(runner),
+                'main': _StandInTrader(runner),
             },
             access_guard.AccessGuard(_TOKEN),
             backend_configurations={
@@ -145,15 +145,15 @@ def _client(runner: turn_runner.TurnRunner) -> fastapi.testclient.TestClient:
 
 
 class TestModelChoiceRoute:
-    """Tests for POST /api/desks/{desk}/model and the backends in the desk summary."""
+    """Tests for POST /api/traders/{trader}/model and the backends in the trader summary."""
 
     def test_summary_lists_backends_with_their_models(self) -> None:
-        """The desk summary names each backend and its model, in order."""
+        """The trader summary names each backend and its model, in order."""
         client = _client(_router())
 
-        body = client.get('/api/desks').json()
+        body = client.get('/api/traders').json()
 
-        assert body['desks'][0]['backends'] == [
+        assert body['traders'][0]['backends'] == [
             {
                 'name': 'claude',
                 'kind': 'claude_code',
@@ -177,27 +177,31 @@ class TestModelChoiceRoute:
         router = _router()
         client = _client(router)
 
-        chosen = client.post('/api/desks/main/model', json={'backend': 'qwen'})
+        chosen = client.post(
+            '/api/traders/main/model', json={'backend': 'qwen'}
+        )
 
         assert chosen.status_code == 200
         assert chosen.json()['preferred_model'] == 'qwen'
         assert router.preferred_backend_name == 'qwen'
-        cleared = client.post('/api/desks/main/model', json={'backend': None})
+        cleared = client.post('/api/traders/main/model', json={'backend': None})
         assert cleared.json()['preferred_model'] is None
 
     def test_unknown_backend_is_refused(self) -> None:
-        """A backend the desk does not have answers 400."""
+        """A backend the trader does not have answers 400."""
         client = _client(_router())
 
-        answer = client.post('/api/desks/main/model', json={'backend': 'gpt'})
+        answer = client.post('/api/traders/main/model', json={'backend': 'gpt'})
 
         assert answer.status_code == 400
 
-    def test_desk_without_models_is_refused(self) -> None:
-        """A desk whose runner is not a model router answers 409."""
+    def test_trader_without_models_is_refused(self) -> None:
+        """A trader whose runner is not a model router answers 409."""
         client = _client(_AnsweringRunner())
 
-        answer = client.post('/api/desks/main/model', json={'backend': 'qwen'})
+        answer = client.post(
+            '/api/traders/main/model', json={'backend': 'qwen'}
+        )
 
         assert answer.status_code == 409
 
@@ -206,11 +210,16 @@ class TestModelChoiceRoute:
         router = _router()
         client = _client(router)
 
-        chosen = client.post('/api/desks/main/model', json={'backend': 'claude', 'model': 'claude-haiku-5-5'})
-        auto = client.post('/api/desks/main/model', json={'backend': None})
+        chosen = client.post(
+            '/api/traders/main/model',
+            json={'backend': 'claude', 'model': 'claude-haiku-5-5'},
+        )
+        auto = client.post('/api/traders/main/model', json={'backend': None})
 
         assert chosen.status_code == 200
-        assert chosen.json()['backends'][0]['active_model'] == 'claude-haiku-5-5'
+        assert (
+            chosen.json()['backends'][0]['active_model'] == 'claude-haiku-5-5'
+        )
         assert chosen.json()['preferred_model'] == 'claude'
         assert auto.json()['backends'][0]['active_model'] == 'opus'
 
@@ -218,6 +227,9 @@ class TestModelChoiceRoute:
         """A model missing from the backend's other_models answers 400."""
         client = _client(_router())
 
-        answer = client.post('/api/desks/main/model', json={'backend': 'claude', 'model': 'claude-unknown'})
+        answer = client.post(
+            '/api/traders/main/model',
+            json={'backend': 'claude', 'model': 'claude-unknown'},
+        )
 
         assert answer.status_code == 400

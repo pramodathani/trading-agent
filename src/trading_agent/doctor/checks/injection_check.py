@@ -1,6 +1,6 @@
-"""Scans the files that become the desks' instructions for text that tries to steer an AI.
+"""Scans the files that become the traders' instructions for text that tries to steer an AI.
 
-It reads the shared instruction files, each desk's Persona.md and Memory.md, and every installed skill's SKILL.md. Memory.md is included because a desk writes it itself, sometimes after reading web pages.
+It reads the shared instruction files, each trader's Persona.md and Memory.md, and every installed skill's SKILL.md. Memory.md is included because a trader writes it itself, sometimes after reading web pages.
 
 Typical usage example:
 
@@ -23,16 +23,16 @@ class InjectionCheck(doctor_check.DoctorCheck):
     def __init__(
         self,
         layout: workspace_layout.WorkspaceLayout,
-        desk_names: Sequence[str],
+        trader_names: Sequence[str],
     ):
         """Creates the check.
 
         Args:
             layout (workspace_layout.WorkspaceLayout): Where the files are.
-            desk_names (Sequence[str]): The desks whose files to scan.
+            trader_names (Sequence[str]): The traders whose files to scan.
         """
         self._layout = layout
-        self._desk_names = list(desk_names)
+        self._trader_names = list(trader_names)
 
     def run(self) -> doctor_check.CheckResult:
         """Scans every file.
@@ -71,9 +71,9 @@ class InjectionCheck(doctor_check.DoctorCheck):
             self._layout.user_file,
             self._layout.trading_rules_file,
         ]
-        for desk_name in self._desk_names:
-            candidates.append(self._layout.persona_file(desk_name))
-            candidates.append(self._layout.memory_file(desk_name))
+        for trader_name in self._trader_names:
+            candidates.append(self._layout.persona_file(trader_name))
+            candidates.append(self._layout.memory_file(trader_name))
         installed = self._layout.installed_skills_directory
         if installed.is_dir():
             candidates.extend(sorted(installed.glob('*/SKILL.md')))

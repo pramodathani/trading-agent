@@ -1,0 +1,933 @@
+"""Builds one trader with its tools, model backend and turn runner.
+
+Each milestone adds parts to a trader, so this one class is where they are put together. Every backend in the trader's backend_order becomes a route of the trader's model router, most preferred first.
+
+Typical usage example:
+
+  trader = TraderBuilder(configuration, secrets, event_bus).build(trader_configuration)
+"""
+
+import datetime
+import functools
+import logging
+import os
+from collections.abc import Mapping
+from pathlib import Path
+
+from trading_agent.agent import agent_loop
+from trading_agent.agent import agent_turn_runner
+from trading_agent.agent import context_compressor
+from trading_agent.agent import loop_guard
+from trading_agent.agent import prompt_builder
+from trading_agent.attachments import attachment_store
+from trading_agent.backends import backend as backend_module
+from trading_agent.backends import claude_code_turn_runner
+from trading_agent.backends import claude_tool_bridge
+from trading_agent.backends import deepseek_backend
+from trading_agent.backends import model_router
+from trading_agent.backends import ollama_backend
+from trading_agent.backends import openai_compatible_backend
+from trading_agent.configuration import agent_configuration
+from trading_agent.configuration import secrets as secrets_module
+from trading_agent.extensions import installed_packages
+from trading_agent.extensions import mcp_client_manager
+from trading_agent.gateway import gateway_parts
+from trading_agent.journal import journal_reader
+from trading_agent.journal import usage_tracker as usage_tracker_module
+from trading_agent.knowledge import knowledge_base
+from trading_agent.memory import checkpoints as checkpoints_module
+from trading_agent.memory import session_keeper
+from trading_agent.memory import session_search
+from trading_agent.memory import session_store
+from trading_agent.requests import permission_gate
+from trading_agent.requests import permission_grants
+from trading_agent.requests import user_request_store
+from trading_agent.risk import account_snapshot
+from trading_agent.risk import exchange_hours
+from trading_agent.risk import kill_switch
+from trading_agent.risk import margin_estimator
+from trading_agent.risk import risk_engine
+from trading_agent.risk import risk_ledger
+from trading_agent.risk import trading_limits
+from trading_agent.runtime import event_bus as event_bus_module
+from trading_agent.runtime import no_model_turn_runner
+from trading_agent.runtime import slash_commands
+from trading_agent.runtime import steering_inbox as steering_inbox_module
+from trading_agent.runtime import trader_runtime
+from trading_agent.runtime import turn_runner
+from trading_agent.scheduling import built_in_jobs
+from trading_agent.scheduling import command_job_runner
+from trading_agent.scheduling import cron_job
+from trading_agent.scheduling import cron_job_store
+from trading_agent.scheduling import cron_scheduler
+from trading_agent.scheduling import market_calendar
+from trading_agent.scheduling import market_status
+from trading_agent.scheduling import market_watcher
+from trading_agent.scheduling import price_alert_store
+from trading_agent.skills import skill_curator
+from trading_agent.skills import skill_library
+from trading_agent.skills import skill_usage
+from trading_agent.skills import skill_writer
+from trading_agent.subagents import subagent_library
+from trading_agent.subagents import subagent_runner
+from trading_agent.subagents import subagent_toolbox
+from trading_agent.tools import add_note_tool
+from trading_agent.tools import address_guard
+from trading_agent.tools import ask_user_tool
+from trading_agent.tools import bash_background_tool
+from trading_agent.tools import bash_check_tool
+from trading_agent.tools import bash_restart_tool
+from trading_agent.tools import bash_run_tool
+from trading_agent.tools import bash_sandbox
+from trading_agent.tools import bash_session
+from trading_agent.tools import browser_back_tool
+from trading_agent.tools import browser_click_tool
+from trading_agent.tools import browser_open_tool
+from trading_agent.tools import browser_screenshot_tool
+from trading_agent.tools import browser_session
+from trading_agent.tools import browser_snapshot_tool
+from trading_agent.tools import browser_tabs_tool
+from trading_agent.tools import browser_type_tool
+from trading_agent.tools import call_mcp_tool_tool
+from trading_agent.tools import cancel_order_tool
+from trading_agent.tools import cancel_price_alert_tool
+from trading_agent.tools import cron_create_tool
+from trading_agent.tools import cron_delete_tool
+from trading_agent.tools import cron_list_tool
+from trading_agent.tools import delegate_task_tool
+from trading_agent.tools import edit_file_tool
+from trading_agent.tools import flatten_trader_tool
+from trading_agent.tools import get_candles_tool
+from trading_agent.tools import get_orders_tool
+from trading_agent.tools import get_portfolio_tool
+from trading_agent.tools import get_quote_tool
+from trading_agent.tools import get_time_tool
+from trading_agent.tools import load_skill_tool
+from trading_agent.tools import modify_order_tool
+from trading_agent.tools import order_tool
+from trading_agent.tools import path_policy
+from trading_agent.tools import place_bracket_order_tool
+from trading_agent.tools import place_order_tool
+from trading_agent.tools import present_plan_tool
+from trading_agent.tools import propose_file_change_tool
+from trading_agent.tools import read_file_tool
+from trading_agent.tools import schedule_wakeup_tool
+from trading_agent.tools import search_instruments_tool
+from trading_agent.tools import search_knowledge_tool
+from trading_agent.tools import search_sessions_tool
+from trading_agent.tools import send_image_tool
+from trading_agent.tools import send_message_tool
+from trading_agent.tools import set_price_alert_tool
+from trading_agent.tools import skill_archive_tool
+from trading_agent.tools import skill_create_tool
+from trading_agent.tools import skill_patch_tool
+from trading_agent.tools import tool_call_executor
+from trading_agent.tools import tool_registry
+from trading_agent.tools import tool_search_tool
+from trading_agent.tools import view_image_tool
+from trading_agent.tools import web_fetch_tool
+from trading_agent.tools import web_search_tool
+from trading_agent.tools import write_file_tool
+from trading_agent.trading import broker_reader
+from trading_agent.trading import result_formatter
+from trading_agent.trading import trader_order_book
+from trading_agent.workspace import proposal_store
+from trading_agent.workspace import workspace_layout
+
+_LOGGER = logging.getLogger(__name__)
+
+
+class TraderBuilder:
+    """Puts a trader together from the configuration."""
+
+    def __init__(
+        self,
+        configuration: agent_configuration.AgentConfiguration,
+        secrets: secrets_module.Secrets,
+        event_bus: event_bus_module.EventBus,
+        mcp_manager: mcp_client_manager.McpClientManager | None = None,
+        usage_tracker: usage_tracker_module.UsageTracker | None = None,
+    ):
+        """Creates the builder.
+
+        Args:
+            configuration (agent_configuration.AgentConfiguration): The agent's configuration.
+            secrets (secrets_module.Secrets): The secrets read from the environment and .env.
+            event_bus (event_bus_module.EventBus): The bus every trader publishes on.
+            mcp_manager (mcp_client_manager.McpClientManager | None): The gateway's MCP connections, shared by every trader, or None.
+            usage_tracker (usage_tracker_module.UsageTracker | None): Today's model usage, for /usage, or None.
+        """
+        self._configuration = configuration
+        self._secrets = secrets
+        self._event_bus = event_bus
+        self._mcp_manager = mcp_manager
+        self._usage_tracker = usage_tracker
+        self._alert_stores: dict[str, price_alert_store.PriceAlertStore] = {}
+        self._trader_parts: dict[str, gateway_parts.TraderParts] = {}
+        self._steering_inboxes: dict[
+            str, steering_inbox_module.SteeringInbox
+        ] = {}
+        self._layout = workspace_layout.WorkspaceLayout(
+            configuration.workspace_directory
+        )
+        self._proposal_store = proposal_store.ProposalStore(self._layout)
+        self.user_request_store = user_request_store.UserRequestStore(
+            self._layout
+        )
+        self.permission_grants = permission_grants.PermissionGrants(
+            self._layout
+        )
+        self._permission_gate = permission_gate.PermissionGate(
+            configuration.approvals.tools,
+            configuration.approvals.expiry_minutes,
+            self.user_request_store,
+            self.permission_grants,
+            event_bus,
+        )
+        self._attachment_store = attachment_store.AttachmentStore(self._layout)
+        self._broker_reader = broker_reader.BrokerReader(
+            configuration.tradingmachine_environment_file
+        )
+        self._result_formatter = result_formatter.ResultFormatter()
+        self.calendar = market_calendar.MarketCalendar(
+            configuration.market_calendar_directory
+        )
+        self.hours = exchange_hours.ExchangeHours(self.calendar)
+        self._schedule_parts: dict[str, tuple] = {}
+        self._order_services = self._build_order_services()
+        self._skill_libraries: dict[str, skill_library.SkillLibrary] = {}
+        self._packages = installed_packages.InstalledPackages(
+            self._layout.packages_directory
+        )
+        self._subagent_library = subagent_library.SubagentLibrary(
+            self._layout.agents_directory,
+            self._packages.agent_roots,
+        )
+        self._knowledge_base = knowledge_base.KnowledgeBase(
+            self._layout.knowledge_directory,
+            self._layout.knowledge_index_file,
+        )
+
+    def _build_order_services(self) -> order_tool.OrderServices:
+        """Builds the one risk engine and order book that every trader shares.
+
+        Returns:
+            order_tool.OrderServices: What the order tools use.
+        """
+        ledger = risk_ledger.RiskLedger(self._layout.risk_ledger_file)
+        snapshot_reader = account_snapshot.AccountSnapshotReader(
+            self._broker_reader
+        )
+        risk_settings = self._configuration.risk
+        self._kill_switch = kill_switch.KillSwitch(
+            self._broker_reader,
+            ledger,
+            self._event_bus,
+            self._configuration.mode,
+        )
+        services = risk_engine.RiskServices(
+            limits_reader=trading_limits.TradingLimitsReader(
+                self._layout.trading_rules_file
+            ),
+            snapshot_reader=snapshot_reader,
+            ledger=ledger,
+            kill_switch=self._kill_switch,
+            margin_estimator=margin_estimator.MarginEstimator(
+                risk_settings.margin_rates
+            ),
+            exchange_hours=self.hours,
+        )
+        engine = risk_engine.RiskEngine(
+            services,
+            self._event_bus,
+            datetime.timedelta(minutes=risk_settings.ownership_grace_minutes),
+        )
+        return order_tool.OrderServices(
+            reader=self._broker_reader,
+            risk_engine=engine,
+            order_book=trader_order_book.TraderOrderBook(
+                self._layout.trader_orders_file
+            ),
+            snapshot_reader=snapshot_reader,
+            ledger=ledger,
+            event_bus=self._event_bus,
+            formatter=self._result_formatter,
+        )
+
+    def build(
+        self,
+        trader_configuration: agent_configuration.TraderConfiguration,
+    ) -> trader_runtime.TraderRuntime:
+        """Builds one trader.
+
+        Args:
+            trader_configuration (agent_configuration.TraderConfiguration): The trader's settings.
+
+        Returns:
+            trader_runtime.TraderRuntime: The trader, not yet running.
+        """
+        trader_name = trader_configuration.name
+        self._steering_inboxes[trader_name] = (
+            steering_inbox_module.SteeringInbox(
+                self._event_bus,
+                trader_name,
+            )
+        )
+        checkpoints = checkpoints_module.Checkpoints(
+            self._layout.checkpoint_repository(trader_name),
+            self._layout.trader_directory(trader_name),
+        )
+        store = session_store.SessionStore(
+            self._layout.sessions_directory(trader_name)
+        )
+        sandbox = bash_sandbox.BashSandbox(
+            self._layout.scratch_directory(trader_name),
+            self._configuration.sandbox.hidden_paths,
+            self._configuration.sandbox.passed_environment,
+        )
+        library = skill_library.SkillLibrary(
+            self._layout.installed_skills_directory,
+            self._layout.agent_skills_directory(trader_name),
+            environment=sandbox.passed_environment(),
+            package_skill_roots=self._packages.skill_roots,
+        )
+        self._skill_libraries[trader_name] = library
+        writer = skill_writer.SkillWriter(
+            library,
+            checkpoints,
+            self._layout.skill_ledger_file(trader_name),
+        )
+        jobs = cron_job_store.CronJobStore(
+            self._layout.cron_directory(trader_name)
+        )
+        built_ins = built_in_jobs.BuiltInJobs().jobs(
+            trader_configuration.heartbeat_minutes,
+            trader_configuration.rollover_time,
+            trader_configuration.scheduled_checks,
+        )
+        alerts = price_alert_store.PriceAlertStore(
+            self._layout.alerts_file(trader_name)
+        )
+        self._alert_stores[trader_name] = alerts
+        executor = self._executor(
+            trader_configuration,
+            checkpoints,
+            sandbox,
+            library,
+            writer,
+            jobs,
+            built_ins,
+            alerts,
+        )
+        self._trader_parts[trader_name] = gateway_parts.TraderParts(
+            sessions=store,
+            jobs=jobs,
+            built_in_jobs=built_ins,
+            alerts=alerts,
+            skills=library,
+            checkpoints=checkpoints,
+            tools=executor.tool_registry,
+        )
+        runner = self._turn_runner(trader_configuration, executor, store)
+        keeper = None
+        if isinstance(runner, model_router.ModelRouter):
+            curator = skill_curator.SkillCurator(
+                library,
+                skill_usage.SkillUsageReader(
+                    self._layout.skill_usage_file(trader_name)
+                ),
+                writer,
+                self._configuration.skills.archive_after_days,
+            )
+            keeper = session_keeper.SessionKeeper(
+                trader_name,
+                runner,
+                store,
+                self._event_bus,
+                curator,
+            )
+        _, _, _, subagents = self._schedule_parts[trader_name]
+        return trader_runtime.TraderRuntime(
+            trader_configuration,
+            self._event_bus,
+            runner,
+            self._configuration.mode,
+            executor.tool_registry,
+            keeper,
+            library,
+            self._usage_tracker,
+            market_status.MarketStatus(self.calendar, self.hours),
+            self._steering_inboxes[trader_name],
+            slash_commands.CommandParts(
+                subagent_library=self._subagent_library,
+                journal_reader=journal_reader.JournalReader(
+                    self._layout.trader_directory(trader_name) / 'journal'
+                ),
+                subagent_runner=subagents,
+            ),
+        )
+
+    def trader_parts(self) -> dict[str, gateway_parts.TraderParts]:
+        """The stores and tools of every trader build() made, for the gateway's API.
+
+        Returns:
+            dict[str, gateway_parts.TraderParts]: The parts, keyed by trader name.
+        """
+        return dict(self._trader_parts)
+
+    def shared_parts(self) -> gateway_parts.SharedParts:
+        """The parts every trader shares, for the gateway's API.
+
+        Returns:
+            gateway_parts.SharedParts: The shared parts.
+        """
+        return gateway_parts.SharedParts(
+            layout=self._layout,
+            reader=self._broker_reader,
+            snapshot_reader=self._order_services.snapshot_reader,
+            risk_engine=self._order_services.risk_engine,
+            ledger=self._order_services.ledger,
+            kill_switch=self._kill_switch,
+            order_book=self._order_services.order_book,
+            proposals=self._proposal_store,
+            subagents=self._subagent_library,
+            packages=self._packages,
+            calendar=self.calendar,
+            attachments=self._attachment_store,
+        )
+
+    def market_watcher(
+        self,
+        traders: Mapping[str, trader_runtime.TraderRuntime],
+    ) -> market_watcher.MarketWatcher:
+        """The market watcher over the traders build() made.
+
+        Args:
+            traders (Mapping[str, trader_runtime.TraderRuntime]): The traders, keyed by name.
+
+        Returns:
+            market_watcher.MarketWatcher: The watcher, sharing the traders' order book, risk engine and alert stores.
+        """
+        return market_watcher.MarketWatcher(
+            traders,
+            self._alert_stores,
+            self._order_services.order_book,
+            self._broker_reader,
+            self._order_services.risk_engine,
+            self.hours,
+            self._event_bus,
+            self._layout.market_watcher_state_file,
+        )
+
+    def trader_schedule(
+        self,
+        trader: trader_runtime.TraderRuntime,
+    ) -> cron_scheduler.TraderSchedule:
+        """What the cron scheduler needs for a trader that build() made.
+
+        Args:
+            trader (trader_runtime.TraderRuntime): The trader.
+
+        Returns:
+            cron_scheduler.TraderSchedule: Its jobs, built-in jobs, command runner and subagent runner.
+        """
+        jobs, built_ins, sandbox, subagents = self._schedule_parts[trader.name]
+        return cron_scheduler.TraderSchedule(
+            trader=trader,
+            store=jobs,
+            built_in_jobs=built_ins,
+            command_runner=command_job_runner.CommandJobRunner(
+                sandbox,
+                self._configuration.sandbox.command_timeout_seconds,
+            ),
+            subagent_runner=subagents,
+        )
+
+    def _turn_runner(
+        self,
+        trader_configuration: agent_configuration.TraderConfiguration,
+        executor: tool_call_executor.ToolCallExecutor,
+        store: session_store.SessionStore,
+    ) -> turn_runner.TurnRunner:
+        """Builds a model router over every backend in the trader's order.
+
+        Args:
+            trader_configuration (agent_configuration.TraderConfiguration): The trader's settings.
+            executor (tool_call_executor.ToolCallExecutor): The trader's tool executor, shared by every backend.
+            store (session_store.SessionStore): Where the router keeps the trader's sessions.
+
+        Returns:
+            turn_runner.TurnRunner: The router, or a no-model runner when the trader names no backend.
+        """
+        routes = []
+        for backend_name in trader_configuration.backend_order:
+            backend_configuration = self._configuration.backends[backend_name]
+            runner = self.backend_runner(
+                trader_configuration,
+                backend_name,
+                backend_configuration,
+                executor,
+                self._prompt_builder(trader_configuration),
+                self._configuration.agent.maximum_rounds,
+                self._steering_inboxes[trader_configuration.name],
+            )
+            routes.append(model_router.BackendRoute(backend_name, runner))
+        if not routes:
+            _LOGGER.warning(
+                'Trader %s has no backend; it will answer without a model',
+                trader_configuration.name,
+            )
+            return no_model_turn_runner.NoModelTurnRunner()
+        return model_router.ModelRouter(
+            trader_configuration.name,
+            routes,
+            self._event_bus,
+            session_store=store,
+            completed_calls=executor.completed_calls,
+        )
+
+    def backend_runner(
+        self,
+        trader_configuration: agent_configuration.TraderConfiguration,
+        backend_name: str,
+        backend_configuration: agent_configuration.BackendConfiguration,
+        executor: tool_call_executor.ToolCallExecutor,
+        prompt: prompt_builder.PromptBuilder,
+        maximum_rounds: int,
+        steering_inbox: steering_inbox_module.SteeringInbox | None = None,
+    ) -> turn_runner.TurnRunner:
+        """Builds the turn runner for one backend, according to its kind.
+
+        The trader's own runners and its subagents' runners are both built here.
+
+        Args:
+            trader_configuration (agent_configuration.TraderConfiguration): The trader's settings.
+            backend_name (str): The backend's name in trading_agent.toml.
+            backend_configuration (agent_configuration.BackendConfiguration): Its settings.
+            executor (tool_call_executor.ToolCallExecutor): The tool executor the runner calls tools through.
+            prompt (prompt_builder.PromptBuilder): Builds the instructions; anything with a build() method returning a SystemPrompt.
+            maximum_rounds (int): The most model calls one turn may make.
+            steering_inbox (steering_inbox_module.SteeringInbox | None): The trader's mid-turn messages, for the trader's own runners; None for a subagent's.
+
+        Returns:
+            turn_runner.TurnRunner: The runner.
+        """
+        if backend_configuration.kind == 'claude_code':
+            return self._claude_code_runner(
+                trader_configuration,
+                backend_name,
+                backend_configuration,
+                executor,
+                prompt,
+                maximum_rounds,
+                steering_inbox,
+            )
+        api_key = self._secrets.openai_api_key
+        if backend_configuration.api_key_variable is not None:
+            api_key = self._secrets.named(
+                backend_configuration.api_key_variable
+            )
+        if backend_configuration.kind == 'deepseek':
+            model_backend = deepseek_backend.DeepSeekBackend(
+                backend_name,
+                backend_configuration,
+                api_key,
+            )
+        elif backend_configuration.kind == 'openai_compatible':
+            model_backend = openai_compatible_backend.OpenAICompatibleBackend(
+                backend_name,
+                backend_configuration,
+                api_key,
+            )
+        else:
+            model_backend = ollama_backend.OllamaBackend(
+                backend_name,
+                backend_configuration,
+            )
+        return self._agent_loop_runner(
+            trader_configuration,
+            model_backend,
+            backend_configuration,
+            executor,
+            prompt,
+            maximum_rounds,
+            steering_inbox,
+        )
+
+    def _executor(
+        self,
+        trader_configuration: agent_configuration.TraderConfiguration,
+        checkpoints: checkpoints_module.Checkpoints,
+        sandbox: bash_sandbox.BashSandbox,
+        library: skill_library.SkillLibrary,
+        writer: skill_writer.SkillWriter,
+        jobs: cron_job_store.CronJobStore,
+        built_ins: list[cron_job.CronJob],
+        alerts: price_alert_store.PriceAlertStore,
+    ) -> tool_call_executor.ToolCallExecutor:
+        """Builds the trader's tools and the executor that runs them.
+
+        Args:
+            trader_configuration (agent_configuration.TraderConfiguration): The trader's settings.
+            checkpoints (checkpoints_module.Checkpoints): Snapshots the trader's files before the file tools change them.
+            sandbox (bash_sandbox.BashSandbox): The trader's bash sandbox.
+            library (skill_library.SkillLibrary): The trader's skills, for load_skill.
+            writer (skill_writer.SkillWriter): Changes the trader's own skills.
+            jobs (cron_job_store.CronJobStore): The trader's scheduled jobs.
+            built_ins (list[cron_job.CronJob]): The trader's heartbeat and rollover jobs.
+            alerts (price_alert_store.PriceAlertStore): The trader's price alerts.
+
+        Returns:
+            tool_call_executor.ToolCallExecutor: The executor.
+        """
+        agent_settings = self._configuration.agent
+        sandbox_settings = self._configuration.sandbox
+        web_settings = self._configuration.web
+        session = bash_session.BashSession(
+            sandbox,
+            sandbox_settings.command_timeout_seconds,
+            sandbox_settings.maximum_output_characters,
+        )
+        trader_directory = self._layout.trader_directory(
+            trader_configuration.name
+        )
+        policy = path_policy.PathPolicy(
+            trader_directory,
+            sandbox.hidden_paths(),
+        )
+        browser = browser_session.BrowserSession(
+            trader_directory / 'browser_profile',
+            self._layout.scratch_directory(trader_configuration.name)
+            / 'screenshots',
+            address_guard.AddressGuard(),
+            self._configuration.browser,
+        )
+        tools = [
+            get_time_tool.GetTimeTool(),
+            propose_file_change_tool.ProposeFileChangeTool(
+                self._proposal_store,
+                trader_configuration.name,
+            ),
+            bash_run_tool.BashRunTool(session),
+            bash_restart_tool.BashRestartTool(session),
+            bash_background_tool.BashBackgroundTool(session),
+            bash_check_tool.BashCheckTool(session),
+            read_file_tool.ReadFileTool(policy),
+            write_file_tool.WriteFileTool(policy, checkpoints),
+            edit_file_tool.EditFileTool(policy, checkpoints),
+            add_note_tool.AddNoteTool(
+                self._layout.notes_directory(trader_configuration.name),
+                checkpoints,
+            ),
+            search_sessions_tool.SearchSessionsTool(
+                session_search.SessionSearch(trader_directory)
+            ),
+            load_skill_tool.LoadSkillTool(library),
+            search_knowledge_tool.SearchKnowledgeTool(self._knowledge_base),
+            cron_create_tool.CronCreateTool(jobs, self.calendar, self.hours),
+            cron_list_tool.CronListTool(
+                jobs,
+                built_ins,
+                self.calendar,
+                self.hours,
+            ),
+            cron_delete_tool.CronDeleteTool(jobs),
+            schedule_wakeup_tool.ScheduleWakeupTool(jobs),
+            set_price_alert_tool.SetPriceAlertTool(self._broker_reader, alerts),
+            cancel_price_alert_tool.CancelPriceAlertTool(alerts),
+            send_message_tool.SendMessageTool(
+                self._event_bus,
+                trader_configuration.name,
+            ),
+            send_image_tool.SendImageTool(
+                policy,
+                self._attachment_store,
+                self._event_bus,
+                trader_configuration.name,
+            ),
+            view_image_tool.ViewImageTool(policy),
+            skill_create_tool.SkillCreateTool(writer),
+            skill_patch_tool.SkillPatchTool(writer),
+            skill_archive_tool.SkillArchiveTool(writer),
+            web_search_tool.WebSearchTool(
+                web_settings.searxng_base_url,
+                web_settings.search_result_limit,
+            ),
+            web_fetch_tool.WebFetchTool(
+                web_settings.fetch_timeout_seconds,
+                web_settings.maximum_page_characters,
+            ),
+            browser_open_tool.BrowserOpenTool(browser),
+            browser_snapshot_tool.BrowserSnapshotTool(browser),
+            browser_click_tool.BrowserClickTool(browser),
+            browser_type_tool.BrowserTypeTool(browser),
+            browser_screenshot_tool.BrowserScreenshotTool(
+                browser,
+                trader_directory,
+            ),
+            browser_back_tool.BrowserBackTool(browser),
+            browser_tabs_tool.BrowserTabsTool(browser),
+            search_instruments_tool.SearchInstrumentsTool(
+                self._broker_reader,
+                self._result_formatter,
+            ),
+            get_quote_tool.GetQuoteTool(
+                self._broker_reader,
+                self._result_formatter,
+            ),
+            get_candles_tool.GetCandlesTool(
+                self._broker_reader,
+                self._result_formatter,
+            ),
+            get_portfolio_tool.GetPortfolioTool(
+                self._broker_reader,
+                self._result_formatter,
+            ),
+            get_orders_tool.GetOrdersTool(
+                self._broker_reader,
+                self._result_formatter,
+            ),
+            place_order_tool.PlaceOrderTool(
+                self._order_services,
+                trader_configuration.name,
+                self._configuration.mode,
+            ),
+            place_bracket_order_tool.PlaceBracketOrderTool(
+                self._order_services,
+                trader_configuration.name,
+                self._configuration.mode,
+            ),
+            modify_order_tool.ModifyOrderTool(
+                self._order_services,
+                trader_configuration.name,
+                self._configuration.mode,
+            ),
+            cancel_order_tool.CancelOrderTool(
+                self._order_services,
+                trader_configuration.name,
+                self._configuration.mode,
+            ),
+            flatten_trader_tool.FlattenTraderTool(
+                self._order_services,
+                trader_configuration.name,
+                self._configuration.mode,
+            ),
+        ]
+        if self._mcp_manager is not None and self._mcp_manager.connections:
+            tools.append(tool_search_tool.ToolSearchTool(self._mcp_manager))
+            tools.append(call_mcp_tool_tool.CallMcpToolTool(self._mcp_manager))
+        subagents = self._subagent_runner(trader_configuration, sandbox, tools)
+        tools.append(delegate_task_tool.DelegateTaskTool(subagents))
+        tools.append(
+            ask_user_tool.AskUserTool(
+                self.user_request_store,
+                self._event_bus,
+                trader_configuration.name,
+            )
+        )
+        tools.append(
+            present_plan_tool.PresentPlanTool(
+                self.user_request_store,
+                self._event_bus,
+                trader_configuration.name,
+            )
+        )
+        self._schedule_parts[trader_configuration.name] = (
+            jobs,
+            built_ins,
+            sandbox,
+            subagents,
+        )
+        registry = tool_registry.ToolRegistry(
+            tools,
+            timeout_seconds=agent_settings.tool_timeout_seconds,
+        )
+        return tool_call_executor.ToolCallExecutor(
+            trader_configuration.name,
+            registry,
+            self._event_bus,
+            loop_guard.LoopGuard(agent_settings.maximum_identical_tool_calls),
+            self._permission_gate,
+        )
+
+    def _subagent_runner(
+        self,
+        trader_configuration: agent_configuration.TraderConfiguration,
+        sandbox: bash_sandbox.BashSandbox,
+        trader_tools: list,
+    ) -> subagent_runner.SubagentRunner:
+        """Builds the runner that carries out the trader's delegated tasks.
+
+        Args:
+            trader_configuration (agent_configuration.TraderConfiguration): The trader's settings.
+            sandbox (bash_sandbox.BashSandbox): The trader's sandbox, in which each task gets a fresh bash session.
+            trader_tools (list): The trader's tools, which subagents share; delegate_task is not among them yet, so it can never be given to a subagent.
+
+        Returns:
+            subagent_runner.SubagentRunner: The runner.
+        """
+        agent_settings = self._configuration.agent
+        sandbox_settings = self._configuration.sandbox
+        toolbox = subagent_toolbox.SubagentToolbox(
+            list(trader_tools),
+            functools.partial(
+                bash_session.BashSession,
+                sandbox,
+                sandbox_settings.command_timeout_seconds,
+                sandbox_settings.maximum_output_characters,
+            ),
+            agent_settings.tool_timeout_seconds,
+        )
+        return subagent_runner.SubagentRunner(
+            trader_configuration.name,
+            self._configuration.mode,
+            self._subagent_library,
+            toolbox,
+            functools.partial(self.backend_runner, trader_configuration),
+            trader_configuration.backend_order,
+            self._configuration.backends,
+            self._event_bus,
+            agent_settings.maximum_identical_tool_calls,
+            self._permission_gate,
+        )
+
+    def _claude_code_runner(
+        self,
+        trader_configuration: agent_configuration.TraderConfiguration,
+        backend_name: str,
+        backend_configuration: agent_configuration.BackendConfiguration,
+        executor: tool_call_executor.ToolCallExecutor,
+        prompt: prompt_builder.PromptBuilder,
+        maximum_rounds: int,
+        steering_inbox: steering_inbox_module.SteeringInbox | None = None,
+    ) -> claude_code_turn_runner.ClaudeCodeTurnRunner:
+        """Builds a Claude Code session for a trader or one of its subagents.
+
+        Args:
+            trader_configuration (agent_configuration.TraderConfiguration): The trader's settings.
+            backend_name (str): The backend's name in trading_agent.toml.
+            backend_configuration (agent_configuration.BackendConfiguration): Its settings.
+            executor (tool_call_executor.ToolCallExecutor): The tool executor.
+            prompt (prompt_builder.PromptBuilder): Builds the instructions.
+            maximum_rounds (int): The most model calls one turn may make.
+            steering_inbox (steering_inbox_module.SteeringInbox | None): The trader's mid-turn messages, for the trader's own runners; None for a subagent's.
+
+        Returns:
+            claude_code_turn_runner.ClaudeCodeTurnRunner: The runner.
+        """
+        working_directory = self._layout.scratch_directory(
+            trader_configuration.name
+        )
+        settings = claude_code_turn_runner.ClaudeCodeSettings(
+            prompt_builder=prompt,
+            oauth_token=self._secrets.claude_code_oauth_token,
+            working_directory=working_directory.resolve(),
+            maximum_rounds=maximum_rounds,
+            sessions_directory=self._claude_sessions_directory(),
+            compression_threshold=self._configuration.agent.compression_threshold,
+            emergency_compression_threshold=self._configuration.agent.emergency_compression_threshold,
+        )
+        return claude_code_turn_runner.ClaudeCodeTurnRunner(
+            trader_configuration.name,
+            backend_name,
+            backend_configuration,
+            claude_tool_bridge.ClaudeToolBridge(executor),
+            self._event_bus,
+            settings,
+            steering_inbox,
+        )
+
+    def _claude_sessions_directory(self) -> Path:
+        """Where Claude Code keeps its session files.
+
+        Returns:
+            Path: The projects folder inside CLAUDE_CONFIG_DIR, or inside ~/.claude when that is not set.
+        """
+        configuration_directory = os.environ.get('CLAUDE_CONFIG_DIR')
+        if configuration_directory:
+            return Path(configuration_directory) / 'projects'
+        return Path.home() / '.claude' / 'projects'
+
+    def _agent_loop_runner(
+        self,
+        trader_configuration: agent_configuration.TraderConfiguration,
+        model_backend: backend_module.ModelBackend,
+        backend_configuration: agent_configuration.BackendConfiguration,
+        executor: tool_call_executor.ToolCallExecutor,
+        prompt: prompt_builder.PromptBuilder,
+        maximum_rounds: int,
+        steering_inbox: steering_inbox_module.SteeringInbox | None = None,
+    ) -> agent_turn_runner.AgentTurnRunner:
+        """Builds an agent loop, with its own conversation and compressor, on a model backend.
+
+        Args:
+            trader_configuration (agent_configuration.TraderConfiguration): The trader's settings.
+            model_backend (backend_module.ModelBackend): The model the loop asks.
+            backend_configuration (agent_configuration.BackendConfiguration): Its settings, for the context window.
+            executor (tool_call_executor.ToolCallExecutor): The tool executor.
+            prompt (prompt_builder.PromptBuilder): Builds the instructions.
+            maximum_rounds (int): The most model calls one turn may make.
+            steering_inbox (steering_inbox_module.SteeringInbox | None): The trader's mid-turn messages, for the trader's own runners; None for a subagent's.
+
+        Returns:
+            agent_turn_runner.AgentTurnRunner: The runner.
+        """
+        agent_settings = self._configuration.agent
+        compressor = context_compressor.ContextCompressor(
+            trader_configuration.name,
+            backend_configuration.context_window,
+            agent_settings.compression_threshold,
+            agent_settings.emergency_compression_threshold,
+            self._event_bus,
+        )
+        loop = agent_loop.AgentLoop(
+            trader_configuration.name,
+            model_backend,
+            executor,
+            self._event_bus,
+            maximum_rounds,
+            compressor,
+            steering_inbox,
+        )
+        return agent_turn_runner.AgentTurnRunner(
+            loop,
+            prompt,
+            backend_configuration.context_window,
+        )
+
+    def _prompt_builder(
+        self,
+        trader_configuration: agent_configuration.TraderConfiguration,
+    ) -> prompt_builder.PromptBuilder:
+        """Builds the prompt builder for a trader, with the skill library build() made for it.
+
+        Args:
+            trader_configuration (agent_configuration.TraderConfiguration): The trader's settings.
+
+        Returns:
+            prompt_builder.PromptBuilder: The builder.
+        """
+        return prompt_builder.PromptBuilder(
+            self._layout,
+            trader_configuration.name,
+            self._configuration.mode,
+            self._skill_libraries.get(trader_configuration.name),
+            self._mcp_manager,
+            self._subagent_library,
+            self._other_trader_names(trader_configuration.name),
+        )
+
+    def _other_trader_names(self, trader_name: str) -> list[str]:
+        """The enabled traders other than one.
+
+        Args:
+            trader_name (str): The trader to leave out.
+
+        Returns:
+            list[str]: The other enabled traders' names, in configuration order.
+        """
+        names = []
+        for trader in self._configuration.traders:
+            if trader.enabled and trader.name != trader_name:
+                names.append(trader.name)
+        return names

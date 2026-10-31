@@ -1,6 +1,6 @@
 """The WebSocket that streams every event to a client as it happens.
 
-A client can ask for one desk's events only with `?desk=<name>`; events that belong to no desk, such as account-wide ones, are always sent.
+A client can ask for one trader's events only with `?trader=<name>`; events that belong to no trader, such as account-wide ones, are always sent.
 
 The handler waits for two things at once: the next event, and the client hanging up. Without the second, a closed connection would only be noticed at the next send, and on a quiet bus its subscription would linger.
 
@@ -55,7 +55,7 @@ class EventRoutes:
         """Sends each event to the client as JSON until it disconnects.
 
         Args:
-            websocket (fastapi.WebSocket): The client's connection, with the token in its `token` query parameter and an optional desk in `desk`.
+            websocket (fastapi.WebSocket): The client's connection, with the token in its `token` query parameter and an optional trader in `trader`.
         """
         if not self._guard.is_valid(websocket.query_params.get('token')):
             await websocket.close(code=_POLICY_VIOLATION)
@@ -70,7 +70,7 @@ class EventRoutes:
                     websocket,
                     subscription,
                     disconnect_task,
-                    websocket.query_params.get('desk'),
+                    websocket.query_params.get('trader'),
                 )
             except fastapi.WebSocketDisconnect:
                 return
@@ -82,7 +82,7 @@ class EventRoutes:
         websocket: fastapi.WebSocket,
         subscription: event_bus_module.EventSubscription,
         disconnect_task: asyncio.Task,
-        desk_name: str | None,
+        trader_name: str | None,
     ) -> None:
         """Sends events until the client disconnects.
 
@@ -90,7 +90,7 @@ class EventRoutes:
             websocket (fastapi.WebSocket): The client's connection.
             subscription (event_bus_module.EventSubscription): Where the events come from.
             disconnect_task (asyncio.Task): A task that finishes when the client hangs up.
-            desk_name (str | None): Send only this desk's events and those of no desk, or None for every event.
+            trader_name (str | None): Send only this trader's events and those of no trader, or None for every event.
         """
         while True:
             event_task = asyncio.create_task(subscription.next_event())
@@ -105,7 +105,7 @@ class EventRoutes:
                 event_task.cancel()
                 return
             event = event_task.result()
-            if desk_name and event.desk and event.desk != desk_name:
+            if trader_name and event.trader and event.trader != trader_name:
                 continue
             dictionary = event.to_json_dictionary()
             if self._redactor is not None:

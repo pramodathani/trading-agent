@@ -1,4 +1,4 @@
-"""The dock above the message box that holds the desk's pending question, plan or permission request.
+"""The dock above the message box that holds the trader's pending question, plan or permission request.
 
 It shows one request at a time, permission requests first because they lapse, with "1 of N waiting for you" when more are waiting. The dock never takes the focus by itself: the user presses Tab to answer and Escape to go back, so typing meant for the message box can never answer a request, and Enter can never allow a tool call by accident. A card stays in place while its request is still first, so a half-written answer is not lost when the list is read again.
 
@@ -78,7 +78,7 @@ class RequestDock(containers.VerticalScroll):
         """Shows the first waiting request, permission requests first.
 
         Args:
-            requests (list[dict[str, Any]]): The desk's pending requests.
+            requests (list[dict[str, Any]]): The trader's pending requests.
 
         Returns:
             bool: True when a different request is now shown, so the screen can move the focus to it.

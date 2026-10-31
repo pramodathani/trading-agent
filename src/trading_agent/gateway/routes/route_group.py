@@ -56,12 +56,12 @@ class RouteGroup:
         raise NotImplementedError
 
     def _find(self, parts: Mapping[str, _Part], name: str, kind: str) -> _Part:
-        """Looks a desk's part up by name, or answers 404.
+        """Looks a trader's part up by name, or answers 404.
 
         Args:
             parts (Mapping[str, _Part]): The parts, keyed by name.
             name (str): The name asked for.
-            kind (str): What is looked up, such as "desk", for the message.
+            kind (str): What is looked up, such as "trader", for the message.
 
         Returns:
             _Part: The part.

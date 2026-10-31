@@ -1,10 +1,10 @@
 """The open health check route, which needs no access token.
 
-It reveals only that the gateway is running and the state of each desk, so `trading-agent doctor` and systemd checks can call it without the token.
+It reveals only that the gateway is running and the state of each trader, so `trading-agent doctor` and systemd checks can call it without the token.
 
 Typical usage example:
 
-  application.include_router(HealthRoutes(desks).router())
+  application.include_router(HealthRoutes(traders).router())
 """
 
 from collections.abc import Mapping
@@ -12,19 +12,19 @@ from typing import Any
 
 import fastapi
 
-from trading_agent.runtime import desk_runtime
+from trading_agent.runtime import trader_runtime
 
 
 class HealthRoutes:
     """Builds the /api/health route."""
 
-    def __init__(self, desks: Mapping[str, desk_runtime.DeskRuntime]):
-        """Creates the routes for a set of desks.
+    def __init__(self, traders: Mapping[str, trader_runtime.TraderRuntime]):
+        """Creates the routes for a set of traders.
 
         Args:
-            desks (Mapping[str, desk_runtime.DeskRuntime]): The running desks, keyed by name.
+            traders (Mapping[str, trader_runtime.TraderRuntime]): The running traders, keyed by name.
         """
-        self._desks = desks
+        self._traders = traders
 
     def router(self) -> fastapi.APIRouter:
         """Builds the router holding the health route.
@@ -37,21 +37,21 @@ class HealthRoutes:
         return router
 
     def health(self) -> dict[str, Any]:
-        """Reports that the gateway is running, with each desk's state.
+        """Reports that the gateway is running, with each trader's state.
 
         Returns:
-            dict[str, Any]: The status and a list of desks with their state and queue length.
+            dict[str, Any]: The status and a list of traders with their state and queue length.
         """
-        desk_summaries = []
-        for desk in self._desks.values():
-            desk_summaries.append(
+        trader_summaries = []
+        for trader in self._traders.values():
+            trader_summaries.append(
                 {
-                    'name': desk.name,
-                    'state': str(desk.state),
-                    'queued': desk.queued_count,
+                    'name': trader.name,
+                    'state': str(trader.state),
+                    'queued': trader.queued_count,
                 }
             )
         return {
             'status': 'ok',
-            'desks': desk_summaries,
+            'traders': trader_summaries,
         }

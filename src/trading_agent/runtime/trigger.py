@@ -1,8 +1,8 @@
-"""A reason to wake a desk and run one turn.
+"""A reason to wake a trader and run one turn.
 
 Typical usage example:
 
-  trigger = Trigger.now(TriggerSource.USER_MESSAGE, desk='main', text='How is the market?')
+  trigger = Trigger.now(TriggerSource.USER_MESSAGE, trader='main', text='How is the market?')
 """
 
 import dataclasses
@@ -34,16 +34,16 @@ class Trigger:
     Attributes:
         trigger_id: A unique identifier, used to match events to the trigger that caused them.
         source: Where the trigger came from.
-        desk: The desk that should handle it.
-        text: What the desk is asked or told.
+        trader: The trader that should handle it.
+        text: What the trader is asked or told.
         created_at: When the trigger was created, in UTC.
         attachments: The pictures and documents the user sent with a message.
-        request_id: The desk's question, plan or permission request this message answers, or None.
+        request_id: The trader's question, plan or permission request this message answers, or None.
     """
 
     trigger_id: str
     source: TriggerSource
-    desk: str
+    trader: str
     text: str
     created_at: datetime.datetime
     attachments: tuple[attachment_module.Attachment, ...] = ()
@@ -53,7 +53,7 @@ class Trigger:
     def now(
         cls,
         source: TriggerSource,
-        desk: str,
+        trader: str,
         text: str,
         attachments: tuple[attachment_module.Attachment, ...] = (),
         request_id: str | None = None,
@@ -62,8 +62,8 @@ class Trigger:
 
         Args:
             source (TriggerSource): Where the trigger came from.
-            desk (str): The desk that should handle it.
-            text (str): What the desk is asked or told.
+            trader (str): The trader that should handle it.
+            text (str): What the trader is asked or told.
             attachments (tuple[attachment_module.Attachment, ...]): The pictures and documents sent with it.
             request_id (str | None): The request this message answers, or None.
 
@@ -73,7 +73,7 @@ class Trigger:
         return cls(
             trigger_id=uuid.uuid4().hex,
             source=source,
-            desk=desk,
+            trader=trader,
             text=text,
             created_at=datetime.datetime.now(datetime.UTC),
             attachments=attachments,
@@ -89,7 +89,7 @@ class Trigger:
         dictionary = {
             'trigger_id': self.trigger_id,
             'source': str(self.source),
-            'desk': self.desk,
+            'trader': self.trader,
             'text': self.text,
             'created_at': self.created_at.isoformat(),
         }

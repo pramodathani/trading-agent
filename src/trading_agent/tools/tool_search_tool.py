@@ -1,6 +1,6 @@
 """The tool_search tool: describes the MCP tools that match some keywords.
 
-MCP tools are listed in the prompt by name only. This tool returns the full description and argument schema of the ones the desk asks about, so it can call them with call_mcp_tool.
+MCP tools are listed in the prompt by name only. This tool returns the full description and argument schema of the ones the trader asks about, so it can call them with call_mcp_tool.
 
 Typical usage example:
 

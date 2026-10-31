@@ -1,12 +1,12 @@
-"""A dialog for choosing which model a desk tries first, as the web page's model menu does.
+"""A dialog for choosing which model a trader tries first, as the web page's model menu does.
 
-It lists the desk's backends in their configured order, then each provider's other models, then "Auto" for the configured order with fallback. The web page shows the other models in submenus; here they follow under their provider's heading. Keys 1 to 9 pick a backend directly.
+It lists the trader's backends in their configured order, then each provider's other models, then "Auto" for the configured order with fallback. The web page shows the other models in submenus; here they follow under their provider's heading. Keys 1 to 9 pick a backend directly.
 
 It returns a (backend, model) pair, with (None, None) for Auto, or None when the user presses Escape.
 
 Typical usage example:
 
-  app.push_screen(ModelPicker(desk_summary), on_chosen)
+  app.push_screen(ModelPicker(trader_summary), on_chosen)
 """
 
 from typing import Any, ClassVar
@@ -31,14 +31,14 @@ class ModelPicker(screen.ModalScreen[ModelChoice | None]):
         binding.Binding('escape', 'cancel', 'Close'),
     ]
 
-    def __init__(self, desk: dict[str, Any]):
+    def __init__(self, trader: dict[str, Any]):
         """Creates the dialog.
 
         Args:
-            desk (dict[str, Any]): The desk's summary from GET /api/desks, with its backends.
+            trader (dict[str, Any]): The trader's summary from GET /api/traders, with its backends.
         """
         super().__init__(classes='picker-screen')
-        self._desk = desk
+        self._trader = trader
         self._names = model_names.ModelNames()
         self._choices: list[ModelChoice | None] = []
         self._rows: list[option_list.Option] = []
@@ -54,7 +54,7 @@ class ModelPicker(screen.ModalScreen[ModelChoice | None]):
         with containers.Vertical(classes='picker'):
             yield widgets.Static(
                 Content.from_markup(
-                    '[b]Model for $desk[/b]', desk=self._desk['name']
+                    '[b]Model for $trader[/b]', trader=self._trader['name']
                 ),
                 classes='picker-title',
             )
@@ -79,7 +79,7 @@ class ModelPicker(screen.ModalScreen[ModelChoice | None]):
         if not event.character or not event.character.isdigit():
             return
         number = int(event.character)
-        backends = self._desk.get('backends') or []
+        backends = self._trader.get('backends') or []
         if 1 <= number <= len(backends):
             event.stop()
             self.dismiss(
@@ -108,7 +108,7 @@ class ModelPicker(screen.ModalScreen[ModelChoice | None]):
 
     def _build(self) -> None:
         """Builds the rows: the backends, each provider's other models, then Auto."""
-        backends = self._desk.get('backends') or []
+        backends = self._trader.get('backends') or []
         for number, backend in enumerate(backends, start=1):
             self._add(
                 Content.from_markup(
@@ -146,7 +146,7 @@ class ModelPicker(screen.ModalScreen[ModelChoice | None]):
                     ),
                 )
         auto_tick = ''
-        if not self._desk.get('preferred_model'):
+        if not self._trader.get('preferred_model'):
             auto_tick = '  ✓'
         self._add(
             Content.from_markup(
@@ -183,7 +183,7 @@ class ModelPicker(screen.ModalScreen[ModelChoice | None]):
         """Groups the backends' other models by provider, each run by the first backend that offers it.
 
         Args:
-            backends (list[dict[str, Any]]): The desk's backends, in order.
+            backends (list[dict[str, Any]]): The trader's backends, in order.
 
         Returns:
             list[tuple[str, list[tuple[str, str]]]]: Each provider kind with its (model, backend name) pairs, in the order they first appear.
@@ -229,11 +229,11 @@ class ModelPicker(screen.ModalScreen[ModelChoice | None]):
         Returns:
             str: Two spaces and "✓" for the current choice, otherwise an empty string.
         """
-        if self._desk.get('preferred_model') != backend_name:
+        if self._trader.get('preferred_model') != backend_name:
             return ''
         active = None
         configured = None
-        for backend in self._desk.get('backends') or []:
+        for backend in self._trader.get('backends') or []:
             if backend['name'] == backend_name:
                 active = backend.get('active_model')
                 configured = backend.get('model')

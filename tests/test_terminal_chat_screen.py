@@ -29,13 +29,13 @@ _SIZE = (
 
 
 def _event(
-    event_kind: str, desk: str = 'general', **payload: Any
+    event_kind: str, trader: str = 'general', **payload: Any
 ) -> dict[str, Any]:
     """Makes one event.
 
     Args:
         event_kind (str): The event's kind.
-        desk (str): The event's desk.
+        trader (str): The event's trader.
         **payload (Any): The event's payload.
 
     Returns:
@@ -43,7 +43,7 @@ def _event(
     """
     return {
         'kind': event_kind,
-        'desk': desk,
+        'trader': trader,
         'payload': payload,
         'created_at': '2026-10-19T04:30:00+00:00',
     }
@@ -53,9 +53,9 @@ class _StandInGateway(gateway_client.GatewayClient):
     """A gateway client that answers from memory and records what it was sent.
 
     Attributes:
-        sent: The (desk, text) pairs sent as messages.
-        model_choices: The (desk, backend, model) choices made.
-        state: The desks' state, such as "idle" or "busy".
+        sent: The (trader, text) pairs sent as messages.
+        model_choices: The (trader, backend, model) choices made.
+        state: The traders' state, such as "idle" or "busy".
     """
 
     def __init__(self):
@@ -68,15 +68,15 @@ class _StandInGateway(gateway_client.GatewayClient):
         self.decisions: list[tuple[str, str, Any]] = []
         self.sent_attachments: list[list[str]] = []
 
-    async def desks(self) -> dict[str, Any]:
-        """Two desks.
+    async def traders(self) -> dict[str, Any]:
+        """Two traders.
 
         Returns:
-            dict[str, Any]: The desks document.
+            dict[str, Any]: The traders document.
         """
-        desks = []
+        traders = []
         for name in ('general', 'intraday'):
-            desks.append(
+            traders.append(
                 {
                     'name': name,
                     'state': self.state,
@@ -97,19 +97,19 @@ class _StandInGateway(gateway_client.GatewayClient):
             )
         return {
             'mode': 'dry_run',
-            'desks': desks,
+            'traders': traders,
         }
 
-    async def desk_journal(
+    async def trader_journal(
         self,
-        desk_name: str,
+        trader_name: str,
         limit: int = 1500,
         day: str | None = None,
     ) -> dict[str, Any]:
-        """One finished turn on the general desk, none on the others.
+        """One finished turn on the general trader, none on the others.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             limit (int): Ignored.
             day (str | None): Ignored.
 
@@ -117,7 +117,7 @@ class _StandInGateway(gateway_client.GatewayClient):
             dict[str, Any]: The journal document.
         """
         del limit, day
-        if desk_name != 'general':
+        if trader_name != 'general':
             return {
                 'events': [],
             }
@@ -135,22 +135,22 @@ class _StandInGateway(gateway_client.GatewayClient):
             ],
         }
 
-    async def desk_commands(self, desk_name: str) -> dict[str, Any]:
-        """Two desk commands.
+    async def trader_commands(self, trader_name: str) -> dict[str, Any]:
+        """Two trader commands.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: The commands document.
         """
         return {
-            'desk': desk_name,
+            'trader': trader_name,
             'commands': [
                 {
                     'name': '/status',
                     'usage': '/status',
-                    'description': 'what the desk is doing',
+                    'description': 'what the trader is doing',
                     'kind': 'command',
                     'runs': 'at_once',
                 },
@@ -166,14 +166,14 @@ class _StandInGateway(gateway_client.GatewayClient):
 
     async def send_message(
         self,
-        desk_name: str,
+        trader_name: str,
         text: str,
         attachment_ids: Any = (),
     ) -> str:
         """Records a message.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             text (str): The message.
             attachment_ids (Any): The uploads sent with it.
 
@@ -182,7 +182,7 @@ class _StandInGateway(gateway_client.GatewayClient):
         """
         self.sent.append(
             (
-                desk_name,
+                trader_name,
                 text,
             )
         )
@@ -190,12 +190,12 @@ class _StandInGateway(gateway_client.GatewayClient):
         return f'sent-{len(self.sent)}'
 
     async def upload_attachment(
-        self, desk_name: str, file_path: Path
+        self, trader_name: str, file_path: Path
     ) -> dict[str, Any]:
         """Pretends to upload a file.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             file_path (Path): The file.
 
         Returns:
@@ -203,7 +203,7 @@ class _StandInGateway(gateway_client.GatewayClient):
         """
         return {
             'attachment_id': f'upload-{file_path.name}',
-            'desk': desk_name,
+            'trader': trader_name,
             'kind': 'document',
             'file_name': file_path.name,
             'problem': None,
@@ -220,7 +220,7 @@ class _StandInGateway(gateway_client.GatewayClient):
             'margin_utilized': 23456.7,
             'day_pnl': 1250.0,
             'week_pnl': -300.0,
-            'desk_pnl': {
+            'trader_pnl': {
                 'general': 1250.0,
             },
             'positions': [],
@@ -229,11 +229,11 @@ class _StandInGateway(gateway_client.GatewayClient):
             'halts': [],
         }
 
-    async def desk_orders(self) -> dict[str, Any]:
-        """One open order on the general desk.
+    async def trader_orders(self) -> dict[str, Any]:
+        """One open order on the general trader.
 
         Returns:
-            dict[str, Any]: The open orders by desk.
+            dict[str, Any]: The open orders by trader.
         """
         return {
             'general': [
@@ -243,17 +243,17 @@ class _StandInGateway(gateway_client.GatewayClient):
             ],
         }
 
-    async def desk_context(self, desk_name: str) -> dict[str, Any]:
+    async def trader_context(self, trader_name: str) -> dict[str, Any]:
         """A small context window snapshot.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, Any]: The context document.
         """
         return {
-            'desk': desk_name,
+            'trader': trader_name,
             'usage': {
                 'backend': 'claude',
                 'model': 'claude-opus-5-5',
@@ -373,14 +373,14 @@ class _StandInGateway(gateway_client.GatewayClient):
 
     async def choose_model(
         self,
-        desk_name: str,
+        trader_name: str,
         backend_name: str | None,
         model: str | None = None,
     ) -> dict[str, Any]:
         """Records a model choice.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             backend_name (str | None): The backend.
             model (str | None): The model.
 
@@ -389,7 +389,7 @@ class _StandInGateway(gateway_client.GatewayClient):
         """
         self.model_choices.append(
             (
-                desk_name,
+                trader_name,
                 backend_name,
                 model,
             )
@@ -453,7 +453,7 @@ class TestChatScreen:
         _run(scenario, tmp_path)
 
     def test_enter_sends_and_history_recalls(self, tmp_path: Path) -> None:
-        """Enter sends the message to the desk, and Up brings it back."""
+        """Enter sends the message to the trader, and Up brings it back."""
 
         async def scenario(program, pilot, gateway) -> None:
             """Sends a message and recalls it.
@@ -508,13 +508,13 @@ class TestChatScreen:
 
         _run(scenario, tmp_path)
 
-    def test_desk_command_switches_desk_without_sending(
+    def test_trader_command_switches_trader_without_sending(
         self, tmp_path: Path
     ) -> None:
-        """/desk intraday is handled by the terminal: the chat switches and nothing is sent."""
+        """/trader intraday is handled by the terminal: the chat switches and nothing is sent."""
 
         async def scenario(program, pilot, gateway) -> None:
-            """Switches desk.
+            """Switches trader.
 
             Args:
                 program (terminal_application.TerminalApplication): The program.
@@ -522,10 +522,10 @@ class TestChatScreen:
                 gateway (_StandInGateway): The stand-in gateway.
             """
             await pilot.pause(0.3)
-            await pilot.press(*'/desk intraday')
+            await pilot.press(*'/trader intraday')
             await pilot.press('enter')
             await pilot.pause(0.3)
-            assert program.chat.desk_name == 'intraday'
+            assert program.chat.trader_name == 'intraday'
             assert gateway.sent == []
             assert not program.screen.query(turn_view.TurnView)
 
@@ -571,11 +571,11 @@ class TestChatScreen:
 
         _run(scenario, tmp_path)
 
-    def test_events_of_another_desk_are_ignored(self, tmp_path: Path) -> None:
-        """An event of another desk does not appear in this desk's chat."""
+    def test_events_of_another_trader_are_ignored(self, tmp_path: Path) -> None:
+        """An event of another trader does not appear in this trader's chat."""
 
         async def scenario(program, pilot, gateway) -> None:
-            """Feeds another desk's trigger.
+            """Feeds another trader's trigger.
 
             Args:
                 program (terminal_application.TerminalApplication): The program.
@@ -586,7 +586,7 @@ class TestChatScreen:
             program.chat.take_event(
                 _event(
                     'trigger_received',
-                    desk='scalper',
+                    trader='scalper',
                     trigger_id='t9',
                     source='user_message',
                 )
@@ -619,7 +619,7 @@ class TestChatScreen:
         _run(scenario, tmp_path)
 
     def test_model_picker_number_key(self, tmp_path: Path) -> None:
-        """Alt+P then 1 makes the desk try its first backend first."""
+        """Alt+P then 1 makes the trader try its first backend first."""
 
         async def scenario(program, pilot, gateway) -> None:
             """Chooses a model.
@@ -647,18 +647,18 @@ class TestChatScreen:
 
 
 def _permission_request() -> dict[str, Any]:
-    """A pending permission request for flatten_desk on the general desk.
+    """A pending permission request for flatten_trader on the general trader.
 
     Returns:
         dict[str, Any]: The request.
     """
     return {
         'request_id': 'r1',
-        'desk': 'general',
+        'trader': 'general',
         'kind': 'permission',
         'status': 'pending',
         'content': {
-            'tool_name': 'flatten_desk',
+            'tool_name': 'flatten_trader',
             'arguments': {
                 'reason': 'test',
             },
@@ -668,7 +668,7 @@ def _permission_request() -> dict[str, Any]:
 
 
 class TestRequestDock:
-    """Tests for answering the desk's requests from the dock."""
+    """Tests for answering the trader's requests from the dock."""
 
     def test_a_request_never_takes_the_focus(self, tmp_path: Path) -> None:
         """A new request appears without moving the focus, so Enter still sends the typed message."""
@@ -765,7 +765,7 @@ class TestRequestDock:
             gateway.pending = [
                 {
                     'request_id': 'p1',
-                    'desk': 'general',
+                    'trader': 'general',
                     'kind': 'plan',
                     'status': 'pending',
                     'content': {
@@ -808,7 +808,7 @@ class TestRequestDock:
             gateway.pending = [
                 {
                     'request_id': 'q1',
-                    'desk': 'general',
+                    'trader': 'general',
                     'kind': 'question',
                     'status': 'pending',
                     'content': {

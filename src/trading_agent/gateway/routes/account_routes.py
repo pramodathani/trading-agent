@@ -1,13 +1,13 @@
 """Routes for the account: balances, positions, profit and loss, orders, ownership, halts and the kill switch.
 
-  GET  /api/account                the account now, each desk's profit and loss, ownership and halts
+  GET  /api/account                the account now, each trader's profit and loss, ownership and halts
   GET  /api/orders?kind=orders     UBI's order book: orders, trades or open_parents
-  GET  /api/desk-orders            each desk's open orders in the desk order book
-  POST /api/account/kill           halt every desk and flatten the account; needs {"confirm": "FLATTEN"}
+  GET  /api/trader-orders            each trader's open orders in the trader order book
+  POST /api/account/kill           halt every trader and flatten the account; needs {"confirm": "FLATTEN"}
 
 Typical usage example:
 
-  application.include_router(AccountRoutes(guard, shared, desk_names).router())
+  application.include_router(AccountRoutes(guard, shared, trader_names).router())
 """
 
 import dataclasses
@@ -53,7 +53,7 @@ class AccountRoutes(route_group.RouteGroup):
         self,
         guard: access_guard.AccessGuard,
         shared: gateway_parts.SharedParts,
-        desk_names: Sequence[str],
+        trader_names: Sequence[str],
         clock: Callable[[], datetime.datetime] | None = None,
     ):
         """Creates the routes.
@@ -61,12 +61,12 @@ class AccountRoutes(route_group.RouteGroup):
         Args:
             guard (access_guard.AccessGuard): Checks the access token.
             shared (gateway_parts.SharedParts): The shared parts.
-            desk_names (Sequence[str]): The desks, for their order lists.
+            trader_names (Sequence[str]): The traders, for their order lists.
             clock (Callable[[], datetime.datetime] | None): Returns the current time; None uses the system clock.
         """
         super().__init__(guard)
         self._shared = shared
-        self._desk_names = list(desk_names)
+        self._trader_names = list(trader_names)
         self._clock = clock
 
     def _add_routes(self, router: fastapi.APIRouter) -> None:
@@ -78,7 +78,7 @@ class AccountRoutes(route_group.RouteGroup):
         router.add_api_route('/api/account', self.account, methods=['GET'])
         router.add_api_route('/api/orders', self.orders, methods=['GET'])
         router.add_api_route(
-            '/api/desk-orders', self.desk_orders, methods=['GET']
+            '/api/trader-orders', self.trader_orders, methods=['GET']
         )
         router.add_api_route('/api/account/kill', self.kill, methods=['POST'])
 
@@ -86,7 +86,7 @@ class AccountRoutes(route_group.RouteGroup):
         """The account now.
 
         Returns:
-            dict[str, Any]: Balance, margin, today's and this week's profit and loss, each desk's profit and loss, positions, ownership and halts.
+            dict[str, Any]: Balance, margin, today's and this week's profit and loss, each trader's profit and loss, positions, ownership and halts.
 
         Raises:
             fastapi.HTTPException: UBI cannot be read (status 503).
@@ -112,7 +112,7 @@ class AccountRoutes(route_group.RouteGroup):
             'margin_utilized': snapshot.margin_utilized,
             'day_pnl': snapshot.day_pnl,
             'week_pnl': self._shared.ledger.week_pnl(today),
-            'desk_pnl': self._shared.risk_engine.desk_day_pnl(snapshot),
+            'trader_pnl': self._shared.risk_engine.trader_day_pnl(snapshot),
             'positions': positions,
             'holdings': snapshot.held_quantities,
             'owners': self._owners(symbols),
@@ -144,22 +144,22 @@ class AccountRoutes(route_group.RouteGroup):
                 status_code=503, detail=f'UBI cannot be read: {error}'
             ) from error
 
-    def desk_orders(self) -> dict[str, Any]:
-        """Each desk's open orders in the desk order book, dry runs included.
+    def trader_orders(self) -> dict[str, Any]:
+        """Each trader's open orders in the trader order book, dry runs included.
 
         Returns:
-            dict[str, Any]: The orders, keyed by desk name.
+            dict[str, Any]: The orders, keyed by trader name.
         """
         orders = {}
-        for desk_name in self._desk_names:
+        for trader_name in self._trader_names:
             records = []
-            for record in self._shared.order_book.open_orders(desk_name):
+            for record in self._shared.order_book.open_orders(trader_name):
                 records.append(dataclasses.asdict(record))
-            orders[desk_name] = records
+            orders[trader_name] = records
         return orders
 
     async def kill(self, request: KillRequest) -> dict[str, Any]:
-        """Halts every desk until tomorrow and flattens the account.
+        """Halts every trader until tomorrow and flattens the account.
 
         In dry_run mode the flatten is a dry run, exactly as when the loss limit fires it.
 
@@ -185,21 +185,21 @@ class AccountRoutes(route_group.RouteGroup):
         )
 
     def _owners(self, symbols: dict[str, str]) -> list[dict[str, str]]:
-        """Every stock a desk owns now, with its symbol.
+        """Every stock a trader owns now, with its symbol.
 
-        The ledger knows only UBI's instrument ids, so the symbol comes from the open positions, or else from the desk's orders.
+        The ledger knows only UBI's instrument ids, so the symbol comes from the open positions, or else from the trader's orders.
 
         Args:
             symbols (dict[str, str]): Symbols already known from the positions, keyed by instrument id.
 
         Returns:
-            list[dict[str, str]]: Each owned instrument's id, symbol and desk; the symbol is the id when neither source knows it.
+            list[dict[str, str]]: Each owned instrument's id, symbol and trader; the symbol is the id when neither source knows it.
         """
         owners = []
-        for instrument_id, desk_name in self._shared.ledger.owners().items():
+        for instrument_id, trader_name in self._shared.ledger.owners().items():
             symbol = symbols.get(instrument_id)
             if symbol is None:
-                for record in self._shared.order_book.open_orders(desk_name):
+                for record in self._shared.order_book.open_orders(trader_name):
                     if record.instrument_id == instrument_id:
                         symbol = record.symbol
                         break
@@ -207,7 +207,7 @@ class AccountRoutes(route_group.RouteGroup):
                 {
                     'instrument_id': instrument_id,
                     'symbol': symbol or instrument_id,
-                    'desk': desk_name,
+                    'trader': trader_name,
                 }
             )
         return owners

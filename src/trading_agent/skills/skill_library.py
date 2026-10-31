@@ -1,14 +1,14 @@
-"""The skills one desk can use: the user's installed skills and the desk's own.
+"""The skills one trader can use: the user's installed skills and the trader's own.
 
 There are two homes, plus the skills of installed packages:
 
-  workspace/shared/skills/installed/<name>/SKILL.md   imported by the user, read-only to every desk
+  workspace/shared/skills/installed/<name>/SKILL.md   imported by the user, read-only to every trader
   workspace/shared/packages/<package>/skills/<name>/  from packages, treated like installed skills
-  workspace/desks/<desk>/skills/agent/<name>/SKILL.md  written by the desk itself
+  workspace/traders/<trader>/skills/agent/<name>/SKILL.md  written by the trader itself
 
-Only each skill's name and description go into the system prompt, as an index; load_skill reads a skill in full when the desk needs it. A skill whose required programs or environment variables are missing is hidden. When two skills share a name, the user's installed skill wins over a package's, and both win over the desk's own.
+Only each skill's name and description go into the system prompt, as an index; load_skill reads a skill in full when the trader needs it. A skill whose required programs or environment variables are missing is hidden. When two skills share a name, the user's installed skill wins over a package's, and both win over the trader's own.
 
-The library reads the folders afresh every time it is asked, so a newly imported or newly written skill shows up on the desk's next turn.
+The library reads the folders afresh every time it is asked, so a newly imported or newly written skill shows up on the trader's next turn.
 
 Typical usage example:
 
@@ -45,7 +45,7 @@ class HiddenSkill:
 
 
 class SkillLibrary:
-    """Finds and checks one desk's skills."""
+    """Finds and checks one trader's skills."""
 
     def __init__(
         self,
@@ -59,7 +59,7 @@ class SkillLibrary:
 
         Args:
             installed_directory (Path): The user's installed skills.
-            agent_directory (Path): The desk's own skills.
+            agent_directory (Path): The trader's own skills.
             program_finder (Callable[[str], str | None]): Returns a program's path, or None when it is not installed; replaceable in tests.
             environment (Mapping[str, str] | None): The environment to check variables in; None uses os.environ.
             package_skill_roots (Callable[[], Sequence[Path]] | None): Returns the skills/ folders of installed packages, asked afresh each time, or None for no packages.
@@ -72,7 +72,7 @@ class SkillLibrary:
         self._parser = skill_module.SkillParser()
 
     def available(self) -> list[skill_module.Skill]:
-        """The skills the desk can use, installed ones first, each sorted by name.
+        """The skills the trader can use, installed ones first, each sorted by name.
 
         Returns:
             list[skill_module.Skill]: The usable skills.
@@ -111,13 +111,13 @@ class SkillLibrary:
         return None
 
     def find_agent_skill(self, name: str) -> skill_module.Skill | None:
-        """Finds one of the desk's own skills by name, usable or not.
+        """Finds one of the trader's own skills by name, usable or not.
 
         Args:
             name (str): The skill's name.
 
         Returns:
-            skill_module.Skill | None: The skill, or None when the desk wrote no skill of that name.
+            skill_module.Skill | None: The skill, or None when the trader wrote no skill of that name.
         """
         for skill in self._read_folder(self.agent_directory, AGENT):
             if skill.name == name:
@@ -171,7 +171,7 @@ class SkillLibrary:
         for skill in self._read_folder(self.agent_directory, AGENT):
             if skill.name in installed_names:
                 _LOGGER.warning(
-                    'Desk skill %s is shadowed by an installed skill',
+                    'Trader skill %s is shadowed by an installed skill',
                     skill.name,
                 )
                 continue

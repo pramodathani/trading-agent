@@ -1,6 +1,6 @@
-"""The Activity page: every event of today, from every desk, newest first, with live events added as they arrive.
+"""The Activity page: every event of today, from every trader, newest first, with live events added as they arrive.
 
-It copies the web page's ActivityPage.tsx: a filter by desk, a text search, and routine events hidden unless asked for. Up to 600 rows are shown.
+It copies the web page's ActivityPage.tsx: a filter by trader, a text search, and routine events hidden unless asked for. Up to 600 rows are shown.
 
 Typical usage example:
 
@@ -21,7 +21,7 @@ from trading_agent.terminal.screens import page_screen
 
 _JOURNAL_LIMIT = 1000
 _MOST_ROWS = 600
-_ALL_DESKS = 'all desks'
+_ALL_TRADERS = 'all traders'
 
 
 class ActivityScreen(page_screen.PageScreen):
@@ -30,21 +30,21 @@ class ActivityScreen(page_screen.PageScreen):
     TITLE_TEXT = 'Activity'
 
     BINDINGS: ClassVar[list[binding.BindingType]] = [
-        binding.Binding('d', 'next_filter_desk', 'Desk filter'),
+        binding.Binding('d', 'next_filter_trader', 'Trader filter'),
         binding.Binding('o', 'toggle_routine', 'Routine events'),
         binding.Binding('slash', 'focus_search', 'Search'),
     ]
 
-    def __init__(self, desk_name: str):
+    def __init__(self, trader_name: str):
         """Creates the page.
 
         Args:
-            desk_name (str): The desk the chat shows.
+            trader_name (str): The trader the chat shows.
         """
-        super().__init__(desk_name)
+        super().__init__(trader_name)
         self._events: list[dict[str, Any]] = []
         self._keys: set[str] = set()
-        self._filter_desk = _ALL_DESKS
+        self._filter_trader = _ALL_TRADERS
         self._show_routine = False
         self._describer = event_describer.EventDescriber()
         self._formatter = formatter.Formatter()
@@ -65,7 +65,7 @@ class ActivityScreen(page_screen.PageScreen):
         """Sets up the table, then reads the journals."""
         table = self.table('activity')
         table.add_column('Time', width=8)
-        table.add_column('Desk', width=10)
+        table.add_column('Trader', width=10)
         table.add_column('What', width=46)
         table.add_column('Detail')
         self._show_filters()
@@ -73,13 +73,13 @@ class ActivityScreen(page_screen.PageScreen):
 
     @work(exclusive=True, group='page')
     async def refresh_page(self) -> None:
-        """Reads today's journal of every desk and the events of no desk."""
+        """Reads today's journal of every trader and the events of no trader."""
         gateway = self.app.gateway
         events = []
         try:
-            for desk in self.app.desks_document.get('desks', []):
-                journal = await gateway.desk_journal(
-                    desk.get('name'), _JOURNAL_LIMIT
+            for trader in self.app.traders_document.get('traders', []):
+                journal = await gateway.trader_journal(
+                    trader.get('name'), _JOURNAL_LIMIT
                 )
                 events.extend(journal.get('events', []))
             journal = await gateway.journal(_JOURNAL_LIMIT)
@@ -113,17 +113,17 @@ class ActivityScreen(page_screen.PageScreen):
         event.stop()
         self._show_rows()
 
-    def action_next_filter_desk(self) -> None:
-        """Cycles the desk filter through all desks and each desk."""
+    def action_next_filter_trader(self) -> None:
+        """Cycles the trader filter through all traders and each trader."""
         choices = [
-            _ALL_DESKS,
+            _ALL_TRADERS,
         ]
-        for desk in self.app.desks_document.get('desks', []):
-            choices.append(desk.get('name'))
+        for trader in self.app.traders_document.get('traders', []):
+            choices.append(trader.get('name'))
         index = 0
-        if self._filter_desk in choices:
-            index = (choices.index(self._filter_desk) + 1) % len(choices)
-        self._filter_desk = choices[index]
+        if self._filter_trader in choices:
+            index = (choices.index(self._filter_trader) + 1) % len(choices)
+        self._filter_trader = choices[index]
         self._show_filters()
         self._show_rows()
 
@@ -147,7 +147,7 @@ class ActivityScreen(page_screen.PageScreen):
             bool: True when it was new.
         """
         payload = event.get('payload') or {}
-        key = f'{event.get("created_at")}|{event.get("kind")}|{event.get("desk")}|{payload.get("trigger_id")}|{payload.get("call_id")}'
+        key = f'{event.get("created_at")}|{event.get("kind")}|{event.get("trader")}|{payload.get("trigger_id")}|{payload.get("call_id")}'
         if key in self._keys:
             return False
         self._keys.add(key)
@@ -161,8 +161,8 @@ class ActivityScreen(page_screen.PageScreen):
             routine = 'shown'
         self.query_one('#activity-filters', widgets.Static).update(
             Content.from_markup(
-                'Desk [b]$desk[/b] [dim](d)[/dim]   Routine events [b]$routine[/b] [dim](o)[/dim]',
-                desk=self._filter_desk,
+                'Trader [b]$trader[/b] [dim](d)[/dim]   Routine events [b]$routine[/b] [dim](o)[/dim]',
+                trader=self._filter_trader,
                 routine=routine,
             )
         )
@@ -181,8 +181,11 @@ class ActivityScreen(page_screen.PageScreen):
                 break
             if event.get('kind') == 'text_delta':
                 continue
-            desk = event.get('desk') or ''
-            if self._filter_desk != _ALL_DESKS and desk != self._filter_desk:
+            trader = event.get('trader') or ''
+            if (
+                self._filter_trader != _ALL_TRADERS
+                and trader != self._filter_trader
+            ):
                 continue
             description = self._describer.describe(event)
             if description.tone == 'quiet' and not self._show_routine:
@@ -198,7 +201,7 @@ class ActivityScreen(page_screen.PageScreen):
             }.get(description.tone, '$foreground')
             table.add_row(
                 self._formatter.time(str(event.get('created_at', ''))),
-                desk or '—',
+                trader or '—',
                 Content.from_markup(
                     f'[{colour}]$title[/]', title=description.title
                 ),

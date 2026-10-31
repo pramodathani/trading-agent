@@ -2,7 +2,7 @@
 
 Typical usage example:
 
-  event = Event.now(EventKind.TURN_STARTED, desk='main', payload={'trigger_id': trigger_id})
+  event = Event.now(EventKind.TURN_STARTED, trader='main', payload={'trigger_id': trigger_id})
 """
 
 import dataclasses
@@ -14,8 +14,8 @@ from typing import Any, Self
 class EventKind(enum.StrEnum):
     """The kinds of event the agent publishes."""
 
-    DESK_STARTED = 'desk_started'
-    DESK_STOPPED = 'desk_stopped'
+    TRADER_STARTED = 'trader_started'
+    TRADER_STOPPED = 'trader_stopped'
     TRIGGER_RECEIVED = 'trigger_received'
     TURN_STARTED = 'turn_started'
     TEXT_DELTA = 'text_delta'
@@ -37,7 +37,7 @@ class EventKind(enum.StrEnum):
     MESSAGE = 'message'
     FILL = 'fill'
     PRICE_ALERT = 'price_alert'
-    DESK_HALT = 'desk_halt'
+    TRADER_HALT = 'trader_halt'
     ACCOUNT_STATUS = 'account_status'
     STEERING = 'steering'
     CHANNEL = 'channel'
@@ -55,13 +55,13 @@ class Event:
 
     Attributes:
         kind: What happened.
-        desk: The desk it happened on, or None for the whole gateway.
+        trader: The trader it happened on, or None for the whole gateway.
         payload: Details that depend on the kind, kept JSON-serialisable.
         created_at: When it happened, in UTC.
     """
 
     kind: EventKind
-    desk: str | None
+    trader: str | None
     payload: dict[str, Any]
     created_at: datetime.datetime
 
@@ -69,14 +69,14 @@ class Event:
     def now(
         cls,
         kind: EventKind,
-        desk: str | None,
+        trader: str | None,
         payload: dict[str, Any] | None = None,
     ) -> Self:
         """Creates an event stamped with the current time.
 
         Args:
             kind (EventKind): What happened.
-            desk (str | None): The desk it happened on, or None for the whole gateway.
+            trader (str | None): The trader it happened on, or None for the whole gateway.
             payload (dict[str, Any] | None): Details of the event, or None for no details.
 
         Returns:
@@ -86,7 +86,7 @@ class Event:
             payload = {}
         return cls(
             kind=kind,
-            desk=desk,
+            trader=trader,
             payload=payload,
             created_at=datetime.datetime.now(datetime.UTC),
         )
@@ -99,7 +99,7 @@ class Event:
         """
         return {
             'kind': str(self.kind),
-            'desk': self.desk,
+            'trader': self.trader,
             'payload': self.payload,
             'created_at': self.created_at.isoformat(),
         }

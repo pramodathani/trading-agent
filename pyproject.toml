@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 [project]
 name = "trading-agent"
 version = "0.1.0"
-description = "An always-on, multi-desk AI trading agent built on tradingmachine."
+description = "An always-on, multi-trader AI trading agent built on tradingmachine."
 requires-python = ">=3.14"
 dependencies = [
     "claude-agent-sdk==0.2.168",

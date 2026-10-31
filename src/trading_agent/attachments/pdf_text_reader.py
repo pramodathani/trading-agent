@@ -1,6 +1,6 @@
 """Reads the text of a PDF, page by page, with pypdf.
 
-A scanned PDF holds pictures of pages and no text, so it reads as empty; the store then tells the desk so, and the user can send the pages as pictures instead.
+A scanned PDF holds pictures of pages and no text, so it reads as empty; the store then tells the trader so, and the user can send the pages as pictures instead.
 
 Typical usage example:
 

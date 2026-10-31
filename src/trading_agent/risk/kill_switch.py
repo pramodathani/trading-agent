@@ -1,4 +1,4 @@
-"""The kill switch: stops every desk and closes every position in the account.
+"""The kill switch: stops every trader and closes every position in the account.
 
 It calls tradingmachine's Account.flatten, which halts UBI's order engine, cancels every open order at every broker and closes every position. tradingmachine warns that a flatten that times out may still have happened, and that calling it twice can close positions twice, so the halt is written to the ledger before UBI is called, and the switch never fires again while that halt is in force. In dry_run mode the flatten is a dry run: UBI reports what it would cancel and close, and sends nothing.
 
@@ -56,7 +56,7 @@ class KillSwitch:
         """Halts the account and flattens it, unless a halt is already in force.
 
         Args:
-            reason (str): Why, for the ledger, the journal and the desks.
+            reason (str): Why, for the ledger, the journal and the traders.
             until_date (datetime.date): The first day trading is allowed again.
             now (datetime.datetime): The current time.
 

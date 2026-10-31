@@ -1,4 +1,4 @@
-"""The user's answers to a desk's questions: checked against the options, and written up for the desk.
+"""The user's answers to a trader's questions: checked against the options, and written up for the trader.
 
 Typical usage example:
 
@@ -83,7 +83,7 @@ class QuestionResponse:
         }
 
     def message(self) -> str:
-        """The message the desk receives.
+        """The message the trader receives.
 
         Returns:
             str: Each question with the user's answer.

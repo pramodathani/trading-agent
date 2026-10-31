@@ -1,7 +1,7 @@
 /** One event from the gateway's event bus, as the journal and the live stream carry it. */
 export interface AgentEvent {
   kind: string;
-  desk: string | null;
+  trader: string | null;
   payload: Record<string, unknown>;
   created_at: string;
 }
@@ -9,21 +9,21 @@ export interface AgentEvent {
 /** A file sent with a chat message, as the gateway stores it. */
 export interface Attachment {
   attachment_id: string;
-  desk: string;
+  trader: string;
   kind: 'image' | 'document';
   file_name: string;
   media_type: string;
   size_bytes: number;
-  desk_path: string;
-  text_desk_path: string | null;
+  trader_path: string;
+  text_trader_path: string | null;
   text_characters: number | null;
   page_count: number | null;
   problem: string;
   created_at: string;
 }
 
-/** One desk's state, as GET /api/desks describes it. */
-export interface DeskSummary {
+/** One trader's state, as GET /api/traders describes it. */
+export interface TraderSummary {
   name: string;
   state: string;
   paused: boolean;
@@ -34,12 +34,12 @@ export interface DeskSummary {
   last_model: string | null;
   session_id: string | null;
   exchanges: number;
-  backends?: DeskBackend[];
+  backends?: TraderBackend[];
   persona?: string | null;
 }
 
-/** One backend a desk can use, and the model behind it. */
-export interface DeskBackend {
+/** One backend a trader can use, and the model behind it. */
+export interface TraderBackend {
   name: string;
   kind: string;
   model: string;
@@ -65,17 +65,17 @@ export interface ContextUsage {
   recorded_at: string;
 }
 
-/** The answer of GET /api/desks/{desk}/context. */
+/** The answer of GET /api/traders/{trader}/context. */
 export interface ContextDocument {
-  desk: string;
+  trader: string;
   usage: ContextUsage | null;
   tools: string[];
 }
 
-/** The answer of GET /api/desks. */
-export interface DesksDocument {
+/** The answer of GET /api/traders. */
+export interface TradersDocument {
   mode: string;
-  desks: DeskSummary[];
+  traders: TraderSummary[];
 }
 
 /** One open position in the account. */
@@ -89,14 +89,14 @@ export interface Position {
   day_pnl: number | null;
 }
 
-/** A stock a desk owns in the risk ledger. */
+/** A stock a trader owns in the risk ledger. */
 export interface Owner {
   instrument_id: string;
   symbol: string;
-  desk: string;
+  trader: string;
 }
 
-/** A halt in force, for the account or one desk. */
+/** A halt in force, for the account or one trader. */
 export interface Halt {
   scope: string;
   reason: string;
@@ -109,17 +109,17 @@ export interface AccountDocument {
   margin_utilized: number;
   day_pnl: number;
   week_pnl: number;
-  desk_pnl: Record<string, number>;
+  trader_pnl: Record<string, number>;
   positions: Position[];
   holdings: Record<string, number>;
   owners: Owner[];
   halts: Halt[];
 }
 
-/** One order in the desk order book. */
-export interface DeskOrder {
+/** One order in the trader order book. */
+export interface TraderOrder {
   record_id: string;
-  desk: string;
+  trader: string;
   kind: string;
   parent_id: string | null;
   order_id: string | null;
@@ -148,7 +148,7 @@ export interface ToolActionResult {
   is_error: boolean;
 }
 
-/** One session in a desk's list. */
+/** One session in a trader's list. */
 export interface SessionEntry {
   session_id: string;
   exchanges: number;
@@ -168,7 +168,7 @@ export interface DailySummary {
   text: string;
 }
 
-/** One of the desk's notes files. */
+/** One of the trader's notes files. */
 export interface NotesFile {
   file: string;
   text: string;
@@ -184,7 +184,7 @@ export interface SearchHit {
 /** One file the user may edit. */
 export interface EditableFile {
   name: string;
-  desk: string | null;
+  trader: string | null;
   exists: boolean;
   characters: number;
 }
@@ -192,7 +192,7 @@ export interface EditableFile {
 /** One proposed change to a user file, with the difference it would make. */
 export interface Proposal {
   proposal_id: string;
-  desk: string;
+  trader: string;
   file_name: string;
   content: string;
   reason: string;
@@ -251,7 +251,7 @@ export interface PriceAlert {
   description: string;
 }
 
-/** One skill the desk can use, with how often it was used. */
+/** One skill the trader can use, with how often it was used. */
 export interface SkillEntry {
   name: string;
   description: string;
@@ -301,14 +301,14 @@ export interface PackageEntry {
   has_app: boolean;
 }
 
-/** One checkpoint of a desk's own files. */
+/** One checkpoint of a trader's own files. */
 export interface CheckpointEntry {
   checkpoint_id: string;
   created_at: string;
   reason: string;
 }
 
-/** One backend's usage today on one desk. */
+/** One backend's usage today on one trader. */
 export interface BackendUsage {
   calls: number;
   prompt_tokens: number;
@@ -320,7 +320,7 @@ export interface BackendUsage {
 
 /** The answer of GET /api/usage. */
 export interface UsageDocument {
-  desks: Record<string, Record<string, BackendUsage>>;
+  traders: Record<string, Record<string, BackendUsage>>;
   rate_limits: Record<string, Record<string, unknown>>;
 }
 
@@ -338,12 +338,12 @@ export interface DevicesDocument {
   devices: PhoneDevice[];
 }
 
-/** A Telegram chat the desks obey. */
+/** A Telegram chat the traders obey. */
 export interface PairedChat {
   chat_id: number;
   name: string;
   paired_at: string;
-  desk: string;
+  trader: string;
 }
 
 /** A Telegram chat waiting for its code to be approved. */
@@ -361,7 +361,7 @@ export interface TelegramStatus {
   state: string;
   error: string;
   username: string;
-  default_desk: string;
+  default_trader: string;
   notifications: string[];
   paired: PairedChat[];
   pending: PendingPairing[];
@@ -382,14 +382,14 @@ export interface AppEntry {
   unit_error: string;
 }
 
-/** One choice in a desk's question. */
+/** One choice in a trader's question. */
 export interface RequestOption {
   label: string;
   description: string;
   preview: string | null;
 }
 
-/** One question in a desk's question request. */
+/** One question in a trader's question request. */
 export interface RequestQuestion {
   question: string;
   header: string;
@@ -403,8 +403,8 @@ export interface QuestionAnswer {
   other: string;
 }
 
-/** One slash command or skill a desk accepts, for the composer's command menu. */
-export interface DeskCommand {
+/** One slash command or skill a trader accepts, for the composer's command menu. */
+export interface TraderCommand {
   name: string;
   usage: string;
   description: string;
@@ -412,16 +412,16 @@ export interface DeskCommand {
   runs: 'at_once' | 'beside' | 'queued';
 }
 
-/** A desk's slash commands and usable skills. */
+/** A trader's slash commands and usable skills. */
 export interface CommandsDocument {
-  desk: string;
-  commands: DeskCommand[];
+  trader: string;
+  commands: TraderCommand[];
 }
 
-/** A desk's question, plan or permission request to the user. */
+/** A trader's question, plan or permission request to the user. */
 export interface UserRequest {
   request_id: string;
-  desk: string;
+  trader: string;
   kind: 'question' | 'plan' | 'permission';
   content: {
     questions?: RequestQuestion[];
@@ -446,9 +446,9 @@ export interface UserRequest {
   expires_at: string | null;
 }
 
-/** A standing permission: a desk may use a tool without asking. */
+/** A standing permission: a trader may use a tool without asking. */
 export interface PermissionGrant {
-  desk: string;
+  trader: string;
   tool_name: string;
   granted_at: string;
 }

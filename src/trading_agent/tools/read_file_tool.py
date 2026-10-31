@@ -15,7 +15,7 @@ class ReadFileArguments(pydantic.BaseModel):
     """The arguments of read_file.
 
     Attributes:
-        path: The file; a relative path starts at your desk folder.
+        path: The file; a relative path starts at your trader folder.
         start_line: The first line to show, counting from 1.
         maximum_lines: How many lines to show at most.
     """
@@ -31,14 +31,14 @@ class ReadFileTool(tool.Tool):
     """Reads part of a text file."""
 
     name = 'read_file'
-    description = 'Shows a text file with line numbers. A relative path starts at your desk folder (for example Memory.md or notes/2026-10-19.md). Files that hold secrets cannot be read.'
+    description = 'Shows a text file with line numbers. A relative path starts at your trader folder (for example Memory.md or notes/2026-10-19.md). Files that hold secrets cannot be read.'
     arguments_model = ReadFileArguments
 
     def __init__(self, policy: path_policy_module.PathPolicy):
         """Creates the tool.
 
         Args:
-            policy (path_policy_module.PathPolicy): The desk's read and write rules.
+            policy (path_policy_module.PathPolicy): The trader's read and write rules.
         """
         self._policy = policy
 

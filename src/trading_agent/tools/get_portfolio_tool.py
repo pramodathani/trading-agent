@@ -36,7 +36,7 @@ class GetPortfolioTool(broker_tool.BrokerTool):
     """Reads one part of the portfolio."""
 
     name = 'get_portfolio'
-    description = "Returns the account's positions, holdings or funds across every connected broker, as UBI reports them. The account is shared by every desk. Read-only."
+    description = "Returns the account's positions, holdings or funds across every connected broker, as UBI reports them. The account is shared by every trader. Read-only."
     arguments_model = GetPortfolioArguments
 
     async def run(self, arguments: GetPortfolioArguments) -> tool.ToolResult:

@@ -1,6 +1,6 @@
 # MarkdownText.tsx
 
-Renders the desk's answers, streamed text and messages as Markdown, as Claude Code does; the user's own messages stay plain text. `react-markdown` with `remark-gfm` gives tables, task lists and strikethrough. It never renders raw HTML from the text, so a reply that contains HTML, or a prompt-injected one, cannot add elements or scripts to the page.
+Renders the trader's answers, streamed text and messages as Markdown, as Claude Code does; the user's own messages stay plain text. `react-markdown` with `remark-gfm` gives tables, task lists and strikethrough. It never renders raw HTML from the text, so a reply that contains HTML, or a prompt-injected one, cannot add elements or scripts to the page.
 
 Code blocks are coloured by highlight.js's core with twelve registered languages (bash, diff, ini/toml, JavaScript, JSON, Markdown, Python, shell, SQL, TypeScript, XML/HTML, YAML). `rehype-highlight` was tried first, but it bundles highlight.js's 37 "common" languages whatever is registered and doubled the page script, so the code block calls highlight.js directly. highlight.js escapes the code text itself, which is what makes `dangerouslySetInnerHTML` safe there.
 

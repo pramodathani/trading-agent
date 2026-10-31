@@ -21,15 +21,15 @@ from trading_agent.terminal.widgets import tool_call_view
 class ToolRunView(containers.Vertical):
     """A run of tool calls, with their pictures."""
 
-    def __init__(self, desk_name: str, run: chat_items.ToolRun):
+    def __init__(self, trader_name: str, run: chat_items.ToolRun):
         """Creates the run's view.
 
         Args:
-            desk_name (str): The desk, whose folder the pictures are in.
+            trader_name (str): The trader, whose folder the pictures are in.
             run (chat_items.ToolRun): The tool calls.
         """
         super().__init__(classes='tool-run')
-        self._desk_name = desk_name
+        self._trader_name = trader_name
         self._run = run
         self._calls: list[tool_call_view.ToolCallView] = []
         self._fold = widgets.Collapsible(
@@ -73,7 +73,7 @@ class ToolRunView(containers.Vertical):
                 self._shown_pictures.add(step.picture_path)
                 self._pictures.mount(
                     picture_view.PictureView(
-                        self._desk_name, picture_path=step.picture_path
+                        self._trader_name, picture_path=step.picture_path
                     )
                 )
 

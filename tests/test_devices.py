@@ -95,7 +95,7 @@ def _channel(
 
 
 def _fill() -> event_module.Event:
-    """A fill event on the scalper desk.
+    """A fill event on the scalper trader.
 
     Returns:
         event_module.Event: The event.
@@ -115,7 +115,7 @@ def _fill() -> event_module.Event:
 
 
 def _permission_request() -> event_module.Event:
-    """A permission request from the scalper desk.
+    """A permission request from the scalper trader.
 
     Returns:
         event_module.Event: The user_request event.
@@ -125,10 +125,10 @@ def _permission_request() -> event_module.Event:
         'scalper',
         {
             'request_id': 'request-1',
-            'desk': 'scalper',
+            'trader': 'scalper',
             'kind': 'permission',
             'content': {
-                'tool_name': 'flatten_desk',
+                'tool_name': 'flatten_trader',
                 'arguments': {},
             },
             'created_at': _NOW.isoformat(),
@@ -186,10 +186,10 @@ class TestDeviceStore:
 class TestPushChannel:
     """Tests for the worker that turns events into notifications."""
 
-    def test_fill_is_pushed_with_the_desk_as_title(
+    def test_fill_is_pushed_with_the_trader_as_title(
         self, tmp_path: Path
     ) -> None:
-        """A fill reaches every phone, titled with the desk and carrying it for the tap."""
+        """A fill reaches every phone, titled with the trader and carrying it for the tap."""
         store = _store(tmp_path)
         store.register('firebase-token-1', 'Galaxy M53')
         sender = FakeSender()
@@ -202,7 +202,7 @@ class TestPushChannel:
                 'scalper',
                 'COMPLETE buy 50 RELIANCE, 50 filled at 2912.5',
                 {
-                    'desk': 'scalper',
+                    'trader': 'scalper',
                     'kind': 'fill',
                 },
             ),
@@ -231,7 +231,7 @@ class TestPushChannel:
         token, title, body, data = sender.sent[0]
         assert token == 'firebase-token-1'
         assert title == 'scalper needs your permission'
-        assert 'flatten_desk' in body
+        assert 'flatten_trader' in body
         assert data['request_id'] == 'request-1'
 
     def test_requests_off_means_no_request_push(self, tmp_path: Path) -> None:

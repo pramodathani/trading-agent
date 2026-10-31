@@ -1,19 +1,19 @@
-"""Keyword search over everything a desk has said and done before.
+"""Keyword search over everything a trader has said and done before.
 
-It looks through four kinds of record in the desk folder, newest days first:
+It looks through four kinds of record in the trader folder, newest days first:
 
-- exchanges: each trigger and the desk's answer, paired from the journal's trigger_received and text events;
-- journal: the desk's actions, such as orders, risk decisions and tool calls, from journal/*.jsonl;
+- exchanges: each trigger and the trader's answer, paired from the journal's trigger_received and text events;
+- journal: the trader's actions, such as orders, risk decisions and tool calls, from journal/*.jsonl;
 - summaries: each paragraph of the daily summaries, from sessions/summaries/*.md;
 - notes: each note, from notes/*.md.
 
-The journal is the complete record, going back before sessions were kept, so exchanges come from it rather than from the session logs, which exist to resume a session. The desk's own search_sessions calls are left out, so a search never finds itself.
+The journal is the complete record, going back before sessions were kept, so exchanges come from it rather than from the session logs, which exist to resume a session. The trader's own search_sessions calls are left out, so a search never finds itself.
 
 A record matches when it contains every keyword, ignoring case. When nothing matches every keyword, records that match some of them are returned instead, best first.
 
 Typical usage example:
 
-  search = SessionSearch(Path('workspace/desks/main'))
+  search = SessionSearch(Path('workspace/traders/main'))
   hits = search.search('NIFTY gap down', limit=10)
 """
 
@@ -86,15 +86,15 @@ class SearchResult:
 
 
 class SessionSearch:
-    """Searches one desk's records."""
+    """Searches one trader's records."""
 
-    def __init__(self, desk_directory: Path):
+    def __init__(self, trader_directory: Path):
         """Creates the search.
 
         Args:
-            desk_directory (Path): The desk folder.
+            trader_directory (Path): The trader folder.
         """
-        self._desk_directory = desk_directory
+        self._trader_directory = trader_directory
 
     def search(self, query: str, limit: int) -> SearchResult:
         """Finds the records that best match the keywords.
@@ -214,13 +214,13 @@ class SessionSearch:
             SearchRecord: The next record.
         """
         yield from self._journal_records(
-            self._desk_directory / 'journal',
+            self._trader_directory / 'journal',
             words,
         )
         yield from self._summary_records(
-            self._desk_directory / 'sessions' / 'summaries'
+            self._trader_directory / 'sessions' / 'summaries'
         )
-        yield from self._note_records(self._desk_directory / 'notes')
+        yield from self._note_records(self._trader_directory / 'notes')
 
     def _summary_records(self, directory: Path) -> Iterator[SearchRecord]:
         """Yields each paragraph of each daily summary.
@@ -268,12 +268,12 @@ class SessionSearch:
         directory: Path,
         words: list[str],
     ) -> Iterator[SearchRecord]:
-        """Yields the exchanges and actions recorded in the desk's journal.
+        """Yields the exchanges and actions recorded in the trader's journal.
 
         Each journal line starts with its kind, so lines of other kinds, such as long tool results, are skipped without being parsed. A trigger is kept until its answer arrives, so the pair can be searched as one exchange.
 
         Args:
-            directory (Path): The desk's journal folder.
+            directory (Path): The trader's journal folder.
             words (list[str]): The keywords, used to skip action lines early.
 
         Yields:
@@ -341,7 +341,7 @@ class SessionSearch:
         return payload
 
     def _action_record(self, day: str, line: str) -> SearchRecord | None:
-        """Turns one action line into a record, leaving out the desk's own searches.
+        """Turns one action line into a record, leaving out the trader's own searches.
 
         Args:
             day (str): The journal file's date.

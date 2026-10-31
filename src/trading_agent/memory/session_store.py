@@ -1,6 +1,6 @@
-"""Keeps a desk's sessions on disk, so a restart does not make the desk forget the day.
+"""Keeps a trader's sessions on disk, so a restart does not make the trader forget the day.
 
-A session is one stretch of conversation, normally one India trading day. The store keeps three things in the desk's sessions folder:
+A session is one stretch of conversation, normally one India trading day. The store keeps three things in the trader's sessions folder:
 
   sessions/
     state.json                 which session is current, and what each backend needs to resume it
@@ -9,7 +9,7 @@ A session is one stretch of conversation, normally one India trading day. The st
 
 Typical usage example:
 
-  store = SessionStore(Path('workspace/desks/main/sessions'))
+  store = SessionStore(Path('workspace/traders/main/sessions'))
   state = store.load_state()
   store.append_exchange(state.session_id, exchange)
 """
@@ -32,7 +32,7 @@ _SUMMARIES_FOLDER_NAME = 'summaries'
 
 @dataclasses.dataclass(frozen=True)
 class Exchange:
-    """One finished turn: what the desk was told and what it answered.
+    """One finished turn: what the trader was told and what it answered.
 
     Attributes:
         trigger_text: The trigger's text.
@@ -161,7 +161,7 @@ class DailySummary:
 
 
 class SessionStore:
-    """One desk's sessions folder.
+    """One trader's sessions folder.
 
     Attributes:
         directory: The sessions folder.
@@ -175,7 +175,7 @@ class SessionStore:
         """Describes the folder without touching the disk.
 
         Args:
-            directory (Path): The desk's sessions folder.
+            directory (Path): The trader's sessions folder.
             date_source (Callable[[], datetime.date] | None): Returns today's India date; None uses the clock. Tests replace it.
         """
         self.directory = directory
@@ -194,7 +194,7 @@ class SessionStore:
     def load_state(self) -> SessionState | None:
         """Reads which session is current.
 
-        A damaged state file is logged and treated as missing, so the desk starts a new session rather than not starting.
+        A damaged state file is logged and treated as missing, so the trader starts a new session rather than not starting.
 
         Returns:
             SessionState | None: The state, or None when there is none yet.

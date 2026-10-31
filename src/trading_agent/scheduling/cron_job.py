@@ -1,11 +1,11 @@
-"""One scheduled job of a desk, and when it next runs.
+"""One scheduled job of a trader, and when it next runs.
 
 A job either repeats on a five-field cron schedule in India time ("45 15 * * 1-5" is 15:45 on weekdays) or runs once at a given moment. Two options narrow a repeating schedule: trading_days_only skips weekends and exchange holidays, and market_hours_only keeps only the times when NSE equities are open.
 
 There are three kinds of job:
 
-- an agent job gives the desk a message, as if the user had sent it; with a subagent target, a subagent does the task instead and its report is published;
-- a command job runs a shell command in the desk's sandbox, with no model;
+- an agent job gives the trader a message, as if the user had sent it; with a subagent target, a subagent does the task instead and its report is published;
+- a command job runs a shell command in the trader's sandbox, with no model;
 - the built-in jobs, the heartbeat and the after-close rollover, come from trading_agent.toml rather than from the jobs file.
 
 Typical usage example:
@@ -29,7 +29,7 @@ _INDIA = zoneinfo.ZoneInfo('Asia/Kolkata')
 _MOST_CANDIDATES = 2000
 AGENT = 'agent'
 COMMAND = 'command'
-DESK_TARGET = 'desk'
+TRADER_TARGET = 'trader'
 SUBAGENT_TARGET_PREFIX = 'subagent:'
 
 
@@ -47,12 +47,12 @@ class CronJob:
         kind: "agent" or "command".
         schedule: The cron expression, or None for a one-off job.
         run_at: The moment of a one-off job, or None for a repeating one.
-        text: For an agent job, the message for the desk or the subagent's task; for a command job, the command.
-        target: "desk", or "subagent:<name>" for an agent job a subagent does.
+        text: For an agent job, the message for the trader or the subagent's task; for a command job, the command.
+        target: "trader", or "subagent:<name>" for an agent job a subagent does.
         trading_days_only: Whether to skip weekends and exchange holidays.
         market_hours_only: Whether to run only while NSE equities trade.
         deliver_url: An address to POST the result to, or None.
-        created_by: "user", "desk" or "built-in".
+        created_by: "user", "trader" or "built-in".
         created_at: When the job was created, as an ISO 8601 string.
         catch_up: Whether a run missed while the gateway was down is made up once after a restart.
     """
@@ -63,7 +63,7 @@ class CronJob:
     schedule: str | None
     run_at: str | None
     text: str
-    target: str = DESK_TARGET
+    target: str = TRADER_TARGET
     trading_days_only: bool = True
     market_hours_only: bool = False
     deliver_url: str | None = None
@@ -95,11 +95,11 @@ class CronJob:
             )
         if not self.text.strip():
             raise CronJobError('A job needs a message, task or command')
-        is_desk = self.target == DESK_TARGET
+        is_trader = self.target == TRADER_TARGET
         is_subagent = self.target.startswith(SUBAGENT_TARGET_PREFIX)
-        if not is_desk and not is_subagent:
+        if not is_trader and not is_subagent:
             raise CronJobError(
-                f'target must be "desk" or "subagent:<name>", not {self.target!r}'
+                f'target must be "trader" or "subagent:<name>", not {self.target!r}'
             )
 
     @classmethod
@@ -238,7 +238,7 @@ class CronJob:
             options.append('trading days only')
         if self.market_hours_only:
             options.append('market hours only')
-        if self.target != DESK_TARGET:
+        if self.target != TRADER_TARGET:
             options.append(self.target)
         if self.deliver_url:
             options.append(f'delivered to {self.deliver_url}')

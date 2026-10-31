@@ -28,7 +28,7 @@ export function ContextCard(properties: ContextCardProperties) {
   if (usage === null) {
     return (
       <SideCard cardId="context" title="Context">
-        {properties.error !== null ? <p className="side-empty error-text">{properties.error}</p> : <p className="side-empty">Shown after the desk's next turn.</p>}
+        {properties.error !== null ? <p className="side-empty error-text">{properties.error}</p> : <p className="side-empty">Shown after the trader's next turn.</p>}
       </SideCard>
     );
   }

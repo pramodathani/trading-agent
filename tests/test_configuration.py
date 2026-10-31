@@ -10,7 +10,7 @@ _VALID_CONFIGURATION = '\n'.join(
     [
         'tradingmachine_environment_file = "/tmp/tradingmachine.env"',
         '',
-        '[[desks]]',
+        '[[traders]]',
         'name = "main"',
         '',
         '[backends.gemma]',
@@ -51,7 +51,7 @@ class TestConfigurationLoader:
 
         assert configuration.mode == 'dry_run'
         assert configuration.gateway.host == '127.0.0.1'
-        assert configuration.desks[0].name == 'main'
+        assert configuration.traders[0].name == 'main'
         assert configuration.backends['gemma'].context_window == 32768
 
     def test_load_missing_file_raises(self, tmp_path: Path) -> None:
@@ -82,17 +82,18 @@ class TestConfigurationLoader:
         ):
             configuration_loader.ConfigurationLoader(path).load()
 
-    def test_load_duplicate_desk_names_raises(self, tmp_path: Path) -> None:
-        """Two desks with the same name are rejected.
+    def test_load_duplicate_trader_names_raises(self, tmp_path: Path) -> None:
+        """Two traders with the same name are rejected.
 
         Args:
             tmp_path (Path): A temporary directory from pytest.
         """
-        text = _VALID_CONFIGURATION + '\n\n[[desks]]\nname = "main"\n'
+        text = _VALID_CONFIGURATION + '\n\n[[traders]]\nname = "main"\n'
         path = self._write(tmp_path, text)
 
         with pytest.raises(
-            configuration_loader.ConfigurationError, match='Duplicate desk name'
+            configuration_loader.ConfigurationError,
+            match='Duplicate trader name',
         ):
             configuration_loader.ConfigurationLoader(path).load()
 
@@ -131,10 +132,10 @@ class TestConfigurationLoader:
         ):
             configuration_loader.ConfigurationLoader(path).load()
 
-    def test_load_desk_with_unknown_backend_raises(
+    def test_load_trader_with_unknown_backend_raises(
         self, tmp_path: Path
     ) -> None:
-        """A desk that names a backend missing from [backends] is rejected.
+        """A trader that names a backend missing from [backends] is rejected.
 
         Args:
             tmp_path (Path): A temporary directory from pytest.

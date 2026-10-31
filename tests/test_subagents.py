@@ -230,7 +230,7 @@ class _Setup:
         prompt: subagent_prompt_builder.SubagentPromptBuilder,
         maximum_rounds: int,
     ) -> _ScriptedRunner:
-        """Builds a scripted runner, as the desk builder would build a real one.
+        """Builds a scripted runner, as the trader builder would build a real one.
 
         Args:
             backend_name (str): The backend.
@@ -354,7 +354,7 @@ class TestSubagentToolbox:
     """Subagents get safe tools by default and never delegate or browse."""
 
     def test_default_set_and_explicit_list(self, tmp_path: Path) -> None:
-        """No list gives the read-only tools the desk has; a list may add orders but never delegate or browser tools.
+        """No list gives the read-only tools the trader has; a list may add orders but never delegate or browser tools.
 
         Args:
             tmp_path (Path): A scratch folder.
@@ -440,7 +440,7 @@ class TestSubagentRunner:
         assert all(runner.closed for runner in setup.runners)
         assert setup.bash_sessions[0].closed
 
-    def test_timeout_alias_and_fallback_to_the_desk_order(
+    def test_timeout_alias_and_fallback_to_the_trader_order(
         self,
         tmp_path: Path,
     ) -> None:
@@ -474,7 +474,7 @@ class TestSubagentRunner:
             if '"poet"' in runner.prompt_text:
                 poet_prompt = runner.prompt_text
         assert poet_prompt.startswith(
-            'You are the subagent "poet", working for the "main" desk'
+            'You are the subagent "poet", working for the "main" trader'
         )
         assert poet_prompt.endswith(
             '===== Your instructions =====\nDo it well.'
