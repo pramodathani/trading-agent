@@ -177,8 +177,16 @@
   background: var(--color-accent);
 }
 
+.trader-menu-dot.sleeping {
+  background: var(--color-blue);
+}
+
 .trader-menu-name {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .trader-menu-state {

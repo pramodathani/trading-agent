@@ -20,6 +20,7 @@ import { sidePanelStore, useSidePanelOpen } from '../sidePanel/sidePanelStore';
 import { AndroidVoiceInput } from '../utilities/androidVoiceInput';
 import { chatTurnBuilder, type ChatItem, type ChatTurn, type SteeringStep, type ToolStep, type TurnStep } from '../utilities/chatTurnBuilder';
 import { eventDescriber } from '../utilities/eventDescriber';
+import { traderStateWords } from '../utilities/traderStateWords';
 import { eventMerger } from '../utilities/eventMerger';
 import { formatter } from '../utilities/formatter';
 import { platform } from '../utilities/platform';
@@ -218,7 +219,7 @@ export function ChatPage() {
     stuckToBottom.current = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < BOTTOM_SLACK_PIXELS;
   }
 
-  const busy = trader !== null && trader.state !== 'idle';
+  const busy = trader !== null && traderStateWords.isWorking(trader.state);
   const modeWords = trader !== null && trader.mode === 'live' ? 'Live orders' : 'Dry run';
   const readyFiles = pending.filter((item) => item.status === 'ready');
   const uploading = pending.some((item) => item.status === 'uploading');
@@ -371,8 +372,7 @@ export function ChatPage() {
             <h1>Chat with {traderName}</h1>
             {trader !== null && (
               <span className="muted small">
-                {trader.state}
-                {trader.paused ? ', paused' : ''}
+                {traderStateWords.describe(trader)}
                 {trader.queued > 0 ? `, ${trader.queued} waiting` : ''}
               </span>
             )}

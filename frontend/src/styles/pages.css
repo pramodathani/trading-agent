@@ -78,6 +78,106 @@
   margin-top: auto;
 }
 
+.traders-header {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.traders-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.new-trader-button {
+  flex: none;
+}
+
+.new-trader-form p {
+  margin: 0;
+}
+
+.trader-name-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.trader-mandate-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.trader-mandate {
+  margin: 0;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+.model-choices {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.model-choices legend {
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.model-choice-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
+.model-choice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.retired-traders {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.retired-traders > h2,
+.retired-traders > p {
+  margin: 0;
+}
+
+.retired-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.retired-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.retired-text {
+  flex: 1;
+  min-width: 0;
+}
+
 .chat-page {
   --panel-space: 0px;
   position: absolute;

@@ -1,6 +1,7 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 
 import type { TraderSummary } from '../api/types';
+import { traderStateWords } from '../utilities/traderStateWords';
 import { selectedTraderStore } from './selectedTraderStore';
 
 /** What the trader menu shows. */
@@ -109,6 +110,12 @@ export function TraderMenu(properties: TraderMenuProperties) {
           {traders.map((trader, index) => {
             const chosen = trader.name === properties.selectedTrader;
             let className = 'trader-menu-item';
+            let dotClassName = 'trader-menu-dot';
+            if (traderStateWords.isWorking(trader.state)) {
+              dotClassName = `${dotClassName} busy`;
+            } else if (trader.state === 'sleeping') {
+              dotClassName = `${dotClassName} sleeping`;
+            }
             if (index === highlighted) {
               className = `${className} highlighted`;
             }
@@ -121,9 +128,11 @@ export function TraderMenu(properties: TraderMenuProperties) {
                 onMouseEnter={() => setHighlighted(index)}
                 onClick={() => choose(trader.name)}
               >
-                <span className={trader.state === 'idle' ? 'trader-menu-dot' : 'trader-menu-dot busy'} />
+                <span className={dotClassName} />
                 <span className="trader-menu-name">{trader.name}</span>
-                <span className="trader-menu-state">{trader.paused ? 'paused' : trader.state}</span>
+                <span className="trader-menu-state" title={traderStateWords.describe(trader)}>
+                  {trader.paused ? 'paused' : traderStateWords.short(trader.state)}
+                </span>
                 <svg className={chosen ? 'trader-menu-check' : 'trader-menu-check hidden'} viewBox="0 0 16 16" aria-hidden="true">
                   <path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>

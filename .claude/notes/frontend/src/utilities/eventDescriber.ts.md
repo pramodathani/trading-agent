@@ -7,3 +7,7 @@ A model switch away from a model that was in use is a warning, because it means 
 Trigger sources are named in plain words, such as "Message from you" instead of `user_message`.
 
 `steering` and `stopped` events, added in part 2, say whether a mid-turn message reached the running turn and that the user stopped a turn.
+
+## Trader roster events
+
+`trader_created` (also sent on a restore), `trader_retired` and `trader_sleeping` get sentences, with the mandate as detail. Falling asleep is quiet, and it is hidden from the cards' last-event line, so a card keeps showing what the trader last did.

@@ -23,3 +23,7 @@ In the history, the user's bubble shows its attachments through `AttachmentList`
 ## Pictures from the trader
 
 A tool card's picture is drawn below the folded card, not inside it, because a screenshot hidden behind a click is easy to miss. A `message` event, whether inside a turn or loose, is drawn by `TraderMessageView` as a trader bubble with its text and pictures; before part 2 a message inside a turn showed only the word "Message", hiding its text.
+
+## States in words
+
+The trader's state is put into words by `traderStateWords`, and only busy and waiting count as working, so a sleeping trader is not shown as busy.

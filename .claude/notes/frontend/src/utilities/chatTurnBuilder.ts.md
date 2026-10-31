@@ -15,3 +15,7 @@ A trigger_received event with `steering_into` belongs inside the running turn, s
 A turn's `attachments` come from the `trigger_received` event's payload, where the gateway writes them with the trigger, so pictures reappear after a reload or a restart without another request.
 
 `ToolStep.picturePath` comes from the `picture_path` key of a `tool_result` event, set when the tool showed the model a picture saved in the trader folder.
+
+## trader_created in the chat
+
+Shown between turns, so a new trader's chat starts with the line saying it was created and its mandate, above the introduction.

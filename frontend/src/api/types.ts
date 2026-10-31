@@ -136,6 +136,34 @@ export interface TraderOrder {
   placed_at: string;
 }
 
+/** One trader's record, as GET /api/trader-records describes it: its mandate, models, schedule, and whether it is retired or running. */
+export interface TraderRecord {
+  name: string;
+  mandate: string;
+  created_at: string;
+  retired: boolean;
+  backend_order: string[];
+  heartbeat_minutes: number | null;
+  rollover_time: string;
+  scheduled_checks: string[];
+  running?: boolean;
+}
+
+/** The answer of GET /api/trader-records. */
+export interface TraderRecordsDocument {
+  records: TraderRecord[];
+}
+
+/** The body of POST /api/traders, which creates a trader and starts it. */
+export interface NewTrader {
+  name: string;
+  mandate: string;
+  backend_order: string[];
+  heartbeat_minutes: number | null;
+  scheduled_checks: string[];
+  introduce: boolean;
+}
+
 /** The answer of a journal route. */
 export interface JournalDocument {
   day: string;

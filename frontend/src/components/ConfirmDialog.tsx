@@ -6,12 +6,13 @@ export interface ConfirmDialogProperties {
   explanation: string;
   confirmLabel: string;
   requiredWord?: string;
+  askReason?: boolean;
   onConfirm: (reason: string) => Promise<void>;
   onClose: () => void;
 }
 
 /**
- * A dialog that asks for a reason, and optionally a typed word, before a risky action.
+ * A dialog that asks for confirmation, by default a reason, and optionally a typed word, before a risky action.
  * @param properties What to show and what to do on confirmation.
  * @returns The dialog.
  */
@@ -21,7 +22,8 @@ export function ConfirmDialog(properties: ConfirmDialogProperties) {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const wordMatches = properties.requiredWord === undefined || typedWord === properties.requiredWord;
-  const ready = reason.trim().length > 0 && wordMatches && !working;
+  const askReason = properties.askReason ?? true;
+  const ready = (!askReason || reason.trim().length > 0) && wordMatches && !working;
 
   /**
    * Runs the action.
@@ -55,10 +57,12 @@ export function ConfirmDialog(properties: ConfirmDialogProperties) {
       >
         <h2>{properties.title}</h2>
         <p>{properties.explanation}</p>
-        <label className="field">
-          <span>Reason, for the journal</span>
-          <input autoFocus value={reason} onChange={(change) => setReason(change.target.value)} />
-        </label>
+        {askReason && (
+          <label className="field">
+            <span>Reason, for the journal</span>
+            <input autoFocus value={reason} onChange={(change) => setReason(change.target.value)} />
+          </label>
+        )}
         {properties.requiredWord !== undefined && (
           <label className="field">
             <span>

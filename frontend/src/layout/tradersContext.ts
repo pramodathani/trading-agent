@@ -6,13 +6,13 @@ import type { TradersDocument } from '../api/types';
 export interface TradersContextValue {
   document: TradersDocument | null;
   error: string | null;
-  refresh: () => void;
+  refresh: () => Promise<void>;
 }
 
 export const TradersContext = createContext<TradersContextValue>({
   document: null,
   error: null,
-  refresh: () => undefined,
+  refresh: () => Promise.resolve(),
 });
 
 /**

@@ -27,6 +27,7 @@ const QUIET_KINDS = new Set([
   'model_usage',
   'rate_limit',
   'trader_started',
+  'trader_sleeping',
   'account_status',
 ]);
 
@@ -162,6 +163,12 @@ export class EventDescriber {
         return this.make('Trader started', '', 'quiet');
       case 'trader_stopped':
         return this.make('Trader stopped', '', 'warning');
+      case 'trader_created':
+        return this.make('Trader created or restored', this.mandateWords(payload), 'good');
+      case 'trader_retired':
+        return this.make('Trader retired; its files and memory are kept, and it can be restored', this.mandateWords(payload), 'warning');
+      case 'trader_sleeping':
+        return this.make('Fell asleep; wakes on the next message, alert, fill or heartbeat', '', 'quiet');
       default:
         return this.make(event.kind.replaceAll('_', ' '), this.json(payload), QUIET_KINDS.has(event.kind) ? 'quiet' : 'normal');
     }
@@ -225,6 +232,19 @@ export class EventDescriber {
       detail,
       tone,
     };
+  }
+
+  /**
+   * Describes a trader's mandate from a creation or retirement payload.
+   * @param payload The event's payload.
+   * @returns Such as "Mandate: ...", or an empty string when it has none.
+   */
+  private mandateWords(payload: Record<string, unknown>): string {
+    const mandate = this.text(payload.mandate).trim();
+    if (!mandate) {
+      return '';
+    }
+    return `Mandate: ${mandate}`;
   }
 
   /**

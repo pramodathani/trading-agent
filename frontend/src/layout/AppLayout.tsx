@@ -21,6 +21,9 @@ const STATE_CHANGING_KINDS = new Set([
   'turn_finished',
   'session_started',
   'backend_switch',
+  'trader_created',
+  'trader_retired',
+  'trader_sleeping',
 ]);
 const CONNECTION_WORDS = {
   open: 'Live',
@@ -69,7 +72,7 @@ export function AppLayout() {
 
   useEffect(() => {
     if (lastEvent !== null && STATE_CHANGING_KINDS.has(lastEvent.kind)) {
-      refreshTraders();
+      void refreshTraders();
     }
   }, [
     lastEvent,
@@ -87,12 +90,11 @@ export function AppLayout() {
   ]);
 
   useEffect(() => {
-    if (traderNames.length > 0 && !traderNames.includes(selectedTrader)) {
+    if (traderNames.length > 0 && !traderNames.includes(selectedTraderStore.current())) {
       selectedTraderStore.choose(traderNames[0]);
     }
   }, [
     traderNames,
-    selectedTrader,
   ]);
 
   const contextValue = useMemo(

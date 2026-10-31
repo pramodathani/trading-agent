@@ -11,6 +11,8 @@ import type {
   CronRun,
   DailySummary,
   TraderOrder,
+  TraderRecord,
+  TraderRecordsDocument,
   TraderSummary,
   TradersDocument,
   DevicesDocument,
@@ -20,6 +22,7 @@ import type {
   JournalDocument,
   McpServerEntry,
   NewJob,
+  NewTrader,
   NotesFile,
   PackageEntry,
   PermissionGrant,
@@ -75,6 +78,44 @@ export class ApiClient {
    */
   traders(): Promise<TradersDocument> {
     return this.request<TradersDocument>('GET', '/api/traders');
+  }
+
+  /**
+   * Every trader's record, retired ones included.
+   * @returns The records, oldest first, each with whether the trader is running now.
+   */
+  traderRecords(): Promise<TraderRecordsDocument> {
+    return this.request<TraderRecordsDocument>('GET', '/api/trader-records');
+  }
+
+  /**
+   * Creates a trader and starts it.
+   * @param trader The new trader's name, mandate, models and schedule.
+   * @returns Its record.
+   * @throws ApiError with the gateway's reason when the name is invalid or taken, the mandate is empty, or a setting is out of range.
+   */
+  createTrader(trader: NewTrader): Promise<TraderRecord> {
+    return this.request<TraderRecord>('POST', '/api/traders', trader);
+  }
+
+  /**
+   * Stops a trader and marks it retired; its files and memory stay.
+   * @param traderName The trader.
+   * @returns Its record, now retired.
+   * @throws ApiError when it is not running, is the last running trader, or still owns instruments or has open orders.
+   */
+  retireTrader(traderName: string): Promise<TraderRecord> {
+    return this.request<TraderRecord>('POST', `/api/traders/${traderName}/retire`);
+  }
+
+  /**
+   * Brings a retired trader back with its memory and sessions.
+   * @param traderName The trader.
+   * @returns Its record.
+   * @throws ApiError when there is no such retired trader.
+   */
+  restoreTrader(traderName: string): Promise<TraderRecord> {
+    return this.request<TraderRecord>('POST', `/api/traders/${traderName}/restore`);
   }
 
   /**

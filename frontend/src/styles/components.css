@@ -138,6 +138,16 @@
   color: var(--color-accent);
 }
 
+.state-badge.state-waiting {
+  background: var(--color-warning-tint);
+  color: var(--color-warning);
+}
+
+.state-badge.state-sleeping {
+  background: var(--color-blue-tint);
+  color: var(--color-blue);
+}
+
 .state-badge.paused {
   background: var(--color-warning-tint);
   color: var(--color-warning);

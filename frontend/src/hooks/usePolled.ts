@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-/** What usePolled returns: the latest answer, the latest error, and a way to ask again at once. */
+/** What usePolled returns: the latest answer, the latest error, and a way to ask again at once that settles when the answer is shown. */
 export interface PolledState<Answer> {
   data: Answer | null;
   error: string | null;
-  refresh: () => void;
+  refresh: () => Promise<void>;
 }
 
 /**
@@ -22,24 +22,31 @@ export function usePolled<Answer>(
   const [data, setData] = useState<Answer | null>(null);
   const [error, setError] = useState<string | null>(null);
   const loadReference = useRef(load);
+  const latestRequest = useRef(0);
   loadReference.current = load;
 
-  const refresh = useCallback(() => {
-    loadReference
-      .current()
-      .then((answer) => {
+  const refresh = useCallback(async () => {
+    latestRequest.current += 1;
+    const request = latestRequest.current;
+    try {
+      const answer = await loadReference.current();
+      if (request === latestRequest.current) {
         setData(answer);
         setError(null);
-      })
-      .catch((failure: unknown) => {
+      }
+    } catch (failure) {
+      if (request === latestRequest.current) {
         setError(failure instanceof Error ? failure.message : String(failure));
-      });
+      }
+    }
   }, []);
 
   useEffect(() => {
     setData(null);
-    refresh();
-    const timer = window.setInterval(refresh, intervalMilliseconds);
+    void refresh();
+    const timer = window.setInterval(() => {
+      void refresh();
+    }, intervalMilliseconds);
     return () => {
       window.clearInterval(timer);
     };

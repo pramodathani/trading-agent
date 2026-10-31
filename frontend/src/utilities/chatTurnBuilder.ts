@@ -64,6 +64,7 @@ export interface LooseEvent {
 export type ChatItem = ChatTurn | LooseEvent;
 
 const TURN_LESS_KINDS_SHOWN = new Set([
+  'trader_created',
   'order',
   'risk_decision',
   'fill',
