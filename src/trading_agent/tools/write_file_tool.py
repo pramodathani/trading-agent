@@ -1,4 +1,4 @@
-"""The write_file tool: creates or replaces a file in the desk's own folders.
+"""The write_file tool: creates or replaces a file in the trader's own folders.
 
 Typical usage example:
 
@@ -22,7 +22,7 @@ class WriteFileArguments(pydantic.BaseModel):
     """The arguments of write_file.
 
     Attributes:
-        path: The file; a relative path starts at your desk folder.
+        path: The file; a relative path starts at your trader folder.
         content: The complete text to write.
     """
 
@@ -36,7 +36,7 @@ class WriteFileTool(tool.Tool):
     """Writes a whole file."""
 
     name = 'write_file'
-    description = 'Creates or replaces a text file with the complete content you give. You may write only inside memory/, notes/ and scratch/ of your desk folder, and your Memory.md.'
+    description = 'Creates or replaces a text file with the complete content you give. You may write only inside memory/, notes/ and scratch/ of your trader folder, and your Memory.md.'
     arguments_model = WriteFileArguments
 
     def __init__(
@@ -47,8 +47,8 @@ class WriteFileTool(tool.Tool):
         """Creates the tool.
 
         Args:
-            policy (path_policy_module.PathPolicy): The desk's read and write rules.
-            checkpoints (checkpoints_module.Checkpoints | None): Snapshots the desk's files before each change, or None to take none.
+            policy (path_policy_module.PathPolicy): The trader's read and write rules.
+            checkpoints (checkpoints_module.Checkpoints | None): Snapshots the trader's files before each change, or None to take none.
         """
         self._policy = policy
         self._checkpoints = checkpoints
@@ -71,20 +71,20 @@ class WriteFileTool(tool.Tool):
         path.write_text(arguments.content, encoding='utf-8')
         line_count = len(arguments.content.splitlines())
         return tool.ToolResult.success(
-            f'Wrote {line_count} lines to {path.relative_to(self._policy.desk_directory)}.'
+            f'Wrote {line_count} lines to {path.relative_to(self._policy.trader_directory)}.'
         )
 
     async def _snapshot(self, path: Path) -> None:
-        """Snapshots the desk's files before the change, so it can be undone.
+        """Snapshots the trader's files before the change, so it can be undone.
 
-        A failed snapshot is logged and does not stop the change, because the desk must keep working.
+        A failed snapshot is logged and does not stop the change, because the trader must keep working.
 
         Args:
             path (Path): The file about to change.
         """
         if self._checkpoints is None:
             return
-        relative_path = path.relative_to(self._policy.desk_directory)
+        relative_path = path.relative_to(self._policy.trader_directory)
         try:
             await asyncio.to_thread(
                 self._checkpoints.snapshot,

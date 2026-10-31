@@ -23,9 +23,9 @@ from trading_agent.journal import secret_redactor
 from trading_agent.journal import usage_tracker
 from trading_agent.memory import checkpoints as checkpoints_module
 from trading_agent.memory import session_store
-from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import no_model_turn_runner
+from trading_agent.runtime import trader_runtime
 from trading_agent.scheduling import cron_job
 from trading_agent.scheduling import cron_job_store
 from trading_agent.scheduling import price_alert_store
@@ -64,11 +64,11 @@ class _StandInScheduler:
             _NEXT_RUN,
         ]
 
-    async def run_now(self, desk_name: str, job_id: str) -> bool:
+    async def run_now(self, trader_name: str, job_id: str) -> bool:
         """Records a job started now, when it is the known one.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             job_id (str): The job.
 
         Returns:
@@ -76,7 +76,7 @@ class _StandInScheduler:
         """
         if job_id != 'heartbeat':
             return False
-        self.started.append((desk_name, job_id))
+        self.started.append((trader_name, job_id))
         return True
 
 
@@ -111,18 +111,18 @@ class _StandInKillSwitch:
 
 
 class _StandInUsage:
-    """A usage tracker with one backend's usage for every desk."""
+    """A usage tracker with one backend's usage for every trader."""
 
-    def today(self, desk_name: str) -> dict[str, usage_tracker.BackendUsage]:
-        """Gives the same usage for every desk.
+    def today(self, trader_name: str) -> dict[str, usage_tracker.BackendUsage]:
+        """Gives the same usage for every trader.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, usage_tracker.BackendUsage]: Two calls to qwen.
         """
-        del desk_name
+        del trader_name
         return {
             'qwen': usage_tracker.BackendUsage(calls=2, prompt_tokens=300),
         }
@@ -137,7 +137,7 @@ class _StandInUsage:
 
 
 class _Workspace:
-    """A real workspace with one desk, and that desk's real stores."""
+    """A real workspace with one trader, and that trader's real stores."""
 
     def __init__(self, directory: Path):
         """Creates the workspace files and stores.
@@ -155,10 +155,10 @@ class _Workspace:
         self.kill_switch = _StandInKillSwitch()
         self.checkpoints = checkpoints_module.Checkpoints(
             directory / '.checkpoints' / 'main.git',
-            self.layout.desk_directory('main'),
+            self.layout.trader_directory('main'),
         )
         self.parts = {
-            'main': gateway_parts.DeskParts(
+            'main': gateway_parts.TraderParts(
                 sessions=session_store.SessionStore(directory / 'sessions'),
                 jobs=cron_job_store.CronJobStore(directory / 'cron'),
                 built_in_jobs=[
@@ -261,7 +261,7 @@ class TestFileRoutes:
             headers=_HEADERS,
             json={
                 'name': 'TradingRules.md',
-                'desk': None,
+                'trader': None,
                 'text': 'Trade carefully.',
             },
         )
@@ -282,7 +282,7 @@ class TestFileRoutes:
             headers=_HEADERS,
             json={
                 'name': 'TradingRules.md',
-                'desk': None,
+                'trader': None,
                 'text': new_text,
             },
         )
@@ -291,7 +291,7 @@ class TestFileRoutes:
         assert rules_file.read_text(encoding='utf-8') == new_text
 
     def test_memory_edit_is_checkpointed_first(self, tmp_path: Path) -> None:
-        """Editing a desk's Memory.md takes a snapshot first, so the edit can be undone."""
+        """Editing a trader's Memory.md takes a snapshot first, so the edit can be undone."""
         workspace = _Workspace(tmp_path)
         client = self._client(workspace)
 
@@ -300,7 +300,7 @@ class TestFileRoutes:
             headers=_HEADERS,
             json={
                 'name': 'Memory.md',
-                'desk': 'main',
+                'trader': 'main',
                 'text': 'Remember the gap rule.',
             },
         )
@@ -309,7 +309,7 @@ class TestFileRoutes:
             headers=_HEADERS,
             params={
                 'name': 'Memory.md',
-                'desk': 'main',
+                'trader': 'main',
             },
         )
 
@@ -329,7 +329,7 @@ class TestFileRoutes:
             headers=_HEADERS,
             json={
                 'name': '../../.env',
-                'desk': None,
+                'trader': None,
                 'text': 'stolen',
             },
         )
@@ -364,7 +364,7 @@ class TestScheduleRoutes:
         client = self._client(_Workspace(tmp_path))
 
         created = client.post(
-            '/api/desks/main/jobs',
+            '/api/traders/main/jobs',
             headers=_HEADERS,
             json={
                 'name': 'morning scan',
@@ -372,7 +372,7 @@ class TestScheduleRoutes:
                 'instructions': 'Scan the gap-ups.',
             },
         )
-        listing = client.get('/api/desks/main/jobs', headers=_HEADERS)
+        listing = client.get('/api/traders/main/jobs', headers=_HEADERS)
 
         assert created.status_code == 201
         assert created.json()['created_by'] == 'user'
@@ -392,7 +392,7 @@ class TestScheduleRoutes:
         client = self._client(_Workspace(tmp_path))
 
         response = client.post(
-            '/api/desks/main/jobs',
+            '/api/traders/main/jobs',
             headers=_HEADERS,
             json={
                 'name': 'confused',
@@ -409,7 +409,7 @@ class TestScheduleRoutes:
         client = self._client(_Workspace(tmp_path))
 
         response = client.post(
-            '/api/desks/main/jobs',
+            '/api/traders/main/jobs',
             headers=_HEADERS,
             json={
                 'name': 'broken',
@@ -425,7 +425,7 @@ class TestScheduleRoutes:
         client = self._client(_Workspace(tmp_path))
 
         response = client.delete(
-            '/api/desks/main/jobs/heartbeat', headers=_HEADERS
+            '/api/traders/main/jobs/heartbeat', headers=_HEADERS
         )
 
         assert response.status_code == 400
@@ -434,7 +434,7 @@ class TestScheduleRoutes:
         """A job created through the API can be deleted, and is then gone."""
         client = self._client(_Workspace(tmp_path))
         created = client.post(
-            '/api/desks/main/jobs',
+            '/api/traders/main/jobs',
             headers=_HEADERS,
             json={
                 'name': 'one-off',
@@ -445,10 +445,10 @@ class TestScheduleRoutes:
         job_id = created.json()['job_id']
 
         deleted = client.delete(
-            f'/api/desks/main/jobs/{job_id}', headers=_HEADERS
+            f'/api/traders/main/jobs/{job_id}', headers=_HEADERS
         )
         again = client.delete(
-            f'/api/desks/main/jobs/{job_id}', headers=_HEADERS
+            f'/api/traders/main/jobs/{job_id}', headers=_HEADERS
         )
 
         assert deleted.status_code == 200
@@ -460,10 +460,10 @@ class TestScheduleRoutes:
         client = self._client(workspace)
 
         started = client.post(
-            '/api/desks/main/jobs/heartbeat/run', headers=_HEADERS
+            '/api/traders/main/jobs/heartbeat/run', headers=_HEADERS
         )
         unknown = client.post(
-            '/api/desks/main/jobs/nothing/run', headers=_HEADERS
+            '/api/traders/main/jobs/nothing/run', headers=_HEADERS
         )
 
         assert started.status_code == 200
@@ -490,12 +490,12 @@ class TestScheduleRoutes:
         workspace.parts['main'].alerts.add(alert)
         client = self._client(workspace)
 
-        listing = client.get('/api/desks/main/alerts', headers=_HEADERS)
+        listing = client.get('/api/traders/main/alerts', headers=_HEADERS)
         removed = client.delete(
-            f'/api/desks/main/alerts/{alert.alert_id}', headers=_HEADERS
+            f'/api/traders/main/alerts/{alert.alert_id}', headers=_HEADERS
         )
         again = client.delete(
-            f'/api/desks/main/alerts/{alert.alert_id}', headers=_HEADERS
+            f'/api/traders/main/alerts/{alert.alert_id}', headers=_HEADERS
         )
 
         assert listing.json()['alerts'][0]['alert_id'] == alert.alert_id
@@ -522,9 +522,9 @@ class TestExtensionRoutes:
             )
         )
 
-        listing = client.get('/api/desks/main/checkpoints', headers=_HEADERS)
+        listing = client.get('/api/traders/main/checkpoints', headers=_HEADERS)
         restored = client.post(
-            f'/api/desks/main/checkpoints/{first}/restore', headers=_HEADERS
+            f'/api/traders/main/checkpoints/{first}/restore', headers=_HEADERS
         )
 
         assert listing.json()['checkpoints'][0]['reason'] == 'first'
@@ -545,7 +545,7 @@ class TestExtensionRoutes:
         )
 
         response = client.post(
-            '/api/desks/main/checkpoints/--help/restore', headers=_HEADERS
+            '/api/traders/main/checkpoints/--help/restore', headers=_HEADERS
         )
 
         assert response.status_code == 422
@@ -627,7 +627,7 @@ class TestMemoryRoutes:
         )
 
         response = client.get(
-            '/api/desks/main/sessions/..%2F..%2Fsecrets', headers=_HEADERS
+            '/api/traders/main/sessions/..%2F..%2Fsecrets', headers=_HEADERS
         )
 
         assert response.status_code in (
@@ -635,8 +635,8 @@ class TestMemoryRoutes:
             404,
         )
 
-    def test_unknown_desk_is_404(self, tmp_path: Path) -> None:
-        """Asking for the sessions of a desk that does not exist gets HTTP 404."""
+    def test_unknown_trader_is_404(self, tmp_path: Path) -> None:
+        """Asking for the sessions of a trader that does not exist gets HTTP 404."""
         workspace = _Workspace(tmp_path)
         client = workspace.client(
             memory_routes.MemoryRoutes(
@@ -646,7 +646,7 @@ class TestMemoryRoutes:
             )
         )
 
-        response = client.get('/api/desks/nowhere/sessions', headers=_HEADERS)
+        response = client.get('/api/traders/nowhere/sessions', headers=_HEADERS)
 
         assert response.status_code == 404
 
@@ -665,9 +665,6 @@ class TestSystemRoutes:
         """
         configuration = agent_configuration.AgentConfiguration(
             tradingmachine_environment_file=tmp_path / 'tm.env',
-            desks=[
-                agent_configuration.DeskConfiguration(name='main'),
-            ],
             backends={
                 'remote': agent_configuration.BackendConfiguration(
                     kind='openai_compatible',
@@ -704,45 +701,47 @@ class TestSystemRoutes:
         assert 'hunter2-secret-value' not in response.text
         assert response.json()['backends']['remote']['model'] == 'some-model'
 
-    def test_usage_is_given_per_desk_and_backend(self, tmp_path: Path) -> None:
-        """Usage is reported for each desk, by backend."""
+    def test_usage_is_given_per_trader_and_backend(
+        self, tmp_path: Path
+    ) -> None:
+        """Usage is reported for each trader, by backend."""
         client = self._client(tmp_path)
 
         response = client.get('/api/usage', headers=_HEADERS)
 
-        assert response.json()['desks']['main']['qwen']['calls'] == 2
+        assert response.json()['traders']['main']['qwen']['calls'] == 2
 
 
 class TestEventFilter:
-    """Tests for the desk filter on the event stream."""
+    """Tests for the trader filter on the event stream."""
 
-    def test_desk_filter_sends_only_that_desks_events(self) -> None:
-        """With ?desk=main, the other desk's events are not sent."""
+    def test_trader_filter_sends_only_that_traders_events(self) -> None:
+        """With ?trader=main, the other trader's events are not sent."""
         event_bus = event_bus_module.EventBus()
-        desks = {}
+        traders = {}
         for name in ('main', 'other'):
-            desks[name] = desk_runtime.DeskRuntime(
-                agent_configuration.DeskConfiguration(name=name),
+            traders[name] = trader_runtime.TraderRuntime(
+                agent_configuration.TraderConfiguration(name=name),
                 event_bus,
                 no_model_turn_runner.NoModelTurnRunner(),
             )
         gateway = gateway_application.GatewayApplication(
-            event_bus, desks, _guard()
+            event_bus, traders, _guard()
         )
-        address = f'/ws/events?token={_TOKEN}&desk=main'
+        address = f'/ws/events?token={_TOKEN}&trader=main'
         with (
             fastapi.testclient.TestClient(gateway.build()) as client,
             client.websocket_connect(address) as websocket,
         ):
             client.post(
-                '/api/desks/other/messages',
+                '/api/traders/other/messages',
                 headers=_HEADERS,
                 json={
                     'text': 'for other',
                 },
             )
             client.post(
-                '/api/desks/main/messages',
+                '/api/traders/main/messages',
                 headers=_HEADERS,
                 json={
                     'text': 'for main',
@@ -752,7 +751,7 @@ class TestEventFilter:
             while not received or received[-1]['kind'] != 'turn_finished':
                 received.append(websocket.receive_json())
 
-        desks_seen = {event['desk'] for event in received}
-        assert desks_seen == {
+        traders_seen = {event['trader'] for event in received}
+        assert traders_seen == {
             'main',
         }

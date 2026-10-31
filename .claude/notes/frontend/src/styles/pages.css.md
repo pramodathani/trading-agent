@@ -8,3 +8,7 @@ The styles of the individual pages.
 - `.attachment-list` holds the pictures and documents inside a sent message. Pictures are limited to 260 by 200 pixels in the bubble and open full size when clicked.
 - `.attachment-badge` shows a document's file ending (PDF, DOCX) in the accent colour instead of an icon, matching the page's monospace labels.
 - `.chat-input.dragging` draws a dashed accent outline while files are dragged over the message box, so the user can see where to drop them.
+
+## Traders page additions
+
+Styles for the New trader form (the model checkboxes wrap on a phone), the mandate block (three lines at most, with the full text on hover), the Retired traders list, and `.trader-name-text`, which lets a 200-character name wrap anywhere instead of widening the card.

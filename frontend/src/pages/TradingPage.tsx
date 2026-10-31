@@ -1,27 +1,27 @@
 import { useState } from 'react';
 
 import { apiClient } from '../api/apiClient';
-import type { DeskOrder } from '../api/types';
+import type { TraderOrder } from '../api/types';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { usePolled } from '../hooks/usePolled';
-import { useDesks } from '../layout/desksContext';
+import { useTraders } from '../layout/tradersContext';
 import { formatter } from '../utilities/formatter';
 
 const ACCOUNT_REFRESH_MILLISECONDS = 10000;
 
 /**
- * The account and each desk's share of it: profit and loss, positions, stock ownership, halts, orders and the kill switch.
+ * The account and each trader's share of it: profit and loss, positions, stock ownership, halts, orders and the kill switch.
  * @returns The page.
  */
 export function TradingPage() {
-  const desks = useDesks();
+  const traders = useTraders();
   const account = usePolled(() => apiClient.account(), ACCOUNT_REFRESH_MILLISECONDS);
-  const deskOrders = usePolled(() => apiClient.deskOrders(), ACCOUNT_REFRESH_MILLISECONDS);
+  const traderOrders = usePolled(() => apiClient.traderOrders(), ACCOUNT_REFRESH_MILLISECONDS);
   const [brokerOrders, setBrokerOrders] = useState<Record<string, unknown>[] | null>(null);
   const [brokerError, setBrokerError] = useState<string | null>(null);
   const [killing, setKilling] = useState(false);
   const [killReport, setKillReport] = useState<string | null>(null);
-  const mode = desks.document?.mode ?? 'dry_run';
+  const mode = traders.document?.mode ?? 'dry_run';
 
   /** Reads UBI's own order book. */
   async function loadBrokerOrders(): Promise<void> {
@@ -46,10 +46,10 @@ export function TradingPage() {
 
   const ownerByInstrument = new Map<string, string>();
   for (const owner of account.data?.owners ?? []) {
-    ownerByInstrument.set(owner.instrument_id, owner.desk);
+    ownerByInstrument.set(owner.instrument_id, owner.trader);
   }
-  const openOrders: DeskOrder[] = [];
-  for (const orders of Object.values(deskOrders.data ?? {})) {
+  const openOrders: TraderOrder[] = [];
+  for (const orders of Object.values(traderOrders.data ?? {})) {
     openOrders.push(...orders);
   }
 
@@ -82,23 +82,23 @@ export function TradingPage() {
           </div>
           <div className="two-columns">
             <section className="panel">
-              <h2>Each desk today</h2>
+              <h2>Each trader today</h2>
               <table>
                 <thead>
                   <tr>
-                    <th>Desk</th>
+                    <th>Trader</th>
                     <th className="number">Profit or loss</th>
                     <th>Stocks owned</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(desks.document?.desks ?? []).map((desk) => (
-                    <tr key={desk.name}>
-                      <td>{desk.name}</td>
-                      <td className={`number ${formatter.pnlClass(account.data?.desk_pnl[desk.name])}`}>{formatter.signedMoney(account.data?.desk_pnl[desk.name] ?? 0)}</td>
+                  {(traders.document?.traders ?? []).map((trader) => (
+                    <tr key={trader.name}>
+                      <td>{trader.name}</td>
+                      <td className={`number ${formatter.pnlClass(account.data?.trader_pnl[trader.name])}`}>{formatter.signedMoney(account.data?.trader_pnl[trader.name] ?? 0)}</td>
                       <td>
                         {(account.data?.owners ?? [])
-                          .filter((owner) => owner.desk === desk.name)
+                          .filter((owner) => owner.trader === trader.name)
                           .map((owner) => owner.symbol)
                           .join(', ') || <span className="muted">none</span>}
                       </td>
@@ -109,7 +109,7 @@ export function TradingPage() {
             </section>
             <section className="panel">
               <h2>Halts in force</h2>
-              {account.data.halts.length === 0 && <p className="muted">None. Every desk may trade within its limits.</p>}
+              {account.data.halts.length === 0 && <p className="muted">None. Every trader may trade within its limits.</p>}
               {account.data.halts.map((halt) => (
                 <p key={`${halt.scope}-${halt.until_date}`} className="halt-line">
                   <strong>{halt.scope}</strong> until {halt.until_date}: {halt.reason}
@@ -128,7 +128,7 @@ export function TradingPage() {
                     <tr>
                       <th>Symbol</th>
                       <th>Product</th>
-                      <th>Desk</th>
+                      <th>Trader</th>
                       <th className="number">Quantity</th>
                       <th className="number">Last price</th>
                       <th className="number">Today</th>
@@ -153,17 +153,17 @@ export function TradingPage() {
         </>
       )}
       <section className="panel">
-        <h2>Desks&apos; open orders</h2>
-        {deskOrders.error !== null && <p className="error-text">{deskOrders.error}</p>}
+        <h2>Traders&apos; open orders</h2>
+        {traderOrders.error !== null && <p className="error-text">{traderOrders.error}</p>}
         {openOrders.length === 0 ? (
-          <p className="muted">No desk has an open order.</p>
+          <p className="muted">No trader has an open order.</p>
         ) : (
           <div className="table-scroll">
             <table>
               <thead>
                 <tr>
                   <th>Placed</th>
-                  <th>Desk</th>
+                  <th>Trader</th>
                   <th>Order</th>
                   <th>Product</th>
                   <th className="number">Price</th>
@@ -174,7 +174,7 @@ export function TradingPage() {
                 {openOrders.map((order) => (
                   <tr key={order.record_id}>
                     <td className="mono">{formatter.dayTime(order.placed_at)}</td>
-                    <td>{order.desk}</td>
+                    <td>{order.trader}</td>
                     <td>
                       {order.transaction_type} {order.quantity} {order.symbol} <span className="muted small">({order.kind})</span>
                     </td>
@@ -229,7 +229,7 @@ export function TradingPage() {
       <section className="panel kill-panel">
         <h2>Kill switch</h2>
         <p>
-          Halts every desk until tomorrow and asks UBI to flatten the whole account: open orders are cancelled and positions closed. It is the same switch the daily loss limit fires.
+          Halts every trader until tomorrow and asks UBI to flatten the whole account: open orders are cancelled and positions closed. It is the same switch the daily loss limit fires.
           {mode !== 'live' && ' In dry_run mode, the flatten is a dry run.'}
         </p>
         <button className="danger solid" type="button" onClick={() => setKilling(true)}>
@@ -240,7 +240,7 @@ export function TradingPage() {
       {killing && (
         <ConfirmDialog
           title="Fire the kill switch"
-          explanation="Every desk stops trading until tomorrow, and the whole account is flattened. This cannot be undone from here."
+          explanation="Every trader stops trading until tomorrow, and the whole account is flattened. This cannot be undone from here."
           confirmLabel="Fire"
           requiredWord="FLATTEN"
           onConfirm={kill}

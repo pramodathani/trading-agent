@@ -1,4 +1,4 @@
-"""The side panel's Profit and loss card: the desk's and the account's profit, and any halts in force.
+"""The side panel's Profit and loss card: the trader's and the account's profit, and any halts in force.
 
 Typical usage example:
 
@@ -26,23 +26,25 @@ class ProfitCard(side_card.SideCard):
         super().__init__('pnl', 'Profit and loss', collapsed=collapsed)
         self._formatter = formatter.Formatter()
 
-    def show(self, desk_name: str, account: dict[str, Any] | None) -> None:
+    def show(self, trader_name: str, account: dict[str, Any] | None) -> None:
         """Shows the profit and loss.
 
         Args:
-            desk_name (str): The desk the chat shows.
+            trader_name (str): The trader the chat shows.
             account (dict[str, Any] | None): The account, or None when it could not be read.
         """
         if account is None:
             self.show_body(self.note('Loading…'))
             return
-        desk_pnl = float((account.get('desk_pnl') or {}).get(desk_name) or 0)
+        trader_pnl = float(
+            (account.get('trader_pnl') or {}).get(trader_name) or 0
+        )
         lines = [
             self.rows(
                 [
                     (
-                        'This desk today',
-                        self._signed(desk_pnl),
+                        'This trader today',
+                        self._signed(trader_pnl),
                     ),
                     (
                         'Account today',
@@ -57,9 +59,9 @@ class ProfitCard(side_card.SideCard):
         ]
         for halt in account.get('halts') or []:
             scope = halt.get('scope')
-            if scope not in (desk_name, 'account'):
+            if scope not in (trader_name, 'account'):
                 continue
-            who = 'Desk'
+            who = 'Trader'
             if scope == 'account':
                 who = 'Account'
             lines.append(

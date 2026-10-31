@@ -1,17 +1,17 @@
-"""Runs every desk's scheduled jobs: the user's, the desk's own, the heartbeat and the after-close rollover.
+"""Runs every trader's scheduled jobs: the user's, the trader's own, the heartbeat and the after-close rollover.
 
 The scheduler is a loop with no model. When it starts, it makes up once for each run missed while the gateway was down, if the missed run was within the last 24 hours and the job allows it. Then, every 30 seconds or sooner, it starts each job whose next run has come:
 
-- an agent job for the desk joins the desk's queue as a trigger, so it never runs beside one of the desk's turns; the heartbeat is skipped when the desk is busy or has triggers waiting, so heartbeats cannot pile up;
+- an agent job for the trader joins the trader's queue as a trigger, so it never runs beside one of the trader's turns; the heartbeat is skipped when the trader is busy or has triggers waiting, so heartbeats cannot pile up;
 - an agent job for a subagent and a command job run on their own, and their result is published as a cron_result event;
 - a job with a delivery address has its result POSTed there, with secrets masked;
 - a one-off job is deleted after it starts.
 
-Each run is recorded in the desk's runs.jsonl before it starts, so a crash cannot make a job run twice.
+Each run is recorded in the trader's runs.jsonl before it starts, so a crash cannot make a job run twice.
 
 Typical usage example:
 
-  scheduler = CronScheduler(desk_schedules, calendar, hours, event_bus, redactor)
+  scheduler = CronScheduler(trader_schedules, calendar, hours, event_bus, redactor)
   task = asyncio.create_task(scheduler.run())
 """
 
@@ -27,9 +27,9 @@ import httpx
 
 from trading_agent.journal import secret_redactor as secret_redactor_module
 from trading_agent.risk import exchange_hours as exchange_hours_module
-from trading_agent.runtime import desk_runtime as desk_runtime_module
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
+from trading_agent.runtime import trader_runtime as trader_runtime_module
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.scheduling import (
     command_job_runner as command_job_runner_module,
@@ -49,18 +49,18 @@ ROLLOVER_JOB_ID = 'rollover'
 
 
 @dataclasses.dataclass
-class DeskSchedule:
-    """What the scheduler needs for one desk.
+class TraderSchedule:
+    """What the scheduler needs for one trader.
 
     Attributes:
-        desk: The running desk.
+        trader: The running trader.
         store: Its jobs and run record.
         built_in_jobs: The heartbeat and rollover jobs from trading_agent.toml.
         command_runner: Runs its command jobs.
         subagent_runner: Runs its subagent jobs.
     """
 
-    desk: desk_runtime_module.DeskRuntime
+    trader: trader_runtime_module.TraderRuntime
     store: cron_job_store_module.CronJobStore
     built_in_jobs: list[cron_job_module.CronJob]
     command_runner: command_job_runner_module.CommandJobRunner
@@ -70,7 +70,7 @@ class DeskSchedule:
         """The built-in jobs, then the stored ones.
 
         Returns:
-            list[cron_job_module.CronJob]: Every job of the desk.
+            list[cron_job_module.CronJob]: Every job of the trader.
         """
         return [*self.built_in_jobs, *self.store.jobs()]
 
@@ -80,7 +80,7 @@ class CronScheduler:
 
     def __init__(
         self,
-        schedules: Mapping[str, DeskSchedule],
+        schedules: Mapping[str, TraderSchedule],
         calendar: market_calendar_module.MarketCalendar,
         hours: exchange_hours_module.ExchangeHours,
         event_bus: event_bus_module.EventBus,
@@ -90,10 +90,10 @@ class CronScheduler:
         """Subscribes to the bus at once, so no result to deliver is missed.
 
         Args:
-            schedules (Mapping[str, DeskSchedule]): Each desk's schedule, keyed by desk name.
+            schedules (Mapping[str, TraderSchedule]): Each trader's schedule, keyed by trader name.
             calendar (market_calendar_module.MarketCalendar): Decides trading days.
             hours (exchange_hours_module.ExchangeHours): Decides market hours.
-            event_bus (event_bus_module.EventBus): Where runs and results are published, and desk answers are read for delivery.
+            event_bus (event_bus_module.EventBus): Where runs and results are published, and trader answers are read for delivery.
             redactor (secret_redactor_module.SecretRedactor | None): Masks secrets in delivered results, or None.
             clock (Callable[[], datetime.datetime] | None): Returns the current time; None uses the system clock. Tests replace it.
         """
@@ -122,7 +122,7 @@ class CronScheduler:
 
     async def run(self) -> None:
         """Catches up, then starts due jobs until cancelled."""
-        delivery = asyncio.create_task(self._deliver_desk_answers())
+        delivery = asyncio.create_task(self._deliver_trader_answers())
         try:
             await self.catch_up()
             while True:
@@ -170,17 +170,17 @@ class CronScheduler:
                     soonest = due
         return soonest
 
-    async def run_now(self, desk_name: str, job_id: str) -> bool:
+    async def run_now(self, trader_name: str, job_id: str) -> bool:
         """Starts one job at once, as if its time had come.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             job_id (str): The job.
 
         Returns:
-            bool: True when the job was found and started, False when the desk or job is unknown.
+            bool: True when the job was found and started, False when the trader or job is unknown.
         """
-        schedule = self._schedules.get(desk_name)
+        schedule = self._schedules.get(trader_name)
         if schedule is None:
             return False
         for job in schedule.all_jobs():
@@ -214,13 +214,13 @@ class CronScheduler:
 
     def _next_run(
         self,
-        schedule: DeskSchedule,
+        schedule: TraderSchedule,
         job: cron_job_module.CronJob,
     ) -> datetime.datetime | None:
         """A job's next run, counted from its last run, its creation, or when the scheduler started.
 
         Args:
-            schedule (DeskSchedule): The desk's schedule.
+            schedule (TraderSchedule): The trader's schedule.
             job (cron_job_module.CronJob): The job.
 
         Returns:
@@ -237,13 +237,13 @@ class CronScheduler:
 
     def _missed_run(
         self,
-        schedule: DeskSchedule,
+        schedule: TraderSchedule,
         job: cron_job_module.CronJob,
     ) -> datetime.datetime | None:
         """The run a job missed while the gateway was down, if it should be made up.
 
         Args:
-            schedule (DeskSchedule): The desk's schedule.
+            schedule (TraderSchedule): The trader's schedule.
             job (cron_job_module.CronJob): The job.
 
         Returns:
@@ -266,7 +266,7 @@ class CronScheduler:
 
     async def _start(
         self,
-        schedule: DeskSchedule,
+        schedule: TraderSchedule,
         job: cron_job_module.CronJob,
         moment: datetime.datetime,
         catching_up: bool,
@@ -274,18 +274,21 @@ class CronScheduler:
         """Starts one run of a job.
 
         Args:
-            schedule (DeskSchedule): The desk's schedule.
+            schedule (TraderSchedule): The trader's schedule.
             job (cron_job_module.CronJob): The job.
             moment (datetime.datetime): The scheduled moment.
             catching_up (bool): Whether this run makes up for a missed one.
         """
-        desk = schedule.desk
+        trader = schedule.trader
+        busy_states = (
+            trader_runtime_module.TraderState.BUSY,
+            trader_runtime_module.TraderState.WAITING,
+        )
         if job.job_id == HEARTBEAT_JOB_ID and (
-            desk.state != desk_runtime_module.DeskState.IDLE
-            or desk.queued_count
+            trader.state in busy_states or trader.queued_count
         ):
             schedule.store.record_run(
-                job, moment, 'skipped', 'the desk was busy'
+                job, moment, 'skipped', 'the trader was busy'
             )
             return
         detail = 'catching up a missed run' if catching_up else ''
@@ -294,7 +297,7 @@ class CronScheduler:
             schedule.store.delete(job.job_id)
         self._publish(
             event_module.EventKind.CRON_FIRED,
-            desk.name,
+            trader.name,
             {
                 'job_id': job.job_id,
                 'name': job.name,
@@ -306,21 +309,21 @@ class CronScheduler:
         )
         if job.kind == cron_job_module.COMMAND:
             self._in_background(self._run_command(schedule, job))
-        elif job.target == cron_job_module.DESK_TARGET:
-            self._submit_to_desk(schedule, job, catching_up)
+        elif job.target == cron_job_module.TRADER_TARGET:
+            self._submit_to_trader(schedule, job, catching_up)
         else:
             self._in_background(self._run_subagent(schedule, job))
 
-    def _submit_to_desk(
+    def _submit_to_trader(
         self,
-        schedule: DeskSchedule,
+        schedule: TraderSchedule,
         job: cron_job_module.CronJob,
         catching_up: bool,
     ) -> None:
-        """Puts an agent job's message in the desk's queue.
+        """Puts an agent job's message in the trader's queue.
 
         Args:
-            schedule (DeskSchedule): The desk's schedule.
+            schedule (TraderSchedule): The trader's schedule.
             job (cron_job_module.CronJob): The job.
             catching_up (bool): Whether this run makes up for a missed one, mentioned in the message.
         """
@@ -335,50 +338,52 @@ class CronScheduler:
                 else ''
             )
             text = f'[Scheduled job "{job.name}" ({job.job_id}).{late}]\n{job.text}'
-        trigger = trigger_module.Trigger.now(source, schedule.desk.name, text)
+        trigger = trigger_module.Trigger.now(source, schedule.trader.name, text)
         if job.deliver_url:
             self._pending_deliveries[trigger.trigger_id] = (
                 job,
                 job.deliver_url,
             )
-        schedule.desk.submit(trigger)
+        schedule.trader.submit(trigger)
 
     async def _run_command(
         self,
-        schedule: DeskSchedule,
+        schedule: TraderSchedule,
         job: cron_job_module.CronJob,
     ) -> None:
         """Runs a command job and publishes its output.
 
         Args:
-            schedule (DeskSchedule): The desk's schedule.
+            schedule (TraderSchedule): The trader's schedule.
             job (cron_job_module.CronJob): The job.
         """
         exit_code, output = await schedule.command_runner.run(job.text)
         await self._finish(
-            schedule.desk.name, job, f'exit code {exit_code}', output
+            schedule.trader.name, job, f'exit code {exit_code}', output
         )
 
     async def _run_subagent(
         self,
-        schedule: DeskSchedule,
+        schedule: TraderSchedule,
         job: cron_job_module.CronJob,
     ) -> None:
         """Runs a subagent job and publishes its report.
 
         Args:
-            schedule (DeskSchedule): The desk's schedule.
+            schedule (TraderSchedule): The trader's schedule.
             job (cron_job_module.CronJob): The job.
         """
         name = job.target.removeprefix(cron_job_module.SUBAGENT_TARGET_PREFIX)
         report = await schedule.subagent_runner.run_one(
             subagent_runner_module.SubagentTask(subagent=name, task=job.text)
         )
-        await self._finish(schedule.desk.name, job, report.outcome, report.text)
+        await self._finish(
+            schedule.trader.name, job, report.outcome, report.text
+        )
 
     async def _finish(
         self,
-        desk_name: str,
+        trader_name: str,
         job: cron_job_module.CronJob,
         outcome: str,
         text: str,
@@ -386,14 +391,14 @@ class CronScheduler:
         """Publishes a job's result and delivers it when asked to.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             job (cron_job_module.CronJob): The job.
             outcome (str): How it ended.
             text (str): Its output or report.
         """
         self._publish(
             event_module.EventKind.CRON_RESULT,
-            desk_name,
+            trader_name,
             {
                 'job_id': job.job_id,
                 'name': job.name,
@@ -402,10 +407,10 @@ class CronScheduler:
             },
         )
         if job.deliver_url:
-            await self._deliver(desk_name, job, job.deliver_url, text)
+            await self._deliver(trader_name, job, job.deliver_url, text)
 
-    async def _deliver_desk_answers(self) -> None:
-        """Delivers the desk's answers to agent jobs that have a delivery address."""
+    async def _deliver_trader_answers(self) -> None:
+        """Delivers the trader's answers to agent jobs that have a delivery address."""
         while True:
             published = await self._subscription.next_event()
             if published.kind != event_module.EventKind.TEXT:
@@ -418,12 +423,12 @@ class CronScheduler:
                 continue
             job, url = pending
             await self._deliver(
-                published.desk, job, url, published.payload.get('text', '')
+                published.trader, job, url, published.payload.get('text', '')
             )
 
     async def _deliver(
         self,
-        desk_name: str,
+        trader_name: str,
         job: cron_job_module.CronJob,
         url: str,
         text: str,
@@ -431,13 +436,13 @@ class CronScheduler:
         """POSTs a result as JSON, with secrets masked; a failure is logged.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             job (cron_job_module.CronJob): The job.
             url (str): The address.
             text (str): The result.
         """
         body = {
-            'desk': desk_name,
+            'trader': trader_name,
             'job_id': job.job_id,
             'job': job.name,
             'text': text,
@@ -490,16 +495,16 @@ class CronScheduler:
     def _publish(
         self,
         kind: event_module.EventKind,
-        desk_name: str,
+        trader_name: str,
         payload: dict,
     ) -> None:
-        """Publishes an event for a desk.
+        """Publishes an event for a trader.
 
         Args:
             kind (event_module.EventKind): What happened.
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             payload (dict): The details.
         """
         self._event_bus.publish(
-            event_module.Event.now(kind, desk_name, payload)
+            event_module.Event.now(kind, trader_name, payload)
         )

@@ -41,12 +41,12 @@ class TestSecretRedactor:
         redactor = secret_redactor.SecretRedactor([])
 
         text = redactor.redact(
-            'key sk-ant-oat01-abcdefghijklmnop, header Bearer abcdefghijklmnopqrstuvwxyz, url /ws?token=xyz123&desk=main, api-key: s3cr3tvalue'
+            'key sk-ant-oat01-abcdefghijklmnop, header Bearer abcdefghijklmnopqrstuvwxyz, url /ws?token=xyz123&trader=main, api-key: s3cr3tvalue'
         )
 
         assert 'sk-ant-oat01' not in text
         assert 'abcdefghijklmnopqrstuvwxyz' not in text
-        assert 'token=[redacted]&desk=main' in text
+        assert 'token=[redacted]&trader=main' in text
         assert 's3cr3tvalue' not in text
 
     def test_short_values_are_not_treated_as_secrets(self) -> None:
@@ -116,14 +116,14 @@ class TestTradeJournal:
     def _event(
         self,
         kind: event_module.EventKind,
-        desk: str | None,
+        trader: str | None,
         payload: dict,
     ) -> event_module.Event:
         """Builds an event at 23:00 UTC on 2026-10-16, which is already 2026-10-17 in India.
 
         Args:
             kind (event_module.EventKind): The kind.
-            desk (str | None): The desk.
+            trader (str | None): The trader.
             payload (dict): The payload.
 
         Returns:
@@ -131,17 +131,17 @@ class TestTradeJournal:
         """
         return event_module.Event(
             kind=kind,
-            desk=desk,
+            trader=trader,
             payload=payload,
             created_at=datetime.datetime(
                 2026, 10, 16, 23, 0, tzinfo=datetime.UTC
             ),
         )
 
-    def test_events_go_to_the_desk_file_for_the_india_date(
+    def test_events_go_to_the_trader_file_for_the_india_date(
         self, tmp_path: Path
     ) -> None:
-        """An event is appended to its desk's file, named by the date in India, with secrets masked.
+        """An event is appended to its trader's file, named by the date in India, with secrets masked.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
@@ -164,7 +164,7 @@ class TestTradeJournal:
         path = (
             tmp_path
             / 'workspace'
-            / 'desks'
+            / 'traders'
             / 'main'
             / 'journal'
             / '2026-10-17.jsonl'
@@ -194,13 +194,13 @@ class TestTradeJournal:
         )
 
         assert not (
-            tmp_path / 'workspace' / 'desks' / 'main' / 'journal'
+            tmp_path / 'workspace' / 'traders' / 'main' / 'journal'
         ).exists()
 
-    def test_event_without_a_desk_goes_to_the_gateway_journal(
+    def test_event_without_a_trader_goes_to_the_gateway_journal(
         self, tmp_path: Path
     ) -> None:
-        """An event that belongs to no desk is written to the workspace's own journal folder.
+        """An event that belongs to no trader is written to the workspace's own journal folder.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.

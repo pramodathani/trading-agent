@@ -40,7 +40,7 @@
   <text class="small" x="306" y="108">Tailscale</text>
   <text class="small" x="842" y="300">fills, halts, requests</text>
   <text class="small" x="182" y="300">a notification;</text>
-  <text class="small" x="182" y="318">tapping it opens the desk</text>
+  <text class="small" x="182" y="318">tapping it opens the trader</text>
   <circle cx="290" cy="525" r="6" class="dot"/>
   <text x="304" y="525" dominant-baseline="middle">a call from the app</text>
   <circle cx="500" cy="525" r="6" class="dot alt"/>

@@ -1,6 +1,6 @@
-"""Counts each desk's model usage today, and keeps Claude's latest subscription limit status, for /usage.
+"""Counts each trader's model usage today, and keeps Claude's latest subscription limit status, for /usage.
 
-It listens to the model_usage and rate_limit events every backend publishes. Totals are per India day, desk and backend: model calls, prompt tokens, completion tokens and, for Claude, tokens read from the prompt cache and what the same usage would cost on the API. An OpenAI-compatible backend whose prices are set in trading_agent.toml also gets its cost in rupees. When the gateway starts, today's journal is read back, so a restart does not reset the day's totals.
+It listens to the model_usage and rate_limit events every backend publishes. Totals are per India day, trader and backend: model calls, prompt tokens, completion tokens and, for Claude, tokens read from the prompt cache and what the same usage would cost on the API. An OpenAI-compatible backend whose prices are set in trading_agent.toml also gets its cost in rupees. When the gateway starts, today's journal is read back, so a restart does not reset the day's totals.
 
 Typical usage example:
 
@@ -30,7 +30,7 @@ _TOKENS_PER_MILLION = 1_000_000
 
 @dataclasses.dataclass
 class BackendUsage:
-    """One desk's use of one backend on one day.
+    """One trader's use of one backend on one day.
 
     Attributes:
         calls: Model calls; for Claude, turns.
@@ -50,13 +50,13 @@ class BackendUsage:
 
 
 class UsageTracker:
-    """Today's model usage per desk and backend."""
+    """Today's model usage per trader and backend."""
 
     def __init__(
         self,
         event_bus: event_bus_module.EventBus,
         layout: workspace_layout.WorkspaceLayout,
-        desk_names: Sequence[str],
+        trader_names: Sequence[str],
         backends: Mapping[str, agent_configuration.BackendConfiguration],
         clock: Callable[[], datetime.datetime] | None = None,
     ):
@@ -64,13 +64,13 @@ class UsageTracker:
 
         Args:
             event_bus (event_bus_module.EventBus): The bus to listen to.
-            layout (workspace_layout.WorkspaceLayout): Where the desks' journals are, for the replay at start.
-            desk_names (Sequence[str]): The desks whose journals to replay.
+            layout (workspace_layout.WorkspaceLayout): Where the traders' journals are, for the replay at start.
+            trader_names (Sequence[str]): The traders whose journals to replay.
             backends (Mapping[str, agent_configuration.BackendConfiguration]): The backends, for their prices.
             clock (Callable[[], datetime.datetime] | None): Returns the current time; None uses the system clock.
         """
         self._layout = layout
-        self._desk_names = list(desk_names)
+        self._trader_names = list(trader_names)
         self._backends = backends
         self._clock = clock
         self._started_at = self._now()
@@ -90,9 +90,9 @@ class UsageTracker:
     def replay_today(self) -> None:
         """Counts the usage already in today's journals, from before the tracker started."""
         day = self._started_at.date().isoformat()
-        for desk_name in self._desk_names:
+        for trader_name in self._trader_names:
             path = (
-                self._layout.desk_directory(desk_name)
+                self._layout.trader_directory(trader_name)
                 / 'journal'
                 / f'{day}.jsonl'
             )
@@ -113,7 +113,7 @@ class UsageTracker:
                 self.record(
                     event_module.Event(
                         kind=event_module.EventKind(data['kind']),
-                        desk=data.get('desk'),
+                        trader=data.get('trader'),
                         payload=data.get('payload') or {},
                         created_at=created_at,
                     )
@@ -132,7 +132,7 @@ class UsageTracker:
         if published_event.kind != event_module.EventKind.MODEL_USAGE:
             return
         day = published_event.created_at.astimezone(_INDIA).date().isoformat()
-        key = (day, str(published_event.desk), str(payload.get('backend')))
+        key = (day, str(published_event.trader), str(payload.get('backend')))
         usage = self._usage.setdefault(key, BackendUsage())
         usage.calls += 1
         usage.prompt_tokens += int(payload.get('prompt_tokens') or 0)
@@ -143,11 +143,11 @@ class UsageTracker:
         )
         usage.cost_usd += float(payload.get('cost_usd') or 0.0)
 
-    def today(self, desk_name: str) -> dict[str, BackendUsage]:
-        """A desk's usage today, by backend.
+    def today(self, trader_name: str) -> dict[str, BackendUsage]:
+        """A trader's usage today, by backend.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             dict[str, BackendUsage]: The usage, keyed by backend name.
@@ -156,10 +156,10 @@ class UsageTracker:
         usage = {}
         for (
             usage_day,
-            usage_desk,
+            usage_trader,
             backend_name,
         ), counts in self._usage.items():
-            if usage_day == day and usage_desk == desk_name:
+            if usage_day == day and usage_trader == trader_name:
                 usage[backend_name] = counts
         return usage
 
@@ -174,19 +174,19 @@ class UsageTracker:
             reports[backend_name] = dict(status)
         return reports
 
-    def summary_text(self, desk_name: str) -> str:
-        """The /usage reply for a desk.
+    def summary_text(self, trader_name: str) -> str:
+        """The /usage reply for a trader.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
             str: Today's usage per backend, and each backend's latest limit status.
         """
         lines = [
-            f"Today's model usage on desk {desk_name}:",
+            f"Today's model usage on trader {trader_name}:",
         ]
-        usage = self.today(desk_name)
+        usage = self.today(trader_name)
         if not usage:
             lines.append('  none yet')
         for backend_name, counts in sorted(usage.items()):

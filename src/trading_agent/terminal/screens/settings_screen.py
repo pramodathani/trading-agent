@@ -39,7 +39,7 @@ class SettingsScreen(page_screen.PageScreen):
         """
         with containers.VerticalScroll(classes='page-body'):
             yield widgets.Static(
-                '[b]Standing permissions[/b] [dim]tools a desk may call without asking · delete revokes[/dim]',
+                '[b]Standing permissions[/b] [dim]tools a trader may call without asking · delete revokes[/dim]',
                 classes='page-heading',
             )
             yield widgets.DataTable(id='settings-grants', cursor_type='row')
@@ -52,7 +52,7 @@ class SettingsScreen(page_screen.PageScreen):
     def on_mount(self) -> None:
         """Sets up the table, then reads the settings."""
         self.table('settings-grants').add_columns(
-            'Desk', 'Tool', 'Allowed since'
+            'Trader', 'Tool', 'Allowed since'
         )
         super().on_mount()
 
@@ -71,10 +71,10 @@ class SettingsScreen(page_screen.PageScreen):
         table.clear()
         for grant in grants:
             table.add_row(
-                str(grant.get('desk', '')),
+                str(grant.get('trader', '')),
                 str(grant.get('tool_name', '')),
                 clock.day_time(str(grant.get('granted_at', ''))),
-                key=f'{grant.get("desk")}|{grant.get("tool_name")}',
+                key=f'{grant.get("trader")}|{grant.get("tool_name")}',
             )
         if not grants:
             table.add_row('—', 'none: every tool in [approvals] asks first', '')
@@ -95,21 +95,21 @@ class SettingsScreen(page_screen.PageScreen):
         key = self.selected_key('settings-grants')
         if key is None or '|' not in key:
             return
-        desk, tool_name = key.split('|', 1)
-        self._revoke(desk, tool_name)
+        trader, tool_name = key.split('|', 1)
+        self._revoke(trader, tool_name)
 
     @work(group='action')
-    async def _revoke(self, desk: str, tool_name: str) -> None:
-        """Makes a desk ask again before calling a tool.
+    async def _revoke(self, trader: str, tool_name: str) -> None:
+        """Makes a trader ask again before calling a tool.
 
         Args:
-            desk (str): The desk.
+            trader (str): The trader.
             tool_name (str): The tool.
         """
         try:
-            await self.app.gateway.revoke_permission(desk, tool_name)
+            await self.app.gateway.revoke_permission(trader, tool_name)
         except gateway_client.GatewayError as error:
             self.problem(error.message)
             return
-        self.notify(f'{desk} will ask again before {tool_name}.', timeout=3)
+        self.notify(f'{trader} will ask again before {tool_name}.', timeout=3)
         self.refresh_page()

@@ -1,10 +1,10 @@
 # The service
 
-An agent that trades on its own must keep running when nobody is watching. trading-agent runs as the systemd user service `trading-agent.service`: systemd starts it at boot, restarts it ten seconds after a crash, and the desks resume their conversations.
+An agent that trades on its own must keep running when nobody is watching. trading-agent runs as the systemd user service `trading-agent.service`: systemd starts it at boot, restarts it ten seconds after a crash, and the traders resume their conversations.
 
 <figure class="diagram">
 --8<-- "docs/assets/diagrams/service.svg"
-<figcaption>Orange dots are systemd starting the gateway, a crash, and systemd starting it again; blue dots are the desks' sessions coming back each time. The panel on the right is the going-live checklist that <code>bin/trading-agent preflight</code> reports.</figcaption>
+<figcaption>Orange dots are systemd starting the gateway, a crash, and systemd starting it again; blue dots are the traders' sessions coming back each time. The panel on the right is the going-live checklist that <code>bin/trading-agent preflight</code> reports.</figcaption>
 </figure>
 
 ## Installing it
@@ -29,9 +29,9 @@ loginctl show-user $USER -p Linger      # Linger=yes
 | `ExecStart=%h/Projects/trading-agent/bin/trading-agent serve` | The same command you run by hand |
 | `Restart=always`, `RestartSec=10` | A crash costs ten seconds |
 | `Environment=PATH=%h/.local/bin:...` | A user service gets a minimal `PATH`; this keeps your tools reachable |
-| `TimeoutStopSec=60` | Time for the desks and Claude Code processes to close |
+| `TimeoutStopSec=60` | Time for the traders and Claude Code processes to close |
 
-On 17 October 2026 the gateway was killed with `kill -9`. systemd logged `status=9/KILL`, started a new process eleven seconds later, and the scalper desk still remembered a word it had been given before the crash.
+On 17 October 2026 the gateway was killed with `kill -9`. systemd logged `status=9/KILL`, started a new process eleven seconds later, and the scalper trader still remembered a word it had been given before the crash.
 
 ## Everyday commands
 
@@ -39,7 +39,7 @@ On 17 October 2026 the gateway was killed with `kill -9`. systemd logged `status
 systemctl --user status trading-agent      # running?
 journalctl --user -u trading-agent -f      # the log, live
 systemctl --user restart trading-agent     # after changing trading_agent.toml
-systemctl --user stop trading-agent        # stops the desks; nothing is closed at the broker
+systemctl --user stop trading-agent        # stops the traders; nothing is closed at the broker
 ```
 
-Stopping the service stops the desks thinking, but orders and stops already held by UBI stay in place. To close positions, flatten a desk or fire the kill switch first, as [Going live](../going_live.md#how-to-stop) explains.
+Stopping the service stops the traders thinking, but orders and stops already held by UBI stay in place. To close positions, flatten a trader or fire the kill switch first, as [Going live](../going_live.md#how-to-stop) explains.

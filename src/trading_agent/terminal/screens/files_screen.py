@@ -1,4 +1,4 @@
-"""The Files page: the user's editable files, with an editor, and the changes desks propose to them.
+"""The Files page: the user's editable files, with an editor, and the changes traders propose to them.
 
 It copies the web page's FilesPage.tsx. A file opens in an editor; Ctrl+S saves it and Ctrl+U puts back the text as it was last saved. Leaving a file with unsaved changes asks first. Proposals show their diff and are accepted with a or rejected with x.
 
@@ -36,13 +36,13 @@ class FilesScreen(page_screen.PageScreen):
         binding.Binding('h', 'toggle_decided', 'Show decided proposals'),
     ]
 
-    def __init__(self, desk_name: str):
+    def __init__(self, trader_name: str):
         """Creates the page.
 
         Args:
-            desk_name (str): The desk the chat shows.
+            trader_name (str): The trader the chat shows.
         """
-        super().__init__(desk_name)
+        super().__init__(trader_name)
         self._files: list[dict[str, Any]] = []
         self._proposals: list[dict[str, Any]] = []
         self._shown_proposals: list[dict[str, Any]] = []
@@ -101,7 +101,7 @@ class FilesScreen(page_screen.PageScreen):
         listing = self.query_one('#files-list', widgets.OptionList)
         listing.clear_options()
         for file in self._files:
-            where = file.get('desk') or 'shared'
+            where = file.get('trader') or 'shared'
             size = f'{file.get("characters", 0)} characters'
             if not file.get('exists'):
                 size = 'not created yet'
@@ -185,7 +185,7 @@ class FilesScreen(page_screen.PageScreen):
         """
         try:
             answer = await self.app.gateway.file_text(
-                file.get('name', ''), file.get('desk')
+                file.get('name', ''), file.get('trader')
             )
         except gateway_client.GatewayError as error:
             self.problem(error.message)
@@ -197,7 +197,7 @@ class FilesScreen(page_screen.PageScreen):
         editor.text = self._saved_text
         editor.display = True
         self.query_one('#files-diff-scroll').display = False
-        where = file.get('desk') or 'shared'
+        where = file.get('trader') or 'shared'
         self.query_one('#files-right-title', widgets.Static).update(
             Content.from_markup(
                 '[b]$name[/b] [dim]$where · ctrl+s save · ctrl+u put back the saved text[/dim]',
@@ -214,7 +214,7 @@ class FilesScreen(page_screen.PageScreen):
         text = self.query_one('#files-editor', widgets.TextArea).text
         try:
             answer = await self.app.gateway.save_file(
-                file.get('name', ''), file.get('desk'), text
+                file.get('name', ''), file.get('trader'), text
             )
         except gateway_client.GatewayError as error:
             self.problem(error.message)
@@ -266,9 +266,9 @@ class FilesScreen(page_screen.PageScreen):
             keys = ' · a accept · x reject'
         self.query_one('#files-right-title', widgets.Static).update(
             Content.from_markup(
-                '[b]$file[/b] [dim]from $desk, $status$keys[/dim]\n$reason',
+                '[b]$file[/b] [dim]from $trader, $status$keys[/dim]\n$reason',
                 file=str(proposal.get('file_name', '')),
-                desk=str(proposal.get('desk', '')),
+                trader=str(proposal.get('trader', '')),
                 status=str(proposal.get('status', '')),
                 keys=keys,
                 reason=str(proposal.get('reason', '')),
@@ -306,9 +306,9 @@ class FilesScreen(page_screen.PageScreen):
             listing.add_option(
                 option_list.Option(
                     Content.from_markup(
-                        '$file [dim]$desk · $status · $when[/dim]',
+                        '$file [dim]$trader · $status · $when[/dim]',
                         file=str(proposal.get('file_name', '')),
-                        desk=str(proposal.get('desk', '')),
+                        trader=str(proposal.get('trader', '')),
                         status=str(proposal.get('status', '')),
                         when=self._formatter.day_time(
                             str(proposal.get('created_at', ''))

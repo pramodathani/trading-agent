@@ -150,7 +150,7 @@ class BashSession:
             await self._stop()
 
     async def close(self) -> None:
-        """Stops bash for good, when the desk stops."""
+        """Stops bash for good, when the trader stops."""
         await self._stop()
 
     async def _started_process(self) -> asyncio.subprocess.Process:

@@ -1,6 +1,6 @@
 <svg class="ta-svg" viewBox="0 0 1000 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="skills-title skills-description">
   <title id="skills-title">Skills and the curator</title>
-  <desc id="skills-description">Your skills and the desk own skills are offered to each turn; usage is recorded, and the curator patches, merges and archives the desk skills.</desc>
+  <desc id="skills-description">Your skills and the trader own skills are offered to each turn; usage is recorded, and the curator patches, merges and archives the trader skills.</desc>
 
   <path class="wire" d="M230,95 L300,95"/>
   <path class="wire" d="M510,95 L535,95 L535,155 L560,155"/>
@@ -32,8 +32,8 @@
   <text class="mono" x="405" y="110" text-anchor="middle">shared/skills/installed/</text>
 
   <rect class="store" x="300" y="190" width="210" height="70" rx="8"/>
-  <text class="title" x="405" y="218" text-anchor="middle">The desk's own skills</text>
-  <text class="mono" x="405" y="240" text-anchor="middle">desks/main/skills/agent/</text>
+  <text class="title" x="405" y="218" text-anchor="middle">The trader's own skills</text>
+  <text class="mono" x="405" y="240" text-anchor="middle">traders/main/skills/agent/</text>
 
   <rect class="accent-box" x="560" y="120" width="200" height="110" rx="8"/>
   <text class="title" x="660" y="146" text-anchor="middle">Skill library</text>
@@ -43,7 +43,7 @@
   <text class="small" x="660" y="213" text-anchor="middle">or variables are missing</text>
 
   <rect class="box" x="800" y="120" width="180" height="110" rx="8"/>
-  <text class="title" x="890" y="148" text-anchor="middle">A desk turn</text>
+  <text class="title" x="890" y="148" text-anchor="middle">A trader turn</text>
   <text class="small" x="890" y="170" text-anchor="middle">Claude, Qwen or Gemma</text>
   <text class="small" x="890" y="185" text-anchor="middle">loads a skill and follows</text>
   <text class="small" x="890" y="200" text-anchor="middle">its steps; /range-check</text>
@@ -73,7 +73,7 @@
   <text class="small" x="130" y="288" text-anchor="middle">a line in the ledger</text>
 
   <circle cx="190" cy="500" r="6" class="dot"/>
-  <text x="204" y="500" dominant-baseline="middle">the desk's own learning loop</text>
+  <text x="204" y="500" dominant-baseline="middle">the trader's own learning loop</text>
   <circle cx="520" cy="500" r="6" class="dot alt"/>
   <text x="534" y="500" dominant-baseline="middle">skills you import</text>
 </svg>

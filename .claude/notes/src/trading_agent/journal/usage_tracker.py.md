@@ -4,7 +4,7 @@ The usage tracker (block 41), behind `/usage`.
 
 ## Counting
 
-From `model_usage` events: per India day, desk and backend, the calls (agent-loop rounds, or Claude turns), prompt and completion tokens, Claude's cache-read tokens and Claude's `api_equivalent_cost_usd` (what the turn would have cost on the API; nothing is charged per token on the subscription). From `rate_limit` events: each backend's latest status, utilisation and reset time.
+From `model_usage` events: per India day, trader and backend, the calls (agent-loop rounds, or Claude turns), prompt and completion tokens, Claude's cache-read tokens and Claude's `api_equivalent_cost_usd` (what the turn would have cost on the API; nothing is charged per token on the subscription). From `rate_limit` events: each backend's latest status, utilisation and reset time.
 
 For Claude, "tokens in" are only the uncached input tokens; most of a Claude session's input is read from the prompt cache and is shown separately.
 

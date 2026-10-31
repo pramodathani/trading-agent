@@ -1,8 +1,8 @@
-"""Connects to the MCP servers in mcp_servers.json and keeps the connections alive for every desk.
+"""Connects to the MCP servers in mcp_servers.json and keeps the connections alive for every trader.
 
-Each server gets one connection, shared by all desks. A connection runs in its own task for the life of the gateway: it starts the server (or opens its HTTP endpoint), lists its tools, and then waits. If the server dies or cannot be reached, the connection waits 30 seconds, then 1 minute, then 5 minutes between attempts, like the model router, while the other servers carry on.
+Each server gets one connection, shared by all traders. A connection runs in its own task for the life of the gateway: it starts the server (or opens its HTTP endpoint), lists its tools, and then waits. If the server dies or cannot be reached, the connection waits 30 seconds, then 1 minute, then 5 minutes between attempts, like the model router, while the other servers carry on.
 
-The desks do not get one tool per MCP tool. They get tool_search, which describes matching MCP tools on demand, and call_mcp_tool, which runs one. That keeps dozens of MCP tools out of every prompt, which matters for Gemma's and Qwen's 32,768-token window, and sends every call through trading-agent's own tool executor, journal and loop guard.
+The traders do not get one tool per MCP tool. They get tool_search, which describes matching MCP tools on demand, and call_mcp_tool, which runs one. That keeps dozens of MCP tools out of every prompt, which matters for Gemma's and Qwen's 32,768-token window, and sends every call through trading-agent's own tool executor, journal and loop guard.
 
 Typical usage example:
 

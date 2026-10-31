@@ -1,13 +1,13 @@
-"""Keeps the files the user sends with messages, in each desk's uploads folder.
+"""Keeps the files the user sends with messages, in each trader's uploads folder.
 
 Each upload gets its own folder, named by its identifier, under the India date it arrived:
 
-  desks/<desk>/uploads/2026-10-17/3f9a1c2b7d4e/
+  traders/<trader>/uploads/2026-10-17/3f9a1c2b7d4e/
     report.pdf        the file as it was sent
     text.txt          for a document, its text, labelled as data from outside trading-agent
     attachment.json   what the store knows about it
 
-A picture is checked to be a real PNG, JPEG, WebP or GIF by its contents. A document is turned into text once, when it arrives, so every model reads the same text and nothing has to be parsed again. The text file starts and ends with the same marker lines that label web pages, because a document can come from anywhere and must not be able to give the desk instructions. Uploads are kept: the desk can come back to a document weeks later.
+A picture is checked to be a real PNG, JPEG, WebP or GIF by its contents. A document is turned into text once, when it arrives, so every model reads the same text and nothing has to be parsed again. The text file starts and ends with the same marker lines that label web pages, because a document can come from anywhere and must not be able to give the trader instructions. Uploads are kept: the trader can come back to a document weeks later.
 
 Typical usage example:
 
@@ -58,11 +58,11 @@ class AttachmentRefusedError(ValueError):
 
 
 class AttachmentNotFoundError(LookupError):
-    """No upload has that identifier on that desk."""
+    """No upload has that identifier on that trader."""
 
 
 class AttachmentStore:
-    """Every desk's uploads."""
+    """Every trader's uploads."""
 
     def __init__(
         self,
@@ -75,7 +75,7 @@ class AttachmentStore:
         """Creates the store.
 
         Args:
-            layout (workspace_layout.WorkspaceLayout): Where the desk folders are.
+            layout (workspace_layout.WorkspaceLayout): Where the trader folders are.
             image_preparer (image_preparer_module.ImagePreparer | None): Checks pictures; None for a new one.
             readers (Sequence[text_reader.TextReader] | None): The document readers; None for PDF, Word, Excel and plain text.
             untrusted_text (untrusted_text_module.UntrustedText | None): Labels document text as data; None for a new one.
@@ -111,14 +111,14 @@ class AttachmentStore:
 
     def save(
         self,
-        desk_name: str,
+        trader_name: str,
         file_name: str,
         data: bytes,
     ) -> attachment_module.Attachment:
         """Stores one upload, and reads a document's text.
 
         Args:
-            desk_name (str): The desk it is for.
+            trader_name (str): The trader it is for.
             file_name (str): The file's name as the user sent it.
             data (bytes): The file's contents.
 
@@ -134,12 +134,12 @@ class AttachmentStore:
         is_image = Path(safe_name).suffix.lower() in IMAGE_EXTENSIONS
         if not is_image and reader is None:
             raise AttachmentRefusedError(
-                f'{file_name} is not a type the desks can use. Send a picture or one of: {", ".join(self.accepted_extensions())}.'
+                f'{file_name} is not a type the traders can use. Send a picture or one of: {", ".join(self.accepted_extensions())}.'
             )
         now = self._clock()
         attachment_id = uuid.uuid4().hex[:12]
         folder = (
-            self._layout.uploads_directory(desk_name)
+            self._layout.uploads_directory(trader_name)
             / f'{now.astimezone(_INDIA):%Y-%m-%d}'
             / attachment_id
         )
@@ -148,11 +148,11 @@ class AttachmentStore:
         stored.write_bytes(data)
         if is_image:
             attachment = self._image_attachment(
-                desk_name, file_name, attachment_id, stored, len(data), now
+                trader_name, file_name, attachment_id, stored, len(data), now
             )
         else:
             attachment = self._document_attachment(
-                desk_name,
+                trader_name,
                 file_name,
                 attachment_id,
                 stored,
@@ -167,38 +167,40 @@ class AttachmentStore:
 
     def find(
         self,
-        desk_name: str,
+        trader_name: str,
         attachment_id: str,
     ) -> attachment_module.Attachment:
-        """Finds one of a desk's uploads.
+        """Finds one of a trader's uploads.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             attachment_id (str): The upload's identifier.
 
         Returns:
             attachment_module.Attachment: The upload.
 
         Raises:
-            AttachmentNotFoundError: The desk has no upload with that identifier.
+            AttachmentNotFoundError: The trader has no upload with that identifier.
         """
         if not _IDENTIFIER_PATTERN.match(attachment_id):
             raise AttachmentNotFoundError(
                 f'{attachment_id!r} is not an upload identifier'
             )
-        uploads = self._layout.uploads_directory(desk_name)
-        desk_directory = self._layout.desk_directory(desk_name)
+        uploads = self._layout.uploads_directory(trader_name)
+        trader_directory = self._layout.trader_directory(trader_name)
         for record in uploads.glob(f'*/{attachment_id}/{_RECORD_FILE_NAME}'):
             dictionary = json.loads(record.read_text(encoding='utf-8'))
-            dictionary['path'] = str(desk_directory / dictionary['desk_path'])
+            dictionary['path'] = str(
+                trader_directory / dictionary['trader_path']
+            )
             return attachment_module.Attachment.from_json_dictionary(dictionary)
         raise AttachmentNotFoundError(
-            f'The {desk_name} desk has no upload {attachment_id}'
+            f'The {trader_name} trader has no upload {attachment_id}'
         )
 
     def _image_attachment(
         self,
-        desk_name: str,
+        trader_name: str,
         file_name: str,
         attachment_id: str,
         stored: Path,
@@ -208,7 +210,7 @@ class AttachmentStore:
         """Checks a stored picture and describes it.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             file_name (str): The name the user sent.
             attachment_id (str): The upload's identifier.
             stored (Path): The stored file.
@@ -228,14 +230,14 @@ class AttachmentStore:
             raise AttachmentRefusedError(f'{file_name}: {error}.') from error
         return attachment_module.Attachment(
             attachment_id=attachment_id,
-            desk=desk_name,
+            trader=trader_name,
             kind=attachment_module.AttachmentKind.IMAGE,
             file_name=file_name,
             media_type=media_type,
             size_bytes=size_bytes,
             path=str(stored),
-            desk_path=self._desk_path(desk_name, stored),
-            text_desk_path=None,
+            trader_path=self._trader_path(trader_name, stored),
+            text_trader_path=None,
             text_characters=None,
             page_count=None,
             problem='',
@@ -244,7 +246,7 @@ class AttachmentStore:
 
     def _document_attachment(
         self,
-        desk_name: str,
+        trader_name: str,
         file_name: str,
         attachment_id: str,
         stored: Path,
@@ -253,10 +255,10 @@ class AttachmentStore:
     ) -> attachment_module.Attachment:
         """Reads a stored document's text into text.txt and describes it.
 
-        A document whose text cannot be read is still kept, with the reason, so the desk can tell the user what went wrong.
+        A document whose text cannot be read is still kept, with the reason, so the trader can tell the user what went wrong.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             file_name (str): The name the user sent.
             attachment_id (str): The upload's identifier.
             stored (Path): The stored file.
@@ -266,7 +268,7 @@ class AttachmentStore:
         Returns:
             attachment_module.Attachment: The document.
         """
-        text_desk_path = None
+        text_trader_path = None
         text_characters = None
         page_count = None
         problem = ''
@@ -285,20 +287,20 @@ class AttachmentStore:
                     ),
                     encoding='utf-8',
                 )
-                text_desk_path = self._desk_path(desk_name, text_file)
+                text_trader_path = self._trader_path(trader_name, text_file)
                 text_characters = len(text)
             else:
                 problem = _NO_TEXT_PROBLEM
         return attachment_module.Attachment(
             attachment_id=attachment_id,
-            desk=desk_name,
+            trader=trader_name,
             kind=attachment_module.AttachmentKind.DOCUMENT,
             file_name=file_name,
             media_type=reader.media_type,
             size_bytes=stored.stat().st_size,
             path=str(stored),
-            desk_path=self._desk_path(desk_name, stored),
-            text_desk_path=text_desk_path,
+            trader_path=self._trader_path(trader_name, stored),
+            text_trader_path=text_trader_path,
             text_characters=text_characters,
             page_count=page_count,
             problem=problem,
@@ -320,7 +322,7 @@ class AttachmentStore:
         if len(data) > MAXIMUM_BYTES:
             megabytes = len(data) / (1024 * 1024)
             raise AttachmentRefusedError(
-                f'{file_name} is {megabytes:.1f} MB; the most a desk takes is 20 MB.'
+                f'{file_name} is {megabytes:.1f} MB; the most a trader takes is 20 MB.'
             )
 
     def _reader_for(self, file_name: str) -> text_reader.TextReader | None:
@@ -380,18 +382,18 @@ class AttachmentStore:
                 return True
         return False
 
-    def _desk_path(self, desk_name: str, path: Path) -> str:
-        """A stored file's path relative to the desk folder, as the desk's tools take it.
+    def _trader_path(self, trader_name: str, path: Path) -> str:
+        """A stored file's path relative to the trader folder, as the trader's tools take it.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             path (Path): The file.
 
         Returns:
             str: The relative path with forward slashes.
         """
         return path.relative_to(
-            self._layout.desk_directory(desk_name)
+            self._layout.trader_directory(trader_name)
         ).as_posix()
 
     def _real_now(self) -> datetime.datetime:

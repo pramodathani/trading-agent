@@ -1,6 +1,6 @@
 # Setting up Telegram
 
-This guide connects trading-agent to Telegram, so you can talk to the desks from your phone and get notified when an order fills, a desk is halted or a desk reports something at a scheduled check. It assumes you have never used Telegram before. It takes about fifteen minutes.
+This guide connects trading-agent to Telegram, so you can talk to the traders from your phone and get notified when an order fills, a trader is halted or a trader reports something at a scheduled check. It assumes you have never used Telegram before. It takes about fifteen minutes.
 
 ## How it works, in one paragraph
 
@@ -23,7 +23,7 @@ You can also use Telegram on this computer at <https://web.telegram.org>, signin
 5. BotFather asks for a **username**. It must be unique across Telegram and end in `bot`, such as `pramod_trading_agent_bot`. If it is taken, try another.
 6. BotFather replies with a message that contains the **token**, a long line such as `123456789:AAH...`. Keep this message private.
 
-The token is the bot's password. Anyone who has it can read what you send the bot and send messages that look like they come from it. They still could not command the desks, because pairing stops that, but treat the token like a password all the same: do not paste it into a chat, an email, or a conversation with Claude.
+The token is the bot's password. Anyone who has it can read what you send the bot and send messages that look like they come from it. They still could not command the traders, because pairing stops that, but treat the token like a password all the same: do not paste it into a chat, an email, or a conversation with Claude.
 
 ### Recommended BotFather settings
 
@@ -58,10 +58,10 @@ You do not need BotFather's `/setcommands`. Each time the gateway connects, it r
    ```toml
    [telegram]
    enabled = true
-   default_desk = "general"
+   default_trader = "general"
    ```
 
-   Set `enabled = true`. `default_desk` is the desk a new chat talks to.
+   Set `enabled = true`. `default_trader` is the trader a new chat talks to.
 
 2. Check the setup:
 
@@ -93,23 +93,27 @@ Send these to the bot:
 
 | Send | What happens |
 |---|---|
-| `/status` | Every desk's state and the account's balance and day, answered by code without a model, so it works even when every model is down |
-| `/pnl` | Today's and this week's profit or loss, and each desk's share |
-| `/positions` | Open positions and which desk owns each |
-| `What is your plan for Monday?` | The message goes to your desk (general at first), and its answer comes back |
-| `/desk intraday` | Later messages go to the intraday desk |
-| `/pause all` | Every desk stops asking its models; `/resume all` starts them again |
-| `/stop` | The desk's running turn stops at once |
-| `/btw why did you sell INFY?` | A side answer from the desk, which is not kept in its conversation |
-| `/context` | How full the desk's context window is |
-| `/approve` or `/deny <reason>` | Allows or refuses an action a desk is holding for your permission, the same as its buttons. With several waiting, the bot lists them and you add the six-character id, as in `/approve a1b2c3`; `/approve a1b2c3 always` allows it from now on |
-| `/kill CONFIRM <reason>` | Every desk is halted until tomorrow and the whole account is flattened. Without the word CONFIRM, nothing happens |
+| `/status` | Every trader's state and the account's balance and day, answered by code without a model, so it works even when every model is down |
+| `/pnl` | Today's and this week's profit or loss, and each trader's share |
+| `/positions` | Open positions and which trader owns each |
+| `What is your plan for Monday?` | The message goes to your trader (general at first), and its answer comes back |
+| `/trader intraday` | Later messages go to the intraday trader |
+| `/traders` | Every trader with its state and mandate, retired ones included |
+| `/create banknifty-momentum Intraday momentum in Bank Nifty options, buying only` | Creates a trader named `banknifty-momentum` with that mandate and the default models and schedule, and switches the chat to it. The new trader introduces itself in the chat and proposes its Persona.md and limits. It may trade within the account-wide limits from then on |
+| `/retire banknifty-momentum` | Stops that trader and marks it retired; its files stay. A trader that owns positions or has open orders must be flattened first, and the last running trader cannot be retired |
+| `/restore banknifty-momentum` | Brings a retired trader back with its memory, and switches the chat to it |
+| `/pause all` | Every trader stops asking its models; `/resume all` starts them again |
+| `/stop` | The trader's running turn stops at once |
+| `/btw why did you sell INFY?` | A side answer from the trader, which is not kept in its conversation |
+| `/context` | How full the trader's context window is |
+| `/approve` or `/deny <reason>` | Allows or refuses an action a trader is holding for your permission, the same as its buttons. With several waiting, the bot lists them and you add the six-character id, as in `/approve a1b2c3`; `/approve a1b2c3 always` allows it from now on |
+| `/kill CONFIRM <reason>` | Every trader is halted until tomorrow and the whole account is flattened. Without the word CONFIRM, nothing happens |
 
-Typing `/` shows a menu of every command, and `/help` lists them. The desk's own commands, such as `/usage`, `/model`, `/think`, `/review` and `/tools`, are passed to your desk; [Talking to a desk](using/chat.md#slash-commands) describes them all.
+Typing `/` shows a menu of every command, and `/help` lists them. The trader's own commands, such as `/usage`, `/model`, `/think`, `/review` and `/tools`, are passed to your trader; [Talking to a trader](using/chat.md#slash-commands) describes them all. The trader's own `/new`, which starts a fresh conversation, is passed on too; creating a trader is `/create`.
 
-A message you send while the desk is working is handed to the running turn at its next tool call, as on the web page; the bot tells you so.
+A message you send while the trader is working is handed to the running turn at its next tool call, as on the web page; the bot tells you so.
 
-When a desk asks you a question, shows you a plan or wants permission for an action, the bot sends it with buttons: one per option, ticks and **Done** when several answers are allowed, **Approve** and **Keep planning** for a plan, and **Allow once**, **Always allow** and **Deny** for a permission request. **Other** and **Keep planning** ask you to type a reply, and your next message is taken as that reply rather than sent to the desk. [Questions, plans and permissions](using/questions-and-permissions.md) explains them.
+When a trader asks you a question, shows you a plan or wants permission for an action, the bot sends it with buttons: one per option, ticks and **Done** when several answers are allowed, **Approve** and **Keep planning** for a plan, and **Allow once**, **Always allow** and **Deny** for a permission request. **Other** and **Keep planning** ask you to type a reply, and your next message is taken as that reply rather than sent to the trader. [Questions, plans and permissions](using/questions-and-permissions.md) explains them.
 
 ## 7. Choose what is pushed to you
 
@@ -117,16 +121,16 @@ Without being asked, the bot sends every paired chat the events listed in `notif
 
 | Name | What you get |
 |---|---|
-| `fills` | An order of a desk was filled, rejected or cancelled at the broker |
+| `fills` | An order of a trader was filled, rejected or cancelled at the broker |
 | `rejections` | The risk engine refused an order |
-| `model_switches` | A desk switched model because one failed or hit a limit |
+| `model_switches` | A trader switched model because one failed or hit a limit |
 | `job_results` | A command job finished |
-| `desk_reports` | What a desk said when it woke on its own: a scheduled check, a heartbeat that found something to do, a price alert or a webhook |
-| `messages` | A desk used `send_message` to tell you something, or `send_image` to show you a picture while no chat was waiting for its answer |
+| `trader_reports` | What a trader said when it woke on its own: a scheduled check, a heartbeat that found something to do, a price alert or a webhook |
+| `messages` | A trader used `send_message` to tell you something, or `send_image` to show you a picture while no chat was waiting for its answer |
 | `alerts` | A price alert fired |
-| `halts` | A desk reached its loss limit, or the kill switch fired |
+| `halts` | A trader reached its loss limit, or the kill switch fired |
 | `errors` | A turn failed |
-| `daily_summaries` | Each desk's summary of the day, after the close |
+| `daily_summaries` | Each trader's summary of the day, after the close |
 
 To get fewer, list only the ones you want, for example:
 

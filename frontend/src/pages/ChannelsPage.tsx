@@ -14,7 +14,7 @@ const STATE_WORDS: Record<string, string> = {
 };
 
 /**
- * The Telegram channel: whether it runs, the chats the desks obey, and the codes waiting for your approval.
+ * The Telegram channel: whether it runs, the chats the traders obey, and the codes waiting for your approval.
  * @returns The page.
  */
 export function ChannelsPage() {
@@ -69,7 +69,7 @@ export function ChannelsPage() {
     <div className="page">
       <div className="page-header">
         <h1>Channels</h1>
-        <p className="muted">Telegram lets you talk to the desks and hear from them on your phone. The bot obeys only chats you approve here.</p>
+        <p className="muted">Telegram lets you talk to the traders and hear from them on your phone. The bot obeys only chats you approve here.</p>
       </div>
       {notice !== null && (
         <div className="notice" role="status">
@@ -97,12 +97,12 @@ export function ChannelsPage() {
               {status.enabled && !status.token_present && <p className="error-text">Telegram is enabled, but TRADING_AGENT_TELEGRAM_BOT_TOKEN is not set in .env.</p>}
               {status.error && <p className="error-text small">{status.error}</p>}
               <p className="muted small">
-                New chats talk to {status.default_desk}. Pushed to every paired chat: {status.notifications.join(', ').replaceAll('_', ' ')}.
+                New chats talk to {status.default_trader}. Pushed to every paired chat: {status.notifications.join(', ').replaceAll('_', ' ')}.
               </p>
             </section>
             <section className="panel">
               <h2>Waiting for approval</h2>
-              <p className="muted small">When someone messages the bot, it replies with a code. Approve it only if that someone is you: the chat can then command every desk.</p>
+              <p className="muted small">When someone messages the bot, it replies with a code. Approve it only if that someone is you: the chat can then command every trader.</p>
               {status.pending.length === 0 && <p className="muted">No codes waiting.</p>}
               {status.pending.map((pending) => (
                 <div key={pending.code} className="alert-line">
@@ -131,7 +131,7 @@ export function ChannelsPage() {
                 <div key={chat.chat_id} className="alert-line">
                   <strong>{chat.name || '(no name)'}</strong>
                   <span className="muted small">chat {chat.chat_id}</span>
-                  <span>talks to {chat.desk}</span>
+                  <span>talks to {chat.trader}</span>
                   <span className="muted small">since {formatter.dayTime(chat.paired_at)}</span>
                   <span className="spacer" />
                   <button className="danger" type="button" onClick={() => revoke(chat.chat_id)}>

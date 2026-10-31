@@ -1,6 +1,6 @@
 # skill_writer.py
 
-Agent-written skills (block 24). The desk writes only through `skill_create`, `skill_patch` and `skill_archive`; `write_file` cannot reach `skills/` (`path_policy.py`), so every skill the desk writes is checked for format.
+Agent-written skills (block 24). The trader writes only through `skill_create`, `skill_patch` and `skill_archive`; `write_file` cannot reach `skills/` (`path_policy.py`), so every skill the trader writes is checked for format.
 
 ## Decisions
 

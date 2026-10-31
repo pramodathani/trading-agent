@@ -1,8 +1,8 @@
-"""What a desk wants to do, described for the risk engine.
+"""What a trader wants to do, described for the risk engine.
 
 Typical usage example:
 
-  request = OrderRequest(desk='main', instrument_id='...', exchange='nse', segment='nse_equities', symbol='INFY', transaction_type='buy', quantity=10, product='cnc', price=1500.0)
+  request = OrderRequest(trader='main', instrument_id='...', exchange='nse', segment='nse_equities', symbol='INFY', transaction_type='buy', quantity=10, product='cnc', price=1500.0)
 """
 
 import dataclasses
@@ -13,7 +13,7 @@ class OrderRequest:
     """One order before it is sent.
 
     Attributes:
-        desk: The desk sending it.
+        trader: The trader sending it.
         instrument_id: UBI's id for the instrument.
         exchange: The exchange, such as nse or mcx.
         segment: UBI's segment, such as nse_equities or nse_equity_index_options.
@@ -24,7 +24,7 @@ class OrderRequest:
         price: The price the order is valued at: its limit or trigger price, or the last price for a market order.
     """
 
-    desk: str
+    trader: str
     instrument_id: str
     exchange: str
     segment: str

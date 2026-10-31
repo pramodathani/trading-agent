@@ -17,7 +17,7 @@ interface QuestionCardProperties {
 }
 
 /**
- * A desk's questions as Claude Code shows them: a tab per question when there are several, numbered options with descriptions, check boxes for multiple choice, an Other box, a preview beside the options, and a review step before sending.
+ * A trader's questions as Claude Code shows them: a tab per question when there are several, numbered options with descriptions, check boxes for multiple choice, an Other box, a preview beside the options, and a review step before sending.
  * @param properties The question request, and what to call once it is answered or dismissed.
  * @returns The card.
  */
@@ -106,7 +106,7 @@ export function QuestionCard(properties: QuestionCardProperties) {
     }
   }
 
-  /** Closes the questions without answering; the desk is told to use its own judgment. */
+  /** Closes the questions without answering; the trader is told to use its own judgment. */
   async function dismiss(): Promise<void> {
     setSending(true);
     setError(null);
@@ -160,9 +160,9 @@ export function QuestionCard(properties: QuestionCardProperties) {
     <div className="request-card question-card" ref={cardReference} tabIndex={-1} onKeyDown={handleKey}>
       <div className="request-card-top">
         <span className="request-card-from">
-          <strong>{request.desk}</strong> asks you {many ? `${questions.length} questions` : 'a question'}
+          <strong>{request.trader}</strong> asks you {many ? `${questions.length} questions` : 'a question'}
         </span>
-        <button type="button" className="icon-button" onClick={() => void dismiss()} disabled={sending} aria-label="Dismiss without answering" title="Dismiss without answering; the desk will use its own judgment">
+        <button type="button" className="icon-button" onClick={() => void dismiss()} disabled={sending} aria-label="Dismiss without answering" title="Dismiss without answering; the trader will use its own judgment">
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>

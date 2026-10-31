@@ -11,7 +11,7 @@ import { ChannelsPage } from './pages/ChannelsPage';
 import { ChatPage } from './pages/ChatPage';
 import { CheckpointsPage } from './pages/CheckpointsPage';
 import { CronPage } from './pages/CronPage';
-import { DesksPage } from './pages/DesksPage';
+import { TradersPage } from './pages/TradersPage';
 import { ExtensionsPage } from './pages/ExtensionsPage';
 import { FilesPage } from './pages/FilesPage';
 import { ModelsPage } from './pages/ModelsPage';
@@ -48,8 +48,8 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route element={<AppLayout />}>
-          <Route index element={<Navigate to={platform.isApp() ? '/chat' : '/desks'} replace />} />
-          <Route path="desks" element={<DesksPage />} />
+          <Route index element={<Navigate to={platform.isApp() ? '/chat' : '/traders'} replace />} />
+          <Route path="traders" element={<TradersPage />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="activity" element={<ActivityPage />} />
           <Route path="trading" element={<TradingPage />} />
@@ -63,7 +63,7 @@ export function App() {
           <Route path="channels" element={<ChannelsPage />} />
           <Route path="apps/:packageName" element={<AppPage />} />
           <Route path="settings" element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to="/desks" replace />} />
+          <Route path="*" element={<Navigate to="/traders" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -1,6 +1,6 @@
 """The phones that receive push notifications, kept in one JSON file.
 
-The Android app registers its Firebase Cloud Messaging token after signing in, with the gateway's access token, so only the owner's phones are added. The user can remove a phone on the Settings page. The file sits in workspace/shared, which the desks can read but never write.
+The Android app registers its Firebase Cloud Messaging token after signing in, with the gateway's access token, so only the owner's phones are added. The user can remove a phone on the Settings page. The file sits in workspace/shared, which the traders can read but never write.
 
 Typical usage example:
 

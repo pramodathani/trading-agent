@@ -23,17 +23,17 @@ class LimitsError(ValueError):
 
 
 class AccountLimits(pydantic.BaseModel):
-    """The limits for the whole account, shared by every desk.
+    """The limits for the whole account, shared by every trader.
 
     Attributes:
-        trading_enabled: Whether any desk may open or enlarge a position.
+        trading_enabled: Whether any trader may open or enlarge a position.
         capital_percent: The share of the total balance the agent may commit as margin.
-        daily_loss_limit_percent: Today's loss, as a share of the live total balance, that stops every desk and closes every position.
-        weekly_loss_limit_percent: This week's loss, as a share of the live total balance, that stops every desk until Monday.
+        daily_loss_limit_percent: Today's loss, as a share of the live total balance, that stops every trader and closes every position.
+        weekly_loss_limit_percent: This week's loss, as a share of the live total balance, that stops every trader until Monday.
         maximum_order_value_percent: The largest margin one order may block, as a share of the live total balance.
         maximum_open_positions: The most instruments that may be held at once, or None for no cap.
         trading_window: "exchange_hours" for each exchange's own session, or "HH:MM-HH:MM" in India time for every exchange.
-        allow_option_writing: Whether a desk may sell options to open or enlarge a short position.
+        allow_option_writing: Whether a trader may sell options to open or enlarge a short position.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -51,15 +51,15 @@ class AccountLimits(pydantic.BaseModel):
     allow_option_writing: bool = False
 
 
-class DeskLimits(pydantic.BaseModel):
-    """The limits for one desk, on top of the account's.
+class TraderLimits(pydantic.BaseModel):
+    """The limits for one trader, on top of the account's.
 
     Attributes:
-        capital_share_percent: The desk's share of the agent's capital, or None to draw on the shared pool.
-        allowed_products: The products the desk may use, such as mis, cnc or nrml; empty allows all.
-        allowed_instruments: The symbols the desk may trade; empty allows all.
-        maximum_orders_per_minute: How many orders the desk may send in a minute, or None for no cap.
-        daily_loss_limit_percent: Today's loss on the instruments this desk owned, as a share of the live total balance, that stops this desk alone for the rest of the day; None for no desk limit.
+        capital_share_percent: The trader's share of the agent's capital, or None to draw on the shared pool.
+        allowed_products: The products the trader may use, such as mis, cnc or nrml; empty allows all.
+        allowed_instruments: The symbols the trader may trade; empty allows all.
+        maximum_orders_per_minute: How many orders the trader may send in a minute, or None for no cap.
+        daily_loss_limit_percent: Today's loss on the instruments this trader owned, as a share of the live total balance, that stops this trader alone for the rest of the day; None for no trader limit.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -80,24 +80,24 @@ class TradingLimits(pydantic.BaseModel):
 
     Attributes:
         account: The account-wide limits.
-        desks: The per-desk limits, keyed by desk name; a desk without an entry has no extra limits.
+        traders: The per-trader limits, keyed by trader name; a trader without an entry has no extra limits.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
 
     account: AccountLimits
-    desks: dict[str, DeskLimits] = {}
+    traders: dict[str, TraderLimits] = {}
 
-    def desk(self, desk_name: str) -> DeskLimits:
-        """The limits of one desk.
+    def trader(self, trader_name: str) -> TraderLimits:
+        """The limits of one trader.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
 
         Returns:
-            DeskLimits: Its limits, or limits that add nothing when the desk has no entry.
+            TraderLimits: Its limits, or limits that add nothing when the trader has no entry.
         """
-        return self.desks.get(desk_name, DeskLimits())
+        return self.traders.get(trader_name, TraderLimits())
 
 
 class TradingLimitsReader:

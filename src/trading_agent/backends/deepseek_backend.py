@@ -49,7 +49,9 @@ class DeepSeekBackend(openai_compatible_backend.OpenAICompatibleBackend):
         self._configuration = backend_configuration
         self._clock = clock or self._utc_now
 
-    def _assistant_extras(self, message: messages.ConversationMessage) -> dict[str, Any]:
+    def _assistant_extras(
+        self, message: messages.ConversationMessage
+    ) -> dict[str, Any]:
         """Sends the model's earlier thinking back with its message, as DeepSeek requires when tools are offered.
 
         Args:
@@ -64,7 +66,9 @@ class DeepSeekBackend(openai_compatible_backend.OpenAICompatibleBackend):
             'reasoning_content': message.reasoning,
         }
 
-    def _unavailable(self, error: openai.APIError) -> backend.BackendUnavailableError:
+    def _unavailable(
+        self, error: openai.APIError
+    ) -> backend.BackendUnavailableError:
         """Turns a failed request into a router error, waiting 15 minutes when the credit is used up.
 
         Args:

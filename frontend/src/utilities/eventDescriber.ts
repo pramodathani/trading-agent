@@ -26,7 +26,8 @@ const QUIET_KINDS = new Set([
   'turn_finished',
   'model_usage',
   'rate_limit',
-  'desk_started',
+  'trader_started',
+  'trader_sleeping',
   'account_status',
 ]);
 
@@ -98,8 +99,8 @@ export class EventDescriber {
           this.text(payload.note),
           'warning',
         );
-      case 'desk_halt':
-        return this.make('Desk halted at its loss limit', this.text(payload.reason), 'bad');
+      case 'trader_halt':
+        return this.make('Trader halted at its loss limit', this.text(payload.reason), 'bad');
       case 'account_status':
         return this.make(
           `Account ${formatter.money(payload.total_balance as number)}, today ${formatter.signedMoney(payload.day_pnl as number)}`,
@@ -148,27 +149,33 @@ export class EventDescriber {
         return this.make(`Telegram: connected as @${this.text(payload.name)}`, '', 'quiet');
       case 'user_request':
         if (payload.kind === 'plan') {
-          return this.make('The desk presented a plan for your approval', this.text((payload.content as Record<string, unknown> | undefined)?.title), 'warning');
+          return this.make('The trader presented a plan for your approval', this.text((payload.content as Record<string, unknown> | undefined)?.title), 'warning');
         }
         if (payload.kind === 'permission') {
-          return this.make('The desk needs your permission', this.text((payload.content as Record<string, unknown> | undefined)?.tool_name), 'warning');
+          return this.make('The trader needs your permission', this.text((payload.content as Record<string, unknown> | undefined)?.tool_name), 'warning');
         }
-        return this.make('The desk asked you a question', '', 'warning');
+        return this.make('The trader asked you a question', '', 'warning');
       case 'user_response':
         return this.make(payload.status === 'dismissed' ? `You dismissed a ${this.text(payload.kind)}` : `You answered a ${this.text(payload.kind)}`, this.text(payload.title), 'good');
       case 'stopped':
         return this.make('Turn stopped by you', '', 'warning');
-      case 'desk_started':
-        return this.make('Desk started', '', 'quiet');
-      case 'desk_stopped':
-        return this.make('Desk stopped', '', 'warning');
+      case 'trader_started':
+        return this.make('Trader started', '', 'quiet');
+      case 'trader_stopped':
+        return this.make('Trader stopped', '', 'warning');
+      case 'trader_created':
+        return this.make('Trader created or restored', this.mandateWords(payload), 'good');
+      case 'trader_retired':
+        return this.make('Trader retired; its files and memory are kept, and it can be restored', this.mandateWords(payload), 'warning');
+      case 'trader_sleeping':
+        return this.make('Fell asleep; wakes on the next message, alert, fill or heartbeat', '', 'quiet');
       default:
         return this.make(event.kind.replaceAll('_', ' '), this.json(payload), QUIET_KINDS.has(event.kind) ? 'quiet' : 'normal');
     }
   }
 
   /**
-   * Names what woke a desk.
+   * Names what woke a trader.
    * @param source The trigger's source.
    * @returns Plain words, such as "Message from you".
    */
@@ -225,6 +232,19 @@ export class EventDescriber {
       detail,
       tone,
     };
+  }
+
+  /**
+   * Describes a trader's mandate from a creation or retirement payload.
+   * @param payload The event's payload.
+   * @returns Such as "Mandate: ...", or an empty string when it has none.
+   */
+  private mandateWords(payload: Record<string, unknown>): string {
+    const mandate = this.text(payload.mandate).trim();
+    if (!mandate) {
+      return '';
+    }
+    return `Mandate: ${mandate}`;
   }
 
   /**

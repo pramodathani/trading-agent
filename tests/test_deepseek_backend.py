@@ -19,7 +19,9 @@ _OFF_PEAK_MONDAY = datetime.datetime(2026, 10, 19, 12, 0, tzinfo=datetime.UTC)
 _SATURDAY = datetime.datetime(2026, 10, 17, 7, 0, tzinfo=datetime.UTC)
 
 
-def _backend(moment: datetime.datetime = _PEAK_MONDAY) -> deepseek_backend.DeepSeekBackend:
+def _backend(
+    moment: datetime.datetime = _PEAK_MONDAY,
+) -> deepseek_backend.DeepSeekBackend:
     """Builds a DeepSeek backend with V4 Pro's prices and a fixed clock, never contacting DeepSeek.
 
     Args:
@@ -50,7 +52,9 @@ def _backend(moment: datetime.datetime = _PEAK_MONDAY) -> deepseek_backend.DeepS
     )
 
 
-def _chunk(content: str | None = None, reasoning: str | None = None, usage=None) -> SimpleNamespace:
+def _chunk(
+    content: str | None = None, reasoning: str | None = None, usage=None
+) -> SimpleNamespace:
     """Builds one streamed chunk shaped like DeepSeek's.
 
     Args:
@@ -65,7 +69,11 @@ def _chunk(content: str | None = None, reasoning: str | None = None, usage=None)
     if content is not None or reasoning is not None:
         choices.append(
             SimpleNamespace(
-                delta=SimpleNamespace(content=content, reasoning_content=reasoning, tool_calls=None),
+                delta=SimpleNamespace(
+                    content=content,
+                    reasoning_content=reasoning,
+                    tool_calls=None,
+                ),
             )
         )
     return SimpleNamespace(choices=choices, usage=usage)
@@ -104,14 +112,18 @@ class _Stream:
         return self._chunks.pop(0)
 
 
-def _replace_create(model_backend: deepseek_backend.DeepSeekBackend, create) -> None:
+def _replace_create(
+    model_backend: deepseek_backend.DeepSeekBackend, create
+) -> None:
     """Makes the backend's client call a stand-in instead of DeepSeek.
 
     Args:
         model_backend (deepseek_backend.DeepSeekBackend): The backend.
         create: The async stand-in for chat.completions.create.
     """
-    model_backend._client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    model_backend._client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=create))
+    )
 
 
 class TestDeepSeekBackend:
@@ -147,19 +159,34 @@ class TestDeepSeekBackend:
             )
 
         _replace_create(model_backend, create)
-        reply = asyncio.run(model_backend.complete(conversation_module.Conversation('system'), [], lambda piece: None))
+        reply = asyncio.run(
+            model_backend.complete(
+                conversation_module.Conversation('system'),
+                [],
+                lambda piece: None,
+            )
+        )
 
         assert reply.text == 'Done.'
         assert reply.reasoning == 'Check the levels.'
         assert reply.cache_read_tokens == 900_000
-        assert reply.cost_usd == pytest.approx(0.9 * 0.044 + 0.1 * 1.32 + 0.1 * 3.96)
+        assert reply.cost_usd == pytest.approx(
+            0.9 * 0.044 + 0.1 * 1.32 + 0.1 * 3.96
+        )
 
     def test_off_peak_and_weekend_are_cheaper(self) -> None:
         """Off-peak hours and weekends cost the off-peak share of the peak price."""
-        usage = SimpleNamespace(prompt_tokens=0, completion_tokens=1_000_000, prompt_cache_hit_tokens=0, prompt_cache_miss_tokens=0)
+        usage = SimpleNamespace(
+            prompt_tokens=0,
+            completion_tokens=1_000_000,
+            prompt_cache_hit_tokens=0,
+            prompt_cache_miss_tokens=0,
+        )
 
         assert _backend(_PEAK_MONDAY)._cost_usd(usage, 0) == pytest.approx(3.96)
-        assert _backend(_OFF_PEAK_MONDAY)._cost_usd(usage, 0) == pytest.approx(1.98)
+        assert _backend(_OFF_PEAK_MONDAY)._cost_usd(usage, 0) == pytest.approx(
+            1.98
+        )
         assert _backend(_SATURDAY)._cost_usd(usage, 0) == pytest.approx(1.98)
 
     def test_thinking_is_sent_back_with_assistant_messages(self) -> None:
@@ -167,8 +194,14 @@ class TestDeepSeekBackend:
         conversation = conversation_module.Conversation('system')
         conversation.append(messages.ConversationMessage.user('Quote TCS'))
         call = messages.ToolCall('call_1', 'get_quote', {'symbol': 'TCS'})
-        conversation.append(messages.ConversationMessage.assistant('', [call], 'I need a quote.'))
-        conversation.append(messages.ConversationMessage.tool_result(call, '3,500', False))
+        conversation.append(
+            messages.ConversationMessage.assistant(
+                '', [call], 'I need a quote.'
+            )
+        )
+        conversation.append(
+            messages.ConversationMessage.tool_result(call, '3,500', False)
+        )
 
         wire = _backend()._wire_messages(conversation)
 
@@ -179,7 +212,9 @@ class TestDeepSeekBackend:
         """A picture is replaced by a note, because V4 Pro cannot see pictures."""
         conversation = conversation_module.Conversation('system')
         picture = messages.MessageImage('image/png', b'png')
-        conversation.append(messages.ConversationMessage.user('Look', (picture,)))
+        conversation.append(
+            messages.ConversationMessage.user('Look', (picture,))
+        )
 
         wire = _backend()._wire_messages(conversation)
 
@@ -190,7 +225,11 @@ class TestDeepSeekBackend:
         """A 402 answer makes the router leave DeepSeek alone for 15 minutes."""
         model_backend = _backend()
         request = httpx.Request('POST', 'http://127.0.0.1:9/chat/completions')
-        response = httpx.Response(402, request=request, json={'error': {'message': 'Insufficient Balance'}})
+        response = httpx.Response(
+            402,
+            request=request,
+            json={'error': {'message': 'Insufficient Balance'}},
+        )
 
         async def create(**arguments):
             """Raises DeepSeek's 402.
@@ -202,11 +241,19 @@ class TestDeepSeekBackend:
                 openai.APIStatusError: Always.
             """
             del arguments
-            raise openai.APIStatusError('Insufficient Balance', response=response, body=None)
+            raise openai.APIStatusError(
+                'Insufficient Balance', response=response, body=None
+            )
 
         _replace_create(model_backend, create)
         with pytest.raises(backend.BackendUnavailableError) as raised:
-            asyncio.run(model_backend.complete(conversation_module.Conversation('system'), [], lambda piece: None))
+            asyncio.run(
+                model_backend.complete(
+                    conversation_module.Conversation('system'),
+                    [],
+                    lambda piece: None,
+                )
+            )
 
         assert raised.value.retry_after_seconds == 900.0
         assert 'no credit' in str(raised.value)

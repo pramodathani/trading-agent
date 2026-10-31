@@ -353,14 +353,14 @@ Collapsible > Contents {
     height: auto;
 }
 
-.desk-message {
+.trader-message {
     height: auto;
     border-left: thick $secondary;
     padding: 0 1;
     margin: 0 0 1 0;
 }
 
-.desk-message.urgent {
+.trader-message.urgent {
     border-left: thick $warning;
 }
 

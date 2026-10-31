@@ -24,7 +24,7 @@ The animated diagrams are SVG files in `docs/assets/diagrams/`, included into pa
 
 ```html
 <figure class="diagram">
---8<-- "docs/assets/diagrams/desks.svg"
+--8<-- "docs/assets/diagrams/traders.svg"
 <figcaption>What the dots mean.</figcaption>
 </figure>
 ```

@@ -1,6 +1,6 @@
-"""Describes the market's state in one line, for the context line at the top of every message to a desk.
+"""Describes the market's state in one line, for the context line at the top of every message to a trader.
 
-Desks know the time from that line but not the exchange calendar, so without this a desk planned "Tuesday" when Tuesday was a holiday. The line says whether NSE equities trade today, whether they are open now, the next trading day, and any weekday holiday in the coming week.
+Traders know the time from that line but not the exchange calendar, so without this a trader planned "Tuesday" when Tuesday was a holiday. The line says whether NSE equities trade today, whether they are open now, the next trading day, and any weekday holiday in the coming week.
 
 Typical usage example:
 

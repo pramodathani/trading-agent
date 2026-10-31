@@ -1,15 +1,15 @@
 """Chooses and builds the tools one subagent task may use.
 
-A subagent gets tools from its desk:
+A subagent gets tools from its trader:
 
 - Without a `tools` list, a safe read-only set: market data, the web, the knowledge base, past sessions, skills and MCP tools.
-- With a list, exactly the tools named. Order tools are given only this way, and they still go through the desk's risk engine under the desk's name.
-- The bash tools get a fresh bash session for each task, in the desk's sandbox, so tasks running side by side never type into the same shell.
-- delegate_task is never given, so a subagent cannot start subagents. The browser tools are never given, because each desk has one Chrome profile, which two tasks cannot drive at once.
+- With a list, exactly the tools named. Order tools are given only this way, and they still go through the trader's risk engine under the trader's name.
+- The bash tools get a fresh bash session for each task, in the trader's sandbox, so tasks running side by side never type into the same shell.
+- delegate_task is never given, so a subagent cannot start subagents. The browser tools are never given, because each trader has one Chrome profile, which two tasks cannot drive at once.
 
 Typical usage example:
 
-  toolbox = SubagentToolbox(desk_tools, bash_session_factory, 60.0)
+  toolbox = SubagentToolbox(trader_tools, bash_session_factory, 60.0)
   prepared = toolbox.prepare(definition)
 """
 
@@ -59,7 +59,7 @@ class PreparedTools:
         registry: The task's tool registry.
         bash_session: The fresh bash session made for the task, to close afterwards, or None.
         refused: Tools the definition asked for that subagents may never have.
-        unknown: Tools the definition asked for that the desk does not have.
+        unknown: Tools the definition asked for that the trader does not have.
     """
 
     registry: tool_registry.ToolRegistry
@@ -69,24 +69,24 @@ class PreparedTools:
 
 
 class SubagentToolbox:
-    """Builds subagent tool registries from a desk's tools."""
+    """Builds subagent tool registries from a trader's tools."""
 
     def __init__(
         self,
-        desk_tools: Sequence[tool_module.Tool],
+        trader_tools: Sequence[tool_module.Tool],
         bash_session_factory: Callable[[], bash_session_module.BashSession],
         tool_timeout_seconds: float,
     ):
         """Creates the toolbox.
 
         Args:
-            desk_tools (Sequence[tool_module.Tool]): The desk's tools, shared with its subagents.
-            bash_session_factory (Callable[[], bash_session_module.BashSession]): Makes a new bash session in the desk's sandbox.
+            trader_tools (Sequence[tool_module.Tool]): The trader's tools, shared with its subagents.
+            bash_session_factory (Callable[[], bash_session_module.BashSession]): Makes a new bash session in the trader's sandbox.
             tool_timeout_seconds (float): The default time limit of one tool call.
         """
-        self._desk_tools = {}
-        for desk_tool in desk_tools:
-            self._desk_tools[desk_tool.name] = desk_tool
+        self._trader_tools = {}
+        for trader_tool in trader_tools:
+            self._trader_tools[trader_tool.name] = trader_tool
         self._bash_session_factory = bash_session_factory
         self._tool_timeout_seconds = tool_timeout_seconds
 
@@ -118,12 +118,12 @@ class SubagentToolbox:
                     bash_session = self._bash_session_factory()
                 tools.append(self._bash_tool(name, bash_session))
                 continue
-            desk_tool = self._desk_tools.get(name)
-            if desk_tool is None:
+            trader_tool = self._trader_tools.get(name)
+            if trader_tool is None:
                 if definition.tool_names is not None:
                     unknown.append(name)
                 continue
-            tools.append(desk_tool)
+            tools.append(trader_tool)
         return PreparedTools(
             registry=tool_registry.ToolRegistry(
                 tools,

@@ -1,6 +1,6 @@
 # mcp_servers.json
 
-The MCP servers every desk can use, in Claude Code's `"mcpServers"` format; see `src/trading_agent/extensions/mcp_server_configuration.py.md`. It is committed empty. The live test of 2026-10-17 used these two servers, which can be pasted back in:
+The MCP servers every trader can use, in Claude Code's `"mcpServers"` format; see `src/trading_agent/extensions/mcp_server_configuration.py.md`. It is committed empty. The live test of 2026-10-17 used these two servers, which can be pasted back in:
 
 ```json
 {

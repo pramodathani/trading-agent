@@ -99,7 +99,7 @@ export function PermissionCard(properties: PermissionCardProperties) {
     <div className="request-card permission-card" ref={cardReference} tabIndex={-1} onKeyDown={handleKey}>
       <div className="request-card-top">
         <span className="request-card-from">
-          <strong>{request.desk}</strong> needs your permission
+          <strong>{request.trader}</strong> needs your permission
         </span>
         {secondsLeft !== null && <span className={secondsLeft < 60 ? 'permission-timer urgent' : 'permission-timer'}>{lapsed ? 'lapsed' : `lapses in ${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}`}</span>}
       </div>
@@ -120,7 +120,7 @@ export function PermissionCard(properties: PermissionCardProperties) {
           <span className="option-key">2</span>
           <span className="option-text">
             <span className="option-label">
-              Yes, and don&apos;t ask again for <span className="mono">{toolName}</span> on {request.desk}
+              Yes, and don&apos;t ask again for <span className="mono">{toolName}</span> on {request.trader}
             </span>
             <span className="option-description">Saved until you revoke it on the Settings page.</span>
           </span>
@@ -128,7 +128,7 @@ export function PermissionCard(properties: PermissionCardProperties) {
         <li className={`${rowClass(2)} other`} onMouseEnter={() => setHighlighted(2)}>
           <span className="option-key">3</span>
           <span className="option-text">
-            <span className="option-label">No, and tell the desk why</span>
+            <span className="option-label">No, and tell the trader why</span>
             <input
               className="option-other"
               value={reason}

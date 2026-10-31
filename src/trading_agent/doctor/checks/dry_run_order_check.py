@@ -1,4 +1,4 @@
-"""Checks that at least one desk order has gone all the way through UBI's dry run.
+"""Checks that at least one trader order has gone all the way through UBI's dry run.
 
 UBI refuses even dry-run orders when the market's instrument list is not loaded, such as at weekends, so this can only pass after a trading day.
 
@@ -22,7 +22,7 @@ class DryRunOrderCheck(doctor_check.DoctorCheck):
         """Creates the check.
 
         Args:
-            search (journal_search_module.JournalSearch): Searches the desks' journals.
+            search (journal_search_module.JournalSearch): Searches the traders' journals.
         """
         self._search = search
 
@@ -38,9 +38,9 @@ class DryRunOrderCheck(doctor_check.DoctorCheck):
                 mode = 'dry run' if payload.get('dry_run') else 'live'
                 return doctor_check.CheckResult(
                     doctor_check.CheckStatus.OK,
-                    f'{event.get("desk")} placed an order ({mode}) at {event.get("created_at", "")[:16]}.',
+                    f'{event.get("trader")} placed an order ({mode}) at {event.get("created_at", "")[:16]}.',
                 )
         return doctor_check.CheckResult(
             doctor_check.CheckStatus.FAILED,
-            'No order has gone through UBI yet. On a trading day, ask a desk in the chat to place one small dry-run order, such as buying 1 share of a cheap stock.',
+            'No order has gone through UBI yet. On a trading day, ask a trader in the chat to place one small dry-run order, such as buying 1 share of a cheap stock.',
         )

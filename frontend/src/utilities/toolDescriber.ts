@@ -208,8 +208,8 @@ const TOOLS: Record<string, ToolDescription> = {
     activity: 'Cancelling an order',
     kind: 'order',
   },
-  flatten_desk: {
-    activity: "Closing the desk's positions",
+  flatten_trader: {
+    activity: "Closing the trader's positions",
     kind: 'order',
   },
   send_message: {

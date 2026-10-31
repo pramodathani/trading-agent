@@ -12,11 +12,11 @@ const REFRESH_MILLISECONDS = 30000;
 /** Which file is open in the editor. */
 interface OpenFile {
   name: string;
-  desk: string | null;
+  trader: string | null;
 }
 
 /**
- * Edit your own files, read and correct each desk's Memory.md, and accept or reject the desks' proposals.
+ * Edit your own files, read and correct each trader's Memory.md, and accept or reject the traders' proposals.
  * @returns The page.
  */
 export function FilesPage() {
@@ -41,7 +41,7 @@ export function FilesPage() {
     setMessage(null);
     setError(null);
     apiClient
-      .fileText(open.name, open.desk)
+      .fileText(open.name, open.trader)
       .then((document) => {
         if (!cancelled) {
           setSavedText(document.text);
@@ -72,7 +72,7 @@ export function FilesPage() {
   function openFile(file: EditableFile): void {
     const wanted = {
       name: file.name,
-      desk: file.desk,
+      trader: file.trader,
     };
     if (changed) {
       setWaitingToOpen(wanted);
@@ -95,9 +95,9 @@ export function FilesPage() {
     setError(null);
     setMessage(null);
     try {
-      await apiClient.saveFile(open.name, open.desk, draft);
+      await apiClient.saveFile(open.name, open.trader, draft);
       setSavedText(draft);
-      setMessage(open.name === 'Memory.md' ? 'Saved. A checkpoint was taken first, so this edit can be undone on the Checkpoints page.' : 'Saved. The desks read it at their next turn.');
+      setMessage(open.name === 'Memory.md' ? 'Saved. A checkpoint was taken first, so this edit can be undone on the Checkpoints page.' : 'Saved. The traders read it at their next turn.');
       files.refresh();
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
@@ -125,7 +125,7 @@ export function FilesPage() {
     <div className="page">
       <div className="page-header">
         <h1>Files</h1>
-        <p className="muted">Your files tell every desk who you are, how to work and which limits apply. The desks cannot change them; they propose changes for you to accept.</p>
+        <p className="muted">Your files tell every trader who you are, how to work and which limits apply. The traders cannot change them; they propose changes for you to accept.</p>
       </div>
       <div className="files-layout">
         <section className="panel file-list">
@@ -135,14 +135,14 @@ export function FilesPage() {
               <>
                 {document.files.map((file) => (
                   <button
-                    key={`${file.desk ?? 'shared'}-${file.name}`}
+                    key={`${file.trader ?? 'shared'}-${file.name}`}
                     type="button"
-                    className={open !== null && open.name === file.name && open.desk === file.desk ? 'list-item selected' : 'list-item'}
+                    className={open !== null && open.name === file.name && open.trader === file.trader ? 'list-item selected' : 'list-item'}
                     onClick={() => openFile(file)}
                   >
                     <span>
                       {file.name}
-                      {file.desk !== null && <span className="muted"> · {file.desk}</span>}
+                      {file.trader !== null && <span className="muted"> · {file.trader}</span>}
                     </span>
                     <span className="muted small">{file.exists ? `${file.characters.toLocaleString('en-IN')} characters` : 'not created'}</span>
                   </button>
@@ -159,7 +159,7 @@ export function FilesPage() {
               <div className="editor-header">
                 <h2>
                   {open.name}
-                  {open.desk !== null && <span className="muted"> · {open.desk}</span>}
+                  {open.trader !== null && <span className="muted"> · {open.trader}</span>}
                 </h2>
                 <span className="spacer" />
                 {changed && <span className="muted small">Unsaved changes</span>}
@@ -210,7 +210,7 @@ export function FilesPage() {
                   <article key={proposal.proposal_id} className="proposal">
                     <div className="editor-header">
                       <strong>{proposal.file_name}</strong>
-                      <span className="desk-chip">{proposal.desk}</span>
+                      <span className="trader-chip">{proposal.trader}</span>
                       <span className="muted small">{formatter.dayTime(proposal.created_at)}</span>
                       <span className={`state-badge proposal-${proposal.status}`}>{proposal.status}</span>
                       <span className="spacer" />

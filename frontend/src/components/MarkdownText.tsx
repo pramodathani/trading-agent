@@ -60,7 +60,7 @@ interface MarkdownTextProperties {
 }
 
 /**
- * A desk's reply rendered as Markdown, the way Claude Code shows answers: headings, lists, tables, links, inline code and highlighted code blocks with a copy button. Raw HTML in the text is shown as text, never run.
+ * A trader's reply rendered as Markdown, the way Claude Code shows answers: headings, lists, tables, links, inline code and highlighted code blocks with a copy button. Raw HTML in the text is shown as text, never run.
  * @param properties The Markdown text.
  * @returns The rendered reply.
  */

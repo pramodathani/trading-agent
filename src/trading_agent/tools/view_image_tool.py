@@ -19,7 +19,7 @@ class ViewImageArguments(pydantic.BaseModel):
     """The arguments of view_image.
 
     Attributes:
-        path: The picture; a relative path starts at your desk folder.
+        path: The picture; a relative path starts at your trader folder.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -31,7 +31,7 @@ class ViewImageTool(tool.Tool):
     """Shows the model a PNG, JPEG, WebP or GIF file."""
 
     name = 'view_image'
-    description = 'Looks at a picture file (PNG, JPEG, WebP or GIF) and shows it to you, for example a chart you drew in scratch/, a screenshot you took earlier, or a picture the user sent in an earlier message. A relative path starts at your desk folder. Models that cannot see pictures get nothing useful from it.'
+    description = 'Looks at a picture file (PNG, JPEG, WebP or GIF) and shows it to you, for example a chart you drew in scratch/, a screenshot you took earlier, or a picture the user sent in an earlier message. A relative path starts at your trader folder. Models that cannot see pictures get nothing useful from it.'
     arguments_model = ViewImageArguments
 
     def __init__(
@@ -42,7 +42,7 @@ class ViewImageTool(tool.Tool):
         """Creates the tool.
 
         Args:
-            policy (path_policy_module.PathPolicy): The desk's read rules.
+            policy (path_policy_module.PathPolicy): The trader's read rules.
             image_preparer (image_preparer_module.ImagePreparer | None): Checks and resizes pictures; None for a new one.
         """
         self._policy = policy
@@ -75,18 +75,18 @@ class ViewImageTool(tool.Tool):
         return tool.ToolResult(
             text=f'This is the picture {arguments.path}.',
             image=image,
-            picture_desk_path=self._desk_path(path),
+            picture_trader_path=self._trader_path(path),
         )
 
-    def _desk_path(self, path: Path) -> str | None:
-        """The picture's path relative to the desk folder, for the web page.
+    def _trader_path(self, path: Path) -> str | None:
+        """The picture's path relative to the trader folder, for the web page.
 
         Args:
             path (Path): The resolved picture path.
 
         Returns:
-            str | None: The relative path, or None when the picture is outside the desk folder.
+            str | None: The relative path, or None when the picture is outside the trader folder.
         """
-        if not path.is_relative_to(self._policy.desk_directory):
+        if not path.is_relative_to(self._policy.trader_directory):
             return None
-        return path.relative_to(self._policy.desk_directory).as_posix()
+        return path.relative_to(self._policy.trader_directory).as_posix()

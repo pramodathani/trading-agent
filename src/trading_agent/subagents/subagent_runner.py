@@ -1,12 +1,12 @@
-"""Runs the tasks a desk delegates to its subagents.
+"""Runs the tasks a trader delegates to its subagents.
 
-Each task gets a fresh model router over the subagent's backends (or the desk's, for "inherit"), its own tool registry from the toolbox, and a system prompt built from its definition. Tasks run side by side; each has its own time limit, and one that fails, times out or crashes never stops the others. Afterwards the task's bash session and any Claude Code process are closed.
+Each task gets a fresh model router over the subagent's backends (or the trader's, for "inherit"), its own tool registry from the toolbox, and a system prompt built from its definition. Tasks run side by side; each has its own time limit, and one that fails, times out or crashes never stops the others. Afterwards the task's bash session and any Claude Code process are closed.
 
 Every task publishes subagent_started and subagent_finished, and its tool calls carry the task's trigger id, so the journal shows what each subagent did.
 
 Typical usage example:
 
-  runner = SubagentRunner(desk_name, mode, library, toolbox, runner_factory, ['claude', 'qwen'], backends, event_bus, 3)
+  runner = SubagentRunner(trader_name, mode, library, toolbox, runner_factory, ['claude', 'qwen'], backends, event_bus, 3)
   reports = await runner.run_all([SubagentTask('news_reader', 'What moved INFY today?')])
 """
 
@@ -85,16 +85,16 @@ class SubagentReport:
 
 
 class SubagentRunner:
-    """Runs one desk's subagent tasks."""
+    """Runs one trader's subagent tasks."""
 
     def __init__(
         self,
-        desk_name: str,
+        trader_name: str,
         mode: str,
         library: subagent_library_module.SubagentLibrary,
         toolbox: subagent_toolbox_module.SubagentToolbox,
         runner_factory: RunnerFactory,
-        desk_backend_order: Sequence[str],
+        trader_backend_order: Sequence[str],
         backends: Mapping[str, agent_configuration.BackendConfiguration],
         event_bus: event_bus_module.EventBus,
         maximum_identical_tool_calls: int,
@@ -103,23 +103,23 @@ class SubagentRunner:
         """Creates the runner.
 
         Args:
-            desk_name (str): The desk the subagents work for.
+            trader_name (str): The trader the subagents work for.
             mode (str): "dry_run" or "live".
             library (subagent_library_module.SubagentLibrary): The definitions.
             toolbox (subagent_toolbox_module.SubagentToolbox): Builds each task's tools.
             runner_factory (RunnerFactory): Builds a turn runner from a backend name, its settings, an executor, a prompt builder and a round limit.
-            desk_backend_order (Sequence[str]): The desk's backends, for subagents that inherit them.
+            trader_backend_order (Sequence[str]): The trader's backends, for subagents that inherit them.
             backends (Mapping[str, agent_configuration.BackendConfiguration]): Every configured backend.
             event_bus (event_bus_module.EventBus): Where each task's events are published.
             maximum_identical_tool_calls (int): The loop guard's limit for each task.
             permission_gate (permission_gate_module.PermissionGate | None): Holds the tasks' calls that need the user's permission, or None when none do.
         """
-        self._desk_name = desk_name
+        self._trader_name = trader_name
         self._mode = mode
         self._library = library
         self._toolbox = toolbox
         self._runner_factory = runner_factory
-        self._desk_backend_order = list(desk_backend_order)
+        self._trader_backend_order = list(trader_backend_order)
         self._backends = backends
         self._event_bus = event_bus
         self._maximum_identical_tool_calls = maximum_identical_tool_calls
@@ -170,9 +170,9 @@ class SubagentRunner:
         for name in prepared.refused:
             notes.append(f'{name} is never given to subagents')
         for name in prepared.unknown:
-            notes.append(f"{name} is not one of the desk's tools")
+            notes.append(f"{name} is not one of the trader's tools")
         executor = tool_call_executor.ToolCallExecutor(
-            self._desk_name,
+            self._trader_name,
             prepared.registry,
             self._event_bus,
             loop_guard.LoopGuard(self._maximum_identical_tool_calls),
@@ -180,7 +180,7 @@ class SubagentRunner:
         )
         prompt = subagent_prompt_builder.SubagentPromptBuilder(
             definition,
-            self._desk_name,
+            self._trader_name,
             self._mode,
         )
         routes = []
@@ -195,8 +195,8 @@ class SubagentRunner:
             routes.append(model_router.BackendRoute(backend_name, runner))
         trigger = trigger_module.Trigger.now(
             trigger_module.TriggerSource.SUBAGENT,
-            self._desk_name,
-            f'[Task from the {self._desk_name} desk]\n{task.task}',
+            self._trader_name,
+            f'[Task from the {self._trader_name} trader]\n{task.task}',
         )
         self._publish(
             event_module.EventKind.SUBAGENT_STARTED,
@@ -253,7 +253,7 @@ class SubagentRunner:
             tuple[str, str, str | None]: A tuple (outcome, text, backend_name), where outcome is "answered", "timed out" or "failed", text the report or the reason, and backend_name the backend that answered, if any.
         """
         router = model_router.ModelRouter(
-            self._desk_name,
+            self._trader_name,
             routes,
             self._event_bus,
             completed_calls=executor.completed_calls,
@@ -290,7 +290,7 @@ class SubagentRunner:
             notes (list[str]): Gains a remark for each model name that matches nothing.
 
         Returns:
-            list[tuple[str, agent_configuration.BackendConfiguration]]: Tuples (name, settings), most preferred first; the desk's own order when the definition names no usable model.
+            list[tuple[str, agent_configuration.BackendConfiguration]]: Tuples (name, settings), most preferred first; the trader's own order when the definition names no usable model.
         """
         choices = []
         if definition.models is not None:
@@ -302,7 +302,7 @@ class SubagentRunner:
                 choices.append(choice)
         if choices:
             return choices
-        for name in self._desk_backend_order:
+        for name in self._trader_backend_order:
             choices.append((name, self._backends[name]))
         return choices
 
@@ -332,12 +332,12 @@ class SubagentRunner:
         return None
 
     def _publish(self, kind: event_module.EventKind, payload: dict) -> None:
-        """Publishes an event from the desk.
+        """Publishes an event from the trader.
 
         Args:
             kind (event_module.EventKind): What happened.
             payload (dict): The event's details.
         """
         self._event_bus.publish(
-            event_module.Event.now(kind, self._desk_name, payload)
+            event_module.Event.now(kind, self._trader_name, payload)
         )

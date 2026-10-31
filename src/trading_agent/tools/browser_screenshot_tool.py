@@ -2,7 +2,7 @@
 
 Typical usage example:
 
-  tool = BrowserScreenshotTool(session, desk_directory)
+  tool = BrowserScreenshotTool(session, trader_directory)
 """
 
 from pathlib import Path
@@ -22,16 +22,16 @@ class BrowserScreenshotTool(browser_tool.BrowserTool):
     def __init__(
         self,
         session: browser_session_module.BrowserSession,
-        desk_directory: Path,
+        trader_directory: Path,
     ):
         """Creates the tool.
 
         Args:
-            session (browser_session_module.BrowserSession): The desk's browser.
-            desk_directory (Path): The desk's folder, so the saved path can be shown relative to it.
+            session (browser_session_module.BrowserSession): The trader's browser.
+            trader_directory (Path): The trader's folder, so the saved path can be shown relative to it.
         """
         super().__init__(session)
-        self._desk_directory = desk_directory.resolve()
+        self._trader_directory = trader_directory.resolve()
 
     async def run(self, arguments: tool.NoArguments) -> tool.ToolResult:
         """Takes the screenshot.
@@ -47,9 +47,9 @@ class BrowserScreenshotTool(browser_tool.BrowserTool):
             picture, path = await self._session.screenshot()
         except browser_session_module.BrowserError as error:
             return tool.ToolResult.error(str(error))
-        shown_path = path.resolve().relative_to(self._desk_directory)
+        shown_path = path.resolve().relative_to(self._trader_directory)
         return tool.ToolResult(
             text=f'Screenshot of the current page, saved as {shown_path}.',
             image=messages.MessageImage('image/png', picture),
-            picture_desk_path=shown_path.as_posix(),
+            picture_trader_path=shown_path.as_posix(),
         )

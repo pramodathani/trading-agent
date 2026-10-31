@@ -12,7 +12,7 @@ The first version read exchanges from the session logs (`sessions/*.jsonl`) and 
 
 Plain case-insensitive substring matching. A record matches when it contains every keyword; if none does, records with some keywords are returned with a note saying so. Results are ordered by number of keywords matched, then newest day first. The tool description asks for keywords, not a question, because words such as "what" and "did" would match everything.
 
-There is no stemming: "refused" does not match "refusal". The risk engine's events say `"approved": false`, but the tool result and the desk's answer say "refused", so in practice exchanges carry the words a model will search for. Meaning-based search with embeddings is in the backlog.
+There is no stemming: "refused" does not match "refusal". The risk engine's events say `"approved": false`, but the tool result and the trader's answer say "refused", so in practice exchanges carry the words a model will search for. Meaning-based search with embeddings is in the backlog.
 
 ## Speed
 

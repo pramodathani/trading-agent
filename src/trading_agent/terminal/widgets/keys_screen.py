@@ -56,7 +56,7 @@ _KEYS = (
     ),
     (
         'alt+d',
-        'switch desk',
+        'switch trader',
     ),
     (
         'alt+p',
@@ -72,7 +72,7 @@ _KEYS = (
     ),
     (
         'f2',
-        'go to a page: Desks, Activity, Trading, Sessions, Files and the rest',
+        'go to a page: Traders, Activity, Trading, Sessions, Files and the rest',
     ),
     (
         'ctrl+p',
@@ -89,12 +89,12 @@ _COMMANDS = (
         'attach a file to the next message (or type @path, drag the file in, or ctrl+v a picture)',
     ),
     (
-        '/desk [name]',
-        'switch desk',
+        '/trader [name]',
+        'switch trader',
     ),
     (
         '/model',
-        'choose the model (with a name, the desk handles it)',
+        'choose the model (with a name, the trader handles it)',
     ),
     (
         '/theme',
@@ -105,12 +105,12 @@ _COMMANDS = (
         'this list',
     ),
     (
-        '/trading, /desks, …',
+        '/trading, /traders, …',
         'open a page; type / to see them all, or press f2',
     ),
     (
         '/exit',
-        'leave the terminal program; the desks keep running',
+        'leave the terminal program; the traders keep running',
     ),
 )
 
@@ -136,7 +136,7 @@ class KeysScreen(screen.ModalScreen[None]):
             yield widgets.Static('[b]Keys[/b]', classes='picker-title')
             yield widgets.Static(self._two_columns(_KEYS))
             yield widgets.Static(
-                '[b]Terminal commands[/b]  [dim]every other /command goes to the desk; try /help[/dim]',
+                '[b]Terminal commands[/b]  [dim]every other /command goes to the trader; try /help[/dim]',
                 classes='picker-title keys-section',
             )
             yield widgets.Static(self._two_columns(_COMMANDS))

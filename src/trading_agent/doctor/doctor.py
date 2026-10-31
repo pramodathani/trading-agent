@@ -1,12 +1,14 @@
 """Runs every doctor check and prints a report.
 
-`trading-agent preflight` runs the same checks plus the going-live ones: the trading mode, the desks' loss limits, the systemd service, and proof from the journals that orders have gone through UBI's dry run and that desks cannot share a stock.
+`trading-agent preflight` runs the same checks plus the going-live ones: the trading mode, the traders' loss limits, the systemd service, and proof from the journals that orders have gone through UBI's dry run and that traders cannot share a stock.
 
 Typical usage example:
 
   exit_code = Doctor(configuration, secrets).run()
   exit_code = Doctor(configuration, secrets, going_live=True).run()
 """
+
+from collections.abc import Sequence
 
 from trading_agent.channels import pairing_store
 from trading_agent.configuration import agent_configuration
@@ -16,7 +18,6 @@ from trading_agent.doctor.checks import bubblewrap_check
 from trading_agent.doctor.checks import chrome_check
 from trading_agent.doctor.checks import claude_code_backend_check
 from trading_agent.doctor.checks import deepseek_backend_check
-from trading_agent.doctor.checks import desk_loss_limits_check
 from trading_agent.doctor.checks import dry_run_order_check
 from trading_agent.doctor.checks import gateway_token_check
 from trading_agent.doctor.checks import injection_check
@@ -31,6 +32,7 @@ from trading_agent.doctor.checks import searxng_check
 from trading_agent.doctor.checks import service_check
 from trading_agent.doctor.checks import telegram_check
 from trading_agent.doctor.checks import telegram_pairing_check
+from trading_agent.doctor.checks import trader_loss_limits_check
 from trading_agent.doctor.checks import trading_limits_check
 from trading_agent.doctor.checks import trading_mode_check
 from trading_agent.doctor.checks import unified_broker_interface_check
@@ -50,6 +52,7 @@ class Doctor:
         self,
         configuration: agent_configuration.AgentConfiguration,
         secrets: secrets_module.Secrets,
+        trader_names: Sequence[str] = (),
         going_live: bool = False,
     ):
         """Creates the doctor.
@@ -57,10 +60,12 @@ class Doctor:
         Args:
             configuration (agent_configuration.AgentConfiguration): The agent's configuration.
             secrets (secrets_module.Secrets): The secrets read from the environment and .env.
+            trader_names (Sequence[str]): The traders that are not retired, whose files and limits are checked.
             going_live (bool): Whether to add the going-live checks, for `trading-agent preflight`.
         """
         self._configuration = configuration
         self._secrets = secrets
+        self._trader_names = list(trader_names)
         self._going_live = going_live
 
     def run(self) -> int:
@@ -165,15 +170,13 @@ class Doctor:
                 ).trading_rules_file
             )
         )
-        desk_names = []
-        for desk in self._configuration.desks:
-            desk_names.append(desk.name)
+        trader_names = self._trader_names
         checks.append(
             injection_check.InjectionCheck(
                 workspace_layout.WorkspaceLayout(
                     self._configuration.workspace_directory
                 ),
-                desk_names,
+                trader_names,
             )
         )
         checks.append(
@@ -189,16 +192,16 @@ class Doctor:
         checks.append(bubblewrap_check.BubblewrapCheck())
         checks.append(chrome_check.ChromeCheck())
         if self._going_live:
-            checks.extend(self._going_live_checks(desk_names))
+            checks.extend(self._going_live_checks(trader_names))
         return checks
 
     def _going_live_checks(
-        self, desk_names: list[str]
+        self, trader_names: list[str]
     ) -> list[doctor_check.DoctorCheck]:
         """The checks that only matter before trading live.
 
         Args:
-            desk_names (list[str]): The desks.
+            trader_names (list[str]): The traders.
 
         Returns:
             list[doctor_check.DoctorCheck]: The checks.
@@ -206,11 +209,11 @@ class Doctor:
         layout = workspace_layout.WorkspaceLayout(
             self._configuration.workspace_directory
         )
-        search = journal_search.JournalSearch(layout, desk_names)
+        search = journal_search.JournalSearch(layout, trader_names)
         return [
             service_check.ServiceCheck(),
-            desk_loss_limits_check.DeskLossLimitsCheck(
-                layout.trading_rules_file, desk_names
+            trader_loss_limits_check.TraderLossLimitsCheck(
+                layout.trading_rules_file, trader_names
             ),
             dry_run_order_check.DryRunOrderCheck(search),
             ownership_conflict_check.OwnershipConflictCheck(search),

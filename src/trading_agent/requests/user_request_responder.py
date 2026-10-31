@@ -1,10 +1,10 @@
-"""Records the user's response to a desk's request and hands it to the desk as a new message.
+"""Records the user's response to a trader's request and hands it to the trader as a new message.
 
 The web page and Telegram both answer through this class, so a request answered in one place shows as answered in the other.
 
 Typical usage example:
 
-  responder = UserRequestResponder(store, event_bus, desks)
+  responder = UserRequestResponder(store, event_bus, traders)
   responder.answer_question(request_id, [{'selected': ['Wait'], 'other': ''}], 'web')
 """
 
@@ -15,14 +15,18 @@ from typing import Any
 
 from trading_agent.agent import messages
 from trading_agent.requests import permission_grants as permission_grants_module
-from trading_agent.requests import permission_response as permission_response_module
+from trading_agent.requests import (
+    permission_response as permission_response_module,
+)
 from trading_agent.requests import plan_response as plan_response_module
 from trading_agent.requests import question_response as question_response_module
 from trading_agent.requests import user_request as user_request_module
-from trading_agent.requests import user_request_store as user_request_store_module
-from trading_agent.runtime import desk_runtime
+from trading_agent.requests import (
+    user_request_store as user_request_store_module,
+)
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
+from trading_agent.runtime import trader_runtime
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.tools import tool_registry as tool_registry_module
 
@@ -34,8 +38,9 @@ class UserRequestResponder:
         self,
         store: user_request_store_module.UserRequestStore,
         event_bus: event_bus_module.EventBus,
-        desks: Mapping[str, desk_runtime.DeskRuntime],
-        tool_registries: Mapping[str, tool_registry_module.ToolRegistry] | None = None,
+        traders: Mapping[str, trader_runtime.TraderRuntime],
+        tool_registries: Mapping[str, tool_registry_module.ToolRegistry]
+        | None = None,
         grants: permission_grants_module.PermissionGrants | None = None,
     ):
         """Creates the responder.
@@ -43,13 +48,13 @@ class UserRequestResponder:
         Args:
             store (user_request_store_module.UserRequestStore): Where requests are kept.
             event_bus (event_bus_module.EventBus): Where each response is published.
-            desks (Mapping[str, desk_runtime.DeskRuntime]): The running desks, keyed by name, which receive the responses.
-            tool_registries (Mapping[str, tool_registry_module.ToolRegistry] | None): Each desk's tools, which run a call the user allows; None when permissions are not used.
+            traders (Mapping[str, trader_runtime.TraderRuntime]): The running traders, keyed by name, which receive the responses.
+            tool_registries (Mapping[str, tool_registry_module.ToolRegistry] | None): Each trader's tools, which run a call the user allows; None when permissions are not used.
             grants (permission_grants_module.PermissionGrants | None): Where "Always allow" is saved; None when permissions are not used.
         """
         self._store = store
         self._event_bus = event_bus
-        self._desks = desks
+        self._traders = traders
         self._tool_registries = tool_registries or {}
         self._grants = grants
 
@@ -59,7 +64,7 @@ class UserRequestResponder:
         answers: Sequence[dict[str, Any]],
         via: str,
     ) -> user_request_module.UserRequest:
-        """Records the answers to a question request and tells the desk.
+        """Records the answers to a question request and tells the trader.
 
         Args:
             request_id (str): The request.
@@ -75,7 +80,9 @@ class UserRequestResponder:
         """
         request = self._store.pending_request(request_id)
         if request.kind != user_request_module.QUESTION:
-            raise ValueError(f'Request {request_id} is a {request.kind}, not a question')
+            raise ValueError(
+                f'Request {request_id} is a {request.kind}, not a question'
+            )
         response = question_response_module.QuestionResponse(request, answers)
         response.check()
         return self._finish(
@@ -93,7 +100,7 @@ class UserRequestResponder:
         feedback: str,
         via: str,
     ) -> user_request_module.UserRequest:
-        """Records the decision on a plan and tells the desk.
+        """Records the decision on a plan and tells the trader.
 
         Args:
             request_id (str): The request.
@@ -110,8 +117,12 @@ class UserRequestResponder:
         """
         request = self._store.pending_request(request_id)
         if request.kind != user_request_module.PLAN:
-            raise ValueError(f'Request {request_id} is a {request.kind}, not a plan')
-        response = plan_response_module.PlanResponse(request, decision, feedback)
+            raise ValueError(
+                f'Request {request_id} is a {request.kind}, not a plan'
+            )
+        response = plan_response_module.PlanResponse(
+            request, decision, feedback
+        )
         response.check()
         return self._finish(
             request,
@@ -128,7 +139,7 @@ class UserRequestResponder:
         reason: str,
         via: str,
     ) -> user_request_module.UserRequest:
-        """Records the decision on a held call, runs the call when it is allowed, and tells the desk.
+        """Records the decision on a held call, runs the call when it is allowed, and tells the trader.
 
         Args:
             request_id (str): The request.
@@ -141,20 +152,29 @@ class UserRequestResponder:
 
         Raises:
             user_request_store_module.UserRequestError: The request does not exist, is no longer pending, or has expired.
-            ValueError: The request is not a permission request, the decision is not valid, or the desk's tools are not known.
+            ValueError: The request is not a permission request, the decision is not valid, or the trader's tools are not known.
         """
         request = self._store.pending_request(request_id)
         if request.kind != user_request_module.PERMISSION:
-            raise ValueError(f'Request {request_id} is a {request.kind}, not a permission request')
-        response = permission_response_module.PermissionResponse(request, decision, reason)
+            raise ValueError(
+                f'Request {request_id} is a {request.kind}, not a permission request'
+            )
+        response = permission_response_module.PermissionResponse(
+            request, decision, reason
+        )
         response.check()
         result = None
         if response.allows:
-            registry = self._tool_registries.get(request.desk)
+            registry = self._tool_registries.get(request.trader)
             if registry is None:
-                raise ValueError(f'The tools of desk {request.desk!r} are not known here')
-            if decision == permission_response_module.ALWAYS_ALLOW and self._grants is not None:
-                self._grants.grant(request.desk, request.content['tool_name'])
+                raise ValueError(
+                    f'The tools of trader {request.trader!r} are not known here'
+                )
+            if (
+                decision == permission_response_module.ALWAYS_ALLOW
+                and self._grants is not None
+            ):
+                self._grants.grant(request.trader, request.content['tool_name'])
             call = messages.ToolCall(
                 call_id=str(request.content.get('call_id', request.request_id)),
                 name=request.content['tool_name'],
@@ -170,7 +190,7 @@ class UserRequestResponder:
         )
 
     def report_expired(self, request: user_request_module.UserRequest) -> None:
-        """Tells the desk that a request lapsed without an answer.
+        """Tells the trader that a request lapsed without an answer.
 
         Args:
             request (user_request_module.UserRequest): The request, already saved as expired.
@@ -182,8 +202,10 @@ class UserRequestResponder:
         self._publish_response(request, user_request_module.EXPIRED, {}, '')
         self._send(request, message)
 
-    def dismiss(self, request_id: str, via: str) -> user_request_module.UserRequest:
-        """Closes a request without answering it, and tells the desk to use its own judgment.
+    def dismiss(
+        self, request_id: str, via: str
+    ) -> user_request_module.UserRequest:
+        """Closes a request without answering it, and tells the trader to use its own judgment.
 
         Args:
             request_id (str): The request.
@@ -213,13 +235,13 @@ class UserRequestResponder:
         message: str,
         via: str,
     ) -> user_request_module.UserRequest:
-        """Saves the response, publishes it, and sends the desk its message.
+        """Saves the response, publishes it, and sends the trader its message.
 
         Args:
             request (user_request_module.UserRequest): The pending request.
             status (str): "answered" or "dismissed".
             response (dict[str, Any]): The response to save.
-            message (str): What the desk is told.
+            message (str): What the trader is told.
             via (str): "web", "terminal" or "telegram".
 
         Returns:
@@ -255,7 +277,7 @@ class UserRequestResponder:
         self._event_bus.publish(
             event_module.Event.now(
                 event_module.EventKind.USER_RESPONSE,
-                request.desk,
+                request.trader,
                 {
                     'request_id': request.request_id,
                     'kind': request.kind,
@@ -267,20 +289,22 @@ class UserRequestResponder:
             )
         )
 
-    def _send(self, request: user_request_module.UserRequest, message: str) -> None:
-        """Hands the desk a message about its request, as a user message naming the request.
+    def _send(
+        self, request: user_request_module.UserRequest, message: str
+    ) -> None:
+        """Hands the trader a message about its request, as a user message naming the request.
 
         Args:
             request (user_request_module.UserRequest): The request.
-            message (str): What the desk is told.
+            message (str): What the trader is told.
         """
-        desk = self._desks.get(request.desk)
-        if desk is None:
+        trader = self._traders.get(request.trader)
+        if trader is None:
             return
-        desk.submit(
+        trader.submit(
             trigger_module.Trigger.now(
                 trigger_module.TriggerSource.USER_MESSAGE,
-                request.desk,
+                request.trader,
                 message,
                 request_id=request.request_id,
             )

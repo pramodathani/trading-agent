@@ -1,6 +1,6 @@
 <svg class="ta-svg" viewBox="0 0 1000 630" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="browser-title browser-description">
   <title id="browser-title">The browser tools</title>
-  <desc id="browser-description">Each desk has its own headless Chrome; a request guard blocks local addresses, and pages come back as numbered elements and text.</desc>
+  <desc id="browser-description">Each trader has its own headless Chrome; a request guard blocks local addresses, and pages come back as numbered elements and text.</desc>
   <path class="wire" d="M140,305 L460,305 L720,305 L910,170"/>
   <path class="wire" d="M720,305 L910,440"/>
   <path class="wire" d="M460,305 L460,490 L140,490 L140,305"/>
@@ -11,14 +11,14 @@
   <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.3;0.48;1" keyPoints="0;0;1;1"><mpath href="#browser-request-refused"/></animateMotion></circle>
   <circle class="dot alt" r="6"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.52;0.92;1" keyPoints="0;0;1;1"><mpath href="#browser-page-back"/></animateMotion></circle>
   <rect class="box" x="40" y="255" width="200" height="100" rx="8"/>
-  <text class="title" x="140" y="283" text-anchor="middle">Desk</text>
+  <text class="title" x="140" y="283" text-anchor="middle">Trader</text>
   <text class="mono" x="140" y="305" text-anchor="middle">browser_open</text>
   <text class="mono" x="140" y="321" text-anchor="middle">browser_click 3</text>
   <text class="mono" x="140" y="337" text-anchor="middle">browser_screenshot</text>
   <rect class="accent-box" x="330" y="225" width="260" height="160" rx="8"/>
   <text class="title" x="460" y="253" text-anchor="middle">Chrome 153, headless</text>
   <text class="small" x="460" y="275" text-anchor="middle">driven by Playwright</text>
-  <text class="small" x="460" y="299" text-anchor="middle">its own profile per desk:</text>
+  <text class="small" x="460" y="299" text-anchor="middle">its own profile per trader:</text>
   <text class="small" x="460" y="315" text-anchor="middle">none of your logins or cookies</text>
   <text class="small" x="460" y="339" text-anchor="middle">ordinary Chrome identity,</text>
   <text class="small" x="460" y="355" text-anchor="middle">automation flag hidden</text>

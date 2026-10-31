@@ -23,7 +23,7 @@ class ToolStep:
         arguments: The call's arguments.
         result_text: The tool's answer, or None while it runs.
         is_error: Whether the tool reported a failure.
-        picture_path: A picture the tool showed the model, relative to the desk folder, or None.
+        picture_path: A picture the tool showed the model, relative to the trader folder, or None.
         ended_early: Whether the turn ended, for example by a stop, before the tool answered.
     """
 
@@ -49,7 +49,7 @@ class EventStep:
     """Any other event shown inside a turn, such as a risk decision or a model switch.
 
     Attributes:
-        event: The event, with kind, desk, payload and created_at.
+        event: The event, with kind, trader, payload and created_at.
     """
 
     event: dict[str, Any]
@@ -68,7 +68,7 @@ class SteeringStep:
 
 @dataclasses.dataclass
 class RequestStep:
-    """A question, plan or permission request the desk made during a turn, with its latest status.
+    """A question, plan or permission request the trader made during a turn, with its latest status.
 
     Attributes:
         request: The request, as GET /api/requests returns it.
@@ -90,11 +90,11 @@ class ToolRun:
 
 @dataclasses.dataclass
 class ChatTurn:
-    """One trigger and everything the desk did about it.
+    """One trigger and everything the trader did about it.
 
     Attributes:
         trigger_id: The trigger's id.
-        source: What woke the desk, such as "user_message" or "cron".
+        source: What woke the trader, such as "user_message" or "cron".
         text: The trigger's text.
         attachments: The files the user sent with it.
         received_at: When the gateway received it, as ISO text.
@@ -103,15 +103,15 @@ class ChatTurn:
         started: Whether the turn has started.
         finished: Whether the turn has finished.
         steps: Tool calls, events, steering messages and requests, in order.
-        answer: The desk's final answer, or None until it arrives.
-        silent: Whether the desk decided there was nothing to say.
+        answer: The trader's final answer, or None until it arrives.
+        silent: Whether the trader decided there was nothing to say.
         error: Why the turn failed, or None.
         backend: The backend that answered, or None.
         steering_into: The running turn this message was handed to, or None.
         steering_outcome: "waiting", "delivered" or "queued" for a steering message, otherwise None.
         stopped: Whether the user stopped the turn.
         request_id: The question, plan or permission this trigger answers, or None.
-        streaming_text: The text the desk is writing now, before the final answer arrives.
+        streaming_text: The text the trader is writing now, before the final answer arrives.
     """
 
     trigger_id: str
@@ -193,7 +193,7 @@ class ChatTurn:
 
 @dataclasses.dataclass
 class LooseEvent:
-    """An event that belongs to no turn, such as a fill reported while the desk was idle.
+    """An event that belongs to no turn, such as a fill reported while the trader was idle.
 
     Attributes:
         event: The event.

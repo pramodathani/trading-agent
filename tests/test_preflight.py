@@ -5,11 +5,11 @@ from pathlib import Path
 
 from trading_agent.channels import pairing_store
 from trading_agent.doctor import doctor_check
-from trading_agent.doctor.checks import desk_loss_limits_check
 from trading_agent.doctor.checks import dry_run_order_check
 from trading_agent.doctor.checks import journal_search
 from trading_agent.doctor.checks import ownership_conflict_check
 from trading_agent.doctor.checks import telegram_pairing_check
+from trading_agent.doctor.checks import trader_loss_limits_check
 from trading_agent.doctor.checks import trading_mode_check
 from trading_agent.workspace import workspace_layout
 
@@ -27,7 +27,7 @@ def _journal(
         journal_search.JournalSearch: The search.
     """
     layout = workspace_layout.WorkspaceLayout(directory)
-    folder = layout.desk_directory('main') / 'journal'
+    folder = layout.trader_directory('main') / 'journal'
     folder.mkdir(parents=True)
     lines = [json.dumps(event) for event in events]
     (folder / '2026-10-19.jsonl').write_text(
@@ -49,7 +49,7 @@ class TestGoingLiveChecks:
             [
                 {
                     'kind': 'order',
-                    'desk': 'main',
+                    'trader': 'main',
                     'created_at': '2026-10-19T04:00:00+00:00',
                     'payload': {
                         'action': 'placed',
@@ -74,7 +74,7 @@ class TestGoingLiveChecks:
             [
                 {
                     'kind': 'order',
-                    'desk': 'main',
+                    'trader': 'main',
                     'payload': {
                         'action': 'flattened',
                         'dry_run': True,
@@ -89,17 +89,17 @@ class TestGoingLiveChecks:
         )
 
     def test_ownership_refusal_is_found(self, tmp_path: Path) -> None:
-        """A refusal saying the stock belongs to another desk passes the check."""
+        """A refusal saying the stock belongs to another trader passes the check."""
         search = _journal(
             tmp_path,
             [
                 {
                     'kind': 'risk_decision',
-                    'desk': 'main',
+                    'trader': 'main',
                     'payload': {
                         'approved': False,
                         'reasons': [
-                            'IDEA belongs to the intraday desk; one desk trades an instrument at a time.',
+                            'IDEA belongs to the intraday trader; one trader trades an instrument at a time.',
                         ],
                     },
                 },
@@ -119,10 +119,10 @@ class TestGoingLiveChecks:
             == doctor_check.CheckStatus.WARNING
         )
 
-    def test_no_desk_limits_is_reported_as_a_choice(
+    def test_no_trader_limits_is_reported_as_a_choice(
         self, tmp_path: Path
     ) -> None:
-        """With no desk limits the check passes and names the account limits."""
+        """With no trader limits the check passes and names the account limits."""
         layout = workspace_layout.WorkspaceLayout(tmp_path)
         layout.create_missing(
             [
@@ -130,7 +130,7 @@ class TestGoingLiveChecks:
             ]
         )
 
-        result = desk_loss_limits_check.DeskLossLimitsCheck(
+        result = trader_loss_limits_check.TraderLossLimitsCheck(
             layout.trading_rules_file, ['main']
         ).run()
 

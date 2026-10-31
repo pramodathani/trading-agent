@@ -1,10 +1,10 @@
-"""Keeps one desk's price alerts: wake me when this instrument trades above or below a price.
+"""Keeps one trader's price alerts: wake me when this instrument trades above or below a price.
 
-Alerts live in `desks/<desk>/alerts.json`. The market watcher checks them every cycle while the market is open, wakes the desk when one is crossed, and removes it, so each alert fires once.
+Alerts live in `traders/<trader>/alerts.json`. The market watcher checks them every cycle while the market is open, wakes the trader when one is crossed, and removes it, so each alert fires once.
 
 Typical usage example:
 
-  store = PriceAlertStore(Path('workspace/desks/main/alerts.json'))
+  store = PriceAlertStore(Path('workspace/traders/main/alerts.json'))
   store.add(alert)
 """
 
@@ -36,7 +36,7 @@ class PriceAlert:
         symbol: Its symbol, for messages.
         condition: "above" or "below".
         price: The price that fires the alert.
-        note: What the desk wanted to do when it fires.
+        note: What the trader wanted to do when it fires.
         created_at: When it was set, as an ISO 8601 string.
     """
 
@@ -92,13 +92,13 @@ class PriceAlert:
 
 
 class PriceAlertStore:
-    """One desk's alerts file."""
+    """One trader's alerts file."""
 
     def __init__(self, path: Path):
         """Describes the file without touching the disk.
 
         Args:
-            path (Path): The desk's alerts.json.
+            path (Path): The trader's alerts.json.
         """
         self._path = path
 

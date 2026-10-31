@@ -9,4 +9,4 @@ Pairing is the plan's answer to "only you can command the bot". A bot is public:
 - **One code per chat.** A stranger who keeps messaging gets the same code, and at most five codes wait at once, so strangers cannot flood the Channels page.
 - **The file is read afresh each time**, so `trading-agent pairing approve` in a terminal takes effect in the running gateway without a restart.
 - **The file is written in one step** (temporary file, then rename) so a crash mid-write cannot leave a half-written file that unpairs everyone.
-- **It lives in workspace/shared**, which the desks' file tools cannot write and the bash sandbox mounts read-only, so a desk cannot pair a chat on its own.
+- **It lives in workspace/shared**, which the traders' file tools cannot write and the bash sandbox mounts read-only, so a trader cannot pair a chat on its own.

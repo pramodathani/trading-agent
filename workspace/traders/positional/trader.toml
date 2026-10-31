@@ -1,0 +1,7 @@
+name = "positional"
+mandate = "Swing and positional trades held for days to weeks, following the positional strategies written in TradingRules.md, with cnc for shares and nrml for futures and options carried overnight."
+created_at = ""
+retired = false
+backend_order = ["claude", "deepseek", "qwen", "gemma"]
+rollover_time = "15:45"
+scheduled_checks = ["08:45", "12:30", "15:40"]

@@ -5,3 +5,7 @@ These interfaces mirror the JSON the gateway's routes return. They are written b
 ## `Attachment`, since 2026-10-17
 
 Mirrors `Attachment.to_json_dictionary` in Python, minus the absolute `path`, which the page has no use for.
+
+## TraderRecord and NewTrader
+
+The shapes of `/api/trader-records` and of the body of `POST /api/traders`. `heartbeat_minutes` is `null` for the default when creating, and for no heartbeat in a record.

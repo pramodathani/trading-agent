@@ -10,4 +10,4 @@ The RAG knowledge base (block 29): SQLite FTS5 over `workspace/shared/knowledge/
 - **AND, then OR.** Passages containing every query word come first; if there are none, passages with any of them. Query words are reduced to letters and digits and quoted, so a query can never be read as FTS5 syntax.
 - **Formats.** `.md`, `.markdown`, `.txt` and `.csv`. PDF extraction is in the backlog.
 - The index is `workspace/shared/knowledge.db`, ignored by git; it can be deleted at any time and is rebuilt on the next search.
-- One connection per call, so the tool can run it in a worker thread; SQLite's own locking (30-second timeout) handles two desks searching at once.
+- One connection per call, so the tool can run it in a worker thread; SQLite's own locking (30-second timeout) handles two traders searching at once.

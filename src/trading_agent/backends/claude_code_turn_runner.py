@@ -1,6 +1,6 @@
-"""Runs a desk's turns on Claude through Claude Code and the Max subscription.
+"""Runs a trader's turns on Claude through Claude Code and the Max subscription.
 
-Claude Code runs the agent loop itself, so this is a turn runner rather than a ModelBackend. It keeps one Claude Code session per desk, so Claude remembers earlier turns. It is set up so that it never stops for a human:
+Claude Code runs the agent loop itself, so this is a turn runner rather than a ModelBackend. It keeps one Claude Code session per trader, so Claude remembers earlier turns. It is set up so that it never stops for a human:
 
 - permission_mode is bypassPermissions and setting_sources is empty, so no "ask" rule from any settings file applies;
 - the subscription token from `claude setup-token` is passed as CLAUDE_CODE_OAUTH_TOKEN;
@@ -54,7 +54,7 @@ class ClaudeCodeSettings:
     """The settings of one Claude Code session that do not come from the backend's table.
 
     Attributes:
-        prompt_builder: Builds the desk's instructions before every turn.
+        prompt_builder: Builds the trader's instructions before every turn.
         oauth_token: The subscription token from `claude setup-token`.
         working_directory: The folder Claude Code runs in.
         maximum_rounds: The most model calls one turn may make.
@@ -73,7 +73,7 @@ class ClaudeCodeSettings:
 
 
 class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
-    """One desk's Claude Code session.
+    """One trader's Claude Code session.
 
     Attributes:
         session_id: Claude Code's session identifier, known after the first turn.
@@ -81,7 +81,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
 
     def __init__(
         self,
-        desk_name: str,
+        trader_name: str,
         backend_name: str,
         backend_configuration: agent_configuration.BackendConfiguration,
         bridge: claude_tool_bridge.ClaudeToolBridge,
@@ -92,15 +92,15 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         """Creates the runner without starting Claude Code.
 
         Args:
-            desk_name (str): The desk the session belongs to.
+            trader_name (str): The trader the session belongs to.
             backend_name (str): The backend's name in trading_agent.toml.
             backend_configuration (agent_configuration.BackendConfiguration): Its settings, of kind "claude_code".
-            bridge (claude_tool_bridge.ClaudeToolBridge): The desk's tools, as Claude Code sees them.
+            bridge (claude_tool_bridge.ClaudeToolBridge): The trader's tools, as Claude Code sees them.
             event_bus (event_bus_module.EventBus): Where every step is published.
             settings (ClaudeCodeSettings): The prompt, token, folder and round limit.
-            steering_inbox (steering_inbox_module.SteeringInbox | None): The desk's mid-turn messages, handed to Claude after each tool call, or None.
+            steering_inbox (steering_inbox_module.SteeringInbox | None): The trader's mid-turn messages, handed to Claude after each tool call, or None.
         """
-        self._desk_name = desk_name
+        self._trader_name = trader_name
         self._backend_name = backend_name
         self._model = backend_configuration.model
         self._model_override: str | None = None
@@ -163,9 +163,9 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
             ) from error
 
     async def side_question(self, question: str) -> str:
-        """Answers a question in a throwaway fork of the session, so the desk's own session is not changed.
+        """Answers a question in a throwaway fork of the session, so the trader's own session is not changed.
 
-        The fork runs in its own short-lived Claude Code process, beside any turn the desk is running. Its session file is deleted afterwards.
+        The fork runs in its own short-lived Claude Code process, beside any turn the trader is running. Its session file is deleted afterwards.
 
         Args:
             question (str): The user's question.
@@ -212,7 +212,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
     ) -> claude_agent_sdk.ClaudeAgentOptions:
         """Builds the options for a side question: a fork of the session in which every tool call is refused.
 
-        The desk's tools stay defined, because a session whose history holds tool calls cannot be continued without them, but an empty allowlist refuses each call.
+        The trader's tools stay defined, because a session whose history holds tool calls cannot be continued without them, but an empty allowlist refuses each call.
 
         Args:
             prompt_text (str): The system prompt.
@@ -433,7 +433,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         """
         flush_trigger = trigger_module.Trigger.now(
             trigger_module.TriggerSource.COMPRESSION,
-            self._desk_name,
+            self._trader_name,
             context_compressor.FLUSH_REQUEST,
         )
         self._bridge.current_trigger = flush_trigger
@@ -611,7 +611,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
             allowed_tool_names
         )
         pre_compact_hook = claude_pre_compact_hook.ClaudePreCompactHook(
-            self._desk_name,
+            self._trader_name,
             self._backend_name,
             self._event_bus,
             self.note_compaction,
@@ -675,7 +675,7 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         """The hooks that run after each tool call.
 
         Returns:
-            list[claude_steering_hook.ClaudeSteeringHook]: The steering hook, or nothing when the desk has no steering inbox.
+            list[claude_steering_hook.ClaudeSteeringHook]: The steering hook, or nothing when the trader has no steering inbox.
         """
         if self._steering_inbox is None:
             return []
@@ -884,9 +884,9 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
             return False
         if not self._session_file_exists(session_id):
             _LOGGER.warning(
-                'Claude Code no longer has session %s; desk %s starts a new one',
+                'Claude Code no longer has session %s; trader %s starts a new one',
                 session_id,
-                self._desk_name,
+                self._trader_name,
             )
             return False
         await self._disconnect()
@@ -919,8 +919,16 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         self._session_prompt_fingerprint = None
         self._context_usage = None
 
+    async def release(self) -> None:
+        """Stops Claude Code while the trader sleeps; the next turn starts a process that resumes the same session.
+
+        Returns:
+            None.
+        """
+        await self._disconnect()
+
     async def close(self) -> None:
-        """Stops the desk's Claude Code process when the desk stops."""
+        """Stops the trader's Claude Code process when the trader stops."""
         await self._disconnect()
 
     async def _disconnect(self) -> None:
@@ -943,12 +951,12 @@ class ClaudeCodeTurnRunner(turn_runner.TurnRunner):
         _LOGGER.debug('claude code: %s', line.rstrip())
 
     def _publish(self, kind: event_module.EventKind, payload: dict) -> None:
-        """Publishes an event from this desk.
+        """Publishes an event from this trader.
 
         Args:
             kind (event_module.EventKind): What happened.
             payload (dict): The event's details.
         """
         self._event_bus.publish(
-            event_module.Event.now(kind, self._desk_name, payload)
+            event_module.Event.now(kind, self._trader_name, payload)
         )

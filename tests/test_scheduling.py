@@ -12,9 +12,9 @@ import pytest
 
 from trading_agent.configuration import agent_configuration
 from trading_agent.risk import exchange_hours
-from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
+from trading_agent.runtime import trader_runtime
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.runtime import turn_runner
 from trading_agent.scheduling import built_in_jobs
@@ -187,20 +187,20 @@ class TestCronJob:
             )
 
 
-class _FakeDesk:
-    """Stands in for a running desk.
+class _FakeTrader:
+    """Stands in for a running trader.
 
     Attributes:
-        name: The desk's name.
+        name: The trader's name.
         state: Its state.
         queued_count: How many triggers wait.
         submitted: The triggers it received.
     """
 
     def __init__(self):
-        """Creates an idle desk."""
+        """Creates an idle trader."""
         self.name = 'main'
-        self.state = desk_runtime.DeskState.IDLE
+        self.state = trader_runtime.TraderState.IDLE
         self.queued_count = 0
         self.submitted = []
 
@@ -286,12 +286,12 @@ class _Clock:
 
 
 class _Setup:
-    """A scheduler over one fake desk.
+    """A scheduler over one fake trader.
 
     Attributes:
         clock: The scheduler's clock.
-        desk: The fake desk.
-        store: The desk's job store.
+        trader: The fake trader.
+        store: The trader's job store.
         commands: The fake command runner.
         event_bus: The bus.
         scheduler: The scheduler.
@@ -312,12 +312,12 @@ class _Setup:
         """
         calendar = _calendar(tmp_path)
         self.clock = _Clock(start)
-        self.desk = _FakeDesk()
+        self.trader = _FakeTrader()
         self.store = cron_job_store.CronJobStore(tmp_path / 'cron')
         self.commands = _FakeCommandRunner()
         self.event_bus = event_bus_module.EventBus()
-        schedule = cron_scheduler.DeskSchedule(
-            desk=self.desk,
+        schedule = cron_scheduler.TraderSchedule(
+            trader=self.trader,
             store=self.store,
             built_in_jobs=built_in_jobs.BuiltInJobs().jobs(
                 heartbeat_minutes, '15:45'
@@ -359,7 +359,7 @@ class TestCronScheduler:
     """The scheduler starts jobs on time, catches up once, and skips a busy heartbeat."""
 
     def test_agent_job_runs_on_time_once(self, tmp_path: Path) -> None:
-        """A 09:30 job reaches the desk at 09:30, labelled, and not again at 09:31.
+        """A 09:30 job reaches the trader at 09:30, labelled, and not again at 09:31.
 
         Args:
             tmp_path (Path): A scratch folder.
@@ -380,8 +380,8 @@ class TestCronScheduler:
                 await setup.scheduler.tick()
 
         asyncio.run(scenario())
-        assert len(setup.desk.submitted) == 1
-        trigger = setup.desk.submitted[0]
+        assert len(setup.trader.submitted) == 1
+        trigger = setup.trader.submitted[0]
         assert trigger.source == trigger_module.TriggerSource.CRON
         assert (
             trigger.text
@@ -419,30 +419,30 @@ class TestCronScheduler:
         assert asyncio.run(scenario()) == [
             'Open check',
         ]
-        assert 'running late' in setup.desk.submitted[0].text
-        assert len(setup.desk.submitted) == 1
+        assert 'running late' in setup.trader.submitted[0].text
+        assert len(setup.trader.submitted) == 1
 
-    def test_heartbeat_waits_for_an_idle_desk(self, tmp_path: Path) -> None:
-        """A heartbeat on a busy desk is skipped and recorded; the next one on an idle desk runs.
+    def test_heartbeat_waits_for_an_idle_trader(self, tmp_path: Path) -> None:
+        """A heartbeat on a busy trader is skipped and recorded; the next one on an idle trader runs.
 
         Args:
             tmp_path (Path): A scratch folder.
         """
         setup = _Setup(tmp_path, _moment(19, 10, 1), heartbeat_minutes=15)
-        setup.desk.state = desk_runtime.DeskState.BUSY
+        setup.trader.state = trader_runtime.TraderState.BUSY
 
         async def scenario() -> None:
             """Ticks at 10:15 busy and 10:30 idle."""
             setup.clock.now = _moment(19, 10, 15)
             await setup.scheduler.tick()
-            setup.desk.state = desk_runtime.DeskState.IDLE
+            setup.trader.state = trader_runtime.TraderState.IDLE
             setup.clock.now = _moment(19, 10, 30)
             await setup.scheduler.tick()
 
         asyncio.run(scenario())
-        assert len(setup.desk.submitted) == 1
+        assert len(setup.trader.submitted) == 1
         assert (
-            setup.desk.submitted[0].source
+            setup.trader.submitted[0].source
             == trigger_module.TriggerSource.HEARTBEAT
         )
         runs = (
@@ -540,7 +540,7 @@ class TestCronScheduler:
             'scan',
             'news',
         ]
-        assert setup.desk.submitted[0].text.endswith('Wake up.')
+        assert setup.trader.submitted[0].text.endswith('Wake up.')
         assert setup.commands.commands == [
             'python3 scan.py',
         ]
@@ -577,25 +577,25 @@ class TestHeartbeatAnswers:
     def test_silent_flag(self) -> None:
         """A heartbeat answered NOTHING_TO_DO is silent; the same answer to the user is not."""
         event_bus = event_bus_module.EventBus()
-        desk = desk_runtime.DeskRuntime(
-            agent_configuration.DeskConfiguration(name='main'),
+        trader = trader_runtime.TraderRuntime(
+            agent_configuration.TraderConfiguration(name='main'),
             event_bus,
             _ReplyRunner(),
         )
         subscription = event_bus.subscribe()
 
         async def scenario() -> list[bool]:
-            """Runs a heartbeat and a user message through the desk.
+            """Runs a heartbeat and a user message through the trader.
 
             Returns:
                 list[bool]: The silent flag of each text event.
             """
-            task = asyncio.create_task(desk.run())
+            task = asyncio.create_task(trader.run())
             for source in (
                 trigger_module.TriggerSource.HEARTBEAT,
                 trigger_module.TriggerSource.USER_MESSAGE,
             ):
-                desk.submit(trigger_module.Trigger.now(source, 'main', 'go'))
+                trader.submit(trigger_module.Trigger.now(source, 'main', 'go'))
             flags = []
             while len(flags) < 2:
                 published = await subscription.next_event()
@@ -611,7 +611,7 @@ class TestHeartbeatAnswers:
 
 
 class TestSchedulingTools:
-    """The desk's scheduling tools check what they are given."""
+    """The trader's scheduling tools check what they are given."""
 
     def test_create_wakeup_and_delete(self, tmp_path: Path) -> None:
         """A bad schedule is refused, a good one shows its runs, a wake-up needs one time, and built-ins cannot be deleted.

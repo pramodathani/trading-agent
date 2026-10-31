@@ -36,7 +36,7 @@ class PermissionResponse:
         Args:
             request (user_request_module.UserRequest): The permission request.
             decision (str): "allow_once", "always_allow" or "deny".
-            reason (str): Why it was denied, or what the desk should do instead; may be empty.
+            reason (str): Why it was denied, or what the trader should do instead; may be empty.
         """
         self._request = request
         self.decision = decision
@@ -54,7 +54,9 @@ class PermissionResponse:
             ValueError: The decision is not one of DECISIONS.
         """
         if self.decision not in DECISIONS:
-            raise ValueError(f'Permission is allow_once, always_allow or deny, not {self.decision!r}')
+            raise ValueError(
+                f'Permission is allow_once, always_allow or deny, not {self.decision!r}'
+            )
 
     def stored(self, result: tool_module.ToolResult | None) -> dict[str, Any]:
         """The response as saved with the request.
@@ -75,7 +77,7 @@ class PermissionResponse:
         return stored
 
     def message(self, result: tool_module.ToolResult | None) -> str:
-        """The message the desk receives.
+        """The message the trader receives.
 
         Args:
             result (tool_module.ToolResult | None): What the call returned when it was run, or None when it was denied.

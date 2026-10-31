@@ -22,7 +22,7 @@ interface TurnProgressProperties {
 }
 
 /**
- * The live line under a running turn, as in Claude Code: an animated spark, shimmering words saying what the desk is doing, and the time it has taken so far.
+ * The live line under a running turn, as in Claude Code: an animated spark, shimmering words saying what the trader is doing, and the time it has taken so far.
  * @param properties The running turn and the text it has streamed so far.
  * @returns The line.
  */

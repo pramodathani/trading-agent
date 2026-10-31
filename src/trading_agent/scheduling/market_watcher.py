@@ -1,16 +1,16 @@
-"""Watches the market for the desks, with no model: fills, price alerts and the account's loss limits.
+"""Watches the market for the traders, with no model: fills, price alerts and the account's loss limits.
 
 While NSE equities or MCX trade, every cycle (15 seconds by default) it:
 
-1. reads UBI's order book once and finds the finished broker orders (complete, cancelled, rejected or expired) that belong to a desk's own orders in the desk order book, matched by parent_id or order_id; each desk gets one message listing its updates;
-2. reads the last price of every instrument a desk has an alert on, once each, and wakes the desk for each alert crossed, removing the alert;
-3. once a minute, asks the risk engine to check the account, so the kill switch fires at the daily or weekly loss limit, and a desk is halted at its own daily loss limit, even when no desk is placing orders; the account's and each desk's profit and loss are then published as an account_status event.
+1. reads UBI's order book once and finds the finished broker orders (complete, cancelled, rejected or expired) that belong to a trader's own orders in the trader order book, matched by parent_id or order_id; each trader gets one message listing its updates;
+2. reads the last price of every instrument a trader has an alert on, once each, and wakes the trader for each alert crossed, removing the alert;
+3. once a minute, asks the risk engine to check the account, so the kill switch fires at the daily or weekly loss limit, and a trader is halted at its own daily loss limit, even when no trader is placing orders; the account's and each trader's profit and loss are then published as an account_status event.
 
 The ids of orders already reported are kept in a small file, so a restart neither repeats a fill nor forgets one that finished while the gateway was down. Dry-run orders reach no broker, so they never appear in the order book and are skipped.
 
 Typical usage example:
 
-  watcher = MarketWatcher(desks, alert_stores, order_book, reader, risk_engine, hours, event_bus, state_file)
+  watcher = MarketWatcher(traders, alert_stores, order_book, reader, risk_engine, hours, event_bus, state_file)
   task = asyncio.create_task(watcher.run())
 """
 
@@ -31,16 +31,16 @@ from tradingmachine.unified_broker_interface import exceptions as ubi_exceptions
 from trading_agent.risk import account_snapshot as account_snapshot_module
 from trading_agent.risk import exchange_hours as exchange_hours_module
 from trading_agent.risk import risk_engine as risk_engine_module
-from trading_agent.runtime import desk_runtime as desk_runtime_module
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
+from trading_agent.runtime import trader_runtime as trader_runtime_module
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.scheduling import (
     price_alert_store as price_alert_store_module,
 )
 from trading_agent.trading import broker_reader as broker_reader_module
-from trading_agent.trading import desk_order_book as desk_order_book_module
 from trading_agent.trading import instrument_arguments
+from trading_agent.trading import trader_order_book as trader_order_book_module
 
 _LOGGER = logging.getLogger(__name__)
 _INDIA = zoneinfo.ZoneInfo('Asia/Kolkata')
@@ -56,13 +56,13 @@ _REMEMBERED_ORDER_IDS = 5000
 
 
 class MarketWatcher:
-    """The model-free loop that wakes desks when something happens in the market."""
+    """The model-free loop that wakes traders when something happens in the market."""
 
     def __init__(
         self,
-        desks: Mapping[str, desk_runtime_module.DeskRuntime],
+        traders: Mapping[str, trader_runtime_module.TraderRuntime],
         alert_stores: Mapping[str, price_alert_store_module.PriceAlertStore],
-        order_book: desk_order_book_module.DeskOrderBook,
+        order_book: trader_order_book_module.TraderOrderBook,
         reader: broker_reader_module.BrokerReader,
         risk_engine: risk_engine_module.RiskEngine,
         hours: exchange_hours_module.ExchangeHours,
@@ -75,9 +75,9 @@ class MarketWatcher:
         """Creates the watcher.
 
         Args:
-            desks (Mapping[str, desk_runtime_module.DeskRuntime]): The running desks, keyed by name.
-            alert_stores (Mapping[str, price_alert_store_module.PriceAlertStore]): Each desk's alerts.
-            order_book (desk_order_book_module.DeskOrderBook): Which desk placed which order.
+            traders (Mapping[str, trader_runtime_module.TraderRuntime]): The running traders, keyed by name.
+            alert_stores (Mapping[str, price_alert_store_module.PriceAlertStore]): Each trader's alerts.
+            order_book (trader_order_book_module.TraderOrderBook): Which trader placed which order.
             reader (broker_reader_module.BrokerReader): The shared UBI reader.
             risk_engine (risk_engine_module.RiskEngine): Checks the account's loss limits.
             hours (exchange_hours_module.ExchangeHours): Decides when the market is open.
@@ -87,7 +87,7 @@ class MarketWatcher:
             account_check_seconds (float): The time between account checks.
             clock (Callable[[], datetime.datetime] | None): Returns the current time; None uses the system clock.
         """
-        self._desks = desks
+        self._traders = traders
         self._alert_stores = alert_stores
         self._order_book = order_book
         self._reader = reader
@@ -154,12 +154,12 @@ class MarketWatcher:
         self,
         snapshot: account_snapshot_module.AccountSnapshot,
     ) -> None:
-        """Publishes the account's and each desk's profit and loss today.
+        """Publishes the account's and each trader's profit and loss today.
 
         Args:
             snapshot (account_snapshot_module.AccountSnapshot): The account now.
         """
-        desk_pnl = self._risk_engine.desk_day_pnl(snapshot)
+        trader_pnl = self._risk_engine.trader_day_pnl(snapshot)
         self._event_bus.publish(
             event_module.Event.now(
                 event_module.EventKind.ACCOUNT_STATUS,
@@ -167,21 +167,21 @@ class MarketWatcher:
                 {
                     'total_balance': snapshot.total_balance,
                     'day_pnl': snapshot.day_pnl,
-                    'desk_pnl': desk_pnl,
+                    'trader_pnl': trader_pnl,
                     'open_positions': len(snapshot.positions),
                 },
             )
         )
 
     async def check_fills(self) -> int:
-        """Reports newly finished broker orders to the desks that placed them.
+        """Reports newly finished broker orders to the traders that placed them.
 
         Returns:
             int: How many order updates were reported.
         """
         records = []
-        for desk_name in self._desks:
-            for record in self._order_book.open_orders(desk_name):
+        for trader_name in self._traders:
+            for record in self._order_book.open_orders(trader_name):
                 if not record.dry_run:
                     records.append(record)
         if not records:
@@ -210,10 +210,10 @@ class MarketWatcher:
                 continue
             self._reported_order_ids.append(order_id)
             line = self._fill_line(entry, record, status)
-            updates.setdefault(record.desk, []).append(line)
+            updates.setdefault(record.trader, []).append(line)
             self._publish(
                 event_module.EventKind.FILL,
-                record.desk,
+                record.trader,
                 {
                     'order_id': order_id,
                     'parent_id': record.parent_id,
@@ -229,21 +229,21 @@ class MarketWatcher:
             )
         if updates:
             self._write_reported_order_ids()
-        for desk_name, lines in updates.items():
+        for trader_name, lines in updates.items():
             self._wake(
-                desk_name, '[Order update from the market watcher]', lines
+                trader_name, '[Order update from the market watcher]', lines
             )
         return sum(len(lines) for lines in updates.values())
 
     async def check_alerts(self) -> int:
-        """Wakes desks whose price alerts were crossed, and removes those alerts.
+        """Wakes traders whose price alerts were crossed, and removes those alerts.
 
         Returns:
             int: How many alerts fired.
         """
         prices: dict[str, float | None] = {}
         fired = 0
-        for desk_name, store in self._alert_stores.items():
+        for trader_name, store in self._alert_stores.items():
             lines = []
             for alert in store.alerts():
                 if alert.instrument_id not in prices:
@@ -261,7 +261,7 @@ class MarketWatcher:
                 )
                 self._publish(
                     event_module.EventKind.PRICE_ALERT,
-                    desk_name,
+                    trader_name,
                     {
                         'alert_id': alert.alert_id,
                         'symbol': alert.symbol,
@@ -273,7 +273,7 @@ class MarketWatcher:
                 )
             if lines:
                 self._wake(
-                    desk_name, '[Price alert from the market watcher]', lines
+                    trader_name, '[Price alert from the market watcher]', lines
                 )
         return fired
 
@@ -317,16 +317,16 @@ class MarketWatcher:
     def _matching_record(
         self,
         entry: dict[str, Any],
-        records: list[desk_order_book_module.OrderRecord],
-    ) -> desk_order_book_module.OrderRecord | None:
-        """Finds the desk order a broker order belongs to.
+        records: list[trader_order_book_module.OrderRecord],
+    ) -> trader_order_book_module.OrderRecord | None:
+        """Finds the trader order a broker order belongs to.
 
         Args:
             entry (dict[str, Any]): One order from UBI's order book.
-            records (list[desk_order_book_module.OrderRecord]): The desks' open, real orders.
+            records (list[trader_order_book_module.OrderRecord]): The traders' open, real orders.
 
         Returns:
-            desk_order_book_module.OrderRecord | None: The matching record, or None when no desk placed it.
+            trader_order_book_module.OrderRecord | None: The matching record, or None when no trader placed it.
         """
         parent_id = entry.get('engine_parent_id')
         order_id = str(entry.get('order_id', ''))
@@ -340,14 +340,14 @@ class MarketWatcher:
     def _fill_line(
         self,
         entry: dict[str, Any],
-        record: desk_order_book_module.OrderRecord,
+        record: trader_order_book_module.OrderRecord,
         status: str,
     ) -> str:
-        """Describes one finished order for the desk.
+        """Describes one finished order for the trader.
 
         Args:
             entry (dict[str, Any]): The broker order.
-            record (desk_order_book_module.OrderRecord): The desk's order it belongs to.
+            record (trader_order_book_module.OrderRecord): The trader's order it belongs to.
             status (str): The finished status.
 
         Returns:
@@ -364,21 +364,21 @@ class MarketWatcher:
             parts.append(f' ({entry.get("status_message")})')
         return ''.join(parts) + '.'
 
-    def _wake(self, desk_name: str, heading: str, lines: list[str]) -> None:
-        """Puts one market-watcher message in a desk's queue.
+    def _wake(self, trader_name: str, heading: str, lines: list[str]) -> None:
+        """Puts one market-watcher message in a trader's queue.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             heading (str): The message's first line.
             lines (list[str]): One line per update.
         """
-        desk = self._desks.get(desk_name)
-        if desk is None:
+        trader = self._traders.get(trader_name)
+        if trader is None:
             return
-        desk.submit(
+        trader.submit(
             trigger_module.Trigger.now(
                 trigger_module.TriggerSource.MARKET_WATCHER,
-                desk_name,
+                trader_name,
                 '\n'.join([heading, *lines]),
             )
         )
@@ -430,16 +430,16 @@ class MarketWatcher:
     def _publish(
         self,
         kind: event_module.EventKind,
-        desk_name: str,
+        trader_name: str,
         payload: dict,
     ) -> None:
-        """Publishes an event for a desk.
+        """Publishes an event for a trader.
 
         Args:
             kind (event_module.EventKind): What happened.
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             payload (dict): The details.
         """
         self._event_bus.publish(
-            event_module.Event.now(kind, desk_name, payload)
+            event_module.Event.now(kind, trader_name, payload)
         )

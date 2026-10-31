@@ -64,11 +64,11 @@ class PendingFiles(widgets.Static):
         """Hides the tray until a file is added."""
         self.display = False
 
-    def add(self, desk_name: str, path: Path) -> str | None:
+    def add(self, trader_name: str, path: Path) -> str | None:
         """Adds a file and starts uploading it.
 
         Args:
-            desk_name (str): The desk the message goes to.
+            trader_name (str): The trader the message goes to.
             path (Path): The local file.
 
         Returns:
@@ -80,7 +80,7 @@ class PendingFiles(widgets.Static):
         pending = PendingFile(local_id=next(self._numbers), path=path)
         self._files.append(pending)
         self._show()
-        self._upload(desk_name, pending)
+        self._upload(trader_name, pending)
         return None
 
     def remove_newest(self) -> bool:
@@ -136,16 +136,16 @@ class PendingFiles(widgets.Static):
         self._show()
 
     @work(group='upload')
-    async def _upload(self, desk_name: str, pending: PendingFile) -> None:
+    async def _upload(self, trader_name: str, pending: PendingFile) -> None:
         """Uploads one file.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
             pending (PendingFile): The file.
         """
         try:
             pending.attachment = await self._gateway.upload_attachment(
-                desk_name, pending.path
+                trader_name, pending.path
             )
         except (gateway_client.GatewayError, OSError) as error:
             pending.status = 'failed'

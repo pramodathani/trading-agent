@@ -1,4 +1,4 @@
-"""The cron_delete tool: removes one of the desk's scheduled jobs.
+"""The cron_delete tool: removes one of the trader's scheduled jobs.
 
 Typical usage example:
 
@@ -34,7 +34,7 @@ class CronDeleteTool(tool.Tool):
         """Creates the tool.
 
         Args:
-            store (cron_job_store_module.CronJobStore): The desk's jobs.
+            store (cron_job_store_module.CronJobStore): The trader's jobs.
         """
         self._store = store
 

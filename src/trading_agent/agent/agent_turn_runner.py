@@ -1,6 +1,6 @@
 """The turn runner that drives a model through the agent loop.
 
-It keeps the desk's conversation between turns, so the desk remembers what was said earlier, and rebuilds the system prompt before every turn, so an edit to a workspace file takes effect on the next turn.
+It keeps the trader's conversation between turns, so the trader remembers what was said earlier, and rebuilds the system prompt before every turn, so an edit to a workspace file takes effect on the next turn.
 
 Typical usage example:
 
@@ -34,7 +34,7 @@ class AgentTurnRunner(turn_runner.TurnRunner):
 
         Args:
             agent_loop (agent_loop_module.AgentLoop): The loop to run each turn with.
-            prompt_builder (prompt_builder_module.PromptBuilder): Builds the desk's system prompt.
+            prompt_builder (prompt_builder_module.PromptBuilder): Builds the trader's system prompt.
             context_window (int): How many tokens the model is given, for context_usage; 0 when it is not known.
         """
         self._agent_loop = agent_loop

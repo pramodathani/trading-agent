@@ -1,6 +1,6 @@
-"""The risk engine's memory, in a small SQLite database shared by every desk.
+"""The risk engine's memory, in a small SQLite database shared by every trader.
 
-It records which desk owns which instrument, which desk owned each instrument on each day (so a desk's profit and loss can be worked out even after it closed a position and gave the instrument up), when each desk's approved orders were sent, each day's profit or loss, and any trading halts, so that all of them survive a restart of the gateway. Only the risk engine and the kill switch write to it; the desks have no tool that can.
+It records which trader owns which instrument, which trader owned each instrument on each day (so a trader's profit and loss can be worked out even after it closed a position and gave the instrument up), when each trader's approved orders were sent, each day's profit or loss, and any trading halts, so that all of them survive a restart of the gateway. Only the risk engine and the kill switch write to it; the traders have no tool that can.
 
 Typical usage example:
 
@@ -14,11 +14,11 @@ import threading
 from pathlib import Path
 
 _SCHEMA = [
-    'CREATE TABLE IF NOT EXISTS ownership (instrument_id TEXT PRIMARY KEY, desk TEXT NOT NULL, claimed_at TEXT NOT NULL)',
-    'CREATE TABLE IF NOT EXISTS approvals (desk TEXT NOT NULL, approved_at TEXT NOT NULL)',
+    'CREATE TABLE IF NOT EXISTS ownership (instrument_id TEXT PRIMARY KEY, trader TEXT NOT NULL, claimed_at TEXT NOT NULL)',
+    'CREATE TABLE IF NOT EXISTS approvals (trader TEXT NOT NULL, approved_at TEXT NOT NULL)',
     'CREATE TABLE IF NOT EXISTS daily_pnl (trading_date TEXT PRIMARY KEY, pnl REAL NOT NULL)',
     'CREATE TABLE IF NOT EXISTS halts (scope TEXT NOT NULL, reason TEXT NOT NULL, until_date TEXT NOT NULL, created_at TEXT NOT NULL)',
-    'CREATE TABLE IF NOT EXISTS day_owners (trading_date TEXT NOT NULL, instrument_id TEXT NOT NULL, desk TEXT NOT NULL, PRIMARY KEY (trading_date, instrument_id))',
+    'CREATE TABLE IF NOT EXISTS day_owners (trading_date TEXT NOT NULL, instrument_id TEXT NOT NULL, trader TEXT NOT NULL, PRIMARY KEY (trading_date, instrument_id))',
 ]
 ACCOUNT_SCOPE = 'account'
 
@@ -40,17 +40,17 @@ class RiskLedger:
                 self._connection.execute(statement)
 
     def owner(self, instrument_id: str) -> str | None:
-        """The desk that owns an instrument.
+        """The trader that owns an instrument.
 
         Args:
             instrument_id (str): The instrument.
 
         Returns:
-            str | None: The desk's name, or None when no desk owns it.
+            str | None: The trader's name, or None when no trader owns it.
         """
         with self._lock:
             row = self._connection.execute(
-                'SELECT desk FROM ownership WHERE instrument_id = ?',
+                'SELECT trader FROM ownership WHERE instrument_id = ?',
                 (instrument_id,),
             ).fetchone()
         if row is None:
@@ -58,23 +58,23 @@ class RiskLedger:
         return row[0]
 
     def claim(
-        self, instrument_id: str, desk: str, now: datetime.datetime
+        self, instrument_id: str, trader: str, now: datetime.datetime
     ) -> None:
-        """Gives an instrument to a desk, or renews the desk's claim.
+        """Gives an instrument to a trader, or renews the trader's claim.
 
         Args:
             instrument_id (str): The instrument.
-            desk (str): The desk.
+            trader (str): The trader.
             now (datetime.datetime): When the claim is made.
         """
         with self._lock, self._connection:
             self._connection.execute(
-                'INSERT INTO ownership (instrument_id, desk, claimed_at) VALUES (?, ?, ?) ON CONFLICT(instrument_id) DO UPDATE SET desk = excluded.desk, claimed_at = excluded.claimed_at',
-                (instrument_id, desk, now.isoformat()),
+                'INSERT INTO ownership (instrument_id, trader, claimed_at) VALUES (?, ?, ?) ON CONFLICT(instrument_id) DO UPDATE SET trader = excluded.trader, claimed_at = excluded.claimed_at',
+                (instrument_id, trader, now.isoformat()),
             )
             self._connection.execute(
-                'INSERT INTO day_owners (trading_date, instrument_id, desk) VALUES (?, ?, ?) ON CONFLICT(trading_date, instrument_id) DO UPDATE SET desk = excluded.desk',
-                (now.date().isoformat(), instrument_id, desk),
+                'INSERT INTO day_owners (trading_date, instrument_id, trader) VALUES (?, ?, ?) ON CONFLICT(trading_date, instrument_id) DO UPDATE SET trader = excluded.trader',
+                (now.date().isoformat(), instrument_id, trader),
             )
 
     def release_unheld(
@@ -85,7 +85,7 @@ class RiskLedger:
     ) -> list[str]:
         """Releases claims on instruments that are no longer held.
 
-        A claim younger than the grace period is kept even when nothing is held yet, because the desk's order may still be waiting to fill.
+        A claim younger than the grace period is kept even when nothing is held yet, because the trader's order may still be waiting to fill.
 
         Args:
             held_instrument_ids (set[str]): The instruments the account holds now.
@@ -113,58 +113,58 @@ class RiskLedger:
         return released
 
     def day_owners(self, trading_date: datetime.date) -> dict[str, str]:
-        """Which desk owned each instrument on a day, released or not.
+        """Which trader owned each instrument on a day, released or not.
 
         Args:
             trading_date (datetime.date): The India date.
 
         Returns:
-            dict[str, str]: Desk names keyed by instrument id; the last desk to claim an instrument that day.
+            dict[str, str]: Trader names keyed by instrument id; the last trader to claim an instrument that day.
         """
         with self._lock:
             rows = self._connection.execute(
-                'SELECT instrument_id, desk FROM day_owners WHERE trading_date = ?',
+                'SELECT instrument_id, trader FROM day_owners WHERE trading_date = ?',
                 (trading_date.isoformat(),),
             ).fetchall()
         owners = {}
-        for instrument_id, desk in rows:
-            owners[instrument_id] = desk
+        for instrument_id, trader in rows:
+            owners[instrument_id] = trader
         return owners
 
-    def owned_by(self, desk: str) -> set[str]:
-        """The instruments a desk owns.
+    def owned_by(self, trader: str) -> set[str]:
+        """The instruments a trader owns.
 
         Args:
-            desk (str): The desk.
+            trader (str): The trader.
 
         Returns:
             set[str]: Their ids.
         """
         with self._lock:
             rows = self._connection.execute(
-                'SELECT instrument_id FROM ownership WHERE desk = ?',
-                (desk,),
+                'SELECT instrument_id FROM ownership WHERE trader = ?',
+                (trader,),
             ).fetchall()
         return {row[0] for row in rows}
 
-    def record_approval(self, desk: str, now: datetime.datetime) -> None:
-        """Records that one of a desk's orders was approved.
+    def record_approval(self, trader: str, now: datetime.datetime) -> None:
+        """Records that one of a trader's orders was approved.
 
         Args:
-            desk (str): The desk.
+            trader (str): The trader.
             now (datetime.datetime): When.
         """
         with self._lock, self._connection:
             self._connection.execute(
-                'INSERT INTO approvals (desk, approved_at) VALUES (?, ?)',
-                (desk, now.isoformat()),
+                'INSERT INTO approvals (trader, approved_at) VALUES (?, ?)',
+                (trader, now.isoformat()),
             )
 
-    def approvals_since(self, desk: str, since: datetime.datetime) -> int:
-        """How many of a desk's orders were approved since a moment.
+    def approvals_since(self, trader: str, since: datetime.datetime) -> int:
+        """How many of a trader's orders were approved since a moment.
 
         Args:
-            desk (str): The desk.
+            trader (str): The trader.
             since (datetime.datetime): The start of the period.
 
         Returns:
@@ -172,8 +172,8 @@ class RiskLedger:
         """
         with self._lock:
             row = self._connection.execute(
-                'SELECT COUNT(*) FROM approvals WHERE desk = ? AND approved_at >= ?',
-                (desk, since.isoformat()),
+                'SELECT COUNT(*) FROM approvals WHERE trader = ? AND approved_at >= ?',
+                (trader, since.isoformat()),
             ).fetchone()
         return int(row[0])
 
@@ -214,10 +214,10 @@ class RiskLedger:
         until_date: datetime.date,
         now: datetime.datetime,
     ) -> None:
-        """Stops a desk, or the whole account, from opening positions until a date.
+        """Stops a trader, or the whole account, from opening positions until a date.
 
         Args:
-            scope (str): ACCOUNT_SCOPE, or a desk's name.
+            scope (str): ACCOUNT_SCOPE, or a trader's name.
             reason (str): Why.
             until_date (datetime.date): The first day trading is allowed again.
             now (datetime.datetime): When the halt starts.
@@ -232,7 +232,7 @@ class RiskLedger:
         """The reason for a halt that is still in force.
 
         Args:
-            scope (str): ACCOUNT_SCOPE, or a desk's name.
+            scope (str): ACCOUNT_SCOPE, or a trader's name.
             today (datetime.date): Today, in India time.
 
         Returns:
@@ -248,22 +248,22 @@ class RiskLedger:
         return row[0]
 
     def owners(self) -> dict[str, str]:
-        """Every instrument a desk owns now.
+        """Every instrument a trader owns now.
 
         Returns:
-            dict[str, str]: Desk names keyed by instrument id.
+            dict[str, str]: Trader names keyed by instrument id.
         """
         with self._lock:
             rows = self._connection.execute(
-                'SELECT instrument_id, desk FROM ownership'
+                'SELECT instrument_id, trader FROM ownership'
             ).fetchall()
         owners = {}
-        for instrument_id, desk in rows:
-            owners[instrument_id] = desk
+        for instrument_id, trader in rows:
+            owners[instrument_id] = trader
         return owners
 
     def halts_in_force(self, today: datetime.date) -> list[dict[str, str]]:
-        """Every halt still in force, the account's and the desks'.
+        """Every halt still in force, the account's and the traders'.
 
         Args:
             today (datetime.date): Today, in India time.

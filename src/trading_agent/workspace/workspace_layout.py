@@ -1,6 +1,6 @@
 """Where every file in the agent's workspace lives, and creating the missing ones from templates.
 
-The workspace has a shared part that belongs to the user, and one folder per desk:
+The workspace has a shared part that belongs to the user, and one folder per trader:
 
   workspace/
     shared/   Agents.md  User.md  TradingRules.md
@@ -9,8 +9,8 @@ The workspace has a shared part that belongs to the user, and one folder per des
     shared/agents/   the user's subagent definitions, starting with four starters
     shared/hooks/<event>/   the user's hook scripts
     shared/packages/<package>/   installed packages
-    desks/<desk>/   Persona.md  Memory.md  notes/  sessions/  skills/  proposals/  requests/  scratch/  uploads/
-    .checkpoints/<desk>.git   snapshots of each desk's own files
+    traders/<trader>/   Persona.md  Memory.md  notes/  sessions/  skills/  proposals/  requests/  scratch/  uploads/
+    .checkpoints/<trader>.git   snapshots of each trader's own files
 
 Typical usage example:
 
@@ -28,7 +28,7 @@ SHARED_FILE_NAMES = (
     'User.md',
     'TradingRules.md',
 )
-DESK_FILE_NAMES = (
+TRADER_FILE_NAMES = (
     'Persona.md',
     'Memory.md',
 )
@@ -46,8 +46,8 @@ class WorkspaceLayout:
 
     Attributes:
         root: The workspace folder.
-        shared_directory: The folder of the files every desk shares.
-        agents_file: The operating manual every desk follows.
+        shared_directory: The folder of the files every trader shares.
+        agents_file: The operating manual every trader follows.
         user_file: What the agent knows about the user.
         trading_rules_file: The strategies and hard limits.
     """
@@ -66,46 +66,62 @@ class WorkspaceLayout:
 
     @property
     def risk_ledger_file(self) -> Path:
-        """The risk engine's SQLite ledger, shared by every desk."""
+        """The risk engine's SQLite ledger, shared by every trader."""
         return self.shared_directory / 'risk_ledger.db'
 
     @property
-    def desk_orders_file(self) -> Path:
-        """The SQLite record of which desk placed which order."""
-        return self.shared_directory / 'desk_orders.db'
+    def trader_orders_file(self) -> Path:
+        """The SQLite record of which trader placed which order."""
+        return self.shared_directory / 'trader_orders.db'
 
-    def desk_directory(self, desk_name: str) -> Path:
-        """The folder that belongs to one desk.
-
-        Args:
-            desk_name (str): The desk's name.
-
-        Returns:
-            Path: The desk's folder.
-        """
-        return self.root / 'desks' / desk_name
-
-    def persona_file(self, desk_name: str) -> Path:
-        """The desk's persona, which belongs to the user.
+    def trader_directory(self, trader_name: str) -> Path:
+        """The folder that belongs to one trader.
 
         Args:
-            desk_name (str): The desk's name.
+            trader_name (str): The trader's name.
 
         Returns:
-            Path: The desk's Persona.md.
+            Path: The trader's folder.
         """
-        return self.desk_directory(desk_name) / 'Persona.md'
+        return self.traders_directory / trader_name
 
-    def memory_file(self, desk_name: str) -> Path:
-        """The desk's lasting lessons, which the desk itself maintains.
+    @property
+    def traders_directory(self) -> Path:
+        """The folder holding one folder per trader."""
+        return self.root / 'traders'
+
+    def trader_file(self, trader_name: str) -> Path:
+        """The trader's record: its mandate, models, schedule and whether it is retired.
 
         Args:
-            desk_name (str): The desk's name.
+            trader_name (str): The trader's name.
 
         Returns:
-            Path: The desk's Memory.md.
+            Path: The trader's trader.toml.
         """
-        return self.desk_directory(desk_name) / 'Memory.md'
+        return self.trader_directory(trader_name) / 'trader.toml'
+
+    def persona_file(self, trader_name: str) -> Path:
+        """The trader's persona, which belongs to the user.
+
+        Args:
+            trader_name (str): The trader's name.
+
+        Returns:
+            Path: The trader's Persona.md.
+        """
+        return self.trader_directory(trader_name) / 'Persona.md'
+
+    def memory_file(self, trader_name: str) -> Path:
+        """The trader's lasting lessons, which the trader itself maintains.
+
+        Args:
+            trader_name (str): The trader's name.
+
+        Returns:
+            Path: The trader's Memory.md.
+        """
+        return self.trader_directory(trader_name) / 'Memory.md'
 
     @property
     def agents_directory(self) -> Path:
@@ -124,7 +140,7 @@ class WorkspaceLayout:
 
     @property
     def knowledge_directory(self) -> Path:
-        """The user's documents that every desk can search."""
+        """The user's documents that every trader can search."""
         return self.shared_directory / 'knowledge'
 
     @property
@@ -134,63 +150,63 @@ class WorkspaceLayout:
 
     @property
     def installed_skills_directory(self) -> Path:
-        """The user's imported skills, shared by every desk and read-only to them."""
+        """The user's imported skills, shared by every trader and read-only to them."""
         return self.shared_directory / 'skills' / 'installed'
 
-    def agent_skills_directory(self, desk_name: str) -> Path:
-        """The skills the desk wrote for itself.
+    def agent_skills_directory(self, trader_name: str) -> Path:
+        """The skills the trader wrote for itself.
 
         Args:
-            desk_name (str): The desk's name.
+            trader_name (str): The trader's name.
 
         Returns:
-            Path: The desk's skills/agent folder.
+            Path: The trader's skills/agent folder.
         """
-        return self.desk_directory(desk_name) / 'skills' / 'agent'
+        return self.trader_directory(trader_name) / 'skills' / 'agent'
 
-    def skill_usage_file(self, desk_name: str) -> Path:
-        """The record of each time the desk loaded a skill.
+    def skill_usage_file(self, trader_name: str) -> Path:
+        """The record of each time the trader loaded a skill.
 
         Args:
-            desk_name (str): The desk's name.
+            trader_name (str): The trader's name.
 
         Returns:
-            Path: The desk's skills/usage.jsonl.
+            Path: The trader's skills/usage.jsonl.
         """
-        return self.desk_directory(desk_name) / 'skills' / 'usage.jsonl'
+        return self.trader_directory(trader_name) / 'skills' / 'usage.jsonl'
 
-    def skill_ledger_file(self, desk_name: str) -> Path:
-        """The record of every change to the desk's own skills.
+    def skill_ledger_file(self, trader_name: str) -> Path:
+        """The record of every change to the trader's own skills.
 
         Args:
-            desk_name (str): The desk's name.
+            trader_name (str): The trader's name.
 
         Returns:
-            Path: The desk's skills/ledger.jsonl.
+            Path: The trader's skills/ledger.jsonl.
         """
-        return self.desk_directory(desk_name) / 'skills' / 'ledger.jsonl'
+        return self.trader_directory(trader_name) / 'skills' / 'ledger.jsonl'
 
-    def notes_directory(self, desk_name: str) -> Path:
-        """Where the desk records its daily improvement notes.
+    def notes_directory(self, trader_name: str) -> Path:
+        """Where the trader records its daily improvement notes.
 
         Args:
-            desk_name (str): The desk's name.
+            trader_name (str): The trader's name.
 
         Returns:
-            Path: The desk's notes folder.
+            Path: The trader's notes folder.
         """
-        return self.desk_directory(desk_name) / 'notes'
+        return self.trader_directory(trader_name) / 'notes'
 
-    def alerts_file(self, desk_name: str) -> Path:
-        """The desk's price alerts.
+    def alerts_file(self, trader_name: str) -> Path:
+        """The trader's price alerts.
 
         Args:
-            desk_name (str): The desk's name.
+            trader_name (str): The trader's name.
 
         Returns:
-            Path: The desk's alerts.json.
+            Path: The trader's alerts.json.
         """
-        return self.desk_directory(desk_name) / 'alerts.json'
+        return self.trader_directory(trader_name) / 'alerts.json'
 
     @property
     def market_watcher_state_file(self) -> Path:
@@ -199,7 +215,7 @@ class WorkspaceLayout:
 
     @property
     def telegram_pairing_file(self) -> Path:
-        """The Telegram chats allowed to command the desks, and the pairing codes waiting for approval."""
+        """The Telegram chats allowed to command the traders, and the pairing codes waiting for approval."""
         return self.shared_directory / 'telegram_pairing.json'
 
     @property
@@ -207,88 +223,88 @@ class WorkspaceLayout:
         """The phones running the Android app that receive push notifications."""
         return self.shared_directory / 'phone_devices.json'
 
-    def cron_directory(self, desk_name: str) -> Path:
-        """Where the desk's scheduled jobs and their run record are kept.
+    def cron_directory(self, trader_name: str) -> Path:
+        """Where the trader's scheduled jobs and their run record are kept.
 
         Args:
-            desk_name (str): The desk's name.
+            trader_name (str): The trader's name.
 
         Returns:
-            Path: The desk's cron folder.
+            Path: The trader's cron folder.
         """
-        return self.desk_directory(desk_name) / 'cron'
+        return self.trader_directory(trader_name) / 'cron'
 
-    def sessions_directory(self, desk_name: str) -> Path:
-        """Where the desk's session logs, session state and daily summaries are kept.
+    def sessions_directory(self, trader_name: str) -> Path:
+        """Where the trader's session logs, session state and daily summaries are kept.
 
         Args:
-            desk_name (str): The desk's name.
+            trader_name (str): The trader's name.
 
         Returns:
-            Path: The desk's sessions folder.
+            Path: The trader's sessions folder.
         """
-        return self.desk_directory(desk_name) / 'sessions'
+        return self.trader_directory(trader_name) / 'sessions'
 
-    def checkpoint_repository(self, desk_name: str) -> Path:
-        """The git directory holding snapshots of the desk's own files.
+    def checkpoint_repository(self, trader_name: str) -> Path:
+        """The git directory holding snapshots of the trader's own files.
 
         Args:
-            desk_name (str): The desk's name.
+            trader_name (str): The trader's name.
 
         Returns:
             Path: The repository, such as workspace/.checkpoints/main.git.
         """
-        return self.root / '.checkpoints' / f'{desk_name}.git'
+        return self.root / '.checkpoints' / f'{trader_name}.git'
 
-    def proposals_directory(self, desk_name: str) -> Path:
-        """Where the desk's proposed changes to the user's files wait.
-
-        Args:
-            desk_name (str): The desk's name.
-
-        Returns:
-            Path: The desk's proposals folder.
-        """
-        return self.desk_directory(desk_name) / 'proposals'
-
-    def requests_directory(self, desk_name: str) -> Path:
-        """Where the desk's questions, plans and permission requests to the user are kept.
+    def proposals_directory(self, trader_name: str) -> Path:
+        """Where the trader's proposed changes to the user's files wait.
 
         Args:
-            desk_name (str): The desk's name.
+            trader_name (str): The trader's name.
 
         Returns:
-            Path: The desk's requests folder.
+            Path: The trader's proposals folder.
         """
-        return self.desk_directory(desk_name) / 'requests'
+        return self.trader_directory(trader_name) / 'proposals'
 
-    def scratch_directory(self, desk_name: str) -> Path:
-        """The desk's working folder for temporary files.
+    def requests_directory(self, trader_name: str) -> Path:
+        """Where the trader's questions, plans and permission requests to the user are kept.
 
         Args:
-            desk_name (str): The desk's name.
+            trader_name (str): The trader's name.
 
         Returns:
-            Path: The desk's scratch folder.
+            Path: The trader's requests folder.
         """
-        return self.desk_directory(desk_name) / 'scratch'
+        return self.trader_directory(trader_name) / 'requests'
 
-    def uploads_directory(self, desk_name: str) -> Path:
-        """The desk's folder of files the user sent with messages.
+    def scratch_directory(self, trader_name: str) -> Path:
+        """The trader's working folder for temporary files.
 
         Args:
-            desk_name (str): The desk's name.
+            trader_name (str): The trader's name.
 
         Returns:
-            Path: The desk's uploads folder.
+            Path: The trader's scratch folder.
         """
-        return self.desk_directory(desk_name) / 'uploads'
+        return self.trader_directory(trader_name) / 'scratch'
 
-    def user_owned_file(self, desk_name: str, file_name: str) -> Path:
+    def uploads_directory(self, trader_name: str) -> Path:
+        """The trader's folder of files the user sent with messages.
+
+        Args:
+            trader_name (str): The trader's name.
+
+        Returns:
+            Path: The trader's uploads folder.
+        """
+        return self.trader_directory(trader_name) / 'uploads'
+
+    def user_owned_file(self, trader_name: str, file_name: str) -> Path:
         """Finds one of the user's files by name.
 
         Args:
-            desk_name (str): The desk whose Persona.md is meant, for that file name.
+            trader_name (str): The trader whose Persona.md is meant, for that file name.
             file_name (str): One of USER_OWNED_FILE_NAMES.
 
         Returns:
@@ -298,18 +314,18 @@ class WorkspaceLayout:
             ValueError: The name is not one of the user's files.
         """
         if file_name == 'Persona.md':
-            return self.persona_file(desk_name)
+            return self.persona_file(trader_name)
         if file_name in SHARED_FILE_NAMES:
             return self.shared_directory / file_name
         raise ValueError(f'Not one of the user files: {file_name!r}')
 
-    def create_missing(self, desk_names: Sequence[str]) -> list[Path]:
+    def create_missing(self, trader_names: Sequence[str]) -> list[Path]:
         """Creates the folders, and writes each missing file from its template.
 
-        Existing files are never overwritten. The intraday, scalper and positional desks get their own starter Persona.md; other desks get the general template. The starter subagents are written only when the agents folder does not exist yet, so one the user deleted stays deleted.
+        Existing files are never overwritten. The intraday, scalper and positional traders get their own starter Persona.md; other traders get the general template. The starter subagents are written only when the agents folder does not exist yet, so one the user deleted stays deleted.
 
         Args:
-            desk_names (Sequence[str]): The desks to prepare.
+            trader_names (Sequence[str]): The traders to prepare.
 
         Returns:
             list[Path]: The files that were created.
@@ -323,36 +339,38 @@ class WorkspaceLayout:
                 created.append(target)
         if not self.agents_directory.exists():
             created.extend(self._write_starter_agents())
-        for desk_name in desk_names:
-            self.proposals_directory(desk_name).mkdir(
+        for trader_name in trader_names:
+            self.proposals_directory(trader_name).mkdir(
                 parents=True, exist_ok=True
             )
-            self.scratch_directory(desk_name).mkdir(parents=True, exist_ok=True)
-            self.notes_directory(desk_name).mkdir(parents=True, exist_ok=True)
-            for file_name in DESK_FILE_NAMES:
-                target = self.desk_directory(desk_name) / file_name
+            self.scratch_directory(trader_name).mkdir(
+                parents=True, exist_ok=True
+            )
+            self.notes_directory(trader_name).mkdir(parents=True, exist_ok=True)
+            for file_name in TRADER_FILE_NAMES:
+                target = self.trader_directory(trader_name) / file_name
                 template_name = file_name
                 if file_name == 'Persona.md' and self._has_persona_template(
-                    desk_name
+                    trader_name
                 ):
-                    template_name = f'personas/{desk_name}.md'
+                    template_name = f'personas/{trader_name}.md'
                 if self._write_template_if_missing(target, template_name):
                     created.append(target)
         return created
 
-    def _has_persona_template(self, desk_name: str) -> bool:
-        """Says whether a starter desk has its own persona template.
+    def _has_persona_template(self, trader_name: str) -> bool:
+        """Says whether a starter trader has its own persona template.
 
         Args:
-            desk_name (str): The desk's name, such as intraday.
+            trader_name (str): The trader's name, such as intraday.
 
         Returns:
-            bool: True for the intraday, scalper and positional desks.
+            bool: True for the intraday, scalper and positional traders.
         """
         templates = (
             importlib.resources.files('trading_agent.workspace') / 'templates'
         )
-        return (templates / 'personas' / f'{desk_name}.md').is_file()
+        return (templates / 'personas' / f'{trader_name}.md').is_file()
 
     def _write_starter_agents(self) -> list[Path]:
         """Copies the starter subagent definitions into the new agents folder.

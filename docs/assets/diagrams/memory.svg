@@ -1,8 +1,8 @@
 <svg class="ta-svg" viewBox="0 0 1000 650" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="memory-title memory-description">
   <title id="memory-title">Sessions, memory and checkpoints</title>
-  <desc id="memory-description">The session keeper resumes or rolls over each desk session; memory tools write the desk files, and every write is checkpointed first.</desc>
+  <desc id="memory-description">The session keeper resumes or rolls over each trader session; memory tools write the trader files, and every write is checkpointed first.</desc>
   <rect class="container" x="220" y="60" width="380" height="480" rx="10"/>
-  <text class="small" x="240" y="82">One desk, such as main</text>
+  <text class="small" x="240" y="82">One trader, such as main</text>
 
   <path class="wire" d="M180,280 L205,280 L205,150 L245,150"/>
   <path class="wire" d="M410,205 L410,245"/>
@@ -34,7 +34,7 @@
 
   <rect class="box" x="245" y="95" width="330" height="110" rx="6"/>
   <text class="title" x="262" y="120">1  Session keeper</text>
-  <text class="small" x="262" y="142">New India date? The desk folds its notes into</text>
+  <text class="small" x="262" y="142">New India date? The trader folds its notes into</text>
   <text class="small" x="262" y="157">Memory.md and summarises the day; a fresh</text>
   <text class="small" x="262" y="172">session starts.</text>
   <text class="small" x="262" y="192">New session? The last summary goes in front.</text>
@@ -69,7 +69,7 @@
   <text class="mono" x="815" y="339" text-anchor="middle">workspace/.checkpoints/main.git</text>
 
   <rect class="store" x="660" y="390" width="310" height="70" rx="8"/>
-  <text class="title" x="815" y="417" text-anchor="middle">The desk's own files</text>
+  <text class="title" x="815" y="417" text-anchor="middle">The trader's own files</text>
   <text class="mono" x="815" y="439" text-anchor="middle">Memory.md · memory/ · notes/</text>
 
   <rect class="store" x="660" y="490" width="310" height="70" rx="8"/>

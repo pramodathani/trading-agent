@@ -1,4 +1,4 @@
-"""Saves the desks' requests to the user, one JSON file each in the desk's requests folder.
+"""Saves the traders' requests to the user, one JSON file each in the trader's requests folder.
 
 Typical usage example:
 
@@ -26,7 +26,7 @@ class UserRequestStore:
         """Creates the store.
 
         Args:
-            layout (workspace_layout.WorkspaceLayout): The workspace whose desks' requests folders hold the requests.
+            layout (workspace_layout.WorkspaceLayout): The workspace whose traders' requests folders hold the requests.
         """
         self._layout = layout
 
@@ -36,7 +36,7 @@ class UserRequestStore:
         Args:
             request (user_request_module.UserRequest): The request.
         """
-        directory = self._layout.requests_directory(request.desk)
+        directory = self._layout.requests_directory(request.trader)
         directory.mkdir(parents=True, exist_ok=True)
         path = directory / f'{request.request_id}.json'
         path.write_text(
@@ -45,9 +45,9 @@ class UserRequestStore:
         )
 
     def all(self) -> list[user_request_module.UserRequest]:
-        """Every request from every desk, oldest first, with lapsed ones shown as expired.
+        """Every request from every trader, oldest first, with lapsed ones shown as expired.
 
-        A lapsed request is only shown as expired here; expire_lapsed saves the change, so that the desk is told exactly once.
+        A lapsed request is only shown as expired here; expire_lapsed saves the change, so that the trader is told exactly once.
 
         Returns:
             list[user_request_module.UserRequest]: The requests.
@@ -55,7 +55,10 @@ class UserRequestStore:
         now = datetime.datetime.now(datetime.UTC)
         requests = []
         for request in self._saved():
-            if request.status == user_request_module.PENDING and request.is_expired(now):
+            if (
+                request.status == user_request_module.PENDING
+                and request.is_expired(now)
+            ):
                 request = dataclasses.replace(
                     request,
                     status=user_request_module.EXPIRED,
@@ -72,7 +75,10 @@ class UserRequestStore:
         now = datetime.datetime.now(datetime.UTC)
         expired = []
         for request in self._saved():
-            if request.status == user_request_module.PENDING and request.is_expired(now):
+            if (
+                request.status == user_request_module.PENDING
+                and request.is_expired(now)
+            ):
                 lapsed = dataclasses.replace(
                     request,
                     status=user_request_module.EXPIRED,
@@ -110,7 +116,9 @@ class UserRequestStore:
                 return request
         raise UserRequestError(f'No request with id {request_id!r}')
 
-    def pending_request(self, request_id: str) -> user_request_module.UserRequest:
+    def pending_request(
+        self, request_id: str
+    ) -> user_request_module.UserRequest:
         """Finds a request that is still waiting for a response.
 
         Args:
@@ -136,7 +144,7 @@ class UserRequestStore:
             list[user_request_module.UserRequest]: The requests.
         """
         requests = []
-        for path in sorted(self._layout.root.glob('desks/*/requests/*.json')):
+        for path in sorted(self._layout.root.glob('traders/*/requests/*.json')):
             dictionary = json.loads(path.read_text(encoding='utf-8'))
             requests.append(
                 user_request_module.UserRequest.from_json_dictionary(dictionary)

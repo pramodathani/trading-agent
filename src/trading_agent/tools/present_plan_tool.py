@@ -1,6 +1,6 @@
-"""The present_plan tool: shows the user a plan to approve before the desk acts on it, as Claude Code's plan approval does.
+"""The present_plan tool: shows the user a plan to approve before the trader acts on it, as Claude Code's plan approval does.
 
-The desk does not wait. The plan is saved and shown in the web chat and on Telegram, and the user's decision arrives later as a new message.
+The trader does not wait. The plan is saved and shown in the web chat and on Telegram, and the user's decision arrives later as a new message.
 
 Typical usage example:
 
@@ -10,7 +10,9 @@ Typical usage example:
 import pydantic
 
 from trading_agent.requests import user_request as user_request_module
-from trading_agent.requests import user_request_store as user_request_store_module
+from trading_agent.requests import (
+    user_request_store as user_request_store_module,
+)
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.tools import tool
@@ -31,7 +33,7 @@ class PresentPlanArguments(pydantic.BaseModel):
 
 
 class PresentPlanTool(tool.Tool):
-    """Saves and shows the desk's plan to the user for approval."""
+    """Saves and shows the trader's plan to the user for approval."""
 
     name = 'present_plan'
     description = 'Shows the user a plan in Markdown and asks them to approve it or ask for changes; it appears as a plan card in the web chat and with buttons on Telegram. Use it when the user asked to see a plan before you act, or for a new strategy or a large change of approach. Do not use it for routine trades the rules already allow; act on those. The call does not wait: end your turn after it. The decision arrives later as a new message naming the request; until it is approved, do not act on the plan.'
@@ -41,18 +43,18 @@ class PresentPlanTool(tool.Tool):
         self,
         store: user_request_store_module.UserRequestStore,
         event_bus: event_bus_module.EventBus,
-        desk_name: str,
+        trader_name: str,
     ):
         """Creates the tool.
 
         Args:
             store (user_request_store_module.UserRequestStore): Where the request is saved.
             event_bus (event_bus_module.EventBus): Where it is published for the web page and Telegram.
-            desk_name (str): The desk presenting the plan.
+            trader_name (str): The trader presenting the plan.
         """
         self._store = store
         self._event_bus = event_bus
-        self._desk_name = desk_name
+        self._trader_name = trader_name
 
     async def run(self, arguments: PresentPlanArguments) -> tool.ToolResult:
         """Saves the plan and publishes it.
@@ -64,7 +66,7 @@ class PresentPlanTool(tool.Tool):
             tool.ToolResult: The request's identifier and what happens next.
         """
         request = user_request_module.UserRequest.new(
-            self._desk_name,
+            self._trader_name,
             user_request_module.PLAN,
             arguments.model_dump(),
         )
@@ -72,7 +74,7 @@ class PresentPlanTool(tool.Tool):
         self._event_bus.publish(
             event_module.Event.now(
                 event_module.EventKind.USER_REQUEST,
-                self._desk_name,
+                self._trader_name,
                 request.to_json_dictionary(),
             )
         )

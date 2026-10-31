@@ -1,6 +1,6 @@
 """A PostToolUse hook that hands the user's mid-turn messages to Claude.
 
-After every tool call, Claude Code asks this hook whether to add anything to what Claude reads next. When the desk's steering inbox holds messages, the hook returns them as additional context, so Claude sees them before its next step, exactly as the agent loop adds them for the local models.
+After every tool call, Claude Code asks this hook whether to add anything to what Claude reads next. When the trader's steering inbox holds messages, the hook returns them as additional context, so Claude sees them before its next step, exactly as the agent loop adds them for the local models.
 
 Typical usage example:
 
@@ -20,7 +20,7 @@ class ClaudeSteeringHook:
         """Creates the hook.
 
         Args:
-            inbox (steering_inbox_module.SteeringInbox): The desk's steering inbox.
+            inbox (steering_inbox_module.SteeringInbox): The trader's steering inbox.
         """
         self._inbox = inbox
 

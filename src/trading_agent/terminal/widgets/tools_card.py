@@ -1,4 +1,4 @@
-"""The side panel's Tools card: the desk's own tools and the MCP servers with their tools.
+"""The side panel's Tools card: the trader's own tools and the MCP servers with their tools.
 
 Typical usage example:
 
@@ -26,7 +26,7 @@ class ToolsCard(side_card.SideCard):
         self._tool_list = widgets.Static('', classes='side-list')
         self._server_list = widgets.Static('', classes='side-list')
         self._tools_fold = widgets.Collapsible(
-            self._tool_list, title='Desk tools', collapsed=True
+            self._tool_list, title='Trader tools', collapsed=True
         )
         self._servers_fold = widgets.Collapsible(
             self._server_list, title='MCP servers', collapsed=True
@@ -47,7 +47,7 @@ class ToolsCard(side_card.SideCard):
         """Shows the tools.
 
         Args:
-            tools (list[str]): The desk's tool names.
+            tools (list[str]): The trader's tool names.
             servers (list[dict[str, Any]] | None): The MCP servers, or None when not known.
         """
         server_tools = 0
@@ -55,7 +55,7 @@ class ToolsCard(side_card.SideCard):
             server_tools += len(server.get('tools') or [])
         self.show_aside(str(len(tools) + server_tools))
         self.show_body('')
-        self._tools_fold.title = f'Desk tools · {len(tools)}'
+        self._tools_fold.title = f'Trader tools · {len(tools)}'
         self._tool_list.update(Content('\n'.join(sorted(tools))))
         if servers is None:
             self._servers_fold.title = 'MCP servers · —'

@@ -2,7 +2,7 @@
 
 Typical usage example:
 
-  exit_code = SkillCommands(layout, desk_names, passed_environment).run('import', '~/.hermes/skills/research', replace=False)
+  exit_code = SkillCommands(layout, trader_names, passed_environment).run('import', '~/.hermes/skills/research', replace=False)
 """
 
 import sys
@@ -21,7 +21,7 @@ class SkillCommands:
     def __init__(
         self,
         layout: workspace_layout.WorkspaceLayout,
-        desk_names: Sequence[str],
+        trader_names: Sequence[str],
         passed_environment: Mapping[str, str],
         output: TextIO = sys.stdout,
     ):
@@ -29,12 +29,12 @@ class SkillCommands:
 
         Args:
             layout (workspace_layout.WorkspaceLayout): Where the skills are.
-            desk_names (Sequence[str]): The desks whose own skills to list.
+            trader_names (Sequence[str]): The traders whose own skills to list.
             passed_environment (Mapping[str, str]): The variables the bash sandbox receives, against which skills' needs are checked.
             output (TextIO): Where to print.
         """
         self._layout = layout
-        self._desk_names = list(desk_names)
+        self._trader_names = list(trader_names)
         self._passed_environment = passed_environment
         self._output = output
 
@@ -55,17 +55,17 @@ class SkillCommands:
         return self._import(source, replace)
 
     def _list(self) -> None:
-        """Prints each desk's usable and hidden skills."""
-        for desk_name in self._desk_names:
+        """Prints each trader's usable and hidden skills."""
+        for trader_name in self._trader_names:
             library = skill_library.SkillLibrary(
                 self._layout.installed_skills_directory,
-                self._layout.agent_skills_directory(desk_name),
+                self._layout.agent_skills_directory(trader_name),
                 environment=self._passed_environment,
                 package_skill_roots=installed_packages.InstalledPackages(
                     self._layout.packages_directory
                 ).skill_roots,
             )
-            self._print(f'Desk {desk_name}:')
+            self._print(f'Trader {trader_name}:')
             available = library.available()
             if not available:
                 self._print('  no usable skills')
@@ -112,7 +112,7 @@ class SkillCommands:
                 'Some skills contain text that looks like it tries to steer an AI. Read those passages before relying on the skill; remove its folder if you do not trust it.'
             )
         self._print(
-            f'Installed skills live in {self._layout.installed_skills_directory}. Desks see them from their next turn.'
+            f'Installed skills live in {self._layout.installed_skills_directory}. Traders see them from their next turn.'
         )
         return exit_code
 

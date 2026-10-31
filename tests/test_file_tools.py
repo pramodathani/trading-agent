@@ -9,14 +9,14 @@ from trading_agent.tools import read_file_tool
 from trading_agent.tools import write_file_tool
 
 
-class _Desk:
-    """A desk folder, a user file outside it and a hidden secret.
+class _Trader:
+    """A trader folder, a user file outside it and a hidden secret.
 
     Attributes:
-        directory: The desk's folder.
+        directory: The trader's folder.
         user_file: A file belonging to the user.
         secret: A hidden secret file.
-        policy: The desk's read and write rules.
+        policy: The trader's read and write rules.
     """
 
     def __init__(self, tmp_path: Path):
@@ -25,7 +25,7 @@ class _Desk:
         Args:
             tmp_path (Path): A temporary folder from pytest.
         """
-        self.directory = tmp_path / 'desks' / 'main'
+        self.directory = tmp_path / 'traders' / 'main'
         (self.directory / 'notes').mkdir(parents=True)
         (self.directory / 'Memory.md').write_text(
             '# Memory\n', encoding='utf-8'
@@ -103,16 +103,18 @@ class _Desk:
 class TestFileTools:
     """Tests for read_file, write_file and edit_file."""
 
-    def test_write_then_read_in_the_desk_folders(self, tmp_path: Path) -> None:
-        """A note written by the desk reads back with line numbers.
+    def test_write_then_read_in_the_trader_folders(
+        self, tmp_path: Path
+    ) -> None:
+        """A note written by the trader reads back with line numbers.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
         """
-        desk = _Desk(tmp_path)
+        trader = _Trader(tmp_path)
 
-        written = desk.write('notes/today.md', 'first\nsecond\n')
-        read = desk.read('notes/today.md')
+        written = trader.write('notes/today.md', 'first\nsecond\n')
+        read = trader.read('notes/today.md')
 
         assert not written.is_error
         assert read.text == '     1  first\n     2  second'
@@ -123,12 +125,12 @@ class TestFileTools:
         Args:
             tmp_path (Path): A temporary folder from pytest.
         """
-        desk = _Desk(tmp_path)
-        desk.write(
+        trader = _Trader(tmp_path)
+        trader.write(
             'notes/long.md', '\n'.join(str(number) for number in range(1, 11))
         )
 
-        result = desk.read('notes/long.md', start_line=3, maximum_lines=2)
+        result = trader.read('notes/long.md', start_line=3, maximum_lines=2)
 
         assert (
             result.text
@@ -138,22 +140,22 @@ class TestFileTools:
     def test_user_files_can_be_read_but_not_written(
         self, tmp_path: Path
     ) -> None:
-        """The desk can read the user's file but writing it is refused.
+        """The trader can read the user's file but writing it is refused.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
         """
-        desk = _Desk(tmp_path)
+        trader = _Trader(tmp_path)
 
-        read = desk.read(str(desk.user_file))
-        written = desk.write(str(desk.user_file), 'no limits')
+        read = trader.read(str(trader.user_file))
+        written = trader.write(str(trader.user_file), 'no limits')
 
         assert 'limits' in read.text
         assert written.is_error
         assert 'propose_file_change' in written.text
-        assert desk.user_file.read_text() == 'limits\n'
+        assert trader.user_file.read_text() == 'limits\n'
 
-    def test_dot_dot_cannot_escape_the_desk_folders(
+    def test_dot_dot_cannot_escape_the_trader_folders(
         self, tmp_path: Path
     ) -> None:
         """A path that climbs out with .. is refused.
@@ -161,26 +163,28 @@ class TestFileTools:
         Args:
             tmp_path (Path): A temporary folder from pytest.
         """
-        desk = _Desk(tmp_path)
+        trader = _Trader(tmp_path)
 
-        result = desk.write('notes/../../../TradingRules.md', 'no limits')
+        result = trader.write('notes/../../../TradingRules.md', 'no limits')
 
         assert result.is_error
-        assert desk.user_file.read_text() == 'limits\n'
+        assert trader.user_file.read_text() == 'limits\n'
 
-    def test_link_cannot_escape_the_desk_folders(self, tmp_path: Path) -> None:
+    def test_link_cannot_escape_the_trader_folders(
+        self, tmp_path: Path
+    ) -> None:
         """A link inside notes/ pointing at the user's file is refused.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
         """
-        desk = _Desk(tmp_path)
-        (desk.directory / 'notes' / 'rules.md').symlink_to(desk.user_file)
+        trader = _Trader(tmp_path)
+        (trader.directory / 'notes' / 'rules.md').symlink_to(trader.user_file)
 
-        result = desk.write('notes/rules.md', 'no limits')
+        result = trader.write('notes/rules.md', 'no limits')
 
         assert result.is_error
-        assert desk.user_file.read_text() == 'limits\n'
+        assert trader.user_file.read_text() == 'limits\n'
 
     def test_secret_cannot_be_read(self, tmp_path: Path) -> None:
         """A hidden secret file is refused.
@@ -188,28 +192,28 @@ class TestFileTools:
         Args:
             tmp_path (Path): A temporary folder from pytest.
         """
-        desk = _Desk(tmp_path)
+        trader = _Trader(tmp_path)
 
-        result = desk.read(str(desk.secret))
+        result = trader.read(str(trader.secret))
 
         assert result.is_error
         assert 'API_KEY' not in result.text
 
     def test_memory_file_can_be_edited(self, tmp_path: Path) -> None:
-        """The desk's Memory.md is writable, and an exact edit replaces one place.
+        """The trader's Memory.md is writable, and an exact edit replaces one place.
 
         Args:
             tmp_path (Path): A temporary folder from pytest.
         """
-        desk = _Desk(tmp_path)
+        trader = _Trader(tmp_path)
 
-        result = desk.edit(
+        result = trader.edit(
             'Memory.md', '# Memory\n', '# Memory\n- Lesson one.\n'
         )
 
         assert not result.is_error
         assert (
-            desk.directory / 'Memory.md'
+            trader.directory / 'Memory.md'
         ).read_text() == '# Memory\n- Lesson one.\n'
 
     def test_edit_needs_a_unique_match(self, tmp_path: Path) -> None:
@@ -218,13 +222,15 @@ class TestFileTools:
         Args:
             tmp_path (Path): A temporary folder from pytest.
         """
-        desk = _Desk(tmp_path)
-        desk.write('notes/a.md', 'buy\nbuy\n')
+        trader = _Trader(tmp_path)
+        trader.write('notes/a.md', 'buy\nbuy\n')
 
-        refused = desk.edit('notes/a.md', 'buy', 'sell')
-        replaced = desk.edit('notes/a.md', 'buy', 'sell', replace_all=True)
+        refused = trader.edit('notes/a.md', 'buy', 'sell')
+        replaced = trader.edit('notes/a.md', 'buy', 'sell', replace_all=True)
 
         assert refused.is_error
         assert 'appears 2 times' in refused.text
         assert not replaced.is_error
-        assert (desk.directory / 'notes' / 'a.md').read_text() == 'sell\nsell\n'
+        assert (
+            trader.directory / 'notes' / 'a.md'
+        ).read_text() == 'sell\nsell\n'

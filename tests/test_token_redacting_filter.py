@@ -46,11 +46,11 @@ class TestTokenRedactingFilter:
 
     def test_token_in_message_is_hidden_and_other_parameters_kept(self) -> None:
         """A token in the message itself is hidden, and parameters after it survive."""
-        record = _record('GET /x?token=abc&desk=main', ())
+        record = _record('GET /x?token=abc&trader=main', ())
 
         token_redacting_filter.TokenRedactingFilter().filter(record)
 
-        assert record.getMessage() == 'GET /x?token=***&desk=main'
+        assert record.getMessage() == 'GET /x?token=***&trader=main'
 
 
 def test_bot_token_in_a_telegram_address_is_masked() -> None:

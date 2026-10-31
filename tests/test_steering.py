@@ -10,10 +10,10 @@ from trading_agent.agent import messages
 from trading_agent.backends import claude_steering_hook
 from trading_agent.backends import model_router
 from trading_agent.configuration import agent_configuration
-from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import steering_inbox as steering_inbox_module
+from trading_agent.runtime import trader_runtime
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.runtime import turn_runner
 from trading_agent.tools import tool
@@ -24,7 +24,7 @@ _STEERING_TEXT = 'Actually, only look at INFY.'
 
 
 def _message(text: str) -> trigger_module.Trigger:
-    """Builds a user message for the main desk.
+    """Builds a user message for the main trader.
 
     Args:
         text (str): The message.
@@ -49,7 +49,7 @@ class _MessageArrivesTool(tool.Tool):
         """Creates the tool.
 
         Args:
-            inbox (steering_inbox_module.SteeringInbox): The desk's steering inbox.
+            inbox (steering_inbox_module.SteeringInbox): The trader's steering inbox.
         """
         self._inbox = inbox
 
@@ -115,34 +115,34 @@ class _WaitingTurnRunner(turn_runner.TurnRunner):
         return f'side: {question}'
 
 
-class _DeskScenario:
-    """A desk with a waiting turn runner, and every event it published."""
+class _TraderScenario:
+    """A trader with a waiting turn runner, and every event it published."""
 
     def __init__(self, routed: bool = False):
-        """Builds the desk.
+        """Builds the trader.
 
         Args:
-            routed (bool): True to put the runner behind a model router, as real desks have, which /btw needs.
+            routed (bool): True to put the runner behind a model router, as real traders have, which /btw needs.
         """
         self.event_bus = event_bus_module.EventBus()
         self.runner = _WaitingTurnRunner()
-        desk_runner = self.runner
+        trader_runner = self.runner
         if routed:
-            desk_runner = model_router.ModelRouter(
+            trader_runner = model_router.ModelRouter(
                 'main',
                 [
                     model_router.BackendRoute('claude', self.runner),
                 ],
                 self.event_bus,
             )
-        self.desk = desk_runtime.DeskRuntime(
-            agent_configuration.DeskConfiguration(name='main'),
+        self.trader = trader_runtime.TraderRuntime(
+            agent_configuration.TraderConfiguration(name='main'),
             self.event_bus,
-            desk_runner,
+            trader_runner,
         )
         self.events: list[event_module.Event] = []
         self.queued_while_busy = -1
-        self.state_after = desk_runtime.DeskState.STOPPED
+        self.state_after = trader_runtime.TraderState.STOPPED
 
     async def collect(
         self,
@@ -167,11 +167,11 @@ class _DeskScenario:
     async def steer_then_finish(self) -> None:
         """Starts a turn, sends a message during it, then lets the turn end without a tool round."""
         with self.event_bus.subscribe() as subscription:
-            task = asyncio.create_task(self.desk.run())
-            self.desk.submit(_message('scan the market'))
+            task = asyncio.create_task(self.trader.run())
+            self.trader.submit(_message('scan the market'))
             await self.runner.started.wait()
-            self.desk.submit(_message(_STEERING_TEXT))
-            self.queued_while_busy = self.desk.queued_count
+            self.trader.submit(_message(_STEERING_TEXT))
+            self.queued_while_busy = self.trader.queued_count
             self.runner.release.set()
             await self.collect(subscription, 2)
             task.cancel()
@@ -183,12 +183,12 @@ class _DeskScenario:
             stop_text (str): The stop message to send, such as "/stop now".
         """
         with self.event_bus.subscribe() as subscription:
-            task = asyncio.create_task(self.desk.run())
-            self.desk.submit(_message('think for a long time'))
+            task = asyncio.create_task(self.trader.run())
+            self.trader.submit(_message('think for a long time'))
             await self.runner.started.wait()
-            self.desk.submit(_message(stop_text))
+            self.trader.submit(_message(stop_text))
             await self.collect(subscription, 2)
-            self.state_after = self.desk.state
+            self.state_after = self.trader.state
             task.cancel()
 
     async def ask_during_turn(
@@ -201,15 +201,15 @@ class _DeskScenario:
             from_thread (bool): True to submit from a worker thread, as the gateway's web routes do.
         """
         with self.event_bus.subscribe() as subscription:
-            task = asyncio.create_task(self.desk.run())
-            self.desk.submit(_message('scan the market'))
+            task = asyncio.create_task(self.trader.run())
+            self.trader.submit(_message('scan the market'))
             await self.runner.started.wait()
             if from_thread:
-                await asyncio.to_thread(self.desk.submit, _message(command))
+                await asyncio.to_thread(self.trader.submit, _message(command))
                 await asyncio.sleep(0)
             else:
-                self.desk.submit(_message(command))
-            self.queued_while_busy = self.desk.queued_count
+                self.trader.submit(_message(command))
+            self.queued_while_busy = self.trader.queued_count
             finished_before_release = 0
             if self.queued_while_busy == 0:
                 finished_before_release = 1
@@ -221,11 +221,11 @@ class _DeskScenario:
     async def two_side_questions(self) -> None:
         """Sends two side questions while the first is held, then lets the first finish."""
         with self.event_bus.subscribe() as subscription:
-            task = asyncio.create_task(self.desk.run())
+            task = asyncio.create_task(self.trader.run())
             self.runner.side_release.clear()
-            self.desk.submit(_message('/btw first'))
+            self.trader.submit(_message('/btw first'))
             await asyncio.sleep(0)
-            self.desk.submit(_message('/btw second'))
+            self.trader.submit(_message('/btw second'))
             await self.collect(subscription, 1)
             self.runner.side_release.set()
             await self.collect(subscription, 1)
@@ -240,7 +240,7 @@ class _DeskScenario:
         return [published.kind for published in self.events]
 
     def texts(self) -> list[str]:
-        """The answers the desk published, in order.
+        """The answers the trader published, in order.
 
         Returns:
             list[str]: The texts of the text events.
@@ -354,7 +354,7 @@ class TestSteering:
 
     def test_message_during_a_turn_is_not_queued(self) -> None:
         """A user message sent while a turn runs goes to the inbox, not the queue."""
-        scenario = _DeskScenario()
+        scenario = _TraderScenario()
 
         asyncio.run(scenario.steer_then_finish())
 
@@ -368,7 +368,7 @@ class TestSteering:
 
     def test_undelivered_message_becomes_its_own_turn(self) -> None:
         """A message the turn never picked up is run as the next turn, so it is not lost."""
-        scenario = _DeskScenario()
+        scenario = _TraderScenario()
 
         asyncio.run(scenario.steer_then_finish())
 
@@ -383,12 +383,12 @@ class TestSteering:
 
     def test_commands_are_not_steering(self) -> None:
         """A slash command sent during a turn waits in the queue as before."""
-        scenario = _DeskScenario()
-        scenario.desk._running_trigger_id = 'running-turn'
+        scenario = _TraderScenario()
+        scenario.trader._running_trigger_id = 'running-turn'
 
-        scenario.desk.submit(_message('/status'))
+        scenario.trader.submit(_message('/status'))
 
-        assert scenario.desk.queued_count == 1
+        assert scenario.trader.queued_count == 1
 
     def test_claude_hook_hands_over_waiting_messages(self) -> None:
         """The Claude hook returns waiting messages as additional context, once."""
@@ -411,8 +411,8 @@ class TestStop:
     """Tests for /stop."""
 
     def test_stop_cancels_the_running_turn(self) -> None:
-        """/stop ends a turn that would otherwise never finish, and the desk is idle again."""
-        scenario = _DeskScenario()
+        """/stop ends a turn that would otherwise never finish, and the trader is idle again."""
+        scenario = _TraderScenario()
 
         asyncio.run(scenario.stop_running_turn())
 
@@ -421,7 +421,7 @@ class TestStop:
         assert any(
             text.startswith('Stopped by the user') for text in scenario.texts()
         )
-        assert scenario.state_after == desk_runtime.DeskState.IDLE
+        assert scenario.state_after == trader_runtime.TraderState.IDLE
 
     def test_stop_with_words_or_a_bot_name(self) -> None:
         """/stop followed by words, or with the @botname Telegram adds in groups, still stops the turn at once."""
@@ -429,19 +429,19 @@ class TestStop:
             '/stop now please',
             '/stop@test_bot',
         ):
-            scenario = _DeskScenario()
+            scenario = _TraderScenario()
 
             asyncio.run(scenario.stop_running_turn(stop_text))
 
             assert 'Stopping the running turn.' in scenario.texts()
 
     def test_stop_with_nothing_running(self) -> None:
-        """/stop on an idle desk says there is nothing to stop and queues nothing."""
-        scenario = _DeskScenario()
+        """/stop on an idle trader says there is nothing to stop and queues nothing."""
+        scenario = _TraderScenario()
 
-        scenario.desk.submit(_message('/stop'))
+        scenario.trader.submit(_message('/stop'))
 
-        assert scenario.desk.queued_count == 0
+        assert scenario.trader.queued_count == 0
 
     def test_stopped_tool_call_gets_a_result(self) -> None:
         """A tool call cut short by /stop gets a result, so the next model call is valid."""
@@ -464,12 +464,12 @@ class TestInstantCommands:
 
     def test_status_answers_while_a_turn_runs(self) -> None:
         """/status is answered before the running turn ends, and is not queued behind it."""
-        scenario = _DeskScenario()
+        scenario = _TraderScenario()
 
         asyncio.run(scenario.ask_during_turn('/status'))
 
         texts = scenario.texts()
-        assert 'Desk: main' in texts[0]
+        assert 'Trader: main' in texts[0]
         assert 'State: busy' in texts[0]
         assert texts[1] == 'done'
         assert scenario.queued_while_busy == 0
@@ -477,7 +477,7 @@ class TestInstantCommands:
 
     def test_side_question_answers_while_a_turn_runs(self) -> None:
         """/btw is answered before the running turn ends, and is not queued behind it."""
-        scenario = _DeskScenario(routed=True)
+        scenario = _TraderScenario(routed=True)
 
         asyncio.run(scenario.ask_during_turn('/btw how is it going?'))
 
@@ -489,7 +489,7 @@ class TestInstantCommands:
 
     def test_one_side_question_at_a_time(self) -> None:
         """A second /btw while the first is still running is told to wait, and the first still gets its answer."""
-        scenario = _DeskScenario(routed=True)
+        scenario = _TraderScenario(routed=True)
 
         asyncio.run(scenario.two_side_questions())
 
@@ -501,8 +501,8 @@ class TestInstantCommands:
         assert texts[1].endswith('side: first')
 
     def test_status_from_a_web_route_thread_answers_at_once(self) -> None:
-        """/status submitted from a worker thread, as a web route does, is handed to the desk's loop and still answered before the turn ends."""
-        scenario = _DeskScenario()
+        """/status submitted from a worker thread, as a web route does, is handed to the trader's loop and still answered before the turn ends."""
+        scenario = _TraderScenario()
 
         asyncio.run(scenario.ask_during_turn('/status', from_thread=True))
 
@@ -511,8 +511,8 @@ class TestInstantCommands:
         assert texts[1] == 'done'
 
     def test_changing_commands_still_wait_for_the_turn(self) -> None:
-        """/new changes the desk, so it waits in the queue until the running turn ends."""
-        scenario = _DeskScenario()
+        """/new changes the trader, so it waits in the queue until the running turn ends."""
+        scenario = _TraderScenario()
 
         asyncio.run(scenario.ask_during_turn('/new'))
 

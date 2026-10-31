@@ -29,12 +29,12 @@
   <rect class="accent-box" x="30" y="60" width="250" height="360" rx="8"/>
   <text class="title" x="155" y="88" text-anchor="middle">Your browser</text>
   <text class="small" x="155" y="106" text-anchor="middle">the token is kept here only</text>
-  <text x="60" y="150">Desks</text>
+  <text x="60" y="150">Traders</text>
   <text class="small" x="130" y="150">cards, pause, flatten</text>
   <text x="60" y="180">Chat</text>
   <text class="small" x="130" y="180">turns with tool cards</text>
   <text x="60" y="270">Activity</text>
-  <text class="small" x="130" y="270">every desk, newest first</text>
+  <text class="small" x="130" y="270">every trader, newest first</text>
   <text x="60" y="300">Trading</text>
   <text class="small" x="130" y="300">P&amp;L, owners, kill switch</text>
   <text class="small" x="155" y="405" text-anchor="middle">one live connection for every page</text>
@@ -53,7 +53,7 @@
   <text class="mono" x="490" y="386" text-anchor="middle">/ws/events</text>
 
   <rect class="box" x="700" y="90" width="270" height="130" rx="8"/>
-  <text class="title" x="835" y="116" text-anchor="middle">The desks</text>
+  <text class="title" x="835" y="116" text-anchor="middle">The traders</text>
   <text class="small" x="835" y="138" text-anchor="middle">main, intraday, scalper, positional</text>
   <text class="small" x="835" y="156" text-anchor="middle">each turn's steps go on</text>
   <text class="small" x="835" y="171" text-anchor="middle">the event bus as they happen</text>

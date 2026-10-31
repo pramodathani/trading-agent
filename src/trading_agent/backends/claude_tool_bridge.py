@@ -1,6 +1,6 @@
-"""Hands a desk's tools to Claude Code as an in-process MCP server.
+"""Hands a trader's tools to Claude Code as an in-process MCP server.
 
-Claude Code calls each tool through the MCP protocol, but the call never leaves this process: the handler runs the call through the desk's ToolCallExecutor, so Claude's calls get the same loop guard, argument checks, time limit and output cap as Gemma's.
+Claude Code calls each tool through the MCP protocol, but the call never leaves this process: the handler runs the call through the trader's ToolCallExecutor, so Claude's calls get the same loop guard, argument checks, time limit and output cap as Gemma's.
 
 Typical usage example:
 

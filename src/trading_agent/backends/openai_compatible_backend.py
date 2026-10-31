@@ -160,7 +160,9 @@ class OpenAICompatibleBackend(backend.ModelBackend):
             cost_usd=cost_usd,
         )
 
-    def _unavailable(self, error: openai.APIError) -> backend.BackendUnavailableError:
+    def _unavailable(
+        self, error: openai.APIError
+    ) -> backend.BackendUnavailableError:
         """Turns a failed request into the error that sends the router to the next backend.
 
         Subclasses override this to set a waiting time for errors they recognise, such as a server out of credit.
@@ -202,7 +204,9 @@ class OpenAICompatibleBackend(backend.ModelBackend):
         del usage, cache_read_tokens
         return None
 
-    def _assistant_extras(self, message: messages.ConversationMessage) -> dict[str, Any]:
+    def _assistant_extras(
+        self, message: messages.ConversationMessage
+    ) -> dict[str, Any]:
         """Extra fields sent with an assistant message, beyond its text and tool calls.
 
         Args:

@@ -22,21 +22,21 @@ class PageScreen(screen.Screen[None]):
 
     TITLE_TEXT = ''
     REFRESH_SECONDS = 0.0
-    PER_DESK = False
+    PER_TRADER = False
 
     BINDINGS: ClassVar[list[binding.BindingType]] = [
         binding.Binding('escape', 'back', 'Back to the chat'),
         binding.Binding('r', 'refresh_page', 'Refresh'),
     ]
 
-    def __init__(self, desk_name: str):
+    def __init__(self, trader_name: str):
         """Creates the page.
 
         Args:
-            desk_name (str): The desk the chat shows, which a desk's page starts on.
+            trader_name (str): The trader the chat shows, which a trader's page starts on.
         """
         super().__init__(classes='page')
-        self.desk_name = desk_name
+        self.trader_name = trader_name
 
     def compose(self):
         """Builds the frame around the page's own content.
@@ -89,30 +89,32 @@ class PageScreen(screen.Screen[None]):
         """Reads the page's data again now."""
         self.refresh_page()
 
-    def action_next_desk(self) -> None:
-        """Shows the next desk, on pages that show one desk."""
+    def action_next_trader(self) -> None:
+        """Shows the next trader, on pages that show one trader."""
         names = []
-        for desk in self.app.desks_document.get('desks', []):
-            names.append(desk.get('name'))
+        for trader in self.app.traders_document.get('traders', []):
+            names.append(trader.get('name'))
         if not names:
             return
         index = 0
-        if self.desk_name in names:
-            index = (names.index(self.desk_name) + 1) % len(names)
-        self.desk_name = names[index]
+        if self.trader_name in names:
+            index = (names.index(self.trader_name) + 1) % len(names)
+        self.trader_name = names[index]
         self.show_title()
         self.refresh_page()
 
     def show_title(self) -> None:
         """Redraws the title line."""
-        desk_part = ''
-        if self.PER_DESK:
-            desk_part = f'  ·  desk {self.desk_name} (d for the next desk)'
+        trader_part = ''
+        if self.PER_TRADER:
+            trader_part = (
+                f'  ·  trader {self.trader_name} (d for the next trader)'
+            )
         self.query_one('#page-title', widgets.Static).update(
             Content.from_markup(
-                '[b]$title[/b][dim]$desk  ·  esc back to the chat  ·  r refresh[/dim]',
+                '[b]$title[/b][dim]$trader  ·  esc back to the chat  ·  r refresh[/dim]',
                 title=self.TITLE_TEXT,
-                desk=desk_part,
+                trader=trader_part,
             )
         )
 

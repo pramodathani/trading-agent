@@ -42,7 +42,7 @@ class SubagentCommands:
             models = (
                 ', '.join(definition.models)
                 if definition.models
-                else "the desk's order"
+                else "the trader's order"
             )
             tools = definition.tool_names or subagent_toolbox.DEFAULT_TOOL_NAMES
             self._print(f'{definition.name}: {definition.description}')

@@ -2,7 +2,7 @@
 
 These are read-only lists for the Skills, Subagents, MCP and Packages pages, plus checkpoint restore.
 
-Skill usage is read from the desk's usage.jsonl at each request rather than cached, because it changes after every turn that loaded a skill and the file is small.
+Skill usage is read from the trader's usage.jsonl at each request rather than cached, because it changes after every turn that loaded a skill and the file is small.
 
 ## Checkpoint ids
 

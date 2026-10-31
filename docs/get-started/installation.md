@@ -4,12 +4,12 @@ trading-agent is a Python 3.14 project with a React web page. The table below li
 
 | Needed | What for | Check |
 |---|---|---|
-| Python 3.14 | The gateway and the desks | `python3.14 --version` |
+| Python 3.14 | The gateway and the traders | `python3.14 --version` |
 | UBI on 127.0.0.1:8080 and the `tradingmachine` project beside this one | Market data and orders | `bin/trading-agent doctor` |
 | Ollama with `gemma4:31b` and `qwen3.8:27b` | The local models | `ollama list` |
 | Claude Code and a Max subscription | The Claude backend | `claude --version` |
-| `bwrap` (bubblewrap) | The desks' bash sandbox | `bwrap --version` |
-| Google Chrome | The desks' browser | `google-chrome --version` |
+| `bwrap` (bubblewrap) | The traders' bash sandbox | `bwrap --version` |
+| Google Chrome | The traders' browser | `google-chrome --version` |
 | Node.js through nvm | Building the web page | `source ~/.nvm/nvm.sh && node --version` |
 | Docker | The local SearXNG search server | `docker compose ps` |
 
@@ -38,13 +38,13 @@ claude setup-token
 
 ## The DeepSeek key
 
-DeepSeek is the second model of every desk, after Claude. It is paid per token, so it needs an API key from the DeepSeek platform, kept in `.env`:
+DeepSeek is the second model of every trader, after Claude. It is paid per token, so it needs an API key from the DeepSeek platform, kept in `.env`:
 
 ```text
 DEEPSEEK_API_KEY=sk-...
 ```
 
-Without the key, the desks skip DeepSeek and fall back from Claude straight to Qwen.
+Without the key, the traders skip DeepSeek and fall back from Claude straight to Qwen.
 
 ## Web search
 

@@ -1,4 +1,4 @@
-"""How full a desk's context window is, broken down by what fills it.
+"""How full a trader's context window is, broken down by what fills it.
 
 Claude Code measures its own window and names the categories itself, such as "Messages", "System tools" and "Free space". The Ollama and OpenAI backends have no such report, so their runner estimates the same kind of breakdown from the conversation it keeps: the system prompt, the tool definitions, the messages and the space left.
 
@@ -66,7 +66,7 @@ class ContextUsage:
         cls,
         backend: str,
         report: Mapping[str, Any],
-    ) -> 'ContextUsage':
+    ) -> ContextUsage:
         """Builds a snapshot from Claude Code's get_context_usage report.
 
         Args:
@@ -104,7 +104,7 @@ class ContextUsage:
         context_window: int,
         conversation: conversation_module.Conversation,
         tool_definitions: Sequence[Mapping[str, Any]],
-    ) -> 'ContextUsage':
+    ) -> ContextUsage:
         """Estimates a snapshot from a conversation the agent loop keeps.
 
         The system prompt, the tool definitions and the messages are first counted roughly, at three characters per token and 1500 tokens per picture. Once the model has reported how many tokens it read, the three rough counts are scaled so that they add up to that total, because the rough rate is far off for some text, such as the JSON of tool definitions.

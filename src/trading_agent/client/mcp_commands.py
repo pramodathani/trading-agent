@@ -1,6 +1,6 @@
 """The `trading-agent mcp list` command: connects to every MCP server once and lists its tools.
 
-It runs on its own, without the gateway, so a new server can be checked before the desks use it.
+It runs on its own, without the gateway, so a new server can be checked before the traders use it.
 
 Typical usage example:
 

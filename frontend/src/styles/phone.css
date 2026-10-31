@@ -119,28 +119,28 @@
     height: 20px;
   }
 
-  .desk-switcher {
+  .trader-switcher {
     flex: 1;
     min-width: 0;
     justify-content: center;
   }
 
-  .desk-switcher > .muted {
+  .trader-switcher > .muted {
     display: none;
   }
 
-  .desk-menu-button {
+  .trader-menu-button {
     padding: 8px 10px;
     font-size: 16px;
   }
 
-  .desk-menu-list {
+  .trader-menu-list {
     left: 50%;
     transform: translateX(-50%);
     min-width: min(280px, calc(100vw - 32px));
   }
 
-  .desk-menu-item {
+  .trader-menu-item {
     min-height: 44px;
   }
 

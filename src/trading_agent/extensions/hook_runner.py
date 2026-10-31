@@ -5,9 +5,9 @@ A hook is any executable file in a folder named after an event, under workspace/
   workspace/shared/hooks/order_placed/notify.sh
   workspace/shared/hooks/kill_switch/page-me.py
 
-Each matching hook runs as its own process with the event as JSON on its standard input, the event's name in TRADING_AGENT_EVENT and the desk in TRADING_AGENT_DESK. The folder name can be any event kind, such as order, risk_decision, kill_switch, session_started, desk_stopped or error, or one of two narrower names: order_placed (an order event whose action is "placed") and risk_rejected (a risk decision that refused an order).
+Each matching hook runs as its own process with the event as JSON on its standard input, the event's name in TRADING_AGENT_EVENT and the trader in TRADING_AGENT_TRADER. The folder name can be any event kind, such as order, risk_decision, kill_switch, session_started, trader_stopped or error, or one of two narrower names: order_placed (an order event whose action is "placed") and risk_rejected (a risk decision that refused an order).
 
-Hooks run outside the gateway's process, at most four at a time, each for at most 30 seconds. A hook that fails, hangs or is missing is logged and has no effect on any desk. Secrets are masked in the JSON a hook receives, and a hook gets only a few safe environment variables, as MCP servers do.
+Hooks run outside the gateway's process, at most four at a time, each for at most 30 seconds. A hook that fails, hangs or is missing is logged and has no effect on any trader. Secrets are masked in the JSON a hook receives, and a hook gets only a few safe environment variables, as MCP servers do.
 
 Typical usage example:
 
@@ -211,7 +211,7 @@ class HookRunner:
             published_event (event_module.Event): The event.
 
         Returns:
-            dict[str, str]: A few safe variables from the gateway, plus the event and desk names.
+            dict[str, str]: A few safe variables from the gateway, plus the event and trader names.
         """
         environment = {}
         for variable in _INHERITED_VARIABLES:
@@ -219,5 +219,5 @@ class HookRunner:
             if value is not None:
                 environment[variable] = value
         environment['TRADING_AGENT_EVENT'] = name
-        environment['TRADING_AGENT_DESK'] = published_event.desk or ''
+        environment['TRADING_AGENT_TRADER'] = published_event.trader or ''
         return environment

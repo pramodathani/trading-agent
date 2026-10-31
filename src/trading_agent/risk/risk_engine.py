@@ -2,7 +2,7 @@
 
 No model can change it, talk to it or skip it. Before each order it reads the limits from TradingRules.md and the account from UBI, checks the loss limits and fires the kill switch when one is reached, and then checks the order against every rule, collecting every reason it fails so the model can fix the order in one step.
 
-Two principles shape it. When the limits or the account cannot be read, the answer is no. And an order that only reduces or closes a desk's own position is never blocked by a limit or a halt, because getting out must always be possible.
+Two principles shape it. When the limits or the account cannot be read, the answer is no. And an order that only reduces or closes a trader's own position is never blocked by a limit or a halt, because getting out must always be possible.
 
 Typical usage example:
 
@@ -91,7 +91,7 @@ class RiskEngine:
         Args:
             services (RiskServices): What the engine reads and writes.
             event_bus (event_bus_module.EventBus): Where every decision is published.
-            ownership_grace (datetime.timedelta): How long a desk keeps a claim on an instrument it does not hold yet.
+            ownership_grace (datetime.timedelta): How long a trader keeps a claim on an instrument it does not hold yet.
             clock (Callable[[], datetime.datetime] | None): The source of the current time, replaceable in tests; None for the real clock.
         """
         self._services = services
@@ -138,7 +138,7 @@ class RiskEngine:
         )
         if limits is not None:
             await self._check_loss_limits(limits.account, snapshot, now)
-            self._check_desk_loss_limits(limits, snapshot, now)
+            self._check_trader_loss_limits(limits, snapshot, now)
         margin = self._services.margin_estimator.margin(order)
         reducing = self._reduces_own_position(order, snapshot)
         reasons.extend(self._market_reasons(order, limits, now))
@@ -150,8 +150,8 @@ class RiskEngine:
                 self._opening_reasons(order, limits, snapshot, margin, now)
             )
         if not reasons:
-            ledger.claim(order.instrument_id, order.desk, now)
-            ledger.record_approval(order.desk, now)
+            ledger.claim(order.instrument_id, order.trader, now)
+            ledger.record_approval(order.trader, now)
         return self._finish(order, reasons, margin)
 
     async def check_account(
@@ -159,7 +159,7 @@ class RiskEngine:
     ) -> account_snapshot_module.AccountSnapshot | None:
         """Reads the account and fires the kill switch at a loss limit, without an order.
 
-        The market watcher calls this every cycle, because a losing position can reach the daily or weekly loss limit while no desk is placing orders.
+        The market watcher calls this every cycle, because a losing position can reach the daily or weekly loss limit while no trader is placing orders.
 
         Returns:
             account_snapshot_module.AccountSnapshot | None: The account now, or None when UBI cannot be read.
@@ -178,73 +178,76 @@ class RiskEngine:
         except trading_limits_module.LimitsError:
             return snapshot
         await self._check_loss_limits(limits.account, snapshot, now)
-        self._check_desk_loss_limits(limits, snapshot, now)
+        self._check_trader_loss_limits(limits, snapshot, now)
         return snapshot
 
-    def desk_day_pnl(
+    def trader_day_pnl(
         self,
         snapshot: account_snapshot_module.AccountSnapshot,
     ) -> dict[str, float]:
-        """Today's profit or loss of each desk, from the instruments it owned today.
+        """Today's profit or loss of each trader, from the instruments it owned today.
 
-        An instrument counts for the desk that last claimed it today, even after the position was closed and the claim released, so a loss taken on a closed trade still counts against the desk that took it. Positions no desk claimed, such as the user's own, count for no desk.
+        An instrument counts for the trader that last claimed it today, even after the position was closed and the claim released, so a loss taken on a closed trade still counts against the trader that took it. Positions no trader claimed, such as the user's own, count for no trader.
 
         Args:
             snapshot (account_snapshot_module.AccountSnapshot): The account now.
 
         Returns:
-            dict[str, float]: Each desk's profit or loss, keyed by desk name; desks with nothing today are absent.
+            dict[str, float]: Each trader's profit or loss, keyed by trader name; traders with nothing today are absent.
         """
         today = self._clock().astimezone(_INDIA).date()
         owners = self._services.ledger.day_owners(today)
         pnl = {}
         for instrument_id, amount in snapshot.day_pnl_by_instrument.items():
-            desk = owners.get(instrument_id)
-            if desk is None:
+            trader = owners.get(instrument_id)
+            if trader is None:
                 continue
-            pnl[desk] = pnl.get(desk, 0.0) + amount
+            pnl[trader] = pnl.get(trader, 0.0) + amount
         return pnl
 
-    def _check_desk_loss_limits(
+    def _check_trader_loss_limits(
         self,
         limits: trading_limits_module.TradingLimits,
         snapshot: account_snapshot_module.AccountSnapshot,
         now: datetime.datetime,
     ) -> None:
-        """Halts each desk whose own daily loss limit is reached, leaving the other desks trading.
+        """Halts each trader whose own daily loss limit is reached, leaving the other traders trading.
 
-        A halted desk can still reduce and close its own positions, as with every halt.
+        A halted trader can still reduce and close its own positions, as with every halt.
 
         Args:
             limits (trading_limits_module.TradingLimits): The limits.
             snapshot (account_snapshot_module.AccountSnapshot): The account now.
             now (datetime.datetime): The current time, in India time.
         """
-        desk_pnl = self.desk_day_pnl(snapshot)
-        for desk, desk_limits in limits.desks.items():
-            percent = desk_limits.daily_loss_limit_percent
+        trader_pnl = self.trader_day_pnl(snapshot)
+        for trader, trader_limits in limits.traders.items():
+            percent = trader_limits.daily_loss_limit_percent
             if percent is None:
                 continue
             limit = percent / 100 * snapshot.total_balance
-            pnl = desk_pnl.get(desk, 0.0)
+            pnl = trader_pnl.get(trader, 0.0)
             if pnl >= 0 or pnl > -limit:
                 continue
-            if self._services.ledger.active_halt(desk, now.date()) is not None:
+            if (
+                self._services.ledger.active_halt(trader, now.date())
+                is not None
+            ):
                 continue
-            reason = f"The {desk} desk's daily loss limit is reached: its profit and loss today is {pnl:,.2f}, and its limit is {percent:g}% of {snapshot.total_balance:,.2f} = {limit:,.2f}. The other desks keep trading."
+            reason = f"The {trader} trader's daily loss limit is reached: its profit and loss today is {pnl:,.2f}, and its limit is {percent:g}% of {snapshot.total_balance:,.2f} = {limit:,.2f}. The other traders keep trading."
             self._services.ledger.halt(
-                desk,
+                trader,
                 reason,
                 now.date() + datetime.timedelta(days=1),
                 now,
             )
             self._event_bus.publish(
                 event_module.Event.now(
-                    event_module.EventKind.DESK_HALT,
-                    desk,
+                    event_module.EventKind.TRADER_HALT,
+                    trader,
                     {
                         'reason': reason,
-                        'desk_pnl': pnl,
+                        'trader_pnl': pnl,
                         'limit': limit,
                     },
                 )
@@ -292,16 +295,16 @@ class RiskEngine:
         order: order_request_module.OrderRequest,
         snapshot: account_snapshot_module.AccountSnapshot,
     ) -> bool:
-        """Whether an order only reduces or closes a position the desk itself opened.
+        """Whether an order only reduces or closes a position the trader itself opened.
 
         Args:
             order (order_request_module.OrderRequest): The order.
             snapshot (account_snapshot_module.AccountSnapshot): The account now.
 
         Returns:
-            bool: True when the desk owns the instrument, the order is on the other side of the position, and it is no larger than the position.
+            bool: True when the trader owns the instrument, the order is on the other side of the position, and it is no larger than the position.
         """
-        if self._services.ledger.owner(order.instrument_id) != order.desk:
+        if self._services.ledger.owner(order.instrument_id) != order.trader:
             return False
         current = snapshot.net_quantity(order.instrument_id)
         if current == 0:
@@ -345,7 +348,7 @@ class RiskEngine:
         order: order_request_module.OrderRequest,
         snapshot: account_snapshot_module.AccountSnapshot,
     ) -> list[str]:
-        """Checks that no other desk, and not the user outside the agent, holds the instrument.
+        """Checks that no other trader, and not the user outside the agent, holds the instrument.
 
         Args:
             order (order_request_module.OrderRequest): The order.
@@ -355,9 +358,9 @@ class RiskEngine:
             list[str]: A reason when the instrument belongs to someone else, otherwise nothing.
         """
         owner = self._services.ledger.owner(order.instrument_id)
-        if owner is not None and owner != order.desk:
+        if owner is not None and owner != order.trader:
             return [
-                f'{order.symbol} belongs to the {owner} desk; one desk trades an instrument at a time.',
+                f'{order.symbol} belongs to the {owner} trader; one trader trades an instrument at a time.',
             ]
         held = order.instrument_id in snapshot.held_instrument_ids()
         is_cash = _CASH_SEGMENT_WORD in order.segment
@@ -365,7 +368,7 @@ class RiskEngine:
             held = True
         if held and owner is None:
             return [
-                f"{order.symbol} is already held in the account outside the agent (the user's own position or holding), so no desk may trade it.",
+                f"{order.symbol} is already held in the account outside the agent (the user's own position or holding), so no trader may trade it.",
             ]
         return []
 
@@ -390,7 +393,7 @@ class RiskEngine:
             list[str]: Every limit the order breaks.
         """
         account = limits.account
-        desk = limits.desk(order.desk)
+        trader = limits.trader(order.trader)
         reasons = []
         today = now.date()
         account_halt = self._services.ledger.active_halt(
@@ -400,22 +403,25 @@ class RiskEngine:
             reasons.append(
                 f'Trading is halted for the account: {account_halt} Only orders that close your own positions are allowed.'
             )
-        desk_halt = self._services.ledger.active_halt(order.desk, today)
-        if desk_halt is not None:
-            reasons.append(f'Trading is halted for this desk: {desk_halt}')
+        trader_halt = self._services.ledger.active_halt(order.trader, today)
+        if trader_halt is not None:
+            reasons.append(f'Trading is halted for this trader: {trader_halt}')
         if not account.trading_enabled:
             reasons.append(
                 'trading_enabled is false in TradingRules.md, so no new position may be opened.'
             )
-        if desk.allowed_products and order.product not in desk.allowed_products:
+        if (
+            trader.allowed_products
+            and order.product not in trader.allowed_products
+        ):
             reasons.append(
-                f'Product {order.product} is not allowed for this desk; allowed: {", ".join(desk.allowed_products)}.'
+                f'Product {order.product} is not allowed for this trader; allowed: {", ".join(trader.allowed_products)}.'
             )
-        if desk.allowed_instruments and order.symbol.upper() not in [
-            symbol.upper() for symbol in desk.allowed_instruments
+        if trader.allowed_instruments and order.symbol.upper() not in [
+            symbol.upper() for symbol in trader.allowed_instruments
         ]:
             reasons.append(
-                f"{order.symbol} is not in this desk's allowed instruments."
+                f"{order.symbol} is not in this trader's allowed instruments."
             )
         if (
             order.is_option
@@ -437,12 +443,12 @@ class RiskEngine:
             reasons.append(
                 f"The order would block about {margin:,.2f}, more than the {free_capital:,.2f} of the agent's capital still free ({account.capital_percent:g}% of {balance:,.2f}, less {snapshot.margin_utilized:,.2f} in use)."
             )
-        if desk.capital_share_percent is not None:
-            desk_capital = desk.capital_share_percent / 100 * capital
-            desk_margin = self._desk_margin(order.desk, snapshot)
-            if desk_margin + margin > desk_capital:
+        if trader.capital_share_percent is not None:
+            trader_capital = trader.capital_share_percent / 100 * capital
+            trader_margin = self._trader_margin(order.trader, snapshot)
+            if trader_margin + margin > trader_capital:
                 reasons.append(
-                    f"The desk's positions block about {desk_margin:,.2f}; with this order that exceeds its {desk.capital_share_percent:g}% share, {desk_capital:,.2f}."
+                    f"The trader's positions block about {trader_margin:,.2f}; with this order that exceeds its {trader.capital_share_percent:g}% share, {trader_capital:,.2f}."
                 )
         if account.maximum_open_positions is not None:
             held = snapshot.held_instrument_ids()
@@ -453,37 +459,37 @@ class RiskEngine:
                 reasons.append(
                     f'{len(held)} instruments are already held, the most maximum_open_positions allows.'
                 )
-        if desk.maximum_orders_per_minute is not None:
+        if trader.maximum_orders_per_minute is not None:
             recent = self._services.ledger.approvals_since(
-                order.desk, now - _ONE_MINUTE
+                order.trader, now - _ONE_MINUTE
             )
-            if recent >= desk.maximum_orders_per_minute:
+            if recent >= trader.maximum_orders_per_minute:
                 reasons.append(
-                    f'This desk has sent {recent} orders in the last minute, its maximum.'
+                    f'This trader has sent {recent} orders in the last minute, its maximum.'
                 )
         return reasons
 
-    def _desk_margin(
+    def _trader_margin(
         self,
-        desk: str,
+        trader: str,
         snapshot: account_snapshot_module.AccountSnapshot,
     ) -> float:
-        """Estimates the margin a desk's open positions block.
+        """Estimates the margin a trader's open positions block.
 
         Args:
-            desk (str): The desk.
+            trader (str): The trader.
             snapshot (account_snapshot_module.AccountSnapshot): The account now.
 
         Returns:
             float: The estimated margin in rupees.
         """
-        owned = self._services.ledger.owned_by(desk)
+        owned = self._services.ledger.owned_by(trader)
         total = 0.0
         for row in snapshot.positions:
             if row.instrument_id not in owned or row.quantity == 0:
                 continue
             position_as_order = order_request_module.OrderRequest(
-                desk=desk,
+                trader=trader,
                 instrument_id=row.instrument_id,
                 exchange='',
                 segment=row.segment,
@@ -520,7 +526,7 @@ class RiskEngine:
         self._event_bus.publish(
             event_module.Event.now(
                 event_module.EventKind.RISK_DECISION,
-                order.desk,
+                order.trader,
                 {
                     'order': order.describe(),
                     'instrument_id': order.instrument_id,

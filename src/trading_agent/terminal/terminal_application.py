@@ -1,6 +1,6 @@
-"""The terminal program: a full-screen chat with the desks of a running gateway, like Claude Code.
+"""The terminal program: a full-screen chat with the traders of a running gateway, like Claude Code.
 
-It is a client of the gateway, as the web page is. One event stream connection carries every live event; the desks' states are read every 5 seconds and again after events that change them.
+It is a client of the gateway, as the web page is. One event stream connection carries every live event; the traders' states are read every 5 seconds and again after events that change them.
 
 Typical usage example:
 
@@ -25,8 +25,8 @@ from trading_agent.terminal.screens import chat_screen
 from trading_agent.terminal.screens import page_catalogue
 from trading_agent.terminal.widgets import page_picker
 
-_DESKS_REFRESH_SECONDS = 5.0
-_DESK_CHANGING_KINDS = (
+_TRADERS_REFRESH_SECONDS = 5.0
+_TRADER_CHANGING_KINDS = (
     'trigger_received',
     'turn_started',
     'turn_finished',
@@ -34,7 +34,7 @@ _DESK_CHANGING_KINDS = (
     'backend_switch',
     'stopped',
 )
-_DEFAULT_DESK = 'general'
+_DEFAULT_TRADER = 'general'
 
 
 class TerminalApplication(app.App[int]):
@@ -54,7 +54,7 @@ class TerminalApplication(app.App[int]):
         gateway: gateway_client.GatewayClient,
         settings: terminal_settings.TerminalSettings,
         history: prompt_history_module.PromptHistory,
-        desk_name: str | None = None,
+        trader_name: str | None = None,
     ):
         """Creates the program without connecting.
 
@@ -62,7 +62,7 @@ class TerminalApplication(app.App[int]):
             gateway (gateway_client.GatewayClient): The gateway's routes.
             settings (terminal_settings.TerminalSettings): The remembered choices.
             history (prompt_history_module.PromptHistory): The earlier prompts.
-            desk_name (str | None): The desk to open on, or None for the one used last.
+            trader_name (str | None): The trader to open on, or None for the one used last.
         """
         super().__init__()
         self._gateway = gateway
@@ -70,53 +70,53 @@ class TerminalApplication(app.App[int]):
         self._settings = settings
         self._history = history
         self._theme_set = terminal_themes.TerminalThemes()
-        self._first_desk = desk_name or settings.desk or _DEFAULT_DESK
+        self._first_trader = trader_name or settings.trader or _DEFAULT_TRADER
         self.chat: chat_screen.ChatScreen | None = None
         self.opener = attachment_opener.AttachmentOpener(gateway)
-        self.desks_document: dict[str, Any] = {}
+        self.traders_document: dict[str, Any] = {}
         self.problem: str | None = None
 
     def on_mount(self) -> None:
-        """Applies the theme, opens the chat, and starts the event stream and the desk polling."""
+        """Applies the theme, opens the chat, and starts the event stream and the trader polling."""
         for theme in self._theme_set.all():
             self.register_theme(theme)
         self.theme = self._settings.theme
         self.chat = chat_screen.ChatScreen(
             self._gateway,
             self._history,
-            self._first_desk,
+            self._first_trader,
             self._settings,
             self.opener,
         )
         self.push_screen(self.chat)
         self._follow_events()
-        self.refresh_desks()
-        self.set_interval(_DESKS_REFRESH_SECONDS, self.refresh_desks)
+        self.refresh_traders()
+        self.set_interval(_TRADERS_REFRESH_SECONDS, self.refresh_traders)
 
     async def on_unmount(self) -> None:
         """Closes the gateway client's connections."""
         await self._gateway.close()
 
-    @work(exclusive=True, group='desks')
-    async def refresh_desks(self) -> None:
-        """Reads the desks' states and passes them to the chat."""
+    @work(exclusive=True, group='traders')
+    async def refresh_traders(self) -> None:
+        """Reads the traders' states and passes them to the chat."""
         try:
-            document = await self._gateway.desks()
+            document = await self._gateway.traders()
         except gateway_client.GatewayError as error:
             if error.status_code == 401:
                 self._refuse()
             return
-        self.desks_document = document
+        self.traders_document = document
         if self.chat is not None:
-            self.chat.take_desks(document)
+            self.chat.take_traders(document)
 
-    def remember_desk(self, desk_name: str) -> None:
-        """Remembers the desk the chat shows, for the next run.
+    def remember_trader(self, trader_name: str) -> None:
+        """Remembers the trader the chat shows, for the next run.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
         """
-        self._settings.desk = desk_name
+        self._settings.trader = trader_name
         self._settings.save()
 
     def open_page(self, command: str) -> bool:
@@ -133,10 +133,10 @@ class TerminalApplication(app.App[int]):
             return False
         while len(self.screen_stack) > 2:
             self.pop_screen()
-        desk_name = self._first_desk
+        trader_name = self._first_trader
         if self.chat is not None:
-            desk_name = self.chat.desk_name
-        self.push_screen(page.screen_class(desk_name))
+            trader_name = self.chat.trader_name
+        self.push_screen(page.screen_class(trader_name))
         return True
 
     def action_pick_page(self) -> None:
@@ -182,8 +182,8 @@ class TerminalApplication(app.App[int]):
             self.chat.take_event(event)
         if self.screen is not self.chat and hasattr(self.screen, 'take_event'):
             self.screen.take_event(event)
-        if event.get('kind') in _DESK_CHANGING_KINDS:
-            self.refresh_desks()
+        if event.get('kind') in _TRADER_CHANGING_KINDS:
+            self.refresh_traders()
 
     def _take_connection(self, state: str) -> None:
         """Passes the event stream's state to the chat.
@@ -194,7 +194,7 @@ class TerminalApplication(app.App[int]):
         if self.chat is not None:
             self.chat.take_connection(state)
         if state == event_stream.LIVE:
-            self.refresh_desks()
+            self.refresh_traders()
 
     def _refuse(self) -> None:
         """Ends the program because the gateway refused the access token."""

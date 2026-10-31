@@ -1,6 +1,6 @@
 """The card for a tool call that needs the user's permission, as the web page's PermissionCard.tsx and Claude Code show it.
 
-The card names the tool and its arguments and counts down to the moment the request lapses. The choices are Yes (once), Yes and don't ask again for this tool on this desk (until revoked on the Settings screen), and No with an optional reason that goes to the desk.
+The card names the tool and its arguments and counts down to the moment the request lapses. The choices are Yes (once), Yes and don't ask again for this tool on this trader (until revoked on the Settings screen), and No with an optional reason that goes to the trader.
 
 Keys: Up and Down move, Enter or 1 to 3 decides, Tab moves to the reason box and back. Typing a letter while the choices have the focus goes into the reason box, so a reason being typed can never be lost and Enter can never pick Yes in its place.
 
@@ -71,7 +71,7 @@ class PermissionCard(containers.Vertical):
         """
         content = self._request.get('content') or {}
         tool_name = content.get('tool_name', 'a tool')
-        desk = self._request.get('desk', '')
+        trader = self._request.get('trader', '')
         yield widgets.Static('', classes='request-heading')
         yield widgets.Static(
             Content.from_markup('Run [b $accent]$tool[/]?', tool=tool_name),
@@ -92,20 +92,20 @@ class PermissionCard(containers.Vertical):
             ),
             option_list.Option(
                 Content.from_markup(
-                    "2  [b]Yes, and don't ask again for $tool on $desk[/b]  [dim]until you revoke it on Settings[/dim]",
+                    "2  [b]Yes, and don't ask again for $tool on $trader[/b]  [dim]until you revoke it on Settings[/dim]",
                     tool=tool_name,
-                    desk=desk,
+                    trader=trader,
                 )
             ),
             option_list.Option(
                 Content.from_markup(
-                    '3  [b]No[/b]  [dim]tell the desk why in the box below (optional)[/dim]'
+                    '3  [b]No[/b]  [dim]tell the trader why in the box below (optional)[/dim]'
                 )
             ),
             classes='question-options',
         )
         yield widgets.Input(
-            placeholder='Reason for No, sent to the desk (optional)',
+            placeholder='Reason for No, sent to the trader (optional)',
             classes='permission-reason',
             select_on_focus=False,
         )
@@ -181,7 +181,7 @@ class PermissionCard(containers.Vertical):
             decision (str): "allow_once", "always_allow" or "deny".
         """
         if self._seconds_left() == 0:
-            self._error('This request has lapsed; the desk was told no.')
+            self._error('This request has lapsed; the trader was told no.')
             return
         reason = self.query_one('.permission-reason', widgets.Input).value
         self._send(decision, reason.strip())
@@ -222,8 +222,8 @@ class PermissionCard(containers.Vertical):
             )
         self.query_one('.request-heading', widgets.Static).update(
             Content.from_markup(
-                f'[b]$desk[/b] needs your permission   {countdown}',
-                desk=self._request.get('desk', ''),
+                f'[b]$trader[/b] needs your permission   {countdown}',
+                trader=self._request.get('trader', ''),
             )
         )
 

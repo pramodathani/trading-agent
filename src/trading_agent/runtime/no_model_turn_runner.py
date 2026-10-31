@@ -1,10 +1,10 @@
-"""A turn runner for a desk that has no model connected yet.
+"""A turn runner for a trader that has no model connected yet.
 
 It lets the queue, the event bus and the gateway be tested end to end before any model is involved.
 
 Typical usage example:
 
-  desk = DeskRuntime(desk_configuration, event_bus, NoModelTurnRunner())
+  trader = TraderRuntime(trader_configuration, event_bus, NoModelTurnRunner())
 """
 
 from trading_agent.runtime import trigger as trigger_module
@@ -28,6 +28,6 @@ class NoModelTurnRunner(turn_runner.TurnRunner):
         """
         return turn_runner.TurnResult(
             text=(
-                f'No model is connected to this desk yet. Received a {trigger.source} trigger: {trigger.text}'
+                f'No model is connected to this trader yet. Received a {trigger.source} trigger: {trigger.text}'
             ),
         )

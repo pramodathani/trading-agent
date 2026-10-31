@@ -1,10 +1,10 @@
-"""Builds the gateway's FastAPI application and runs the desks inside it.
+"""Builds the gateway's FastAPI application and runs the traders inside it.
 
-The desks' loops are started when the web server starts and cancelled when it stops, so the gateway is one process that owns every desk.
+The traders' loops are started when the web server starts and cancelled when it stops, so the gateway is one process that owns every trader. Given a trader runner, such as the trader registry, the gateway leaves starting and stopping the traders to it, so traders created later run too.
 
 Typical usage example:
 
-  gateway = GatewayApplication(event_bus, desks, guard)
+  gateway = GatewayApplication(event_bus, traders, guard)
   uvicorn.run(gateway.build(), host='127.0.0.1', port=8120)
 """
 
@@ -18,15 +18,15 @@ import fastapi
 from fastapi.middleware import cors
 
 from trading_agent.gateway import access_guard
-from trading_agent.gateway.routes import desk_routes
 from trading_agent.gateway.routes import event_routes
 from trading_agent.gateway.routes import frontend_routes
 from trading_agent.gateway.routes import health_routes
 from trading_agent.gateway.routes import route_group
+from trading_agent.gateway.routes import trader_routes
 from trading_agent.gateway.routes import webhook_routes
 from trading_agent.journal import secret_redactor
-from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event_bus as event_bus_module
+from trading_agent.runtime import trader_runtime
 
 
 class BackgroundWorker(Protocol):
@@ -36,13 +36,31 @@ class BackgroundWorker(Protocol):
         """Runs until cancelled."""
 
 
+class TraderRunner(Protocol):
+    """Anything that starts and stops the traders' loops, such as the trader registry."""
+
+    async def start(self) -> None:
+        """Starts every trader's loop.
+
+        Returns:
+            None.
+        """
+
+    async def stop(self) -> None:
+        """Cancels every trader's loop and waits for each to close.
+
+        Returns:
+            None.
+        """
+
+
 class GatewayApplication:
-    """The gateway: its web routes and the desks it runs."""
+    """The gateway: its web routes and the traders it runs."""
 
     def __init__(
         self,
         event_bus: event_bus_module.EventBus,
-        desks: Mapping[str, desk_runtime.DeskRuntime],
+        traders: Mapping[str, trader_runtime.TraderRuntime],
         guard: access_guard.AccessGuard,
         background_workers: Sequence[BackgroundWorker] = (),
         redactor: secret_redactor.SecretRedactor | None = None,
@@ -50,22 +68,24 @@ class GatewayApplication:
         route_groups: Sequence[route_group.RouteGroup] = (),
         frontend_directory: Path | None = None,
         allowed_origins: Sequence[str] = (),
+        trader_runner: TraderRunner | None = None,
     ):
         """Creates the gateway without starting anything.
 
         Args:
             event_bus (event_bus_module.EventBus): The bus every component publishes on.
-            desks (Mapping[str, desk_runtime.DeskRuntime]): The desks to run, keyed by name.
+            traders (Mapping[str, trader_runtime.TraderRuntime]): The traders to run, keyed by name.
             guard (access_guard.AccessGuard): The guard that checks the access token.
-            background_workers (Sequence[BackgroundWorker]): Other loops to run beside the desks, such as the trade journal.
+            background_workers (Sequence[BackgroundWorker]): Other loops to run beside the traders, such as the trade journal.
             redactor (secret_redactor.SecretRedactor | None): Masks secrets in the live event stream, or None to send events unchanged.
             webhook_token (str): The token incoming webhooks must present, or an empty string to switch them off.
-            route_groups (Sequence[route_group.RouteGroup]): The API's route groups; when empty, only the basic desk routes are offered.
+            route_groups (Sequence[route_group.RouteGroup]): The API's route groups; when empty, only the basic trader routes are offered.
             frontend_directory (Path | None): The built web page to serve at every other address, or None to serve no page.
             allowed_origins (Sequence[str]): The other web origins whose pages may call the API, such as the Android app's "https://localhost"; empty allows none.
+            trader_runner (TraderRunner | None): Starts and stops the traders, or None to run each trader in the mapping as its own task.
         """
         self._event_bus = event_bus
-        self._desks = desks
+        self._traders = traders
         self._guard = guard
         self._background_workers = list(background_workers)
         self._redactor = redactor
@@ -73,6 +93,7 @@ class GatewayApplication:
         self._route_groups = list(route_groups)
         self._frontend_directory = frontend_directory
         self._allowed_origins = list(allowed_origins)
+        self._trader_runner = trader_runner
 
     def build(self) -> fastapi.FastAPI:
         """Builds the FastAPI application with every route.
@@ -102,18 +123,18 @@ class GatewayApplication:
                 allow_credentials=False,
             )
         application.include_router(
-            health_routes.HealthRoutes(self._desks).router()
+            health_routes.HealthRoutes(self._traders).router()
         )
         application.include_router(
             webhook_routes.WebhookRoutes(
-                self._desks,
+                self._traders,
                 self._webhook_token,
             ).router()
         )
         route_groups = self._route_groups
         if not route_groups:
             route_groups = [
-                desk_routes.DeskRoutes(self._desks, self._guard),
+                trader_routes.TraderRoutes(self._traders, self._guard),
             ]
         for group in route_groups:
             application.include_router(group.router())
@@ -137,7 +158,7 @@ class GatewayApplication:
         self,
         application: fastapi.FastAPI,
     ) -> AsyncIterator[None]:
-        """Starts every desk's loop, and cancels them when the server stops.
+        """Starts every trader's loop, and cancels them when the server stops.
 
         Args:
             application (fastapi.FastAPI): The application being started.
@@ -146,16 +167,23 @@ class GatewayApplication:
             None: Control passes back to the server while it runs.
         """
         del application
-        desk_tasks = []
+        trader_tasks = []
         for worker in self._background_workers:
-            desk_tasks.append(asyncio.create_task(worker.run()))
-        for desk in self._desks.values():
-            desk_tasks.append(
-                asyncio.create_task(desk.run(), name=f'desk-{desk.name}')
-            )
+            trader_tasks.append(asyncio.create_task(worker.run()))
+        if self._trader_runner is not None:
+            await self._trader_runner.start()
+        else:
+            for trader in self._traders.values():
+                trader_tasks.append(
+                    asyncio.create_task(
+                        trader.run(), name=f'trader-{trader.name}'
+                    )
+                )
         try:
             yield
         finally:
-            for task in desk_tasks:
+            if self._trader_runner is not None:
+                await self._trader_runner.stop()
+            for task in trader_tasks:
                 task.cancel()
-            await asyncio.gather(*desk_tasks, return_exceptions=True)
+            await asyncio.gather(*trader_tasks, return_exceptions=True)

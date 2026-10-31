@@ -7,7 +7,7 @@ The notification's title and text pass through Google's servers on their way to 
 Typical usage example:
 
   sender = FirebaseSender(Path('/home/pramod/.config/trading-agent/firebase.json'))
-  outcome = await sender.send(token, 'scalper', 'COMPLETE buy 50 RELIANCE', {'desk': 'scalper'})
+  outcome = await sender.send(token, 'scalper', 'COMPLETE buy 50 RELIANCE', {'trader': 'scalper'})
 """
 
 import asyncio
@@ -77,9 +77,9 @@ class FirebaseSender:
 
         Args:
             token (str): The phone's Firebase Cloud Messaging token.
-            title (str): The notification's title, such as the desk's name.
+            title (str): The notification's title, such as the trader's name.
             body (str): The notification's text.
-            data (Mapping[str, str]): Values the app reads when the notification is tapped, such as the desk.
+            data (Mapping[str, str]): Values the app reads when the notification is tapped, such as the trader.
 
         Returns:
             str: SENT, UNREGISTERED when Firebase says the token is no longer valid, or FAILED for any other problem.

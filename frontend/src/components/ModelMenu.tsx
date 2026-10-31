@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { apiClient } from '../api/apiClient';
-import type { DeskBackend, DeskSummary } from '../api/types';
+import type { TraderBackend, TraderSummary } from '../api/types';
 import { modelNames } from '../utilities/modelNames';
 
 /** What the model menu shows. */
 interface ModelMenuProperties {
-  desk: DeskSummary;
+  trader: TraderSummary;
   onChanged: () => void;
 }
 
@@ -23,16 +23,16 @@ interface Provider {
 }
 
 /** One row of the main list. */
-type MenuRow = { type: 'backend'; backend: DeskBackend } | { type: 'provider'; provider: Provider } | { type: 'auto' };
+type MenuRow = { type: 'backend'; backend: TraderBackend } | { type: 'provider'; provider: Provider } | { type: 'auto' };
 
 /**
- * The chat's model chooser below the message box, as in Claude Code: the desk's own models in their order, then "Claude (other models) ›" and "DeepSeek (other models) ›" opening submenus of the provider's other models, then Auto for the configured order.
- * @param properties The desk, and what to call after a change so the page reloads the desk.
+ * The chat's model chooser below the message box, as in Claude Code: the trader's own models in their order, then "Claude (other models) ›" and "DeepSeek (other models) ›" opening submenus of the provider's other models, then Auto for the configured order.
+ * @param properties The trader, and what to call after a change so the page reloads the trader.
  * @returns The menu.
  */
 export function ModelMenu(properties: ModelMenuProperties) {
-  const desk = properties.desk;
-  const backends = desk.backends ?? [];
+  const trader = properties.trader;
+  const backends = trader.backends ?? [];
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(0);
   const [submenu, setSubmenu] = useState<string | null>(null);
@@ -49,7 +49,7 @@ export function ModelMenu(properties: ModelMenuProperties) {
     rows.push({ type: 'provider', provider });
   }
   rows.push({ type: 'auto' });
-  const preferredBackend = backends.find((backend) => backend.name === desk.preferred_model) ?? null;
+  const preferredBackend = backends.find((backend) => backend.name === trader.preferred_model) ?? null;
   const openProvider = providers.find((provider) => provider.kind === submenu) ?? null;
 
   useEffect(() => {
@@ -79,7 +79,7 @@ export function ModelMenu(properties: ModelMenuProperties) {
   function openMenu(): void {
     setError(null);
     setSubmenu(null);
-    const index = rows.findIndex((row) => row.type === 'backend' && row.backend.name === desk.preferred_model);
+    const index = rows.findIndex((row) => row.type === 'backend' && row.backend.name === trader.preferred_model);
     setHighlighted(index >= 0 ? index : rows.length - 1);
     setOpen(true);
   }
@@ -108,7 +108,7 @@ export function ModelMenu(properties: ModelMenuProperties) {
     closeMenu();
     buttonReference.current?.focus();
     try {
-      await apiClient.chooseModel(desk.name, backendName, model);
+      await apiClient.chooseModel(trader.name, backendName, model);
       properties.onChanged();
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
@@ -181,7 +181,7 @@ export function ModelMenu(properties: ModelMenuProperties) {
   }
 
   let buttonLabel = 'Auto';
-  let buttonDetail = modelNames.label(backends.find((backend) => backend.name === desk.last_model)?.active_model ?? desk.last_model) || 'configured order';
+  let buttonDetail = modelNames.label(backends.find((backend) => backend.name === trader.last_model)?.active_model ?? trader.last_model) || 'configured order';
   if (preferredBackend !== null) {
     buttonLabel = modelNames.label(preferredBackend.active_model ?? preferredBackend.model);
     buttonDetail = preferredBackend.name;
@@ -196,7 +196,7 @@ export function ModelMenu(properties: ModelMenuProperties) {
         className={open ? 'model-menu-button open' : 'model-menu-button'}
         aria-haspopup="listbox"
         aria-expanded={open}
-        title="Choose which model the desk tries first"
+        title="Choose which model the trader tries first"
         onClick={() => (open ? closeMenu() : openMenu())}
       >
         <span>{buttonLabel}</span>
@@ -207,7 +207,7 @@ export function ModelMenu(properties: ModelMenuProperties) {
           {rows.map((row, index) => {
             const className = index === highlighted ? 'model-menu-item highlighted' : 'model-menu-item';
             if (row.type === 'backend') {
-              const chosen = desk.preferred_model === row.backend.name && (row.backend.active_model ?? row.backend.model) === row.backend.model;
+              const chosen = trader.preferred_model === row.backend.name && (row.backend.active_model ?? row.backend.model) === row.backend.model;
               return (
                 <div
                   key={row.backend.name}
@@ -279,7 +279,7 @@ export function ModelMenu(properties: ModelMenuProperties) {
                 <div className="model-menu-divider" />
                 <div
                   role="option"
-                  aria-selected={desk.preferred_model === null}
+                  aria-selected={trader.preferred_model === null}
                   className={className}
                   onMouseEnter={() => {
                     setHighlighted(index);
@@ -289,7 +289,7 @@ export function ModelMenu(properties: ModelMenuProperties) {
                 >
                   <span className="model-menu-name">Auto</span>
                   <span className="model-menu-muted">configured order, with fallback</span>
-                  {desk.preferred_model === null ? <CheckIcon /> : <span className="model-menu-key" />}
+                  {trader.preferred_model === null ? <CheckIcon /> : <span className="model-menu-key" />}
                 </div>
               </div>
             );
@@ -301,11 +301,11 @@ export function ModelMenu(properties: ModelMenuProperties) {
 }
 
 /**
- * Groups the other models of the desk's backends by provider, each model run by the first backend of that provider that offers it.
- * @param backends The desk's backends, in their order.
+ * Groups the other models of the trader's backends by provider, each model run by the first backend of that provider that offers it.
+ * @param backends The trader's backends, in their order.
  * @returns The providers that offer other models, in the order they first appear.
  */
-function providersOf(backends: DeskBackend[]): Provider[] {
+function providersOf(backends: TraderBackend[]): Provider[] {
   const providers: Provider[] = [];
   for (const backend of backends) {
     if ((backend.other_models ?? []).length === 0) {

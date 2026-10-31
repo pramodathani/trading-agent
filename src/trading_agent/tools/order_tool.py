@@ -1,6 +1,6 @@
 """The shallow base class of the tools that place, change, cancel and close orders.
 
-Every order tool asks the risk engine before it sends anything that adds risk, tags each order with the desk's name, records the order in the desk order book, and publishes what it did on the event bus, where the journal keeps it with the model's stated reason. In dry_run mode every request goes to UBI as a dry run, which UBI checks and answers without sending anything to a broker.
+Every order tool asks the risk engine before it sends anything that adds risk, tags each order with the trader's name, records the order in the trader order book, and publishes what it did on the event bus, where the journal keeps it with the model's stated reason. In dry_run mode every request goes to UBI as a dry run, which UBI checks and answers without sending anything to a broker.
 
 Typical usage example:
 
@@ -27,9 +27,9 @@ from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.tools import tool
 from trading_agent.trading import broker_reader as broker_reader_module
-from trading_agent.trading import desk_order_book as desk_order_book_module
 from trading_agent.trading import instrument_arguments
 from trading_agent.trading import result_formatter as result_formatter_module
+from trading_agent.trading import trader_order_book as trader_order_book_module
 
 _ORDER_TIMEOUT_SECONDS = 120.0
 _TAG_LENGTH = 20
@@ -38,21 +38,21 @@ _DRY_RUN_PREFIX = 'dry-'
 
 @dataclasses.dataclass(frozen=True)
 class OrderServices:
-    """What the order tools use, shared by every desk.
+    """What the order tools use, shared by every trader.
 
     Attributes:
         reader: The shared reader of UBI, whose lock every UBI call goes through.
         risk_engine: The engine every order that adds risk must pass.
-        order_book: The record of which desk placed which order.
-        snapshot_reader: Reads the account's positions, for closing a desk's positions.
-        ledger: The risk ledger, for the instruments a desk owns.
+        order_book: The record of which trader placed which order.
+        snapshot_reader: Reads the account's positions, for closing a trader's positions.
+        ledger: The risk ledger, for the instruments a trader owns.
         event_bus: Where every order action is published.
         formatter: Turns UBI's answers into text.
     """
 
     reader: broker_reader_module.BrokerReader
     risk_engine: risk_engine_module.RiskEngine
-    order_book: desk_order_book_module.DeskOrderBook
+    order_book: trader_order_book_module.TraderOrderBook
     snapshot_reader: account_snapshot_module.AccountSnapshotReader
     ledger: risk_ledger_module.RiskLedger
     event_bus: event_bus_module.EventBus
@@ -60,23 +60,23 @@ class OrderServices:
 
 
 class OrderTool(tool.Tool):
-    """A tool that sends orders, or changes or cancels them, for one desk."""
+    """A tool that sends orders, or changes or cancels them, for one trader."""
 
     timeout_seconds = _ORDER_TIMEOUT_SECONDS
 
-    def __init__(self, services: OrderServices, desk: str, mode: str):
+    def __init__(self, services: OrderServices, trader: str, mode: str):
         """Creates the tool.
 
         Args:
             services (OrderServices): What the tool uses.
-            desk (str): The desk the tool works for.
+            trader (str): The trader the tool works for.
             mode (str): "dry_run" to send everything to UBI as a dry run, "live" to trade.
         """
         self._services = services
-        self._desk = desk
+        self._trader = trader
         self._dry_run = mode != 'live'
         tag_characters = []
-        for character in desk:
+        for character in trader:
             if character.isalnum():
                 tag_characters.append(character)
         self._tag = ''.join(tag_characters)[:_TAG_LENGTH]
@@ -233,7 +233,7 @@ class OrderTool(tool.Tool):
         """
         symbol = instrument.symbol or instrument.underlying_symbol or ''
         return order_request_module.OrderRequest(
-            desk=self._desk,
+            trader=self._trader,
             instrument_id=instrument.instrument_id,
             exchange=instrument.exchange,
             segment=instrument.segment,
@@ -270,8 +270,8 @@ class OrderTool(tool.Tool):
         kind: str,
         request: order_request_module.OrderRequest,
         answer: Any,
-    ) -> desk_order_book_module.OrderRecord:
-        """Records a placed order in the desk order book.
+    ) -> trader_order_book_module.OrderRecord:
+        """Records a placed order in the trader order book.
 
         Args:
             kind (str): "order", "bracket" or "close".
@@ -279,7 +279,7 @@ class OrderTool(tool.Tool):
             answer (Any): UBI's answer to placing it.
 
         Returns:
-            desk_order_book_module.OrderRecord: The record.
+            trader_order_book_module.OrderRecord: The record.
         """
         if not isinstance(answer, dict):
             answer = {}
@@ -288,9 +288,9 @@ class OrderTool(tool.Tool):
         if parent_id is None and order_id is None:
             parent_id = f'{_DRY_RUN_PREFIX}{uuid.uuid4().hex[:12]}'
         record_id = parent_id or order_id
-        record = desk_order_book_module.OrderRecord(
+        record = trader_order_book_module.OrderRecord(
             record_id=record_id,
-            desk=self._desk,
+            trader=self._trader,
             kind=kind,
             parent_id=parent_id,
             order_id=order_id,
@@ -303,8 +303,8 @@ class OrderTool(tool.Tool):
             product=request.product,
             price=request.price,
             dry_run=self._dry_run,
-            state=desk_order_book_module.OPEN,
-            placed_at=desk_order_book_module.DeskOrderBook.now_text(),
+            state=trader_order_book_module.OPEN,
+            placed_at=trader_order_book_module.TraderOrderBook.now_text(),
         )
         self._services.order_book.add(record)
         return record
@@ -313,7 +313,7 @@ class OrderTool(tool.Tool):
         """Publishes an order action for the journal and the interfaces.
 
         Args:
-            details (dict[str, Any]): What happened; the desk and the mode are added.
+            details (dict[str, Any]): What happened; the trader and the mode are added.
         """
         payload = {
             'dry_run': self._dry_run,
@@ -322,7 +322,7 @@ class OrderTool(tool.Tool):
         self._services.event_bus.publish(
             event_module.Event.now(
                 event_module.EventKind.ORDER,
-                self._desk,
+                self._trader,
                 payload,
             )
         )

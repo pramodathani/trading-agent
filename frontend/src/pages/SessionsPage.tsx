@@ -4,20 +4,20 @@ import { apiClient } from '../api/apiClient';
 import type { Exchange, SearchHit } from '../api/types';
 import { Loadable } from '../components/Loadable';
 import { usePolled } from '../hooks/usePolled';
-import { useSelectedDesk } from '../layout/selectedDeskStore';
+import { useSelectedTrader } from '../layout/selectedTraderStore';
 import { formatter } from '../utilities/formatter';
 
 const REFRESH_MILLISECONDS = 30000;
 
 /**
- * The chosen desk's memory: its sessions, daily summaries and notes, and a search over all of them.
+ * The chosen trader's memory: its sessions, daily summaries and notes, and a search over all of them.
  * @returns The page.
  */
 export function SessionsPage() {
-  const deskName = useSelectedDesk();
-  const sessions = usePolled(() => apiClient.sessions(deskName), REFRESH_MILLISECONDS, deskName);
-  const summaries = usePolled(() => apiClient.summaries(deskName), REFRESH_MILLISECONDS, deskName);
-  const notes = usePolled(() => apiClient.notes(deskName), REFRESH_MILLISECONDS, deskName);
+  const traderName = useSelectedTrader();
+  const sessions = usePolled(() => apiClient.sessions(traderName), REFRESH_MILLISECONDS, traderName);
+  const summaries = usePolled(() => apiClient.summaries(traderName), REFRESH_MILLISECONDS, traderName);
+  const notes = usePolled(() => apiClient.notes(traderName), REFRESH_MILLISECONDS, traderName);
   const [openSession, setOpenSession] = useState<string | null>(null);
   const [exchanges, setExchanges] = useState<Exchange[] | null>(null);
   const [keywords, setKeywords] = useState('');
@@ -29,7 +29,7 @@ export function SessionsPage() {
     setOpenSession(null);
     setHits(null);
   }, [
-    deskName,
+    traderName,
   ]);
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export function SessionsPage() {
     }
     let cancelled = false;
     apiClient
-      .session(deskName, openSession)
+      .session(traderName, openSession)
       .then((document) => {
         if (!cancelled) {
           setExchanges(document.exchanges);
@@ -54,7 +54,7 @@ export function SessionsPage() {
       cancelled = true;
     };
   }, [
-    deskName,
+    traderName,
     openSession,
   ]);
 
@@ -69,7 +69,7 @@ export function SessionsPage() {
     }
     setSearchError(null);
     try {
-      const result = await apiClient.search(deskName, keywords.trim());
+      const result = await apiClient.search(traderName, keywords.trim());
       setHits(result.hits);
       setEveryWord(result.matched_every_word);
     } catch (failure) {
@@ -80,11 +80,11 @@ export function SessionsPage() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1>Sessions of {deskName}</h1>
-        <p className="muted">What the desk said and remembered: one session per trading day, the summary written at each rollover, and its notes.</p>
+        <h1>Sessions of {traderName}</h1>
+        <p className="muted">What the trader said and remembered: one session per trading day, the summary written at each rollover, and its notes.</p>
       </div>
       <section className="panel">
-        <h2>Search the desk&apos;s memory</h2>
+        <h2>Search the trader&apos;s memory</h2>
         <form className="filters" onSubmit={search}>
           <input value={keywords} onChange={(change) => setKeywords(change.target.value)} placeholder="For example: NIFTY gap down" aria-label="Keywords" />
           <button className="primary" type="submit" disabled={!keywords.trim()}>
@@ -98,7 +98,7 @@ export function SessionsPage() {
             {hits.length === 0 && <p className="muted">Nothing found.</p>}
             {hits.map((hit, index) => (
               <div key={`${hit.day}-${index}`} className="search-hit">
-                <span className="mono muted">{hit.day}</span> <span className="desk-chip">{hit.kind}</span>
+                <span className="mono muted">{hit.day}</span> <span className="trader-chip">{hit.kind}</span>
                 <pre>{hit.snippet}</pre>
               </div>
             ))}
@@ -163,7 +163,7 @@ export function SessionsPage() {
       </section>
       <section className="panel">
         <h2>Notes</h2>
-        <p className="muted small">The one to three lessons the desk writes after its turns; they are folded into Memory.md at the close.</p>
+        <p className="muted small">The one to three lessons the trader writes after its turns; they are folded into Memory.md at the close.</p>
         <Loadable data={notes.data} error={notes.error}>
           {(document) => (
             <>

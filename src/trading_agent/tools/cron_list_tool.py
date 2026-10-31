@@ -1,4 +1,4 @@
-"""The cron_list tool: lists the desk's scheduled jobs and their next runs.
+"""The cron_list tool: lists the trader's scheduled jobs and their next runs.
 
 Typical usage example:
 
@@ -34,7 +34,7 @@ class CronListTool(tool.Tool):
         """Creates the tool.
 
         Args:
-            store (cron_job_store_module.CronJobStore): The desk's jobs.
+            store (cron_job_store_module.CronJobStore): The trader's jobs.
             built_in_jobs (Sequence[cron_job_module.CronJob]): The heartbeat and rollover.
             calendar (market_calendar_module.MarketCalendar): Decides trading days.
             hours (exchange_hours_module.ExchangeHours): Decides market hours.

@@ -207,8 +207,8 @@ _TOOLS = {
         'Cancelling an order',
         'order',
     ),
-    'flatten_desk': (
-        "Closing the desk's positions",
+    'flatten_trader': (
+        "Closing the trader's positions",
         'order',
     ),
     'send_message': (

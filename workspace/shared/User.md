@@ -16,7 +16,7 @@ All amounts are percentages of the total account balance across all brokers, rea
 - Largest loss acceptable in one week: 35% of the total balance.
 - Largest single order: 25% of the total balance.
 - Open positions: no cap.
-- Capital split between desks: one shared pool; any desk may use any part of it, limited only by the account-wide limits.
+- Capital split between traders: one shared pool; any trader may use any part of it, limited only by the account-wide limits.
 - Pramod chose these numbers knowingly after being told they are aggressive.
 
 ## Markets and style
@@ -25,7 +25,7 @@ All amounts are percentages of the total account balance across all brokers, rea
 - Instruments to focus on or avoid: all instruments are allowed; nothing is excluded.
 - Options: long positions only. No option writing without his explicit permission.
 - Preferred holding periods: intraday, overnight and multi-day are all allowed.
-- Desks: "general" is the general-purpose desk; intraday, scalper and positional are the specialised desks.
+- Traders: "general" is the general-purpose trader; intraday, scalper and positional are the specialised traders.
 
 ## Schedule and contact
 

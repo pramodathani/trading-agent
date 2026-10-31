@@ -1,4 +1,4 @@
-"""The skill_create tool: writes down a procedure as one of the desk's own skills.
+"""The skill_create tool: writes down a procedure as one of the trader's own skills.
 
 Typical usage example:
 
@@ -36,7 +36,7 @@ class SkillCreateArguments(pydantic.BaseModel):
 
 
 class SkillCreateTool(tool.Tool):
-    """Creates one of the desk's own skills."""
+    """Creates one of the trader's own skills."""
 
     name = 'skill_create'
     description = "Writes a procedure you worked out as one of your own skills, so you can follow it again with load_skill. Use it after a multi-step task you will need again, such as an analysis routine or an order routine. Write the instructions as numbered steps that name the tools to use and what to check, with no facts that will go stale, such as today's prices. The change is snapshotted, so it can be undone."
@@ -46,7 +46,7 @@ class SkillCreateTool(tool.Tool):
         """Creates the tool.
 
         Args:
-            writer (skill_writer_module.SkillWriter): Writes the desk's skills.
+            writer (skill_writer_module.SkillWriter): Writes the trader's skills.
         """
         self._writer = writer
 

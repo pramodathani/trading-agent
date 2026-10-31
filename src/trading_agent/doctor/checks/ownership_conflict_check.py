@@ -1,4 +1,4 @@
-"""Checks that the risk engine has refused a desk because another desk owned the stock, outside the tests.
+"""Checks that the risk engine has refused a trader because another trader owned the stock, outside the tests.
 
 Typical usage example:
 
@@ -14,13 +14,13 @@ _OWNED_WORDS = 'belongs to'
 class OwnershipConflictCheck(doctor_check.DoctorCheck):
     """Looks in the journals for a refusal over stock ownership."""
 
-    name = 'Desks sharing a stock'
+    name = 'Traders sharing a stock'
 
     def __init__(self, search: journal_search_module.JournalSearch):
         """Creates the check.
 
         Args:
-            search (journal_search_module.JournalSearch): Searches the desks' journals.
+            search (journal_search_module.JournalSearch): Searches the traders' journals.
         """
         self._search = search
 
@@ -38,9 +38,9 @@ class OwnershipConflictCheck(doctor_check.DoctorCheck):
             if not payload.get('approved') and _OWNED_WORDS in reasons:
                 return doctor_check.CheckResult(
                     doctor_check.CheckStatus.OK,
-                    f'The risk engine refused {event.get("desk")} at {event.get("created_at", "")[:16]}: {reasons}',
+                    f'The risk engine refused {event.get("trader")} at {event.get("created_at", "")[:16]}: {reasons}',
                 )
         return doctor_check.CheckResult(
             doctor_check.CheckStatus.WARNING,
-            'Not yet seen with UBI (the tests cover it). On a trading day, have one desk buy a stock in dry run, then ask another desk to buy the same stock; the second must be refused.',
+            'Not yet seen with UBI (the tests cover it). On a trading day, have one trader buy a stock in dry run, then ask another trader to buy the same stock; the second must be refused.',
         )

@@ -2,7 +2,7 @@
 
 This is the loop at the heart of Pi and every other agent. One run of the loop is one turn: it ends when the model replies without asking for a tool, or when the round limit is reached.
 
-With a context compressor, a conversation that has filled 70% of the model's window is compressed before the next turn: the desk first gets a silent memory-flush turn to save what matters, then the older messages are replaced by a summary. Between the tool rounds of one long turn, a conversation past 85% is compressed at once, without the flush.
+With a context compressor, a conversation that has filled 70% of the model's window is compressed before the next turn: the trader first gets a silent memory-flush turn to save what matters, then the older messages are replaced by a summary. Between the tool rounds of one long turn, a conversation past 85% is compressed at once, without the flush.
 
 Before every model call, all but the four newest pictures are taken out of the conversation, because each one would otherwise be sent again with every later call.
 
@@ -31,7 +31,7 @@ _PICTURES_KEPT = 4
 
 
 class AgentLoop:
-    """Runs turns for one desk against one backend.
+    """Runs turns for one trader against one backend.
 
     Attributes:
         backend: The model the loop asks.
@@ -39,7 +39,7 @@ class AgentLoop:
 
     def __init__(
         self,
-        desk_name: str,
+        trader_name: str,
         backend: backend_module.ModelBackend,
         executor: tool_call_executor_module.ToolCallExecutor,
         event_bus: event_bus_module.EventBus,
@@ -51,16 +51,16 @@ class AgentLoop:
         """Creates the loop.
 
         Args:
-            desk_name (str): The desk the loop runs for, used to tag its events.
+            trader_name (str): The trader the loop runs for, used to tag its events.
             backend (backend_module.ModelBackend): The model to ask.
             executor (tool_call_executor_module.ToolCallExecutor): What runs the model's tool calls.
             event_bus (event_bus_module.EventBus): Where every step is published.
             maximum_rounds (int): The most model calls one turn may make.
             compressor (context_compressor_module.ContextCompressor | None): Compresses the conversation when it gets too full, or None to let it grow.
-            steering_inbox (steering_inbox_module.SteeringInbox | None): The desk's mid-turn messages, added to the conversation after each tool round, or None for a loop that cannot be steered, such as a subagent's.
+            steering_inbox (steering_inbox_module.SteeringInbox | None): The trader's mid-turn messages, added to the conversation after each tool round, or None for a loop that cannot be steered, such as a subagent's.
             image_preparer (image_preparer_module.ImagePreparer | None): Sizes the pictures sent with a message for the model; None for a new one.
         """
-        self._desk_name = desk_name
+        self._trader_name = trader_name
         self.backend = backend
         self._executor = executor
         self._event_bus = event_bus
@@ -87,7 +87,7 @@ class AgentLoop:
         """Runs one turn for a trigger, appending everything to the conversation.
 
         Args:
-            conversation (conversation_module.Conversation): The desk's conversation, which grows by this turn's messages.
+            conversation (conversation_module.Conversation): The trader's conversation, which grows by this turn's messages.
             trigger (trigger_module.Trigger): The reason for the turn.
 
         Returns:
@@ -110,7 +110,7 @@ class AgentLoop:
         """Flushes and compresses the conversation now, for the /compact command.
 
         Args:
-            conversation (conversation_module.Conversation): The desk's conversation.
+            conversation (conversation_module.Conversation): The trader's conversation.
             trigger (trigger_module.Trigger): The command's trigger, used to tag events.
 
         Returns:
@@ -129,10 +129,10 @@ class AgentLoop:
         trigger: trigger_module.Trigger,
         reason: str,
     ) -> bool:
-        """Gives the desk a memory-flush turn, then compresses everything said so far.
+        """Gives the trader a memory-flush turn, then compresses everything said so far.
 
         Args:
-            conversation (conversation_module.Conversation): The desk's conversation.
+            conversation (conversation_module.Conversation): The trader's conversation.
             trigger (trigger_module.Trigger): The trigger that caused it, used to tag events.
             reason (str): "threshold" or "command", for the event.
 
@@ -141,7 +141,7 @@ class AgentLoop:
         """
         flush_trigger = trigger_module.Trigger.now(
             trigger_module.TriggerSource.COMPRESSION,
-            trigger.desk,
+            trigger.trader,
             context_compressor_module.FLUSH_REQUEST,
         )
         await self._run_rounds(conversation, flush_trigger)
@@ -161,7 +161,7 @@ class AgentLoop:
         """Runs the rounds of one turn: model call, tool calls, and again.
 
         Args:
-            conversation (conversation_module.Conversation): The desk's conversation, which grows by this turn's messages.
+            conversation (conversation_module.Conversation): The trader's conversation, which grows by this turn's messages.
             trigger (trigger_module.Trigger): The reason for the turn.
 
         Returns:
@@ -353,12 +353,12 @@ class AgentLoop:
         )
 
     def _publish(self, kind: event_module.EventKind, payload: dict) -> None:
-        """Publishes an event from this desk.
+        """Publishes an event from this trader.
 
         Args:
             kind (event_module.EventKind): What happened.
             payload (dict): The event's details.
         """
         self._event_bus.publish(
-            event_module.Event.now(kind, self._desk_name, payload)
+            event_module.Event.now(kind, self._trader_name, payload)
         )

@@ -1,6 +1,6 @@
 <svg class="ta-svg" viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="steering-title steering-description">
   <title id="steering-title">Steering and stopping a turn</title>
-  <desc id="steering-description">A message sent while a desk works waits in the steering inbox and is handed to the turn at its next tool round; /stop skips the queue.</desc>
+  <desc id="steering-description">A message sent while a trader works waits in the steering inbox and is handed to the turn at its next tool round; /stop skips the queue.</desc>
 
   <path class="wire" d="M200,215 L245,215 L245,140 L290,140"/>
   <path class="wire" d="M200,245 L230,245 L230,95 L290,95"/>
@@ -31,7 +31,7 @@
   <text class="small" x="115" y="262" text-anchor="middle">or the Stop button</text>
 
   <rect class="accent-box" x="290" y="60" width="220" height="140" rx="8"/>
-  <text class="title" x="400" y="88" text-anchor="middle">The desk</text>
+  <text class="title" x="400" y="88" text-anchor="middle">The trader</text>
   <text class="small" x="400" y="112" text-anchor="middle">a message from you while</text>
   <text class="small" x="400" y="126" text-anchor="middle">a model turn runs is steering</text>
   <text class="small" x="400" y="156" text-anchor="middle">/stop cancels the turn at once;</text>
@@ -39,7 +39,7 @@
 
   <rect class="store" x="290" y="250" width="220" height="90" rx="8"/>
   <text class="title" x="400" y="280" text-anchor="middle">Steering inbox</text>
-  <text class="small" x="400" y="302" text-anchor="middle">one per desk; subagents</text>
+  <text class="small" x="400" y="302" text-anchor="middle">one per trader; subagents</text>
   <text class="small" x="400" y="316" text-anchor="middle">have none</text>
 
   <rect class="store" x="290" y="390" width="220" height="70" rx="8"/>

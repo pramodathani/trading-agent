@@ -1,12 +1,12 @@
-"""The user's standing permissions: a desk may use a tool that normally needs permission, until the user revokes it.
+"""The user's standing permissions: a trader may use a tool that normally needs permission, until the user revokes it.
 
 A grant is made by "Always allow" on a permission request, and is kept in workspace/shared/permission_grants.json.
 
 Typical usage example:
 
   grants = PermissionGrants(layout)
-  grants.grant('main', 'flatten_desk')
-  grants.allows('main', 'flatten_desk')
+  grants.grant('main', 'flatten_trader')
+  grants.allows('main', 'flatten_trader')
 """
 
 import dataclasses
@@ -22,12 +22,12 @@ class PermissionGrant:
     """One standing permission.
 
     Attributes:
-        desk: The desk allowed.
+        trader: The trader allowed.
         tool_name: The tool it may use without asking.
         granted_at: When the user granted it, as ISO 8601 text in UTC.
     """
 
-    desk: str
+    trader: str
     tool_name: str
     granted_at: str
 
@@ -56,26 +56,26 @@ class PermissionGrants:
             grants.append(PermissionGrant(**entry))
         return grants
 
-    def allows(self, desk: str, tool_name: str) -> bool:
-        """Says whether a desk may use a tool without asking.
+    def allows(self, trader: str, tool_name: str) -> bool:
+        """Says whether a trader may use a tool without asking.
 
         Args:
-            desk (str): The desk.
+            trader (str): The trader.
             tool_name (str): The tool.
 
         Returns:
             bool: True when the user granted it.
         """
         for grant in self.all():
-            if grant.desk == desk and grant.tool_name == tool_name:
+            if grant.trader == trader and grant.tool_name == tool_name:
                 return True
         return False
 
-    def grant(self, desk: str, tool_name: str) -> PermissionGrant:
-        """Lets a desk use a tool without asking from now on.
+    def grant(self, trader: str, tool_name: str) -> PermissionGrant:
+        """Lets a trader use a tool without asking from now on.
 
         Args:
-            desk (str): The desk.
+            trader (str): The trader.
             tool_name (str): The tool.
 
         Returns:
@@ -83,10 +83,10 @@ class PermissionGrants:
         """
         grants = self.all()
         for existing in grants:
-            if existing.desk == desk and existing.tool_name == tool_name:
+            if existing.trader == trader and existing.tool_name == tool_name:
                 return existing
         grant = PermissionGrant(
-            desk=desk,
+            trader=trader,
             tool_name=tool_name,
             granted_at=datetime.datetime.now(datetime.UTC).isoformat(),
         )
@@ -94,11 +94,11 @@ class PermissionGrants:
         self._write(grants)
         return grant
 
-    def revoke(self, desk: str, tool_name: str) -> bool:
-        """Makes a desk ask again before using a tool.
+    def revoke(self, trader: str, tool_name: str) -> bool:
+        """Makes a trader ask again before using a tool.
 
         Args:
-            desk (str): The desk.
+            trader (str): The trader.
             tool_name (str): The tool.
 
         Returns:
@@ -107,7 +107,7 @@ class PermissionGrants:
         grants = self.all()
         kept = []
         for grant in grants:
-            if grant.desk != desk or grant.tool_name != tool_name:
+            if grant.trader != trader or grant.tool_name != tool_name:
                 kept.append(grant)
         if len(kept) == len(grants):
             return False

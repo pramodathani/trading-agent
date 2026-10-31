@@ -1,4 +1,4 @@
-"""Tests for slash commands and the context line, run through a real desk loop."""
+"""Tests for slash commands and the context line, run through a real trader loop."""
 
 import asyncio
 import datetime
@@ -12,10 +12,10 @@ from trading_agent.backends import backend
 from trading_agent.backends import model_router
 from trading_agent.configuration import agent_configuration
 from trading_agent.journal import journal_reader
-from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import slash_commands
+from trading_agent.runtime import trader_runtime
 from trading_agent.runtime import trigger as trigger_module
 from trading_agent.runtime import turn_runner
 from trading_agent.skills import skill_library
@@ -118,13 +118,13 @@ class _RecordingRunner(turn_runner.TurnRunner):
         return self.snapshot
 
 
-class _Desk:
-    """A desk with a two-backend router, driven one message at a time.
+class _Trader:
+    """A trader with a two-backend router, driven one message at a time.
 
     Attributes:
         claude: The first backend's runner.
         gemma: The second backend's runner.
-        desk: The desk.
+        trader: The trader.
     """
 
     def __init__(
@@ -133,11 +133,11 @@ class _Desk:
         skills: skill_library.SkillLibrary | None = None,
         parts: slash_commands.CommandParts | None = None,
     ):
-        """Builds the desk.
+        """Builds the trader.
 
         Args:
-            tools (tool_registry.ToolRegistry | None): The desk's tools, or None.
-            skills (skill_library.SkillLibrary | None): The desk's skills, or None.
+            tools (tool_registry.ToolRegistry | None): The trader's tools, or None.
+            skills (skill_library.SkillLibrary | None): The trader's skills, or None.
             parts (slash_commands.CommandParts | None): The subagents and journal, or None.
         """
         self.claude = _RecordingRunner('claude')
@@ -151,8 +151,8 @@ class _Desk:
             ],
             self._event_bus,
         )
-        self.desk = desk_runtime.DeskRuntime(
-            agent_configuration.DeskConfiguration(name='main'),
+        self.trader = trader_runtime.TraderRuntime(
+            agent_configuration.TraderConfiguration(name='main'),
             self._event_bus,
             router,
             'dry_run',
@@ -172,16 +172,16 @@ class _Desk:
         """
 
         async def scenario() -> list[str]:
-            """Runs the desk loop until every message is answered.
+            """Runs the trader loop until every message is answered.
 
             Returns:
                 list[str]: The replies.
             """
             replies = []
             with self._event_bus.subscribe() as subscription:
-                task = asyncio.create_task(self.desk.run())
+                task = asyncio.create_task(self.trader.run())
                 for text in texts:
-                    self.desk.submit(
+                    self.trader.submit(
                         trigger_module.Trigger.now(
                             trigger_module.TriggerSource.USER_MESSAGE,
                             'main',
@@ -206,19 +206,19 @@ class TestSlashCommands:
     """Tests for the commands and the context line."""
 
     def test_status_lists_the_models_without_asking_one(self) -> None:
-        """/status describes the desk and its backends, and no model is asked."""
-        setup = _Desk()
+        """/status describes the trader and its backends, and no model is asked."""
+        setup = _Trader()
 
         reply = setup.send(['/status'])[0]
 
-        assert 'Desk: main' in reply
+        assert 'Trader: main' in reply
         assert 'Mode: dry_run' in reply
         assert '1. claude: ready' in reply
         assert setup.claude.received_texts == []
 
     def test_model_command_changes_the_order_and_auto_restores_it(self) -> None:
         """/model gemma puts gemma first; /model auto goes back to the configured order."""
-        setup = _Desk()
+        setup = _Trader()
 
         replies = setup.send(
             [
@@ -235,14 +235,14 @@ class TestSlashCommands:
         assert replies[3] == 'claude answered'
 
     def test_unknown_model_name_is_refused(self) -> None:
-        """/model with a name the desk does not have lists the real ones."""
-        reply = _Desk().send(['/model gpt'])[0]
+        """/model with a name the trader does not have lists the real ones."""
+        reply = _Trader().send(['/model gpt'])[0]
 
         assert "No backend named 'gpt'" in reply
 
-    def test_paused_desk_does_not_ask_any_model(self) -> None:
+    def test_paused_trader_does_not_ask_any_model(self) -> None:
         """While paused, messages get a fixed reply; after /resume the model answers again."""
-        setup = _Desk()
+        setup = _Trader()
 
         replies = setup.send(
             [
@@ -259,7 +259,7 @@ class TestSlashCommands:
 
     def test_new_resets_every_backend(self) -> None:
         """/new resets each backend's conversation."""
-        setup = _Desk()
+        setup = _Trader()
 
         setup.send(['/new'])
 
@@ -268,7 +268,7 @@ class TestSlashCommands:
 
     def test_bot_name_suffix_is_ignored(self) -> None:
         """A command with the @botname Telegram adds in groups works like the plain command."""
-        replies = _Desk().send(
+        replies = _Trader().send(
             [
                 '/usage@test_bot',
                 '/model@test_bot gemma',
@@ -279,14 +279,14 @@ class TestSlashCommands:
         assert any('1. gemma' in reply for reply in replies)
 
     def test_unknown_command_points_to_help(self) -> None:
-        """A command the desk does not know points to /help."""
-        reply = _Desk().send(['/frobnicate'])[0]
+        """A command the trader does not know points to /help."""
+        reply = _Trader().send(['/frobnicate'])[0]
 
         assert reply == 'Unknown command /frobnicate. Type /help for the list.'
 
     def test_think_shows_sets_and_restores_each_backends_level(self) -> None:
         """/think lists each backend's level, /think high sets every backend, /think default restores them, and a wrong level is refused."""
-        setup = _Desk()
+        setup = _Trader()
 
         replies = setup.send(
             [
@@ -307,7 +307,7 @@ class TestSlashCommands:
 
     def test_model_sees_the_india_time_and_trigger_source(self) -> None:
         """The message the model receives starts with the context line."""
-        setup = _Desk()
+        setup = _Trader()
 
         setup.send(['What is the time?'])
 
@@ -344,7 +344,7 @@ def _journal_line(
     return json.dumps(
         {
             'kind': kind,
-            'desk': 'main',
+            'trader': 'main',
             'payload': payload,
             'created_at': created_at.isoformat(),
         }
@@ -356,13 +356,13 @@ class TestInformationCommands:
 
     def test_context_before_any_turn(self) -> None:
         """/context says so when no model has reported its window yet."""
-        reply = _Desk().send(['/context'])[0]
+        reply = _Trader().send(['/context'])[0]
 
         assert 'No model has reported its context window' in reply
 
     def test_context_shows_the_window_and_its_parts(self) -> None:
         """/context gives the tokens used, the percentage and each part, marking deferred ones."""
-        setup = _Desk()
+        setup = _Trader()
         setup.claude.snapshot = context_usage_module.ContextUsage(
             backend='claude',
             model='opus',
@@ -395,36 +395,36 @@ class TestInformationCommands:
             5,
         )
 
-        replies = _Desk(tools=registry).send(['/tools'])
-        bare = _Desk().send(['/tools'])
+        replies = _Trader(tools=registry).send(['/tools'])
+        bare = _Trader().send(['/tools'])
 
         assert '1 tools:' in replies[0]
         assert '- echo: Returns the word in capitals.' in replies[0]
         assert bare == [
-            'This desk has no tools.',
+            'This trader has no tools.',
         ]
 
     def test_skills_are_grouped_by_who_wrote_them(self, tmp_path: Path) -> None:
-        """/skills separates the user's skills from the ones the desk wrote."""
+        """/skills separates the user's skills from the ones the trader wrote."""
         _write_file(
             tmp_path / 'installed' / 'opening-range' / 'SKILL.md',
             '---\nname: opening-range\ndescription: Trade the opening range. More detail.\n---\nSteps.\n',
         )
         _write_file(
             tmp_path / 'agent' / 'my-own' / 'SKILL.md',
-            '---\nname: my-own\ndescription: A habit the desk learned.\n---\nSteps.\n',
+            '---\nname: my-own\ndescription: A habit the trader learned.\n---\nSteps.\n',
         )
         library = skill_library.SkillLibrary(
             tmp_path / 'installed', tmp_path / 'agent'
         )
 
-        reply = _Desk(skills=library).send(['/skills'])[0]
+        reply = _Trader(skills=library).send(['/skills'])[0]
 
         assert (
             'Your skills:\n- /opening-range: Trade the opening range.' in reply
         )
         assert (
-            "The desk's own skills:\n- /my-own: A habit the desk learned."
+            "The trader's own skills:\n- /my-own: A habit the trader learned."
             in reply
         )
 
@@ -479,17 +479,17 @@ class TestInformationCommands:
             ),
         )
 
-        reply = _Desk(parts=parts).send(['/subagents'])[0]
+        reply = _Trader(parts=parts).send(['/subagents'])[0]
 
         assert 'Subagents:\n- trade_reviewer: Reviews trades.' in reply
         assert '- 09:30 trade_reviewer: done on claude in 42.0 s' in reply
         assert '- 10:00 news_reader: running' in reply
 
     def test_subagents_with_nothing_to_show(self) -> None:
-        """/subagents on a desk without subagents or a journal says so."""
-        reply = _Desk().send(['/subagents'])[0]
+        """/subagents on a trader without subagents or a journal says so."""
+        reply = _Trader().send(['/subagents'])[0]
 
-        assert reply == 'This desk has no subagents and ran none today.'
+        assert reply == 'This trader has no subagents and ran none today.'
 
 
 class TestSideQuestions:
@@ -497,20 +497,20 @@ class TestSideQuestions:
 
     def test_side_answer_is_not_kept(self) -> None:
         """/btw answers from a backend, runs no turn and adds no exchange to the session."""
-        setup = _Desk()
+        setup = _Trader()
 
         reply = setup.send(['/btw why did you sell INFY?'])[0]
 
         assert reply == (
-            "Side answer from claude, not kept in the desk's conversation:\n"
+            "Side answer from claude, not kept in the trader's conversation:\n"
             'claude side: why did you sell INFY?'
         )
         assert setup.claude.received_texts == []
-        assert len(setup.desk.turn_runner.exchanges) == 0
+        assert len(setup.trader.turn_runner.exchanges) == 0
 
     def test_next_backend_answers_when_the_first_fails(self) -> None:
         """When the first backend cannot answer, the next one does, and the first is not made to wait."""
-        setup = _Desk()
+        setup = _Trader()
         setup.claude.side_fails = True
 
         replies = setup.send(
@@ -526,10 +526,10 @@ class TestSideQuestions:
         assert any('1. claude: ready' in reply for reply in replies)
 
     def test_empty_or_paused_side_questions_ask_no_model(self) -> None:
-        """/btw without a question explains itself, and a paused desk asks no model."""
-        empty = _Desk().send(['/btw'])[0]
-        setup = _Desk()
-        setup.desk.paused = True
+        """/btw without a question explains itself, and a paused trader asks no model."""
+        empty = _Trader().send(['/btw'])[0]
+        setup = _Trader()
+        setup.trader.paused = True
 
         paused = setup.send(['/btw anything'])[0]
 
@@ -539,7 +539,7 @@ class TestSideQuestions:
 
 
 class _StandInSubagentRunner:
-    """Stands in for a desk's subagent runner, recording each task and answering with a fixed report.
+    """Stands in for a trader's subagent runner, recording each task and answering with a fixed report.
 
     Attributes:
         tasks: Every task it was given.
@@ -631,7 +631,7 @@ class TestReview:
         reviewer = _StandInSubagentRunner()
         parts = _review_parts(tmp_path, reviewer, True)
 
-        reply = _Desk(parts=parts).send(['/review focus on stops'])[0]
+        reply = _Trader(parts=parts).send(['/review focus on stops'])[0]
 
         task = reviewer.tasks[0]
         assert reply == (
@@ -647,13 +647,13 @@ class TestReview:
     def test_review_without_orders_runs_no_subagent(
         self, tmp_path: Path
     ) -> None:
-        """/review on a day without orders says so and starts no subagent; a desk without a runner says it cannot review."""
+        """/review on a day without orders says so and starts no subagent; a trader without a runner says it cannot review."""
         reviewer = _StandInSubagentRunner()
         parts = _review_parts(tmp_path, reviewer, False)
 
-        empty = _Desk(parts=parts).send(['/review'])[0]
-        bare = _Desk().send(['/review'])[0]
+        empty = _Trader(parts=parts).send(['/review'])[0]
+        bare = _Trader().send(['/review'])[0]
 
         assert 'placed no orders today' in empty
         assert reviewer.tasks == []
-        assert bare == 'This desk cannot run the trade reviewer.'
+        assert bare == 'This trader cannot run the trade reviewer.'

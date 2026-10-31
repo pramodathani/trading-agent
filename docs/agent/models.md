@@ -1,6 +1,6 @@
 # Models
 
-Each desk lists its models in `backend_order`, most preferred first. Four kinds of backend are supported, and the table below shows what each reaches.
+Each trader lists its models in `backend_order`, most preferred first. Four kinds of backend are supported, and the table below shows what each reaches.
 
 | Kind | Reaches | On this machine |
 |---|---|---|
@@ -9,11 +9,11 @@ Each desk lists its models in `backend_order`, most preferred first. Four kinds 
 | `ollama` | A model served by Ollama | `qwen`: `qwen3.8:27b`, and `gemma`: `gemma4:31b`, each with a 32,768-token window |
 | `openai_compatible` | OpenAI itself, or any server with the same API, such as llama.cpp, vLLM or LM Studio | none configured |
 
-The general, intraday and positional desks use Claude Opus, then DeepSeek, then Qwen, then Gemma. The scalper wakes every two minutes, so it starts with Claude Sonnet at low effort instead, which leaves Opus's share of the Max subscription's limits to the other desks; after Sonnet its order is the same.
+The general, intraday and positional traders use Claude Opus, then DeepSeek, then Qwen, then Gemma. The scalper wakes every two minutes, so it starts with Claude Sonnet at low effort instead, which leaves Opus's share of the Max subscription's limits to the other traders; after Sonnet its order is the same.
 
 ## Falling back
 
-The model router tries a desk's models in order. When one is unavailable, because it failed, refused, or reached a usage limit, the router moves to the next and publishes a model switch. A desk moves away from Claude only when Claude cannot answer, and it comes back by itself.
+The model router tries a trader's models in order. When one is unavailable, because it failed, refused, or reached a usage limit, the router moves to the next and publishes a model switch. A trader moves away from Claude only when Claude cannot answer, and it comes back by itself.
 
 <figure class="diagram">
 --8<-- "docs/assets/diagrams/model-router.svg"
@@ -30,11 +30,11 @@ A model that failed is not tried again until its waiting period ends. The table 
 
 Each model keeps its own conversation, so when one takes over it is first told what was asked and answered on the turns it missed. If a model fails partway through a turn, the next one is also told which tool calls were already made for that turn and asked not to repeat them, so a handover cannot place the same order twice.
 
-`/model deepseek`, or the model menu under the message box, makes a desk try that model first from now on, and `/model auto` restores the configured order. Choosing another Claude model, such as Haiku, changes the model inside the running Claude session, so the conversation carries on. Both last until the gateway restarts.
+`/model deepseek`, or the model menu under the message box, makes a trader try that model first from now on, and `/model auto` restores the configured order. Choosing another Claude model, such as Haiku, changes the model inside the running Claude session, so the conversation carries on. Both last until the gateway restarts.
 
 ## How hard a model thinks
 
-`effort` in `trading_agent.toml` sets how hard Claude thinks, and `thinking` turns reasoning on or off for the other models. `/think` changes it for every model of a desk from the next turn, until the gateway restarts, as [Talking to a desk](../using/chat.md#slash-commands) describes.
+`effort` in `trading_agent.toml` sets how hard Claude thinks, and `thinking` turns reasoning on or off for the other models. `/think` changes it for every model of a trader from the next turn, until the gateway restarts, as [Talking to a trader](../using/chat.md#slash-commands) describes.
 
 ## Claude through the Max subscription
 
@@ -47,7 +47,7 @@ trading-agent uses Claude through your Max subscription, never the API. The tabl
 | A usage limit | Claude's rate-limit event marks it unavailable until the limit resets, and the router falls back |
 | Billing the API by mistake | `ANTHROPIC_API_KEY` is removed from every Claude Code process; the doctor fails if it is set |
 
-The Models page shows Claude's five-hour and weekly limits as Claude reports them, and each desk's usage today. Claude's cost there is what the same tokens would cost on the API, as a guide to how quickly the limits are used; nothing is billed per token.
+The Models page shows Claude's five-hour and weekly limits as Claude reports them, and each trader's usage today. Claude's cost there is what the same tokens would cost on the API, as a guide to how quickly the limits are used; nothing is billed per token.
 
 ## DeepSeek
 

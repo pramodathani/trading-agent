@@ -1,6 +1,6 @@
-"""The Trading page: each desk's profit and stocks, halts, positions, the desks' open orders, UBI's order book, and the kill switch.
+"""The Trading page: each trader's profit and stocks, halts, positions, the traders' open orders, UBI's order book, and the kill switch.
 
-It copies the web page's TradingPage.tsx. The kill switch halts every desk and flattens the account; like the web page, it asks for a reason and the typed word FLATTEN.
+It copies the web page's TradingPage.tsx. The kill switch halts every trader and flattens the account; like the web page, it asks for a reason and the typed word FLATTEN.
 
 Typical usage example:
 
@@ -39,13 +39,13 @@ class TradingScreen(page_screen.PageScreen):
         binding.Binding('K', 'kill_switch', 'Fire the kill switch'),
     ]
 
-    def __init__(self, desk_name: str):
+    def __init__(self, trader_name: str):
         """Creates the page.
 
         Args:
-            desk_name (str): The desk the chat shows.
+            trader_name (str): The trader the chat shows.
         """
-        super().__init__(desk_name)
+        super().__init__(trader_name)
         self._formatter = formatter.Formatter()
         self._book_kind = _ORDER_BOOK_KINDS[0]
 
@@ -56,13 +56,13 @@ class TradingScreen(page_screen.PageScreen):
             Widget: The sections, in a scroll area.
         """
         with containers.VerticalScroll(classes='page-body'):
-            yield widgets.Static('[b]Desks[/b]', classes='page-heading')
-            yield widgets.DataTable(id='trading-desks', cursor_type='row')
+            yield widgets.Static('[b]Traders[/b]', classes='page-heading')
+            yield widgets.DataTable(id='trading-traders', cursor_type='row')
             yield widgets.Static('', id='trading-halts')
             yield widgets.Static('[b]Positions[/b]', classes='page-heading')
             yield widgets.DataTable(id='trading-positions', cursor_type='row')
             yield widgets.Static(
-                "[b]Desks' open orders[/b]", classes='page-heading'
+                "[b]Traders' open orders[/b]", classes='page-heading'
             )
             yield widgets.DataTable(id='trading-orders', cursor_type='row')
             yield widgets.Static(
@@ -70,27 +70,27 @@ class TradingScreen(page_screen.PageScreen):
             )
             yield widgets.DataTable(id='trading-book', cursor_type='row')
             yield widgets.Static(
-                '[b $error]Kill switch[/]  [dim]K halts every desk and flattens the account; it asks for a reason and the word FLATTEN.[/dim]',
+                '[b $error]Kill switch[/]  [dim]K halts every trader and flattens the account; it asks for a reason and the word FLATTEN.[/dim]',
                 classes='page-heading',
             )
 
     def on_mount(self) -> None:
         """Sets up the tables' columns, then reads the data."""
-        self.table('trading-desks').add_columns(
-            'Desk',
+        self.table('trading-traders').add_columns(
+            'Trader',
             'Today',
             'Stocks owned',
         )
         self.table('trading-positions').add_columns(
             'Symbol',
             'Product',
-            'Desk',
+            'Trader',
             'Quantity',
             'Last price',
             'Today',
         )
         self.table('trading-orders').add_columns(
-            'Desk',
+            'Trader',
             'Symbol',
             'Side',
             'Quantity',
@@ -113,17 +113,17 @@ class TradingScreen(page_screen.PageScreen):
 
     @work(exclusive=True, group='page')
     async def refresh_page(self) -> None:
-        """Reads the account and the desks' open orders."""
+        """Reads the account and the traders' open orders."""
         gateway = self.app.gateway
         try:
             account = await gateway.account()
-            desk_orders = await gateway.desk_orders()
+            trader_orders = await gateway.trader_orders()
         except gateway_client.GatewayError as error:
             self.problem(error.message)
             return
-        self._show_desks(account)
+        self._show_traders(account)
         self._show_positions(account)
-        self._show_orders(desk_orders)
+        self._show_orders(trader_orders)
 
     def action_load_order_book(self) -> None:
         """Loads UBI's own order book of the chosen kind."""
@@ -152,7 +152,7 @@ class TradingScreen(page_screen.PageScreen):
         self.app.push_screen(
             confirm_dialog.ConfirmDialog(
                 'Fire the kill switch',
-                'Every desk is halted and the whole account is flattened: open orders are cancelled and positions closed. This cannot be undone from here.',
+                'Every trader is halted and the whole account is flattened: open orders are cancelled and positions closed. This cannot be undone from here.',
                 'Fire',
                 word='FLATTEN',
             ),
@@ -219,27 +219,27 @@ class TradingScreen(page_screen.PageScreen):
             )
         )
 
-    def _show_desks(self, account: dict[str, Any]) -> None:
-        """Fills the desks table and the halts line.
+    def _show_traders(self, account: dict[str, Any]) -> None:
+        """Fills the traders table and the halts line.
 
         Args:
             account (dict[str, Any]): The account.
         """
         owned: dict[str, list[str]] = {}
         for owner in account.get('owners') or []:
-            owned.setdefault(owner.get('desk', ''), []).append(
+            owned.setdefault(owner.get('trader', ''), []).append(
                 owner.get('symbol', '')
             )
-        table = self.table('trading-desks')
+        table = self.table('trading-traders')
         table.clear()
         names = []
-        for desk in self.app.desks_document.get('desks', []):
-            names.append(desk.get('name', ''))
+        for trader in self.app.traders_document.get('traders', []):
+            names.append(trader.get('name', ''))
         for name in names:
             table.add_row(
                 name,
                 self._formatter.signed_money(
-                    (account.get('desk_pnl') or {}).get(name, 0.0)
+                    (account.get('trader_pnl') or {}).get(name, 0.0)
                 ),
                 ', '.join(owned.get(name, [])) or '—',
             )
@@ -267,7 +267,7 @@ class TradingScreen(page_screen.PageScreen):
         """
         owners = {}
         for owner in account.get('owners') or []:
-            owners[owner.get('instrument_id')] = owner.get('desk', '')
+            owners[owner.get('instrument_id')] = owner.get('trader', '')
         table = self.table('trading-positions')
         table.clear()
         for position in account.get('positions') or []:
@@ -280,21 +280,21 @@ class TradingScreen(page_screen.PageScreen):
                 self._formatter.signed_money(position.get('day_pnl')),
             )
 
-    def _show_orders(self, desk_orders: dict[str, Any]) -> None:
-        """Fills the desks' open orders table.
+    def _show_orders(self, trader_orders: dict[str, Any]) -> None:
+        """Fills the traders' open orders table.
 
         Args:
-            desk_orders (dict[str, Any]): The open orders, keyed by desk.
+            trader_orders (dict[str, Any]): The open orders, keyed by trader.
         """
         table = self.table('trading-orders')
         table.clear()
-        for desk_name, orders in desk_orders.items():
+        for trader_name, orders in trader_orders.items():
             for order in orders or []:
                 kind = str(order.get('kind', ''))
                 if order.get('dry_run'):
                     kind += ' (dry run)'
                 table.add_row(
-                    desk_name,
+                    trader_name,
                     str(order.get('symbol', '')),
                     str(order.get('transaction_type', '')),
                     str(order.get('quantity', '')),

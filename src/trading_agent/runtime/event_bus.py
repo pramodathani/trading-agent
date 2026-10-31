@@ -1,12 +1,12 @@
 """Delivers every published event to every subscriber.
 
-Each subscriber gets its own bounded queue. A subscriber that falls behind loses its oldest events rather than slowing the desks down, and the number lost is counted.
+Each subscriber gets its own bounded queue. A subscriber that falls behind loses its oldest events rather than slowing the traders down, and the number lost is counted.
 
 Typical usage example:
 
   event_bus = EventBus()
   with event_bus.subscribe() as subscription:
-      event_bus.publish(Event.now(EventKind.TEXT, desk='main'))
+      event_bus.publish(Event.now(EventKind.TEXT, trader='main'))
       event = await subscription.next_event()
 """
 

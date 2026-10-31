@@ -1,8 +1,8 @@
-"""The two jobs every desk gets from trading_agent.toml rather than from its jobs file.
+"""The two jobs every trader gets from trading_agent.toml rather than from its jobs file.
 
-- The heartbeat wakes the desk every few minutes while NSE equities trade, to look at its positions, orders and plans. It is off unless the desk's heartbeat_minutes is set, because every heartbeat is a model turn. A heartbeat the desk answers with NOTHING_TO_DO produces no message.
+- The heartbeat wakes the trader every few minutes while NSE equities trade, to look at its positions, orders and plans. It is off unless the trader's heartbeat_minutes is set, because every heartbeat is a model turn. A heartbeat the trader answers with NOTHING_TO_DO produces no message.
 - The rollover runs /rollover after the close on trading days, 15:45 by default, so the day's summary and the skill review happen right after the market shuts instead of with the next morning's first message.
-- Each scheduled check wakes the desk at a set time on trading days, such as 09:05, to follow its Persona.md's routine for that time; the desk may answer NOTHING_TO_DO.
+- Each scheduled check wakes the trader at a set time on trading days, such as 09:05, to follow its Persona.md's routine for that time; the trader may answer NOTHING_TO_DO.
 
 Typical usage example:
 
@@ -17,7 +17,7 @@ CHECK_TEXT = '[Scheduled check at {time}] Do what your Persona.md says for this 
 
 
 class BuiltInJobs:
-    """Makes a desk's built-in jobs."""
+    """Makes a trader's built-in jobs."""
 
     def jobs(
         self,
@@ -25,12 +25,12 @@ class BuiltInJobs:
         rollover_time: str,
         scheduled_checks: list[str] | None = None,
     ) -> list[cron_job_module.CronJob]:
-        """The built-in jobs for a desk's settings.
+        """The built-in jobs for a trader's settings.
 
         Args:
             heartbeat_minutes (int | None): Minutes between heartbeats during market hours, or None for no heartbeat.
             rollover_time (str): "HH:MM" India time on trading days when the session rolls over.
-            scheduled_checks (list[str] | None): "HH:MM" India times on trading days for the desk's routine checks.
+            scheduled_checks (list[str] | None): "HH:MM" India times on trading days for the trader's routine checks.
 
         Returns:
             list[cron_job_module.CronJob]: The rollover job, each scheduled check, and the heartbeat when it is on.

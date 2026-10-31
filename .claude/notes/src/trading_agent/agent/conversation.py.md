@@ -16,7 +16,7 @@ Verified on 2026-10-17: Ollama's `prompt_eval_count` reports the whole prompt ev
 
 `estimated_tokens` adds 1500 tokens for each picture added since the last measurement, on user messages and tool results alike. Gemma counts a picture as up to about 1120 tokens and Claude up to about 1600 at the size pictures are sent; 1500 errs towards compressing a little early rather than overflowing a local model's 32,768-token window. Once the model has answered, its reported token count replaces the estimate.
 
-Compression keeps no pictures: the summary is written from the messages' text, and the attachment notes in that text keep the files' paths, so the desk can still find an upload afterwards.
+Compression keeps no pictures: the summary is written from the messages' text, and the attachment notes in that text keep the files' paths, so the trader can still find an upload afterwards.
 
 ## Taking older pictures out
 

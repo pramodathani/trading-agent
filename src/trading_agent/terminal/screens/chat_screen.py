@@ -1,8 +1,8 @@
-"""The chat with one desk: today's turns, the live progress line and the message box.
+"""The chat with one trader: today's turns, the live progress line and the message box.
 
-The screen reads today's journal of the desk when it opens, then takes live events from the application. Events that arrive while the journal is still loading are held and added afterwards; ChatTranscript drops the ones the journal already had.
+The screen reads today's journal of the trader when it opens, then takes live events from the application. Events that arrive while the journal is still loading are held and added afterwards; ChatTranscript drops the ones the journal already had.
 
-The terminal program's own commands (/attach, /desk, /model with no name, /theme, /keys, /exit, and one per page such as /trading) are handled here. Files are attached with @path in a message, /attach, by dragging them onto the terminal, or with Ctrl+V for a picture on the clipboard; they upload at once and go with the next message. Every other message, including every other /command, goes to the desk, which answers commands such as /status itself.
+The terminal program's own commands (/attach, /trader, /model with no name, /theme, /keys, /exit, and one per page such as /trading) are handled here. Files are attached with @path in a message, /attach, by dragging them onto the terminal, or with Ctrl+V for a picture on the clipboard; they upload at once and go with the next message. Every other message, including every other /command, goes to the trader, which answers commands such as /status itself.
 
 Typical usage example:
 
@@ -33,8 +33,6 @@ from trading_agent.terminal import terminal_settings
 from trading_agent.terminal.screens import page_catalogue
 from trading_agent.terminal.widgets import command_menu
 from trading_agent.terminal.widgets import composer as composer_module
-from trading_agent.terminal.widgets import desk_message_view
-from trading_agent.terminal.widgets import desk_picker
 from trading_agent.terminal.widgets import event_step_view
 from trading_agent.terminal.widgets import history_search
 from trading_agent.terminal.widgets import keys_screen
@@ -43,6 +41,8 @@ from trading_agent.terminal.widgets import pending_files
 from trading_agent.terminal.widgets import progress_line
 from trading_agent.terminal.widgets import request_dock
 from trading_agent.terminal.widgets import side_panel
+from trading_agent.terminal.widgets import trader_message_view
+from trading_agent.terminal.widgets import trader_picker
 from trading_agent.terminal.widgets import turn_view
 
 _DOUBLE_PRESS_SECONDS = 1.5
@@ -60,7 +60,7 @@ _CONNECTION_WORDS = {
 }
 _TERMINAL_COMMANDS = (
     '/attach',
-    '/desk',
+    '/trader',
     '/theme',
     '/keys',
     '/exit',
@@ -76,7 +76,7 @@ class ChatScreen(screen.Screen[None]):
         binding.Binding('ctrl+c', 'interrupt', 'Clear or exit', priority=True),
         binding.Binding('ctrl+d', 'exit_when_empty', 'Exit', priority=True),
         binding.Binding('tab', 'focus_dock', 'Answer', show=False),
-        binding.Binding('alt+d', 'pick_desk', 'Desk'),
+        binding.Binding('alt+d', 'pick_trader', 'Trader'),
         binding.Binding('alt+p', 'pick_model', 'Model'),
         binding.Binding('ctrl+o', 'toggle_tools', 'Tools'),
         binding.Binding('ctrl+b', 'toggle_side_panel', 'Panel'),
@@ -88,7 +88,7 @@ class ChatScreen(screen.Screen[None]):
         self,
         gateway: gateway_client.GatewayClient,
         history: prompt_history_module.PromptHistory,
-        desk_name: str,
+        trader_name: str,
         settings: terminal_settings.TerminalSettings,
         opener: attachment_opener.AttachmentOpener,
     ):
@@ -97,12 +97,12 @@ class ChatScreen(screen.Screen[None]):
         Args:
             gateway (gateway_client.GatewayClient): The gateway's routes.
             history (prompt_history_module.PromptHistory): The earlier prompts.
-            desk_name (str): The desk to open on.
+            trader_name (str): The trader to open on.
             settings (terminal_settings.TerminalSettings): The remembered choices, such as whether the side panel is shown.
-            opener (attachment_opener.AttachmentOpener): Downloads and opens the desk's files.
+            opener (attachment_opener.AttachmentOpener): Downloads and opens the trader's files.
         """
         super().__init__()
-        self.desk_name = desk_name
+        self.trader_name = trader_name
         self._gateway = gateway
         self._history = history
         self._settings = settings
@@ -111,7 +111,7 @@ class ChatScreen(screen.Screen[None]):
         self._views: dict[str, Any] = {}
         self._loading = True
         self._held_events: list[dict[str, Any]] = []
-        self._desks_document: dict[str, Any] = {}
+        self._traders_document: dict[str, Any] = {}
         self._connection = event_stream.CONNECTING
         self._tools_expanded = False
         self._last_escape = 0.0
@@ -139,27 +139,27 @@ class ChatScreen(screen.Screen[None]):
         with containers.Vertical(id='composer-box'):
             yield composer_module.Composer(self._history)
         yield widgets.Static(
-            '[dim]enter send · shift+enter new line · / commands · esc stop · alt+d desk · alt+p model · ctrl+o tools · ctrl+b panel · f2 pages · ? keys[/dim]',
+            '[dim]enter send · shift+enter new line · / commands · esc stop · alt+d trader · alt+p model · ctrl+o tools · ctrl+b panel · f2 pages · ? keys[/dim]',
             id='key-hints',
         )
 
     def on_mount(self) -> None:
-        """Loads the desk's chat and focuses the message box."""
+        """Loads the trader's chat and focuses the message box."""
         self.query_one(composer_module.Composer).focus()
         self.query_one(
             side_panel.SidePanel
         ).display = self._settings.side_panel_open
         self._show_status()
-        self.load_desk(self.desk_name)
+        self.load_trader(self.trader_name)
         self.set_interval(_REQUESTS_REFRESH_SECONDS, self.refresh_requests)
 
     def take_event(self, event: dict[str, Any]) -> None:
-        """Adds one live event to the chat, when it belongs to this desk.
+        """Adds one live event to the chat, when it belongs to this trader.
 
         Args:
             event (dict[str, Any]): The event.
         """
-        if event.get('desk') != self.desk_name:
+        if event.get('trader') != self.trader_name:
             return
         if event.get('kind') in _REQUEST_KINDS:
             self.refresh_requests()
@@ -168,16 +168,16 @@ class ChatScreen(screen.Screen[None]):
             return
         self._add_events([event])
 
-    def take_desks(self, document: dict[str, Any]) -> None:
-        """Updates the status line and placeholder from the desks' states.
+    def take_traders(self, document: dict[str, Any]) -> None:
+        """Updates the status line and placeholder from the traders' states.
 
         Args:
-            document (dict[str, Any]): The answer of GET /api/desks.
+            document (dict[str, Any]): The answer of GET /api/traders.
         """
-        self._desks_document = document
+        self._traders_document = document
         self._show_status()
         for panel in self.query(side_panel.SidePanel):
-            panel.take_desk(self.desk(), document.get('mode', ''))
+            panel.take_trader(self.trader(), document.get('mode', ''))
 
     def take_connection(self, state: str) -> None:
         """Shows the event stream's state, and reloads the chat after a reconnect.
@@ -189,28 +189,28 @@ class ChatScreen(screen.Screen[None]):
         self._connection = state
         self._show_status()
         if was_down and state == event_stream.LIVE:
-            self.load_desk(self.desk_name)
+            self.load_trader(self.trader_name)
 
-    def desk(self) -> dict[str, Any] | None:
-        """The summary of the desk this chat shows.
+    def trader(self) -> dict[str, Any] | None:
+        """The summary of the trader this chat shows.
 
         Returns:
-            dict[str, Any] | None: The summary, or None before the desks are known.
+            dict[str, Any] | None: The summary, or None before the traders are known.
         """
-        for desk in self._desks_document.get('desks', []):
-            if desk.get('name') == self.desk_name:
-                return desk
+        for trader in self._traders_document.get('traders', []):
+            if trader.get('name') == self.trader_name:
+                return trader
         return None
 
     @work(exclusive=True, group='load')
-    async def load_desk(self, desk_name: str) -> None:
-        """Clears the chat and fills it with the desk's journal of today.
+    async def load_trader(self, trader_name: str) -> None:
+        """Clears the chat and fills it with the trader's journal of today.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
         """
-        self.desk_name = desk_name
-        self.app.remember_desk(desk_name)
+        self.trader_name = trader_name
+        self.app.remember_trader(trader_name)
         self._loading = True
         self._held_events = []
         self._transcript = chat_transcript.ChatTranscript()
@@ -218,13 +218,13 @@ class ChatScreen(screen.Screen[None]):
         transcript = self.query_one('#transcript', containers.VerticalScroll)
         await transcript.remove_children()
         self._show_status()
-        self._load_commands(desk_name)
+        self._load_commands(trader_name)
         self.refresh_requests()
         panel = self.query_one(side_panel.SidePanel)
-        panel.set_desk(desk_name)
-        panel.take_desk(self.desk(), self._desks_document.get('mode', ''))
+        panel.set_trader(trader_name)
+        panel.take_trader(self.trader(), self._traders_document.get('mode', ''))
         try:
-            journal = await self._gateway.desk_journal(desk_name)
+            journal = await self._gateway.trader_journal(trader_name)
         except gateway_client.GatewayError as error:
             await transcript.mount(
                 widgets.Static(
@@ -246,8 +246,8 @@ class ChatScreen(screen.Screen[None]):
             await transcript.mount(
                 widgets.Static(
                     Content.from_markup(
-                        '[dim]Nothing today yet with $desk. Say hello, or try /status.[/dim]',
-                        desk=desk_name,
+                        '[dim]Nothing today yet with $trader. Say hello, or try /status.[/dim]',
+                        trader=trader_name,
                     ),
                     classes='notice',
                     id='empty-notice',
@@ -258,14 +258,14 @@ class ChatScreen(screen.Screen[None]):
 
     @work(exclusive=True, group='requests')
     async def refresh_requests(self) -> None:
-        """Reads the pending requests and shows this desk's first one in the dock."""
+        """Reads the pending requests and shows this trader's first one in the dock."""
         try:
             pending = await self._gateway.requests('pending')
         except gateway_client.GatewayError:
             return
         mine = []
         for request in pending:
-            if request.get('desk') == self.desk_name:
+            if request.get('trader') == self.trader_name:
                 mine.append(request)
         docks = self.query(request_dock.RequestDock)
         if not docks:
@@ -279,7 +279,7 @@ class ChatScreen(screen.Screen[None]):
             return
         if dock.shown_request_id() is not None:
             self.notify(
-                'The desk is waiting for your answer above the message box. Press tab to answer.',
+                'The trader is waiting for your answer above the message box. Press tab to answer.',
                 timeout=6,
             )
         if focus_was_in_dock:
@@ -297,11 +297,11 @@ class ChatScreen(screen.Screen[None]):
         self.refresh_requests()
 
     @work(exclusive=True, group='commands')
-    async def _load_commands(self, desk_name: str) -> None:
-        """Fills the command menu with the terminal's and the desk's commands.
+    async def _load_commands(self, trader_name: str) -> None:
+        """Fills the command menu with the terminal's and the trader's commands.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
         """
         entries = keys_screen.TerminalCommandList().entries()
         for page in page_catalogue.PageCatalogue().pages():
@@ -313,7 +313,7 @@ class ChatScreen(screen.Screen[None]):
                 }
             )
         try:
-            answer = await self._gateway.desk_commands(desk_name)
+            answer = await self._gateway.trader_commands(trader_name)
         except gateway_client.GatewayError:
             answer = {
                 'commands': [],
@@ -397,7 +397,7 @@ class ChatScreen(screen.Screen[None]):
         if text and self._run_terminal_command(text):
             return
         for word, path in attachable_files.AttachableFiles().mentioned(text):
-            problem = tray.add(self.desk_name, path)
+            problem = tray.add(self.trader_name, path)
             if problem is not None:
                 self.notify(problem, title='Not attached', severity='error')
                 composer.set_text(text)
@@ -408,7 +408,7 @@ class ChatScreen(screen.Screen[None]):
 
     @work(group='send')
     async def _send(self, text: str) -> None:
-        """Sends a message or desk command to the desk, with the files in the tray once they have uploaded.
+        """Sends a message or trader command to the trader, with the files in the tray once they have uploaded.
 
         Args:
             text (str): The message.
@@ -423,7 +423,7 @@ class ChatScreen(screen.Screen[None]):
                 return
         try:
             await self._gateway.send_message(
-                self.desk_name, text, attachment_ids
+                self.trader_name, text, attachment_ids
             )
         except gateway_client.GatewayError as error:
             self.notify(error.message, title='Not sent', severity='error')
@@ -482,7 +482,7 @@ class ChatScreen(screen.Screen[None]):
         """
         tray = self.query_one(pending_files.PendingFiles)
         for path in paths:
-            problem = tray.add(self.desk_name, path)
+            problem = tray.add(self.trader_name, path)
             if problem is not None:
                 self.notify(problem, title='Not attached', severity='error')
 
@@ -494,7 +494,7 @@ class ChatScreen(screen.Screen[None]):
             menu.hide()
             composer.menu_open = False
             return
-        if self._desk_is_busy():
+        if self._trader_is_busy():
             self._send('/stop')
             self.notify('Stopping the running turn.', timeout=3)
             return
@@ -513,7 +513,7 @@ class ChatScreen(screen.Screen[None]):
         if composer.text:
             composer.set_text('')
             return
-        if self._desk_is_busy():
+        if self._trader_is_busy():
             self._send('/stop')
             self.notify('Stopping the running turn.', timeout=3)
             return
@@ -523,7 +523,7 @@ class ChatScreen(screen.Screen[None]):
             return
         self._last_interrupt = now
         self.notify(
-            'Press ctrl+c again to exit. The desks keep running.', timeout=2
+            'Press ctrl+c again to exit. The traders keep running.', timeout=2
         )
 
     def action_exit_when_empty(self) -> None:
@@ -539,25 +539,28 @@ class ChatScreen(screen.Screen[None]):
         self._last_exit_press = now
         self.notify('Press ctrl+d again to exit.', timeout=2)
 
-    def action_pick_desk(self) -> None:
-        """Opens the desk list."""
-        desks = self._desks_document.get('desks', [])
-        if not desks:
-            self.notify('The desks are not known yet.', severity='warning')
+    def action_pick_trader(self) -> None:
+        """Opens the trader list."""
+        traders = self._traders_document.get('traders', [])
+        if not traders:
+            self.notify('The traders are not known yet.', severity='warning')
             return
         self.app.push_screen(
-            desk_picker.DeskPicker(desks, self.desk_name), self._switch_desk
+            trader_picker.TraderPicker(traders, self.trader_name),
+            self._switch_trader,
         )
 
     def action_pick_model(self) -> None:
-        """Opens the model list for this desk."""
-        desk = self.desk()
-        if desk is None or not desk.get('backends'):
+        """Opens the model list for this trader."""
+        trader = self.trader()
+        if trader is None or not trader.get('backends'):
             self.notify(
-                'This desk has no models to choose from.', severity='warning'
+                'This trader has no models to choose from.', severity='warning'
             )
             return
-        self.app.push_screen(model_picker.ModelPicker(desk), self._choose_model)
+        self.app.push_screen(
+            model_picker.ModelPicker(trader), self._choose_model
+        )
 
     def action_toggle_side_panel(self) -> None:
         """Shows or hides the side panel, and remembers the choice."""
@@ -634,11 +637,11 @@ class ChatScreen(screen.Screen[None]):
                 return True
             self._attach_files([Path(path_text).expanduser()])
             return True
-        if name == '/desk':
+        if name == '/trader':
             if len(words) == 1:
-                self.action_pick_desk()
+                self.action_pick_trader()
             else:
-                self._switch_desk(words[1])
+                self._switch_trader(words[1])
             return True
         if name == '/model' and len(words) == 1:
             self.action_pick_model()
@@ -656,38 +659,38 @@ class ChatScreen(screen.Screen[None]):
             return False
         return self.app.open_page(name)
 
-    def show_desk(self, desk_name: str) -> None:
-        """Shows another desk's chat, as the Desks page asks.
+    def show_trader(self, trader_name: str) -> None:
+        """Shows another trader's chat, as the Traders page asks.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
         """
-        self._switch_desk(desk_name)
+        self._switch_trader(trader_name)
 
-    def _switch_desk(self, desk_name: str | None) -> None:
-        """Shows another desk's chat.
+    def _switch_trader(self, trader_name: str | None) -> None:
+        """Shows another trader's chat.
 
         Args:
-            desk_name (str | None): The desk, or None to stay.
+            trader_name (str | None): The trader, or None to stay.
         """
-        if desk_name is None or desk_name == self.desk_name:
+        if trader_name is None or trader_name == self.trader_name:
             return
         known = []
-        for desk in self._desks_document.get('desks', []):
-            known.append(desk.get('name'))
-        if known and desk_name not in known:
+        for trader in self._traders_document.get('traders', []):
+            known.append(trader.get('name'))
+        if known and trader_name not in known:
             self.notify(
-                f'No desk named {desk_name}. The desks are {", ".join(known)}.',
+                f'No trader named {trader_name}. The traders are {", ".join(known)}.',
                 severity='error',
             )
             return
-        self.load_desk(desk_name)
+        self.load_trader(trader_name)
 
     @work(group='model')
     async def _choose_model(
         self, choice: model_picker.ModelChoice | None
     ) -> None:
-        """Makes the desk try the chosen model first.
+        """Makes the trader try the chosen model first.
 
         Args:
             choice (model_picker.ModelChoice | None): The backend and model, (None, None) for Auto, or None to leave it.
@@ -697,14 +700,14 @@ class ChatScreen(screen.Screen[None]):
         backend_name, model = choice
         try:
             await self._gateway.choose_model(
-                self.desk_name, backend_name, model
+                self.trader_name, backend_name, model
             )
         except gateway_client.GatewayError as error:
             self.notify(
                 error.message, title='Model not changed', severity='error'
             )
             return
-        self.app.refresh_desks()
+        self.app.refresh_traders()
 
     def _use_prompt(self, prompt: str | None) -> None:
         """Puts a prompt found by the search into the message box.
@@ -764,10 +767,10 @@ class ChatScreen(screen.Screen[None]):
                     view.show(item)
                 continue
             if isinstance(item, chat_items.ChatTurn):
-                view = turn_view.TurnView(self.desk_name, item)
+                view = turn_view.TurnView(self.trader_name, item)
             elif item.event.get('kind') == 'message':
-                view = desk_message_view.DeskMessageView(
-                    self.desk_name, item.event, with_time=True
+                view = trader_message_view.TraderMessageView(
+                    self.trader_name, item.event, with_time=True
                 )
             else:
                 view = event_step_view.EventStepView(item.event, with_time=True)
@@ -812,16 +815,20 @@ class ChatScreen(screen.Screen[None]):
                 return
         line.follow(None)
 
-    def _desk_is_busy(self) -> bool:
-        """Says whether the desk is working on a turn.
+    def _trader_is_busy(self) -> bool:
+        """Says whether the trader is working on a turn.
 
         Returns:
-            bool: True when the desk is not idle, or a turn of this chat is running.
+            bool: True when the trader is not idle, or a turn of this chat is running.
         """
         if self._transcript.running_turn() is not None:
             return True
-        desk = self.desk()
-        return desk is not None and desk.get('state') not in (None, 'idle')
+        trader = self.trader()
+        return trader is not None and trader.get('state') not in (
+            None,
+            'idle',
+            'sleeping',
+        )
 
     def _show_status(self) -> None:
         """Redraws the status line and the message box's placeholder, while the screen's widgets exist."""
@@ -829,8 +836,8 @@ class ChatScreen(screen.Screen[None]):
         composers = self.query(composer_module.Composer)
         if not status_lines or not composers:
             return
-        desk = self.desk()
-        mode = self._desks_document.get('mode', '')
+        trader = self.trader()
+        mode = self._traders_document.get('mode', '')
         mode_markup = ''
         if mode == 'live':
             mode_markup = '[b $error]LIVE ORDERS[/]'
@@ -838,52 +845,52 @@ class ChatScreen(screen.Screen[None]):
             mode_markup = '[b $success]DRY RUN[/]'
         state = ''
         model = ''
-        if desk is not None:
-            state = str(desk.get('state', ''))
-            if desk.get('paused'):
+        if trader is not None:
+            state = str(trader.get('state', ''))
+            if trader.get('paused'):
                 state += ', paused'
-            if desk.get('queued'):
-                state += f', {desk["queued"]} waiting'
-            model = self._model_text(desk)
+            if trader.get('queued'):
+                state += f', {trader["queued"]} waiting'
+            model = self._model_text(trader)
         connection = _CONNECTION_WORDS.get(self._connection, self._connection)
         dot = '[$success]●[/]'
         if self._connection != event_stream.LIVE:
             dot = '[$warning]●[/]'
         status_lines.first(widgets.Static).update(
             Content.from_markup(
-                f'{dot} $connection   [b]$desk[/b] [dim]$state[/dim]   {mode_markup}   [dim]$model[/dim]',
+                f'{dot} $connection   [b]$trader[/b] [dim]$state[/dim]   {mode_markup}   [dim]$model[/dim]',
                 connection=connection,
-                desk=self.desk_name,
+                trader=self.trader_name,
                 state=state,
                 model=model,
             )
         )
         composer = composers.first(composer_module.Composer)
-        if self._desk_is_busy():
-            composer.placeholder = f'{self.desk_name} is working; a message now goes to it at its next tool call'
+        if self._trader_is_busy():
+            composer.placeholder = f'{self.trader_name} is working; a message now goes to it at its next tool call'
         else:
             composer.placeholder = (
-                f'Message {self.desk_name}…  (/ for commands, ? for keys)'
+                f'Message {self.trader_name}…  (/ for commands, ? for keys)'
             )
 
-    def _model_text(self, desk: dict[str, Any]) -> str:
-        """The model the desk tries first, or answered with last.
+    def _model_text(self, trader: dict[str, Any]) -> str:
+        """The model the trader tries first, or answered with last.
 
         Args:
-            desk (dict[str, Any]): The desk summary.
+            trader (dict[str, Any]): The trader summary.
 
         Returns:
             str: Such as "Opus (claude)" or "Auto · last Opus (claude)".
         """
-        backends = desk.get('backends') or []
-        preferred = desk.get('preferred_model')
+        backends = trader.get('backends') or []
+        preferred = trader.get('preferred_model')
         for backend in backends:
             if backend.get('name') == preferred:
                 label = self._names.label(
                     backend.get('active_model') or backend.get('model')
                 )
                 return f'{label} ({preferred})'
-        last = desk.get('last_model')
+        last = trader.get('last_model')
         if not last:
             return 'Auto'
         for backend in backends:

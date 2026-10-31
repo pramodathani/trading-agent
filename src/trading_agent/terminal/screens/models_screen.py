@@ -1,4 +1,4 @@
-"""The Models page: each desk's model order and preference, today's usage by desk and model, and Claude's subscription limits.
+"""The Models page: each trader's model order and preference, today's usage by trader and model, and Claude's subscription limits.
 
 It copies the web page's ModelsPage.tsx.
 
@@ -30,7 +30,7 @@ class ModelsScreen(page_screen.PageScreen):
         """
         with containers.VerticalScroll(classes='page-body'):
             yield widgets.Static(
-                "[b]Model order[/b] [dim]choose a desk's model in the chat with alt+p[/dim]",
+                "[b]Model order[/b] [dim]choose a trader's model in the chat with alt+p[/dim]",
                 classes='page-heading',
             )
             yield widgets.DataTable(id='models-order', cursor_type='row')
@@ -43,9 +43,9 @@ class ModelsScreen(page_screen.PageScreen):
 
     def on_mount(self) -> None:
         """Sets up the tables, then reads the usage."""
-        self.table('models-order').add_columns('Desk', 'Order', 'Preferred')
+        self.table('models-order').add_columns('Trader', 'Order', 'Preferred')
         self.table('models-usage').add_columns(
-            'Desk',
+            'Trader',
             'Model',
             'Calls',
             'Prompt',
@@ -61,10 +61,10 @@ class ModelsScreen(page_screen.PageScreen):
 
     @work(exclusive=True, group='page')
     async def refresh_page(self) -> None:
-        """Reads the desks and the usage."""
+        """Reads the traders and the usage."""
         gateway = self.app.gateway
         try:
-            desks = await gateway.desks()
+            traders = await gateway.traders()
             usage = await gateway.usage()
         except gateway_client.GatewayError as error:
             self.problem(error.message)
@@ -72,18 +72,18 @@ class ModelsScreen(page_screen.PageScreen):
         numbers = formatter.Formatter()
         order = self.table('models-order')
         order.clear()
-        for desk in desks.get('desks') or []:
+        for trader in traders.get('traders') or []:
             order.add_row(
-                str(desk.get('name', '')),
-                '; '.join(str(line) for line in desk.get('models') or []),
-                str(desk.get('preferred_model') or 'configured order'),
+                str(trader.get('name', '')),
+                '; '.join(str(line) for line in trader.get('models') or []),
+                str(trader.get('preferred_model') or 'configured order'),
             )
         table = self.table('models-usage')
         table.clear()
-        for desk_name, backends in (usage.get('desks') or {}).items():
+        for trader_name, backends in (usage.get('traders') or {}).items():
             for backend_name, counts in (backends or {}).items():
                 table.add_row(
-                    desk_name,
+                    trader_name,
                     backend_name,
                     numbers.number(counts.get('calls')),
                     numbers.token_count(

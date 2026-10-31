@@ -35,15 +35,15 @@ class SendMessageTool(tool.Tool):
     description = 'Sends the user a message without waiting for a reply, through the web interface and Telegram. Use it from scheduled jobs, heartbeats and alerts, when something happened the user should know about, such as a fill, a stop hit or a plan for tomorrow. Do not use it to repeat your normal answer; the user already sees that when they asked. Set urgent for things that need attention now.'
     arguments_model = SendMessageArguments
 
-    def __init__(self, event_bus: event_bus_module.EventBus, desk_name: str):
+    def __init__(self, event_bus: event_bus_module.EventBus, trader_name: str):
         """Creates the tool.
 
         Args:
             event_bus (event_bus_module.EventBus): Where the message is published.
-            desk_name (str): The desk sending it.
+            trader_name (str): The trader sending it.
         """
         self._event_bus = event_bus
-        self._desk_name = desk_name
+        self._trader_name = trader_name
 
     async def run(self, arguments: SendMessageArguments) -> tool.ToolResult:
         """Publishes the message.
@@ -57,7 +57,7 @@ class SendMessageTool(tool.Tool):
         self._event_bus.publish(
             event_module.Event.now(
                 event_module.EventKind.MESSAGE,
-                self._desk_name,
+                self._trader_name,
                 {
                     'text': arguments.text,
                     'urgent': arguments.urgent,

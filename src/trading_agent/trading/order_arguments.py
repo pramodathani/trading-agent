@@ -34,7 +34,7 @@ class OrderArguments(instrument_arguments.InstrumentArguments):
         price: The limit price in rupees, needed for limit and sl orders and not allowed otherwise.
         trigger_price: The trigger price in rupees, needed for sl and sl-m orders and not allowed otherwise.
         validity: "day" or "ioc", or None for day.
-        reason: Why the desk is placing the order, kept in the journal.
+        reason: Why the trader is placing the order, kept in the journal.
     """
 
     transaction_type: Literal['buy', 'sell']

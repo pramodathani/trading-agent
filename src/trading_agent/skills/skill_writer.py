@@ -1,6 +1,6 @@
-"""Creates, patches and archives the skills a desk writes for itself.
+"""Creates, patches and archives the skills a trader writes for itself.
 
-Every change is snapshotted first, so it can be undone with `trading-agent checkpoints restore`, and recorded as one JSON line in the desk's skill ledger, `workspace/desks/<desk>/skills/ledger.jsonl`. The ledger sits outside skills/agent/, so restoring a checkpoint never erases the record of what happened. An archived skill moves to skills/agent/.archive/<name>/ and drops out of the index, but nothing is deleted.
+Every change is snapshotted first, so it can be undone with `trading-agent checkpoints restore`, and recorded as one JSON line in the trader's skill ledger, `workspace/traders/<trader>/skills/ledger.jsonl`. The ledger sits outside skills/agent/, so restoring a checkpoint never erases the record of what happened. An archived skill moves to skills/agent/.archive/<name>/ and drops out of the index, but nothing is deleted.
 
 Typical usage example:
 
@@ -23,11 +23,11 @@ ARCHIVE_FOLDER_NAME = '.archive'
 
 
 class SkillWriteError(ValueError):
-    """A skill change was refused, with a reason the desk can act on."""
+    """A skill change was refused, with a reason the trader can act on."""
 
 
 class SkillWriter:
-    """Changes one desk's own skills."""
+    """Changes one trader's own skills."""
 
     def __init__(
         self,
@@ -38,8 +38,8 @@ class SkillWriter:
         """Creates the writer.
 
         Args:
-            library (skill_library_module.SkillLibrary): The desk's skills, for name checks.
-            checkpoints (checkpoints_module.Checkpoints | None): Snapshots the desk's files before each change, or None to take none.
+            library (skill_library_module.SkillLibrary): The trader's skills, for name checks.
+            checkpoints (checkpoints_module.Checkpoints | None): Snapshots the trader's files before each change, or None to take none.
             ledger_file (Path): The JSON-lines record of every change.
         """
         self._library = library
@@ -106,7 +106,7 @@ class SkillWriter:
         new_text: str,
         reason: str,
     ) -> int:
-        """Replaces exact text in one of the desk's skills, frontmatter included.
+        """Replaces exact text in one of the trader's skills, frontmatter included.
 
         Args:
             name (str): The skill's name.
@@ -118,7 +118,7 @@ class SkillWriter:
             int: The skill file's new length in characters.
 
         Raises:
-            SkillWriteError: The skill is not the desk's own, old_text is missing or repeated, or the result is not a valid skill.
+            SkillWriteError: The skill is not the trader's own, old_text is missing or repeated, or the result is not a valid skill.
         """
         skill = self._own_skill(name)
         path = skill.directory / skill_module.SKILL_FILE_NAME
@@ -140,7 +140,7 @@ class SkillWriter:
         return len(new_skill_text)
 
     def archive(self, name: str, reason: str) -> Path:
-        """Moves one of the desk's skills out of use, into the archive.
+        """Moves one of the trader's skills out of use, into the archive.
 
         Args:
             name (str): The skill's name.
@@ -150,7 +150,7 @@ class SkillWriter:
             Path: Where the skill now lives.
 
         Raises:
-            SkillWriteError: The skill is not the desk's own.
+            SkillWriteError: The skill is not the trader's own.
         """
         skill = self._own_skill(name)
         self._snapshot(f'before skill_archive {name}')
@@ -165,7 +165,7 @@ class SkillWriter:
         return target
 
     def _own_skill(self, name: str) -> skill_module.Skill:
-        """Finds one of the desk's own skills.
+        """Finds one of the trader's own skills.
 
         Args:
             name (str): The skill's name.
@@ -174,7 +174,7 @@ class SkillWriter:
             skill_module.Skill: The skill.
 
         Raises:
-            SkillWriteError: The desk has no such skill, for example because it is an installed one.
+            SkillWriteError: The trader has no such skill, for example because it is an installed one.
         """
         skill = self._library.find_agent_skill(name)
         if skill is not None:
@@ -219,7 +219,7 @@ class SkillWriter:
             )
 
     def _snapshot(self, reason: str) -> None:
-        """Snapshots the desk's files, logging rather than failing when git does.
+        """Snapshots the trader's files, logging rather than failing when git does.
 
         Args:
             reason (str): What is about to happen.

@@ -1,6 +1,6 @@
 """A tool that tells the model the current date and time in India.
 
-Models do not know the time, and a trading desk needs it for nearly every decision, so this is the first tool.
+Models do not know the time, and a trader needs it for nearly every decision, so this is the first tool.
 
 Typical usage example:
 

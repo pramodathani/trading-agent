@@ -4,7 +4,7 @@ import { apiClient } from '../api/apiClient';
 import type { CronJob } from '../api/types';
 import { Loadable } from '../components/Loadable';
 import { usePolled } from '../hooks/usePolled';
-import { useSelectedDesk } from '../layout/selectedDeskStore';
+import { useSelectedTrader } from '../layout/selectedTraderStore';
 import { formatter } from '../utilities/formatter';
 
 const REFRESH_MILLISECONDS = 15000;
@@ -12,13 +12,13 @@ const REFRESH_MILLISECONDS = 15000;
 type JobKind = 'agent' | 'command';
 
 /**
- * The chosen desk's schedule: its jobs with their next runs, a form for new jobs, the latest runs, and its price alerts.
+ * The chosen trader's schedule: its jobs with their next runs, a form for new jobs, the latest runs, and its price alerts.
  * @returns The page.
  */
 export function CronPage() {
-  const deskName = useSelectedDesk();
-  const jobs = usePolled(() => apiClient.jobs(deskName), REFRESH_MILLISECONDS, deskName);
-  const alerts = usePolled(() => apiClient.alerts(deskName), REFRESH_MILLISECONDS, deskName);
+  const traderName = useSelectedTrader();
+  const jobs = usePolled(() => apiClient.jobs(traderName), REFRESH_MILLISECONDS, traderName);
+  const alerts = usePolled(() => apiClient.alerts(traderName), REFRESH_MILLISECONDS, traderName);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,8 +42,8 @@ export function CronPage() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1>Schedule of {deskName}</h1>
-        <p className="muted">Jobs wake the desk with instructions or run a command without a model. Times are India time; trading-day jobs skip weekends and exchange holidays.</p>
+        <h1>Schedule of {traderName}</h1>
+        <p className="muted">Jobs wake the trader with instructions or run a command without a model. Times are India time; trading-day jobs skip weekends and exchange holidays.</p>
       </div>
       {notice !== null && (
         <div className="notice" role="status">
@@ -81,8 +81,8 @@ export function CronPage() {
                     <JobRow
                       key={job.job_id}
                       job={job}
-                      onRun={() => act(() => apiClient.runJob(deskName, job.job_id), `Started ${job.name}. Its result appears on the Activity page.`)}
-                      onDelete={() => act(() => apiClient.deleteJob(deskName, job.job_id), `Deleted ${job.name}.`)}
+                      onRun={() => act(() => apiClient.runJob(traderName, job.job_id), `Started ${job.name}. Its result appears on the Activity page.`)}
+                      onDelete={() => act(() => apiClient.deleteJob(traderName, job.job_id), `Deleted ${job.name}.`)}
                     />
                   ))}
                 </tbody>
@@ -91,7 +91,7 @@ export function CronPage() {
           )}
         </Loadable>
       </section>
-      <NewJobForm deskName={deskName} onCreated={(name) => act(async () => undefined, `Created ${name}.`)} />
+      <NewJobForm traderName={traderName} onCreated={(name) => act(async () => undefined, `Created ${name}.`)} />
       <section className="panel">
         <h2>Latest runs</h2>
         <Loadable data={jobs.data} error={jobs.error}>
@@ -110,7 +110,7 @@ export function CronPage() {
       </section>
       <section className="panel">
         <h2>Price alerts</h2>
-        <p className="muted small">The desk sets these with set_price_alert. Each fires once, wakes the desk, and is removed.</p>
+        <p className="muted small">The trader sets these with set_price_alert. Each fires once, wakes the trader, and is removed.</p>
         <Loadable data={alerts.data} error={alerts.error}>
           {(document) => (
             <>
@@ -119,7 +119,7 @@ export function CronPage() {
                 <div key={alert.alert_id} className="alert-line">
                   <span>{alert.description}</span>
                   <span className="muted small">{formatter.dayTime(alert.created_at)}</span>
-                  <button type="button" onClick={() => act(() => apiClient.deleteAlert(deskName, alert.alert_id), `Removed the alert on ${alert.symbol}.`)}>
+                  <button type="button" onClick={() => act(() => apiClient.deleteAlert(traderName, alert.alert_id), `Removed the alert on ${alert.symbol}.`)}>
                     Remove
                   </button>
                 </div>
@@ -151,7 +151,7 @@ function JobRow(properties: JobRowProperties) {
     <tr>
       <td>
         <div>
-          <strong>{job.name}</strong> <span className="desk-chip">{builtIn ? 'built in' : job.created_by}</span>
+          <strong>{job.name}</strong> <span className="trader-chip">{builtIn ? 'built in' : job.created_by}</span>
         </div>
         <div className="muted small job-text">
           {job.kind === 'command' ? 'Command: ' : 'Instructions: '}
@@ -190,13 +190,13 @@ function JobRow(properties: JobRowProperties) {
 
 /** What the new job form needs. */
 interface NewJobFormProperties {
-  deskName: string;
+  traderName: string;
   onCreated: (name: string) => void;
 }
 
 /**
  * A form for a new repeating job.
- * @param properties The desk and what to do after creating.
+ * @param properties The trader and what to do after creating.
  * @returns The form.
  */
 function NewJobForm(properties: NewJobFormProperties) {
@@ -220,7 +220,7 @@ function NewJobForm(properties: NewJobFormProperties) {
     }
     setError(null);
     try {
-      await apiClient.createJob(properties.deskName, {
+      await apiClient.createJob(properties.traderName, {
         name: name.trim(),
         schedule: schedule.trim(),
         run_at: null,
@@ -253,13 +253,13 @@ function NewJobForm(properties: NewJobFormProperties) {
         <label className="field">
           <span>Kind</span>
           <select value={kind} onChange={(change) => setKind(change.target.value as JobKind)}>
-            <option value="agent">Wake the desk with instructions</option>
+            <option value="agent">Wake the trader with instructions</option>
             <option value="command">Run a command, no model</option>
           </select>
         </label>
       </div>
       <label className="field">
-        <span>{kind === 'agent' ? 'Instructions for the desk' : 'Shell command, run in the desk sandbox'}</span>
+        <span>{kind === 'agent' ? 'Instructions for the trader' : 'Shell command, run in the trader sandbox'}</span>
         <textarea rows={3} className={kind === 'command' ? 'mono' : ''} value={text} onChange={(change) => setText(change.target.value)} />
       </label>
       <div className="filters">

@@ -1,4 +1,4 @@
-"""The shallow base class of the four bash tools, which share one desk's terminal.
+"""The shallow base class of the four bash tools, which share one trader's terminal.
 
 Typical usage example:
 
@@ -11,13 +11,13 @@ from trading_agent.tools import tool
 
 
 class BashTool(tool.Tool):
-    """A tool that works on the desk's sandboxed terminal."""
+    """A tool that works on the trader's sandboxed terminal."""
 
     def __init__(self, session: bash_session_module.BashSession):
         """Creates the tool.
 
         Args:
-            session (bash_session_module.BashSession): The desk's terminal.
+            session (bash_session_module.BashSession): The trader's terminal.
         """
         self._session = session
 

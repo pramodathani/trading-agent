@@ -1,6 +1,6 @@
-"""The trade journal: a permanent, append-only record of everything each desk does.
+"""The trade journal: a permanent, append-only record of everything each trader does.
 
-The journal listens to the event bus and writes each event as one JSON line in the desk's file for that India date, `workspace/desks/<desk>/journal/YYYY-MM-DD.jsonl`; events that belong to no desk go to `workspace/journal/`. Lines are only ever added. Secrets are masked first. The stream of individual text pieces is left out, because the final text event of the turn holds the whole reply.
+The journal listens to the event bus and writes each event as one JSON line in the trader's file for that India date, `workspace/traders/<trader>/journal/YYYY-MM-DD.jsonl`; events that belong to no trader go to `workspace/journal/`. Lines are only ever added. Secrets are masked first. The stream of individual text pieces is left out, because the final text event of the turn holds the whole reply.
 
 Typical usage example:
 
@@ -25,7 +25,7 @@ _SKIPPED_KINDS = (event_module.EventKind.TEXT_DELTA,)
 
 
 class TradeJournal:
-    """Writes every event to the desks' journal files."""
+    """Writes every event to the traders' journal files."""
 
     def __init__(
         self,
@@ -90,13 +90,13 @@ class TradeJournal:
             published_event (event_module.Event): The event.
 
         Returns:
-            Path: The desk's file for the event's India date, or the gateway's file for an event without a desk.
+            Path: The trader's file for the event's India date, or the gateway's file for an event without a trader.
         """
         day = published_event.created_at.astimezone(_INDIA).date().isoformat()
-        if published_event.desk is None:
+        if published_event.trader is None:
             return self._layout.root / 'journal' / f'{day}.jsonl'
         return (
-            self._layout.desk_directory(published_event.desk)
+            self._layout.trader_directory(published_event.trader)
             / 'journal'
             / f'{day}.jsonl'
         )

@@ -1,17 +1,17 @@
-import type { AccountDocument, AgentEvent, DeskOrder } from '../api/types';
+import type { AccountDocument, AgentEvent, TraderOrder } from '../api/types';
 import { SideCard, SideRow } from './SideCard';
 
 /** What the orders card shows. */
 interface OrdersCardProperties {
-  deskName: string;
+  traderName: string;
   events: AgentEvent[];
-  openOrders: DeskOrder[] | null;
+  openOrders: TraderOrder[] | null;
   account: AccountDocument | null;
 }
 
 /**
- * How many orders the desk placed today, how many are open, how many filled, and how many positions it holds.
- * @param properties The desk, today's events, its open orders and the account.
+ * How many orders the trader placed today, how many are open, how many filled, and how many positions it holds.
+ * @param properties The trader, today's events, its open orders and the account.
  * @returns The card.
  */
 export function OrdersCard(properties: OrdersCardProperties) {
@@ -31,7 +31,7 @@ export function OrdersCard(properties: OrdersCardProperties) {
   }
   let positions: number | string = '—';
   if (properties.account !== null) {
-    positions = properties.account.owners.filter((owner) => owner.desk === properties.deskName).length;
+    positions = properties.account.owners.filter((owner) => owner.trader === properties.traderName).length;
   }
   return (
     <SideCard cardId="orders" title="Orders and trades" aside="today">

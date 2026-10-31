@@ -1,6 +1,6 @@
 # steering_inbox.py
 
-Steering lets the user change a desk's course while it works, instead of waiting minutes for a long turn to finish. A user message that arrives while a model turn runs waits here, and the turn takes it at its next tool round.
+Steering lets the user change a trader's course while it works, instead of waiting minutes for a long turn to finish. A user message that arrives while a model turn runs waits here, and the turn takes it at its next tool round.
 
 ## Why at the tool round, and not at once
 
@@ -8,10 +8,10 @@ A model call cannot be interrupted part way and resumed with extra input. The na
 
 ## What if the turn never reaches another tool round
 
-A turn that ends with a plain answer never asks for the messages. The desk then queues each one as its own turn, so nothing the user wrote is lost. A `steering` event says which happened: `delivered: true` when the running turn took it, `false` when it was queued instead.
+A turn that ends with a plain answer never asks for the messages. The trader then queues each one as its own turn, so nothing the user wrote is lost. A `steering` event says which happened: `delivered: true` when the running turn took it, `false` when it was queued instead.
 
-## Only the desk's own turns
+## Only the trader's own turns
 
-The inbox is given to the desk's own runners, not to its subagents, so a message meant for the desk cannot be swallowed by a helper working on one task. Slash commands are never steering; they wait in the queue as before, except /stop.
+The inbox is given to the trader's own runners, not to its subagents, so a message meant for the trader cannot be swallowed by a helper working on one task. Slash commands are never steering; they wait in the queue as before, except /stop.
 
 Each message is labelled with its India time and told to the model as sent "while you were working", so the model knows it may change what it is doing.

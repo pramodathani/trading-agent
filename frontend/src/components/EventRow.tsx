@@ -7,12 +7,12 @@ const LONG_DETAIL_CHARACTERS = 160;
 /** What one feed row shows. */
 export interface EventRowProperties {
   event: AgentEvent;
-  showDesk: boolean;
+  showTrader: boolean;
 }
 
 /**
- * One event in the activity feed: its time, desk and description, with a long detail folded away.
- * @param properties The event and whether to show its desk.
+ * One event in the activity feed: its time, trader and description, with a long detail folded away.
+ * @param properties The event and whether to show its trader.
  * @returns The row.
  */
 export function EventRow(properties: EventRowProperties) {
@@ -20,9 +20,9 @@ export function EventRow(properties: EventRowProperties) {
   const detail = description.detail;
   const isLong = detail.length > LONG_DETAIL_CHARACTERS || detail.includes('\n');
   return (
-    <div className={`event-row tone-${description.tone}${properties.showDesk ? ' with-desk' : ''}`}>
+    <div className={`event-row tone-${description.tone}${properties.showTrader ? ' with-trader' : ''}`}>
       <span className="event-time mono">{formatter.time(properties.event.created_at)}</span>
-      {properties.showDesk && <span className="desk-chip">{properties.event.desk ?? 'account'}</span>}
+      {properties.showTrader && <span className="trader-chip">{properties.event.trader ?? 'account'}</span>}
       <div className="event-body">
         <div className="event-title">{description.title}</div>
         {detail && !isLong && <div className="event-detail">{detail}</div>}

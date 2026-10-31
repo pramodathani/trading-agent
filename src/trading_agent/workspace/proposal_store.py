@@ -34,16 +34,16 @@ class Proposal:
 
     Attributes:
         proposal_id: The identifier the user types to accept or reject it.
-        desk: The desk that proposed it.
+        trader: The trader that proposed it.
         file_name: The user file it would replace.
         content: The complete new text.
-        reason: Why the desk proposes it.
+        reason: Why the trader proposes it.
         created_at: When it was proposed, as ISO 8601 text in UTC.
         status: "pending", "accepted" or "rejected".
     """
 
     proposal_id: str
-    desk: str
+    trader: str
     file_name: str
     content: str
     reason: str
@@ -78,13 +78,13 @@ class ProposalStore:
         """Creates the store.
 
         Args:
-            layout (workspace_layout.WorkspaceLayout): The workspace whose desks' proposals folders hold the proposals.
+            layout (workspace_layout.WorkspaceLayout): The workspace whose traders' proposals folders hold the proposals.
         """
         self._layout = layout
 
     def create(
         self,
-        desk_name: str,
+        trader_name: str,
         file_name: str,
         content: str,
         reason: str,
@@ -92,7 +92,7 @@ class ProposalStore:
         """Saves a new pending proposal.
 
         Args:
-            desk_name (str): The desk proposing the change.
+            trader_name (str): The trader proposing the change.
             file_name (str): One of the user's files.
             content (str): The complete new text.
             reason (str): Why.
@@ -103,11 +103,11 @@ class ProposalStore:
         Raises:
             ValueError: The file is not one of the user's files.
         """
-        self._layout.user_owned_file(desk_name, file_name)
+        self._layout.user_owned_file(trader_name, file_name)
         now = datetime.datetime.now(datetime.UTC)
         proposal = Proposal(
             proposal_id=f'{now:%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:4]}',
-            desk=desk_name,
+            trader=trader_name,
             file_name=file_name,
             content=content,
             reason=reason,
@@ -118,13 +118,15 @@ class ProposalStore:
         return proposal
 
     def all(self) -> list[Proposal]:
-        """Every proposal from every desk, oldest first.
+        """Every proposal from every trader, oldest first.
 
         Returns:
             list[Proposal]: The proposals.
         """
         proposals = []
-        for path in sorted(self._layout.root.glob('desks/*/proposals/*.json')):
+        for path in sorted(
+            self._layout.root.glob('traders/*/proposals/*.json')
+        ):
             dictionary = json.loads(path.read_text(encoding='utf-8'))
             proposals.append(Proposal.from_json_dictionary(dictionary))
         proposals.sort(key=lambda proposal: proposal.created_at)
@@ -157,7 +159,9 @@ class ProposalStore:
             str: The diff, with "-" lines removed and "+" lines added.
         """
         proposal = self.get(proposal_id)
-        target = self._layout.user_owned_file(proposal.desk, proposal.file_name)
+        target = self._layout.user_owned_file(
+            proposal.trader, proposal.file_name
+        )
         current = ''
         if target.is_file():
             current = target.read_text(encoding='utf-8')
@@ -182,10 +186,12 @@ class ProposalStore:
             ProposalError: The proposal does not exist or is not pending.
         """
         proposal = self._pending(proposal_id)
-        target = self._layout.user_owned_file(proposal.desk, proposal.file_name)
+        target = self._layout.user_owned_file(
+            proposal.trader, proposal.file_name
+        )
         if target.is_file():
             backup = (
-                self._layout.proposals_directory(proposal.desk)
+                self._layout.proposals_directory(proposal.trader)
                 / 'replaced'
                 / f'{proposal.proposal_id}-{proposal.file_name}'
             )
@@ -229,12 +235,12 @@ class ProposalStore:
         return proposal
 
     def _save(self, proposal: Proposal) -> None:
-        """Writes a proposal to its desk's proposals folder.
+        """Writes a proposal to its trader's proposals folder.
 
         Args:
             proposal (Proposal): The proposal.
         """
-        directory = self._layout.proposals_directory(proposal.desk)
+        directory = self._layout.proposals_directory(proposal.trader)
         directory.mkdir(parents=True, exist_ok=True)
         path = directory / f'{proposal.proposal_id}.json'
         path.write_text(

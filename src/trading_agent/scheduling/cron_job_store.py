@@ -1,15 +1,15 @@
-"""Keeps one desk's scheduled jobs and the record of their runs.
+"""Keeps one trader's scheduled jobs and the record of their runs.
 
-  desks/<desk>/cron/
-    jobs.json     the jobs the user or the desk created
+  traders/<trader>/cron/
+    jobs.json     the jobs the user or the trader created
     state.json    when each job, built-in ones included, last ran
     runs.jsonl    one line per run: when, which job, and how it went
 
-jobs.json is JSON rather than the plan's TOML, because the desk's tools write it and Python's standard library reads TOML but cannot write it. The user can still edit it by hand.
+jobs.json is JSON rather than the plan's TOML, because the trader's tools write it and Python's standard library reads TOML but cannot write it. The user can still edit it by hand.
 
 Typical usage example:
 
-  store = CronJobStore(Path('workspace/desks/main/cron'))
+  store = CronJobStore(Path('workspace/traders/main/cron'))
   store.add(job)
   store.record_run(job, moment, 'started', '')
 """
@@ -27,13 +27,13 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class CronJobStore:
-    """One desk's cron folder."""
+    """One trader's cron folder."""
 
     def __init__(self, directory: Path):
         """Describes the folder without touching the disk.
 
         Args:
-            directory (Path): The desk's cron folder.
+            directory (Path): The trader's cron folder.
         """
         self.directory = directory
         self._jobs_file = directory / 'jobs.json'

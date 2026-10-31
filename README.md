@@ -1,6 +1,6 @@
 # trading-agent
 
-An always-on, multi-desk AI trading agent on the `tradingmachine` library and UBI. Four desks (general, intraday, scalper and positional) each run their own agent with their own persona, models, schedule and memory, and every order from every desk goes through one risk engine that enforces the hard limits in `workspace/shared/TradingRules.md`. Models are Claude through the Max subscription, and Gemma and Qwen on Ollama, with automatic fallback.
+An always-on, multi-trader AI trading agent on the `tradingmachine` library and UBI. Four starter traders (general, intraday, scalper and positional), and any you create from the web page, the phone, Telegram or the terminal, each run their own agent with their own mandate, persona, models, schedule and memory, and every order from every trader goes through one risk engine that enforces the hard limits in `workspace/shared/TradingRules.md`. Models are Claude through the Max subscription, and Gemma and Qwen on Ollama, with automatic fallback.
 
 ## Using it
 
@@ -10,7 +10,8 @@ An always-on, multi-desk AI trading agent on the `tradingmachine` library and UB
 | Telegram | See `docs/telegram_setup.md` |
 | Going live | See `docs/going_live.md` |
 | The documentation site | `.venv/bin/mkdocs serve -a 127.0.0.1:8130`, then <http://127.0.0.1:8130/trading-agent/> |
-| Your instructions to the desks | `workspace/shared/Agents.md`, `User.md`, `TradingRules.md`, and each desk's `Persona.md`, editable on the Files page |
+| Create, retire or restore a trader | **New trader** on the Traders page, `bin/trading-agent traders new NAME --mandate TEXT`, or `/create NAME MANDATE` in Telegram |
+| Your instructions to the traders | `workspace/shared/Agents.md`, `User.md`, `TradingRules.md`, and each trader's `Persona.md`, editable on the Files page |
 
 ## Commands
 
@@ -21,7 +22,7 @@ An always-on, multi-desk AI trading agent on the `tradingmachine` library and UB
 | Run the gateway by hand | `bin/trading-agent serve` (the service normally runs it) |
 | The service | `systemctl --user status trading-agent`, `restart`, `stop`; log with `journalctl --user -u trading-agent -f` |
 | Install the service on a new machine | `systemctl --user link $PWD/deploy/trading-agent.service && systemctl --user enable --now trading-agent` |
-| Message a desk from a terminal | `bin/trading-agent send --desk intraday "What is your plan?"` |
+| Message a trader from a terminal | `bin/trading-agent send --trader intraday "What is your plan?"` |
 | Proposals, checkpoints, skills | `bin/trading-agent proposals list`, `checkpoints list`, `skills list` |
 | Packages and their apps | `bin/trading-agent packages install <folder>`, `apps list` |
 | Telegram pairing | `bin/trading-agent pairing list`, `approve <code>`, `revoke <chat id>` |
@@ -34,9 +35,9 @@ An always-on, multi-desk AI trading agent on the `tradingmachine` library and UB
 ```text
 trading-agent/
 ├── bin/trading-agent        the command
-├── src/trading_agent/       the gateway, desks, backends, tools, risk engine, scheduling, channels
+├── src/trading_agent/       the gateway, traders, backends, tools, risk engine, scheduling, channels
 ├── frontend/                the web page (React and Vite), served from frontend/dist
-├── workspace/               your files and the desks' memory, journals and sessions
+├── workspace/               your files and the traders' memory, journals and sessions
 ├── packages/                package sources, such as packages/sridhara
 ├── deploy/                  the systemd unit and SearXNG
 ├── docs/                    the Telegram and going-live guides

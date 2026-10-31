@@ -15,21 +15,21 @@ from trading_agent.command_line import CommandLine
 from trading_agent.configuration import agent_configuration
 from trading_agent.gateway import access_guard
 from trading_agent.gateway import gateway_application
-from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import no_model_turn_runner
+from trading_agent.runtime import trader_runtime
 
 _TOKEN = 'test-token-that-is-long-enough-1234567890'
 
 
 def _event(
-    event_kind: str, desk: str = 'general', **payload: Any
+    event_kind: str, trader: str = 'general', **payload: Any
 ) -> dict[str, Any]:
     """Makes one event.
 
     Args:
         event_kind (str): The event's kind.
-        desk (str): The event's desk.
+        trader (str): The event's trader.
         **payload (Any): The event's payload.
 
     Returns:
@@ -37,28 +37,28 @@ def _event(
     """
     return {
         'kind': event_kind,
-        'desk': desk,
+        'trader': trader,
         'payload': payload,
         'created_at': '2026-10-19T04:30:00+00:00',
     }
 
 
 class _RunningGateway:
-    """A real gateway with one desk that has no model, served on a free port in a thread."""
+    """A real gateway with one trader that has no model, served on a free port in a thread."""
 
     def __init__(self):
         """Builds the gateway without starting it."""
         event_bus = event_bus_module.EventBus()
-        desks = {
-            'general': desk_runtime.DeskRuntime(
-                agent_configuration.DeskConfiguration(name='general'),
+        traders = {
+            'general': trader_runtime.TraderRuntime(
+                agent_configuration.TraderConfiguration(name='general'),
                 event_bus,
                 no_model_turn_runner.NoModelTurnRunner(),
             ),
         }
         application = gateway_application.GatewayApplication(
             event_bus,
-            desks,
+            traders,
             access_guard.AccessGuard(_TOKEN),
         ).build()
         with socket.socket() as probe:
@@ -132,7 +132,7 @@ class TestTurnFollower:
         assert follower.handle(_event('turn_finished', trigger_id='t2'))
 
     def test_requests_are_printed_with_their_ids(self) -> None:
-        """A permission request of the desk is printed with its id; another desk's is not."""
+        """A permission request of the trader is printed with its id; another trader's is not."""
         output = io.StringIO()
         follower = message_client.TurnFollower('general', 't1', output, 'text')
         follower.handle(
@@ -141,7 +141,7 @@ class TestTurnFollower:
                 request_id='r1',
                 kind='permission',
                 content={
-                    'tool_name': 'flatten_desk',
+                    'tool_name': 'flatten_trader',
                     'arguments': {
                         'reason': 'test',
                     },
@@ -151,7 +151,7 @@ class TestTurnFollower:
         follower.handle(
             _event(
                 'user_request',
-                desk='scalper',
+                trader='scalper',
                 request_id='r2',
                 kind='question',
                 content={},
@@ -159,7 +159,7 @@ class TestTurnFollower:
         )
 
         printed = output.getvalue()
-        assert 'flatten_desk' in printed
+        assert 'flatten_trader' in printed
         assert 'request r1' in printed
         assert 'r2' not in printed
 
@@ -219,7 +219,7 @@ class TestMessageClient:
     """Tests against a real gateway on a free port."""
 
     def test_send_prints_the_reply(self) -> None:
-        """A message sent to a running gateway comes back as the desk's reply."""
+        """A message sent to a running gateway comes back as the trader's reply."""
         gateway = _RunningGateway()
         gateway.start()
         try:
@@ -259,7 +259,7 @@ class TestCommandLine:
             [
                 '-p',
                 '/status',
-                '--desk',
+                '--trader',
                 'scalper',
                 '--output-format',
                 'json',
@@ -268,7 +268,7 @@ class TestCommandLine:
 
         assert arguments.command == 'print'
         assert arguments.print_text == '/status'
-        assert arguments.chosen_desk == 'scalper'
+        assert arguments.chosen_trader == 'scalper'
         assert arguments.output_format == 'json'
 
     def test_bare_command_opens_the_terminal_program(self) -> None:

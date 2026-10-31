@@ -1,4 +1,4 @@
-"""The user's decision on a desk's plan: approve it, or ask for changes with feedback.
+"""The user's decision on a trader's plan: approve it, or ask for changes with feedback.
 
 Typical usage example:
 
@@ -42,7 +42,9 @@ class PlanResponse:
             ValueError: The decision is neither "approve" nor "revise", or a revision has no feedback.
         """
         if self._decision not in (APPROVE, REVISE):
-            raise ValueError(f'A plan is approved or revised, not {self._decision!r}')
+            raise ValueError(
+                f'A plan is approved or revised, not {self._decision!r}'
+            )
         if self._decision == REVISE and not self._feedback:
             raise ValueError('Say what should change in the plan')
 
@@ -58,7 +60,7 @@ class PlanResponse:
         }
 
     def message(self) -> str:
-        """The message the desk receives.
+        """The message the trader receives.
 
         Returns:
             str: The decision, with the feedback.

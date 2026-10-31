@@ -15,13 +15,13 @@ At up to 760 pixels wide, the web page switches to a phone layout, so the same l
 
 | Part | On the phone |
 |---|---|
-| Header | ☰ on the left, the desk's name in the centre (tap it to switch desks), a short **DRY** or **LIVE** badge, the connection dot, and the details button |
+| Header | ☰ on the left, the trader's name in the centre (tap it to switch traders), a short **DRY** or **LIVE** badge, the connection dot, and the details button |
 | ☰ menu | A drawer that slides in from the left with every page, the theme switch and **Forget token** |
-| Chat | Your messages on the right in bubbles, the desk's answers full width, as in the Claude app |
+| Chat | Your messages on the right in bubbles, the trader's answers full width, as in the Claude app |
 | Message box | A rounded card at the bottom: the text on top, then **+** to attach, the model chip, the microphone and a round send button. Enter adds a new line; the send button sends |
-| Details | The side panel's cards (desk, model, context, funds, profit and loss, orders, tools, outputs) slide up as a sheet from the bottom |
+| Details | The side panel's cards (trader, model, context, funds, profit and loss, orders, tools, outputs) slide up as a sheet from the bottom |
 | Back button | Closes the drawer or the sheet first, then goes back a page; from the chat it puts the app in the background |
-| Files and links | A document or picture from a desk opens in the phone's viewer for its type; a link opens in an in-app browser sheet |
+| Files and links | A document or picture from a trader opens in the phone's viewer for its type; a link opens in an in-app browser sheet |
 
 The app opens on the chat. The microphone uses Android's speech recognizer, which on most phones is Google's speech service: the words appear in the box as you speak, and listening stops when you pause or tap the microphone again. Android asks for the microphone the first time.
 
@@ -78,7 +78,7 @@ The app is built on this computer and installed over USB. It needs Java 21 at `~
     source ~/.nvm/nvm.sh && cd frontend && npm run android
     ```
 
-    `npm run android` builds the web page, copies it into the Android project (`cap sync`), builds the debug app with Gradle and installs it with `adb install -r`. The same work is also available in three parts: `android:sync` (build and copy the page), `android:build` (the app) and `android:install`.
+    `npm run android` builds the web page, copies it into the Android project (`cap sync`), builds the debug app with Gradle and installs it with `adb install -r`. The app carries its own copy of the page, so a change to the page, such as the **New trader** form and the **Retire** buttons added on 31 October 2026, reaches the phone only after this command is run again. The same work is also available in three parts: `android:sync` (build and copy the page), `android:build` (the app) and `android:install`.
 
 Run it again after any change to the web page, because the app carries its own copy of the page.
 
@@ -94,16 +94,16 @@ Open **Trading Agent** on the phone. The first page asks for the gateway's Tails
 |---|---|
 | `fills` | A broker order finished, with the quantity and price |
 | `rejections` | The risk engine refused an order, with its reasons |
-| `model_switches` | A desk moved to another model |
+| `model_switches` | A trader moved to another model |
 | `job_results` | A scheduled job finished |
-| `desk_reports` | What a desk said when it woke on its own, such as at a scheduled check |
-| `messages` | A desk's `send_message`, marked when urgent |
+| `trader_reports` | What a trader said when it woke on its own, such as at a scheduled check |
+| `messages` | A trader's `send_message`, marked when urgent |
 | `alerts` | A price alert fired |
-| `halts` | A desk was halted, or the kill switch fired |
+| `halts` | A trader was halted, or the kill switch fired |
 | `errors` | A turn failed |
-| `requests` | A desk asks a question or presents a plan, or an action waits for your permission |
+| `requests` | A trader asks a question or presents a plan, or an action waits for your permission |
 
-Each notification is titled with its desk, and tapping it opens that desk's chat. A permission request lapses after `[approvals] expiry_minutes`, so its notification is the one to act on quickly.
+Each notification is titled with its trader, and tapping it opens that trader's chat. A permission request lapses after `[approvals] expiry_minutes`, so its notification is the one to act on quickly.
 
 **Settings → Phones** lists the registered phones, each with **Send test** and **Remove**. A phone that uninstalls the app is removed by itself the next time Firebase reports its token as gone.
 

@@ -472,7 +472,7 @@ class TestClaudeSessionRestore:
         Args:
             tmp_path (Path): Stands in for ~/.claude/projects.
         """
-        project_folder = tmp_path / '-home-pramod-desk-scratch'
+        project_folder = tmp_path / '-home-pramod-trader-scratch'
         project_folder.mkdir()
         (project_folder / 'abc-123.jsonl').write_text('{}', encoding='utf-8')
         runner = _runner(
@@ -600,7 +600,7 @@ class TestClaudeSideQuestion:
     def test_side_question_forks_the_session_and_deletes_the_fork(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """The question runs in a fork of the desk's session with every tool refused, and the fork's file is deleted while the desk's is kept.
+        """The question runs in a fork of the trader's session with every tool refused, and the fork's file is deleted while the trader's is kept.
 
         Args:
             monkeypatch (pytest.MonkeyPatch): Replaces the SDK's query and removes ANTHROPIC_API_KEY for this test only.

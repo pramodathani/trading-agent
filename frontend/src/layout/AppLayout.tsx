@@ -9,11 +9,11 @@ import { usePolled } from '../hooks/usePolled';
 import { sidePanelStore, useSidePanelOpen } from '../sidePanel/sidePanelStore';
 import { pushRegistration } from '../utilities/pushRegistration';
 import { themeController } from '../utilities/themeController';
-import { DeskMenu } from './DeskMenu';
-import { DesksContext } from './desksContext';
-import { selectedDeskStore, useSelectedDesk } from './selectedDeskStore';
+import { TraderMenu } from './TraderMenu';
+import { TradersContext } from './tradersContext';
+import { selectedTraderStore, useSelectedTrader } from './selectedTraderStore';
 
-const DESKS_REFRESH_MILLISECONDS = 5000;
+const TRADERS_REFRESH_MILLISECONDS = 5000;
 const APPS_REFRESH_MILLISECONDS = 30000;
 const STATE_CHANGING_KINDS = new Set([
   'trigger_received',
@@ -21,6 +21,9 @@ const STATE_CHANGING_KINDS = new Set([
   'turn_finished',
   'session_started',
   'backend_switch',
+  'trader_created',
+  'trader_retired',
+  'trader_sleeping',
 ]);
 const CONNECTION_WORDS = {
   open: 'Live',
@@ -29,15 +32,15 @@ const CONNECTION_WORDS = {
 };
 
 /**
- * The frame around every page: the sidebar, the header with the desk switcher, and the page itself.
+ * The frame around every page: the sidebar, the header with the trader switcher, and the page itself.
  *
  * On a phone the sidebar becomes a drawer that slides in from the left when the menu button is pressed, as in the Claude app.
  * @returns The layout.
  */
 export function AppLayout() {
-  const desks = usePolled(() => apiClient.desks(), DESKS_REFRESH_MILLISECONDS);
+  const traders = usePolled(() => apiClient.traders(), TRADERS_REFRESH_MILLISECONDS);
   const apps = usePolled(() => apiClient.apps(), APPS_REFRESH_MILLISECONDS);
-  const selectedDesk = useSelectedDesk();
+  const selectedTrader = useSelectedTrader();
   const connection = useConnectionState();
   const events = useLiveEvents();
   const location = useLocation();
@@ -47,14 +50,14 @@ export function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
   const lastEvent = events.length > 0 ? events[events.length - 1] : null;
-  const refreshDesks = desks.refresh;
+  const refreshTraders = traders.refresh;
 
   useCloseOnBack(drawerOpen, closeDrawer);
 
   useEffect(() => {
     void pushRegistration.register();
-    return pushRegistration.onOpen((deskName) => {
-      selectedDeskStore.choose(deskName);
+    return pushRegistration.onOpen((traderName) => {
+      selectedTraderStore.choose(traderName);
       void navigate('/chat');
     });
   }, [
@@ -69,49 +72,48 @@ export function AppLayout() {
 
   useEffect(() => {
     if (lastEvent !== null && STATE_CHANGING_KINDS.has(lastEvent.kind)) {
-      refreshDesks();
+      void refreshTraders();
     }
   }, [
     lastEvent,
-    refreshDesks,
+    refreshTraders,
   ]);
 
-  const deskNames = useMemo(() => {
+  const traderNames = useMemo(() => {
     const names = [];
-    for (const desk of desks.data?.desks ?? []) {
-      names.push(desk.name);
+    for (const trader of traders.data?.traders ?? []) {
+      names.push(trader.name);
     }
     return names;
   }, [
-    desks.data,
+    traders.data,
   ]);
 
   useEffect(() => {
-    if (deskNames.length > 0 && !deskNames.includes(selectedDesk)) {
-      selectedDeskStore.choose(deskNames[0]);
+    if (traderNames.length > 0 && !traderNames.includes(selectedTraderStore.current())) {
+      selectedTraderStore.choose(traderNames[0]);
     }
   }, [
-    deskNames,
-    selectedDesk,
+    traderNames,
   ]);
 
   const contextValue = useMemo(
     () => ({
-      document: desks.data,
-      error: desks.error,
-      refresh: refreshDesks,
+      document: traders.data,
+      error: traders.error,
+      refresh: refreshTraders,
     }),
     [
-      desks.data,
-      desks.error,
-      refreshDesks,
+      traders.data,
+      traders.error,
+      refreshTraders,
     ],
   );
 
-  const mode = desks.data?.mode ?? '';
+  const mode = traders.data?.mode ?? '';
 
   return (
-    <DesksContext.Provider value={contextValue}>
+    <TradersContext.Provider value={contextValue}>
       <div className={drawerOpen ? 'app drawer-open' : 'app'}>
         {drawerOpen && <div className="drawer-backdrop" onClick={closeDrawer} aria-hidden="true" />}
         <nav className="sidebar">
@@ -120,8 +122,8 @@ export function AppLayout() {
             trading-agent
           </div>
           <div className="nav-section">Trade</div>
-          <NavLink className="nav-link" to="/desks">
-            Desks
+          <NavLink className="nav-link" to="/traders">
+            Traders
           </NavLink>
           <NavLink className="nav-link" to="/chat">
             Chat
@@ -187,9 +189,9 @@ export function AppLayout() {
               <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
             </svg>
           </button>
-          <div className="desk-switcher">
-            <span className="muted small">Desk</span>
-            <DeskMenu desks={desks.data?.desks ?? []} selectedDesk={selectedDesk} />
+          <div className="trader-switcher">
+            <span className="muted small">Trader</span>
+            <TraderMenu traders={traders.data?.traders ?? []} selectedTrader={selectedTrader} />
           </div>
           {mode && (
             <span className={mode === 'live' ? 'mode-badge live' : 'mode-badge'}>
@@ -198,7 +200,7 @@ export function AppLayout() {
             </span>
           )}
           <span className="spacer" />
-          {desks.error !== null && <span className="error-text small gateway-error">Gateway: {desks.error}</span>}
+          {traders.error !== null && <span className="error-text small gateway-error">Gateway: {traders.error}</span>}
           <span className="connection">
             <span className={`connection-dot ${connection}`} title={CONNECTION_WORDS[connection]} />
             <span className="connection-words">{CONNECTION_WORDS[connection]}</span>
@@ -223,6 +225,6 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
-    </DesksContext.Provider>
+    </TradersContext.Provider>
   );
 }

@@ -145,7 +145,7 @@ def _trigger(text: str) -> trigger_module.Trigger:
     )
 
 
-class _Desk:
+class _Trader:
     """A router with a resuming and a forgetting backend, over one sessions folder.
 
     Attributes:
@@ -159,7 +159,7 @@ class _Desk:
     """
 
     def __init__(self, directory: Path, calendar: _Calendar):
-        """Builds the desk's memory parts.
+        """Builds the trader's memory parts.
 
         Args:
             directory (Path): The sessions folder.
@@ -187,7 +187,7 @@ class _Desk:
         )
 
     async def turn(self, text: str) -> str:
-        """Runs one turn the way the desk runtime does.
+        """Runs one turn the way the trader runtime does.
 
         Args:
             text (str): The trigger's text.
@@ -226,7 +226,7 @@ class TestSessionStore:
         assert store.load_state() == state
 
     def test_damaged_state_is_treated_as_missing(self, tmp_path: Path) -> None:
-        """A state file that is not JSON does not stop the desk.
+        """A state file that is not JSON does not stop the trader.
 
         Args:
             tmp_path (Path): A scratch folder.
@@ -284,7 +284,7 @@ class TestSessionStore:
 
 
 class TestCrashRecovery:
-    """After a restart the desk continues the same session."""
+    """After a restart the trader continues the same session."""
 
     def test_resuming_backend_continues_and_forgetting_one_gets_a_hand_over(
         self,
@@ -299,39 +299,39 @@ class TestCrashRecovery:
 
         async def before_restart() -> None:
             """Runs two turns on Claude."""
-            desk = _Desk(tmp_path, calendar)
-            await desk.keeper.start()
-            await desk.turn('Buy IDEA?')
-            await desk.turn('And now?')
+            trader = _Trader(tmp_path, calendar)
+            await trader.keeper.start()
+            await trader.turn('Buy IDEA?')
+            await trader.turn('And now?')
 
         asyncio.run(before_restart())
 
-        async def after_restart() -> _Desk:
-            """Starts a fresh desk on the same folder and runs one turn on each backend.
+        async def after_restart() -> _Trader:
+            """Starts a fresh trader on the same folder and runs one turn on each backend.
 
             Returns:
-                _Desk: The restarted desk.
+                _Trader: The restarted trader.
             """
-            desk = _Desk(tmp_path, calendar)
-            await desk.keeper.start()
-            await desk.turn('Still there, Claude?')
-            desk.router.prefer('gemma')
-            await desk.turn('Still there, Gemma?')
-            return desk
+            trader = _Trader(tmp_path, calendar)
+            await trader.keeper.start()
+            await trader.turn('Still there, Claude?')
+            trader.router.prefer('gemma')
+            await trader.turn('Still there, Gemma?')
+            return trader
 
-        desk = asyncio.run(after_restart())
-        assert desk.router.session_id == '2026-10-19-1'
-        assert desk.claude.restored_state == {
+        trader = asyncio.run(after_restart())
+        assert trader.router.session_id == '2026-10-19-1'
+        assert trader.claude.restored_state == {
             'session_id': 'claude-session',
         }
-        assert desk.claude.received_texts == [
+        assert trader.claude.received_texts == [
             'Still there, Claude?',
         ]
-        hand_over = desk.gemma.received_texts[0]
+        hand_over = trader.gemma.received_texts[0]
         assert 'Trigger: Buy IDEA?' in hand_over
         assert 'Trigger: Still there, Claude?' in hand_over
         assert hand_over.endswith('Still there, Gemma?')
-        assert len(desk.router.exchanges) == 4
+        assert len(trader.router.exchanges) == 4
 
     def test_start_announces_whether_the_session_was_resumed(
         self,
@@ -346,15 +346,15 @@ class TestCrashRecovery:
         reasons = []
 
         async def start_twice() -> None:
-            """Starts two desks on the same folder, one after the other."""
+            """Starts two traders on the same folder, one after the other."""
             for _ in range(2):
-                desk = _Desk(tmp_path, calendar)
-                subscription = desk.event_bus.subscribe()
-                await desk.keeper.start()
+                trader = _Trader(tmp_path, calendar)
+                subscription = trader.event_bus.subscribe()
+                await trader.keeper.start()
                 published = await subscription.next_event()
                 assert published.kind == event_module.EventKind.SESSION_STARTED
                 reasons.append(published.payload['reason'])
-                await desk.turn('hello')
+                await trader.turn('hello')
 
         asyncio.run(start_twice())
         assert reasons == [
@@ -377,38 +377,38 @@ class TestDailyRollover:
         """
         calendar = _Calendar(_MONDAY)
 
-        async def scenario() -> _Desk:
+        async def scenario() -> _Trader:
             """Runs a turn on Monday and two on Tuesday.
 
             Returns:
-                _Desk: The desk.
+                _Trader: The trader.
             """
-            desk = _Desk(tmp_path, calendar)
-            await desk.keeper.start()
-            await desk.turn('Monday trade')
+            trader = _Trader(tmp_path, calendar)
+            await trader.keeper.start()
+            await trader.turn('Monday trade')
             calendar.today = _TUESDAY
-            desk.claude.answer = 'Bought 1 IDEA at 12.21; holding it.'
-            await desk.turn('Good morning')
-            desk.claude.answer = None
-            await desk.turn('Second message')
-            return desk
+            trader.claude.answer = 'Bought 1 IDEA at 12.21; holding it.'
+            await trader.turn('Good morning')
+            trader.claude.answer = None
+            await trader.turn('Second message')
+            return trader
 
-        desk = asyncio.run(scenario())
-        summary_request = desk.claude.received_texts[1]
+        trader = asyncio.run(scenario())
+        summary_request = trader.claude.received_texts[1]
         assert 'session for 2026-10-19 is ending' in summary_request
         assert 'notes/2026-10-19.md' in summary_request
         summary_file = tmp_path / 'summaries' / '2026-10-19.md'
         assert summary_file.read_text(encoding='utf-8') == (
             'Bought 1 IDEA at 12.21; holding it.\n'
         )
-        first_of_tuesday = desk.claude.received_texts[2]
+        first_of_tuesday = trader.claude.received_texts[2]
         assert 'Summary of your previous session, from 2026-10-19' in (
             first_of_tuesday
         )
         assert 'Bought 1 IDEA at 12.21' in first_of_tuesday
         assert first_of_tuesday.endswith('Good morning')
-        assert desk.claude.received_texts[3] == 'Second message'
-        assert desk.router.session_id == '2026-10-20-1'
+        assert trader.claude.received_texts[3] == 'Second message'
+        assert trader.router.session_id == '2026-10-20-1'
 
     def test_summary_lists_the_exchanges_when_no_model_answers(
         self,
@@ -423,13 +423,13 @@ class TestDailyRollover:
 
         async def scenario() -> None:
             """Runs a turn on Monday, then rolls over with every backend down."""
-            desk = _Desk(tmp_path, calendar)
-            await desk.keeper.start()
-            await desk.turn('Monday trade')
+            trader = _Trader(tmp_path, calendar)
+            await trader.keeper.start()
+            await trader.turn('Monday trade')
             calendar.today = _TUESDAY
-            desk.claude.available = False
-            desk.gemma.available = False
-            await desk.keeper.roll_over()
+            trader.claude.available = False
+            trader.gemma.available = False
+            await trader.keeper.roll_over()
 
         asyncio.run(scenario())
         text = (tmp_path / 'summaries' / '2026-10-19.md').read_text(
@@ -447,27 +447,27 @@ class TestDailyRollover:
         """
         calendar = _Calendar(_MONDAY)
 
-        async def scenario() -> _Desk:
+        async def scenario() -> _Trader:
             """Starts on Monday and runs the first turn on Tuesday.
 
             Returns:
-                _Desk: The desk.
+                _Trader: The trader.
             """
-            desk = _Desk(tmp_path, calendar)
-            await desk.keeper.start()
+            trader = _Trader(tmp_path, calendar)
+            await trader.keeper.start()
             calendar.today = _TUESDAY
-            await desk.turn('Good morning')
-            return desk
+            await trader.turn('Good morning')
+            return trader
 
-        desk = asyncio.run(scenario())
+        trader = asyncio.run(scenario())
         assert not (tmp_path / 'summaries').exists()
-        assert desk.claude.received_texts == [
+        assert trader.claude.received_texts == [
             'Good morning',
         ]
 
 
 class TestCheckpoints:
-    """Checkpoints snapshot the desk's own files and restore them."""
+    """Checkpoints snapshot the trader's own files and restore them."""
 
     def test_restore_returns_files_and_leaves_scratch_alone(
         self,
@@ -478,28 +478,28 @@ class TestCheckpoints:
         Args:
             tmp_path (Path): A scratch folder.
         """
-        desk_directory = tmp_path / 'desk'
-        (desk_directory / 'scratch').mkdir(parents=True)
-        (desk_directory / 'Memory.md').write_text('one', encoding='utf-8')
+        trader_directory = tmp_path / 'trader'
+        (trader_directory / 'scratch').mkdir(parents=True)
+        (trader_directory / 'Memory.md').write_text('one', encoding='utf-8')
         checkpoints = checkpoints_module.Checkpoints(
             tmp_path / 'main.git',
-            desk_directory,
+            trader_directory,
         )
         first = checkpoints.snapshot('first')
         assert checkpoints.snapshot('nothing changed') is None
-        (desk_directory / 'Memory.md').write_text('two', encoding='utf-8')
-        (desk_directory / 'notes').mkdir()
-        (desk_directory / 'notes' / 'a.md').write_text('a', encoding='utf-8')
-        (desk_directory / 'scratch' / 'x').write_text('x', encoding='utf-8')
+        (trader_directory / 'Memory.md').write_text('two', encoding='utf-8')
+        (trader_directory / 'notes').mkdir()
+        (trader_directory / 'notes' / 'a.md').write_text('a', encoding='utf-8')
+        (trader_directory / 'scratch' / 'x').write_text('x', encoding='utf-8')
         before = checkpoints.restore(first)
-        assert (desk_directory / 'Memory.md').read_text(encoding='utf-8') == (
+        assert (trader_directory / 'Memory.md').read_text(encoding='utf-8') == (
             'one'
         )
-        assert not (desk_directory / 'notes' / 'a.md').exists()
-        assert (desk_directory / 'scratch' / 'x').exists()
+        assert not (trader_directory / 'notes' / 'a.md').exists()
+        assert (trader_directory / 'scratch' / 'x').exists()
         checkpoints.restore(before)
-        assert (desk_directory / 'notes' / 'a.md').exists()
-        assert (desk_directory / 'Memory.md').read_text(encoding='utf-8') == (
+        assert (trader_directory / 'notes' / 'a.md').exists()
+        assert (trader_directory / 'Memory.md').read_text(encoding='utf-8') == (
             'two'
         )
 
@@ -509,12 +509,12 @@ class TestCheckpoints:
         Args:
             tmp_path (Path): A scratch folder.
         """
-        desk_directory = tmp_path / 'desk'
-        desk_directory.mkdir()
-        (desk_directory / 'Memory.md').write_text('one', encoding='utf-8')
+        trader_directory = tmp_path / 'trader'
+        trader_directory.mkdir()
+        (trader_directory / 'Memory.md').write_text('one', encoding='utf-8')
         checkpoints = checkpoints_module.Checkpoints(
             tmp_path / 'main.git',
-            desk_directory,
+            trader_directory,
         )
         checkpoints.snapshot('first')
         with pytest.raises(checkpoints_module.CheckpointError):
@@ -526,15 +526,15 @@ class TestCheckpoints:
         Args:
             tmp_path (Path): A scratch folder.
         """
-        desk_directory = tmp_path / 'desk'
-        desk_directory.mkdir()
-        (desk_directory / 'Memory.md').write_text('old', encoding='utf-8')
+        trader_directory = tmp_path / 'trader'
+        trader_directory.mkdir()
+        (trader_directory / 'Memory.md').write_text('old', encoding='utf-8')
         checkpoints = checkpoints_module.Checkpoints(
             tmp_path / 'main.git',
-            desk_directory,
+            trader_directory,
         )
         tool = write_file_tool.WriteFileTool(
-            path_policy.PathPolicy(desk_directory, []),
+            path_policy.PathPolicy(trader_directory, []),
             checkpoints,
         )
         result = asyncio.run(
@@ -549,7 +549,7 @@ class TestCheckpoints:
         listed = checkpoints.list()
         assert listed[0].reason == 'before write_file Memory.md'
         checkpoints.restore(listed[0].checkpoint_id)
-        assert (desk_directory / 'Memory.md').read_text(encoding='utf-8') == (
+        assert (trader_directory / 'Memory.md').read_text(encoding='utf-8') == (
             'old'
         )
 
@@ -559,17 +559,17 @@ class TestCheckpoints:
         Args:
             tmp_path (Path): A scratch folder.
         """
-        desk_directory = tmp_path / 'desk'
-        desk_directory.mkdir()
+        trader_directory = tmp_path / 'trader'
+        trader_directory.mkdir()
         output = io.StringIO()
         checkpoints = checkpoints_module.Checkpoints(
             tmp_path / 'main.git',
-            desk_directory,
+            trader_directory,
         )
         commands = checkpoint_commands.CheckpointCommands(checkpoints, output)
         assert commands.run('list', None) == 0
         assert 'No checkpoints yet.' in output.getvalue()
-        (desk_directory / 'Memory.md').write_text('one', encoding='utf-8')
+        (trader_directory / 'Memory.md').write_text('one', encoding='utf-8')
         first = checkpoints.snapshot('first')
         assert commands.run('list', None) == 0
         assert f'{first}  ' in output.getvalue()
@@ -587,13 +587,13 @@ class TestAddNote:
         Args:
             tmp_path (Path): A scratch folder.
         """
-        desk_directory = tmp_path / 'desk'
+        trader_directory = tmp_path / 'trader'
         checkpoints = checkpoints_module.Checkpoints(
             tmp_path / 'main.git',
-            desk_directory,
+            trader_directory,
         )
         tool = add_note_tool.AddNoteTool(
-            desk_directory / 'notes',
+            trader_directory / 'notes',
             checkpoints,
             lambda: datetime.datetime(2026, 10, 19, 10, 15, tzinfo=_INDIA),
         )
@@ -616,7 +616,7 @@ class TestAddNote:
                 )
             )
         )
-        text = (desk_directory / 'notes' / '2026-10-19.md').read_text(
+        text = (trader_directory / 'notes' / '2026-10-19.md').read_text(
             encoding='utf-8'
         )
         assert text == (
@@ -652,26 +652,26 @@ class TestAddNote:
 class TestSessionSearch:
     """search_sessions finds exchanges, summaries, notes and journal actions."""
 
-    def _write_records(self, desk_directory: Path) -> None:
+    def _write_records(self, trader_directory: Path) -> None:
         """Writes one record of each kind.
 
         Args:
-            desk_directory (Path): The desk folder.
+            trader_directory (Path): The trader folder.
         """
-        store = session_store_module.SessionStore(desk_directory / 'sessions')
+        store = session_store_module.SessionStore(trader_directory / 'sessions')
         store.write_summary(_TUESDAY, 'NIFTY recovered the gap by noon.')
-        notes = desk_directory / 'notes'
+        notes = trader_directory / 'notes'
         notes.mkdir()
         (notes / '2026-10-18.md').write_text(
             '# Notes for 2026-10-18\n\n- 10:00 Gap down days reward patience.\n',
             encoding='utf-8',
         )
-        journal = desk_directory / 'journal'
+        journal = trader_directory / 'journal'
         journal.mkdir()
         lines = [
             {
                 'kind': 'trigger_received',
-                'desk': 'main',
+                'trader': 'main',
                 'payload': {
                     'trigger_id': 't1',
                     'text': 'NIFTY gapped down 1%, what now?',
@@ -680,7 +680,7 @@ class TestSessionSearch:
             },
             {
                 'kind': 'tool_result',
-                'desk': 'main',
+                'trader': 'main',
                 'payload': {
                     'trigger_id': 't1',
                     'text': 'NIFTY gap tool output',
@@ -689,7 +689,7 @@ class TestSessionSearch:
             },
             {
                 'kind': 'text',
-                'desk': 'main',
+                'trader': 'main',
                 'payload': {
                     'trigger_id': 't1',
                     'text': 'Waited for the first 15 minutes.',
@@ -698,7 +698,7 @@ class TestSessionSearch:
             },
             {
                 'kind': 'tool_call',
-                'desk': 'main',
+                'trader': 'main',
                 'payload': {
                     'name': 'search_sessions',
                     'arguments': {
@@ -709,7 +709,7 @@ class TestSessionSearch:
             },
             {
                 'kind': 'order',
-                'desk': 'main',
+                'trader': 'main',
                 'payload': {
                     'action': 'placed',
                     'order': 'buy 1 NIFTY future',
@@ -718,7 +718,7 @@ class TestSessionSearch:
             },
             {
                 'kind': 'model_usage',
-                'desk': 'main',
+                'trader': 'main',
                 'payload': {
                     'model': 'NIFTY gap',
                 },
@@ -731,7 +731,7 @@ class TestSessionSearch:
         )
 
     def test_every_keyword_must_match(self, tmp_path: Path) -> None:
-        """Only records holding both keywords are returned, newest first, without tool results or the desk's own searches.
+        """Only records holding both keywords are returned, newest first, without tool results or the trader's own searches.
 
         Args:
             tmp_path (Path): A scratch folder.
@@ -848,28 +848,28 @@ class TestSkillReviewAtRollover:
         calendar = _Calendar(_MONDAY)
         curator = _FakeCurator()
 
-        async def scenario() -> _Desk:
+        async def scenario() -> _Trader:
             """Runs a Monday turn and the first Tuesday turn.
 
             Returns:
-                _Desk: The desk.
+                _Trader: The trader.
             """
-            desk = _Desk(tmp_path, calendar)
-            desk.keeper = session_keeper_module.SessionKeeper(
+            trader = _Trader(tmp_path, calendar)
+            trader.keeper = session_keeper_module.SessionKeeper(
                 'main',
-                desk.router,
-                desk.store,
-                desk.event_bus,
+                trader.router,
+                trader.store,
+                trader.event_bus,
                 curator,
             )
-            await desk.keeper.start()
-            await desk.turn('Monday trade')
+            await trader.keeper.start()
+            await trader.turn('Monday trade')
             calendar.today = _TUESDAY
-            await desk.turn('Good morning')
-            return desk
+            await trader.turn('Good morning')
+            return trader
 
-        desk = asyncio.run(scenario())
-        texts = desk.claude.received_texts
+        trader = asyncio.run(scenario())
+        texts = trader.claude.received_texts
         assert 'is ending' in texts[1]
         assert texts[2] == "Skill review for 2026-10-19; archived ['old-skill']"
         assert texts[3].endswith('Good morning')

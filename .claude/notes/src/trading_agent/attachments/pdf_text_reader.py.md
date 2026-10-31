@@ -2,11 +2,11 @@
 
 Uses pypdf 6.21.1, which is pure Python and needs no system libraries.
 
-Each page's text goes under a `--- Page N ---` heading so the desk can say where in the document something is, and so `AttachmentStore._has_words` can tell a scanned PDF (headings only) from one with text.
+Each page's text goes under a `--- Page N ---` heading so the trader can say where in the document something is, and so `AttachmentStore._has_words` can tell a scanned PDF (headings only) from one with text.
 
 ## Encrypted PDFs
 
-Many bank and broker statements are "encrypted" with an empty user password, only to stop editing. `decrypt('')` opens those. A PDF that needs a real password is refused with that reason; the desk then asks the user, rather than the gateway asking for passwords.
+Many bank and broker statements are "encrypted" with an empty user password, only to stop editing. `decrypt('')` opens those. A PDF that needs a real password is refused with that reason; the trader then asks the user, rather than the gateway asking for passwords.
 
 ## Scanned PDFs
 

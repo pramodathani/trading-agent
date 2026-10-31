@@ -1,6 +1,6 @@
 # browser_session.py
 
-Playwright (1.64.0) drives the Google Chrome already installed (`channel='chrome'`, version 153), so no separate browser is downloaded. Each desk has its own persistent profile in `workspace/desks/<desk>/browser_profile`, which is out of git and never the user's own profile, because the user's Chrome holds broker logins that would let a desk trade around the risk engine.
+Playwright (1.64.0) drives the Google Chrome already installed (`channel='chrome'`, version 153), so no separate browser is downloaded. Each trader has its own persistent profile in `workspace/traders/<trader>/browser_profile`, which is out of git and never the user's own profile, because the user's Chrome holds broker logins that would let a trader trade around the risk engine.
 
 ## Getting past bot protection
 
@@ -14,7 +14,7 @@ On 2026-10-17 headless Chrome with its default identity still got HTTP 403 from 
 
 A small script gives every visible clickable element a `data-trading-agent-ref` number and returns the elements with the page's visible text. Clicking and typing find the element by that attribute. This works for every model, including ones that cannot see pictures; the numbers are reassigned on each snapshot, and the click and type results include a fresh snapshot. The elements (150 at most) and the text (8,000 characters at most) are capped so a snapshot fits Gemma's context.
 
-Screenshots are of the visible viewport (1366 by 900), saved in the desk's `scratch/screenshots/`, and passed to the model as a picture. On 2026-10-17 Claude described a Moneycontrol screenshot correctly, including a notifications pop-up.
+Screenshots are of the visible viewport (1366 by 900), saved in the trader's `scratch/screenshots/`, and passed to the model as a picture. On 2026-10-17 Claude described a Moneycontrol screenshot correctly, including a notifications pop-up.
 
 ## Untrusted-text label (milestone 13, part 3)
 

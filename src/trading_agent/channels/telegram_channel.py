@@ -1,17 +1,17 @@
-"""The Telegram channel: talk to the desks and hear from them on your phone.
+"""The Telegram channel: talk to the traders and hear from them on your phone.
 
-It runs two loops beside the desks:
+It runs two loops beside the traders:
 
-1. The message loop asks Telegram for new messages. A chat that is not paired gets a pairing code and nothing else; every such message is logged as a channel event. A paired chat's code-only commands (/status, /positions, /pnl, /pause, /resume, /kill, /desk, /help) are answered at once; anything else is sent to the chat's desk as a user message.
-2. The event loop listens to the event bus. A desk's answer to a message from Telegram goes back to the chat it came from. The notifications chosen in [telegram] notifications, such as fills and halts, go to every paired chat.
+1. The message loop asks Telegram for new messages. A chat that is not paired gets a pairing code and nothing else; every such message is logged as a channel event. A paired chat's code-only commands (/status, /positions, /pnl, /pause, /resume, /kill, /trader, /help) are answered at once; anything else is sent to the chat's trader as a user message.
+2. The event loop listens to the event bus. A trader's answer to a message from Telegram goes back to the chat it came from. The notifications chosen in [telegram] notifications, such as fills and halts, go to every paired chat.
 
-A message sent while its desk is working steers the running turn, as on the web page; the chat is told so, and the running turn's answer comes to it too.
+A message sent while its trader is working steers the running turn, as on the web page; the chat is told so, and the running turn's answer comes to it too.
 
-A photo or file from a paired chat is downloaded into the desk's uploads, as an upload from the web page is, and goes to the desk with the caption as the message. Files from chats that are not paired are never downloaded.
+A photo or file from a paired chat is downloaded into the trader's uploads, as an upload from the web page is, and goes to the trader with the caption as the message. Files from chats that are not paired are never downloaded.
 
 Typical usage example:
 
-  channel = TelegramChannel(api, pairing, commands, formatter, desks, parts, event_bus, 'main')
+  channel = TelegramChannel(api, pairing, commands, formatter, traders, parts, event_bus, 'main')
   await channel.run()
 """
 
@@ -33,10 +33,11 @@ from trading_agent.channels import telegram_commands as telegram_commands_module
 from trading_agent.channels import telegram_requests as telegram_requests_module
 from trading_agent.gateway import gateway_parts
 from trading_agent.requests import user_request as user_request_module
-from trading_agent.runtime import desk_runtime
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
+from trading_agent.runtime import trader_runtime
 from trading_agent.runtime import trigger as trigger_module
+from trading_agent.traders import trader_registry
 
 _LOGGER = logging.getLogger(__name__)
 _FIRST_RETRY_SECONDS = 5.0
@@ -65,10 +66,10 @@ class TelegramChannel:
         pairing: pairing_store_module.PairingStore,
         commands: telegram_commands_module.TelegramCommands,
         formatter: notification_formatter_module.NotificationFormatter,
-        desks: Mapping[str, desk_runtime.DeskRuntime],
-        parts: Mapping[str, gateway_parts.DeskParts],
+        traders: Mapping[str, trader_runtime.TraderRuntime],
+        parts: Mapping[str, gateway_parts.TraderParts],
         event_bus: event_bus_module.EventBus,
-        default_desk: str,
+        default_trader: str,
         attachments: attachment_store_module.AttachmentStore | None = None,
         requests: telegram_requests_module.TelegramRequests | None = None,
     ):
@@ -79,21 +80,21 @@ class TelegramChannel:
             pairing (pairing_store_module.PairingStore): The paired chats and codes.
             commands (telegram_commands_module.TelegramCommands): The code-only commands.
             formatter (notification_formatter_module.NotificationFormatter): Decides what is pushed.
-            desks (Mapping[str, desk_runtime.DeskRuntime]): The running desks.
-            parts (Mapping[str, gateway_parts.DeskParts]): Each desk's session store, for the daily summaries.
-            event_bus (event_bus_module.EventBus): Where the desks' events arrive.
-            default_desk (str): The desk a newly paired chat talks to.
+            traders (Mapping[str, trader_runtime.TraderRuntime]): The running traders.
+            parts (Mapping[str, gateway_parts.TraderParts]): Each trader's session store, for the daily summaries.
+            event_bus (event_bus_module.EventBus): Where the traders' events arrive.
+            default_trader (str): The trader a newly paired chat talks to.
             attachments (attachment_store_module.AttachmentStore | None): Where photos and files sent to the bot are kept, or None to refuse them.
-            requests (telegram_requests_module.TelegramRequests | None): Shows the desks' questions and plans with buttons, or None to leave them to the web page.
+            requests (telegram_requests_module.TelegramRequests | None): Shows the traders' questions and plans with buttons, or None to leave them to the web page.
         """
         self._api = api
         self._pairing = pairing
         self._commands = commands
         self._formatter = formatter
-        self._desks = desks
+        self._traders = traders
         self._parts = parts
         self._event_bus = event_bus
-        self._default_desk = default_desk
+        self._default_trader = default_trader
         self._attachments = attachments
         self._requests = requests
         self._subscription = event_bus.subscribe(maximum_queued=_QUEUE_SIZE)
@@ -131,11 +132,11 @@ class TelegramChannel:
         Raises:
             pairing_store_module.PairingError: No valid code matches.
         """
-        chat = self._pairing.approve(code, self._default_desk)
+        chat = self._pairing.approve(code, self._default_trader)
         self._publish_channel('paired', chat.chat_id, chat.name, '')
         await self._send(
             chat.chat_id,
-            f'Paired. You are talking to the {chat.desk} desk. Send /help to see what you can do.',
+            f'Paired. You are talking to the {chat.trader} trader. Send /help to see what you can do.',
         )
         return chat
 
@@ -195,9 +196,10 @@ class TelegramChannel:
 
     async def _handle(
         self,
-        message: telegram_api_module.IncomingMessage | telegram_api_module.IncomingButton,
+        message: telegram_api_module.IncomingMessage
+        | telegram_api_module.IncomingButton,
     ) -> None:
-        """Handles one message or button press: pairing for strangers; commands, replies to requests and desk messages for paired chats.
+        """Handles one message or button press: pairing for strangers; commands, replies to requests and trader messages for paired chats.
 
         Args:
             message (telegram_api_module.IncomingMessage | telegram_api_module.IncomingButton): The message or press.
@@ -220,39 +222,58 @@ class TelegramChannel:
         if not message.files and self._commands.handles(message.text):
             reply = await self._commands.answer(chat, message.text)
             await self._send(chat.chat_id, reply)
+            self._introduce_new_traders()
             return
-        desk = self._desks.get(chat.desk)
-        if desk is None:
+        trader = self._traders.get(chat.trader)
+        if trader is None:
             await self._send(
                 chat.chat_id,
-                f'The desk {chat.desk!r} is not running. Choose another with /desk.',
+                f'The trader {chat.trader!r} is not running. Choose another with /trader.',
             )
             return
-        attachments = await self._download(chat.chat_id, chat.desk, message)
+        attachments = await self._download(chat.chat_id, chat.trader, message)
         if not message.text.strip() and not attachments:
             return
         trigger = trigger_module.Trigger.now(
             trigger_module.TriggerSource.USER_MESSAGE,
-            chat.desk,
+            chat.trader,
             message.text.strip(),
             attachments,
         )
         self._reply_chats.setdefault(trigger.trigger_id, set()).add(
             chat.chat_id
         )
-        desk.submit(trigger)
+        trader.submit(trigger)
+
+    def _introduce_new_traders(self) -> None:
+        """Sends each trader /create made its introduction, as the asking chat's message so the answer comes back to that chat.
+
+        Returns:
+            None.
+        """
+        for chat_id, trader_name in self._commands.take_introductions():
+            trader = self._traders.get(trader_name)
+            if trader is None:
+                continue
+            trigger = trigger_module.Trigger.now(
+                trigger_module.TriggerSource.USER_MESSAGE,
+                trader_name,
+                trader_registry.INTRODUCTION,
+            )
+            self._reply_chats.setdefault(trigger.trigger_id, set()).add(chat_id)
+            trader.submit(trigger)
 
     async def _download(
         self,
         chat_id: int,
-        desk_name: str,
+        trader_name: str,
         message: telegram_api_module.IncomingMessage,
     ) -> tuple[attachment_module.Attachment, ...]:
-        """Downloads a message's photo or file into the desk's uploads, telling the chat when one is refused.
+        """Downloads a message's photo or file into the trader's uploads, telling the chat when one is refused.
 
         Args:
             chat_id (int): The chat, for any refusal.
-            desk_name (str): The desk the files are for.
+            trader_name (str): The trader the files are for.
             message (telegram_api_module.IncomingMessage): The message.
 
         Returns:
@@ -262,11 +283,11 @@ class TelegramChannel:
         for incoming_file in message.files:
             refusal = None
             if self._attachments is None:
-                refusal = 'Files cannot be sent to the desks from here.'
+                refusal = 'Files cannot be sent to the traders from here.'
             elif (
                 incoming_file.size_bytes > attachment_store_module.MAXIMUM_BYTES
             ):
-                refusal = f'{incoming_file.file_name} is larger than 20 MB, the most a desk takes.'
+                refusal = f'{incoming_file.file_name} is larger than 20 MB, the most a trader takes.'
             if refusal is not None:
                 await self._send(chat_id, refusal)
                 continue
@@ -274,7 +295,7 @@ class TelegramChannel:
                 data = await self._api.download(incoming_file.file_id)
                 attachment = await asyncio.to_thread(
                     self._attachments.save,
-                    desk_name,
+                    trader_name,
                     incoming_file.file_name,
                     data,
                 )
@@ -329,7 +350,9 @@ class TelegramChannel:
         if kind == event_module.EventKind.USER_REQUEST:
             if self._requests is not None:
                 await self._requests.show(
-                    user_request_module.UserRequest.from_json_dictionary(payload)
+                    user_request_module.UserRequest.from_json_dictionary(
+                        payload
+                    )
                 )
             return
         if kind == event_module.EventKind.USER_RESPONSE:
@@ -343,11 +366,11 @@ class TelegramChannel:
             await self._forward_steering(payload)
             return
         if kind == event_module.EventKind.TURN_STARTED:
-            self._running_triggers[published_event.desk or ''] = trigger_id
+            self._running_triggers[published_event.trader or ''] = trigger_id
             return
         if kind == event_module.EventKind.TURN_FINISHED:
             self._reply_chats.pop(trigger_id, None)
-            self._running_triggers.pop(published_event.desk or '', None)
+            self._running_triggers.pop(published_event.trader or '', None)
             return
         if kind == event_module.EventKind.MESSAGE and payload.get(
             'attachments'
@@ -371,7 +394,7 @@ class TelegramChannel:
             kind == event_module.EventKind.SESSION_STARTED
             and payload.get('reason') == 'daily_rollover'
         ):
-            await self._send_daily_summary(published_event.desk)
+            await self._send_daily_summary(published_event.trader)
             return
         source, trigger_text = self._trigger_sources.get(
             trigger_id, (None, None)
@@ -386,15 +409,15 @@ class TelegramChannel:
         self,
         published_event: event_module.Event,
     ) -> None:
-        """Sends the pictures a desk showed with send_image.
+        """Sends the pictures a trader showed with send_image.
 
-        They go to the chats waiting for the desk's running turn, so a picture asked for on Telegram comes back there. A picture sent while no chat is waiting, such as from a scheduled job, is pushed to every paired chat when messages are pushed.
+        They go to the chats waiting for the trader's running turn, so a picture asked for on Telegram comes back there. A picture sent while no chat is waiting, such as from a scheduled job, is pushed to every paired chat when messages are pushed.
 
         Args:
             published_event (event_module.Event): The message event carrying the pictures.
         """
         payload = published_event.payload
-        running = self._running_triggers.get(published_event.desk or '')
+        running = self._running_triggers.get(published_event.trader or '')
         chats = set(self._reply_chats.get(running, set()))
         caption = str(payload.get('text', ''))
         if not chats:
@@ -445,7 +468,7 @@ class TelegramChannel:
         for chat_id in chats:
             await self._send(
                 chat_id,
-                'The desk was working, so your message was handed to the running turn. Its answer will come here.',
+                'The trader was working, so your message was handed to the running turn. Its answer will come here.',
             )
 
     def _remember_trigger(self, payload: dict) -> None:
@@ -462,23 +485,23 @@ class TelegramChannel:
             str(payload.get('text', '')),
         )
 
-    async def _send_daily_summary(self, desk_name: str | None) -> None:
-        """Pushes the summary a desk wrote for the day just ended.
+    async def _send_daily_summary(self, trader_name: str | None) -> None:
+        """Pushes the summary a trader wrote for the day just ended.
 
         Args:
-            desk_name (str | None): The desk that rolled over.
+            trader_name (str | None): The trader that rolled over.
         """
         if (
             not self._formatter.wants_daily_summaries()
-            or desk_name not in self._parts
+            or trader_name not in self._parts
         ):
             return
-        summaries = self._parts[desk_name].sessions.summaries()
+        summaries = self._parts[trader_name].sessions.summaries()
         if not summaries:
             return
         latest = summaries[0]
         await self._broadcast(
-            f'{desk_name}: summary of {latest.trading_date.isoformat()}\n\n{latest.text}'
+            f'{trader_name}: summary of {latest.trading_date.isoformat()}\n\n{latest.text}'
         )
 
     async def _broadcast(self, text: str) -> None:

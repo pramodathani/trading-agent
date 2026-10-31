@@ -101,17 +101,17 @@
   flex: 1;
 }
 
-.desk-switcher {
+.trader-switcher {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.desk-menu {
+.trader-menu {
   position: relative;
 }
 
-.desk-menu-button {
+.trader-menu-button {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -124,18 +124,18 @@
   font-weight: 600;
 }
 
-.desk-menu-button:hover:not(:disabled),
-.desk-menu-button.open {
+.trader-menu-button:hover:not(:disabled),
+.trader-menu-button.open {
   background: var(--color-bg-hover);
 }
 
-.desk-menu-button svg {
+.trader-menu-button svg {
   width: 14px;
   height: 14px;
   color: var(--color-text-muted);
 }
 
-.desk-menu-list {
+.trader-menu-list {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
@@ -149,7 +149,7 @@
   box-shadow: var(--shadow), inset 0 0 0 1px var(--color-border);
 }
 
-.desk-menu-item {
+.trader-menu-item {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -160,12 +160,12 @@
   cursor: pointer;
 }
 
-.desk-menu-item.highlighted {
+.trader-menu-item.highlighted {
   background: var(--color-bg-hover);
   color: var(--color-text);
 }
 
-.desk-menu-dot {
+.trader-menu-dot {
   flex: none;
   width: 6px;
   height: 6px;
@@ -173,27 +173,35 @@
   background: var(--color-text-muted);
 }
 
-.desk-menu-dot.busy {
+.trader-menu-dot.busy {
   background: var(--color-accent);
 }
 
-.desk-menu-name {
-  flex: 1;
+.trader-menu-dot.sleeping {
+  background: var(--color-blue);
 }
 
-.desk-menu-state {
+.trader-menu-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trader-menu-state {
   color: var(--color-text-muted);
   font-size: var(--font-size-small);
 }
 
-.desk-menu-check {
+.trader-menu-check {
   flex: none;
   width: 14px;
   height: 14px;
   color: var(--color-text);
 }
 
-.desk-menu-check.hidden {
+.trader-menu-check.hidden {
   visibility: hidden;
 }
 

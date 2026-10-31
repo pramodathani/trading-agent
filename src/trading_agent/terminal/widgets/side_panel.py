@@ -1,11 +1,11 @@
-"""The right-hand panel of the chat: eight cards about the desk, as on the web page.
+"""The right-hand panel of the chat: eight cards about the trader, as on the web page.
 
-The panel reads the gateway on the web page's timings: the context window every 20 seconds and after a turn, a compression, a new session or a model switch; the account and the desks' open orders every 15 seconds and after an order, a fill, a halt or the kill switch; the MCP servers every minute. The counts of orders and the outputs come from the desk's events of today, which the chat screen passes on. Which cards are folded is remembered between runs.
+The panel reads the gateway on the web page's timings: the context window every 20 seconds and after a turn, a compression, a new session or a model switch; the account and the traders' open orders every 15 seconds and after an order, a fill, a halt or the kill switch; the MCP servers every minute. The counts of orders and the outputs come from the trader's events of today, which the chat screen passes on. Which cards are folded is remembered between runs.
 
 Typical usage example:
 
   panel = SidePanel(gateway, settings, opener)
-  panel.set_desk('general')
+  panel.set_trader('general')
   panel.take_events(events)
 """
 
@@ -19,7 +19,6 @@ from trading_agent.terminal import attachment_opener
 from trading_agent.terminal import gateway_client
 from trading_agent.terminal import terminal_settings
 from trading_agent.terminal.widgets import context_card
-from trading_agent.terminal.widgets import desk_card
 from trading_agent.terminal.widgets import funds_card
 from trading_agent.terminal.widgets import model_card
 from trading_agent.terminal.widgets import orders_card
@@ -27,6 +26,7 @@ from trading_agent.terminal.widgets import outputs_card
 from trading_agent.terminal.widgets import profit_card
 from trading_agent.terminal.widgets import side_card
 from trading_agent.terminal.widgets import tools_card
+from trading_agent.terminal.widgets import trader_card
 
 _ACCOUNT_REFRESH_SECONDS = 15.0
 _CONTEXT_REFRESH_SECONDS = 20.0
@@ -40,7 +40,7 @@ _CONTEXT_CHANGING_KINDS = (
 _ACCOUNT_CHANGING_KINDS = (
     'order',
     'fill',
-    'desk_halt',
+    'trader_halt',
     'kill_switch',
 )
 
@@ -59,13 +59,13 @@ class SidePanel(containers.VerticalScroll):
         Args:
             gateway (gateway_client.GatewayClient): The gateway's routes.
             settings (terminal_settings.TerminalSettings): The remembered choices, holding the folded cards.
-            opener (attachment_opener.AttachmentOpener): Downloads and opens the desk's files.
+            opener (attachment_opener.AttachmentOpener): Downloads and opens the trader's files.
         """
         super().__init__(id='side-panel')
         self._gateway = gateway
         self._settings = settings
         folded = set(settings.collapsed_cards)
-        self._desk_card = desk_card.DeskCard('desk' in folded)
+        self._trader_card = trader_card.TraderCard('trader' in folded)
         self._model_card = model_card.ModelCard('model' in folded)
         self._context_card = context_card.ContextCard('context' in folded)
         self._funds_card = funds_card.FundsCard('funds' in folded)
@@ -75,13 +75,13 @@ class SidePanel(containers.VerticalScroll):
         self._outputs_card = outputs_card.OutputsCard(
             opener, 'outputs' in folded
         )
-        self._desk_name = ''
+        self._trader_name = ''
         self._mode = ''
-        self._desk: dict[str, Any] | None = None
+        self._trader: dict[str, Any] | None = None
         self._events: list[dict[str, Any]] = []
         self._context_document: dict[str, Any] | None = None
         self._account: dict[str, Any] | None = None
-        self._desk_orders: dict[str, Any] | None = None
+        self._trader_orders: dict[str, Any] | None = None
         self._servers: list[dict[str, Any]] | None = None
 
     def compose(self):
@@ -90,7 +90,7 @@ class SidePanel(containers.VerticalScroll):
         Yields:
             Widget: The eight cards.
         """
-        yield self._desk_card
+        yield self._trader_card
         yield self._model_card
         yield self._context_card
         yield self._funds_card
@@ -107,20 +107,20 @@ class SidePanel(containers.VerticalScroll):
         self.refresh_account()
         self.refresh_servers()
 
-    def set_desk(self, desk_name: str) -> None:
-        """Shows another desk, forgetting the previous desk's events.
+    def set_trader(self, trader_name: str) -> None:
+        """Shows another trader, forgetting the previous trader's events.
 
         Args:
-            desk_name (str): The desk.
+            trader_name (str): The trader.
         """
-        self._desk_name = desk_name
+        self._trader_name = trader_name
         self._events = []
         self._context_document = None
         self._show_all()
         self.refresh_context()
 
     def take_events(self, events: list[dict[str, Any]]) -> None:
-        """Takes the desk's new events and reads the gateway again when they change something.
+        """Takes the trader's new events and reads the gateway again when they change something.
 
         Args:
             events (list[dict[str, Any]]): The events, oldest first.
@@ -142,16 +142,16 @@ class SidePanel(containers.VerticalScroll):
             self.refresh_account()
         self._show_events()
 
-    def take_desk(self, desk: dict[str, Any] | None, mode: str) -> None:
-        """Shows the desk's state and models.
+    def take_trader(self, trader: dict[str, Any] | None, mode: str) -> None:
+        """Shows the trader's state and models.
 
         Args:
-            desk (dict[str, Any] | None): The desk summary, or None while loading.
+            trader (dict[str, Any] | None): The trader summary, or None while loading.
             mode (str): "dry_run" or "live".
         """
-        self._desk = desk
+        self._trader = trader
         self._mode = mode
-        self._desk_card.show(desk, mode)
+        self._trader_card.show(trader, mode)
         self._show_model()
 
     def on_collapsible_collapsed(
@@ -176,16 +176,16 @@ class SidePanel(containers.VerticalScroll):
 
     @work(exclusive=True, group='side-context')
     async def refresh_context(self) -> None:
-        """Reads the desk's context window and tools."""
-        if not self._desk_name:
+        """Reads the trader's context window and tools."""
+        if not self._trader_name:
             return
-        desk_name = self._desk_name
+        trader_name = self._trader_name
         try:
-            document = await self._gateway.desk_context(desk_name)
+            document = await self._gateway.trader_context(trader_name)
         except gateway_client.GatewayError as error:
             self._context_card.show(None, error.message)
             return
-        if desk_name != self._desk_name:
+        if trader_name != self._trader_name:
             return
         self._context_document = document
         self._context_card.show(document.get('usage'), None)
@@ -194,18 +194,18 @@ class SidePanel(containers.VerticalScroll):
 
     @work(exclusive=True, group='side-account')
     async def refresh_account(self) -> None:
-        """Reads the account and the desks' open orders."""
+        """Reads the account and the traders' open orders."""
         try:
             self._account = await self._gateway.account()
         except gateway_client.GatewayError as error:
             self._funds_card.show(None, error.message)
             return
         try:
-            self._desk_orders = await self._gateway.desk_orders()
+            self._trader_orders = await self._gateway.trader_orders()
         except gateway_client.GatewayError:
-            self._desk_orders = None
+            self._trader_orders = None
         self._funds_card.show(self._account, None)
-        self._profit_card.show(self._desk_name, self._account)
+        self._profit_card.show(self._trader_name, self._account)
         self._show_events()
 
     @work(exclusive=True, group='side-servers')
@@ -220,11 +220,11 @@ class SidePanel(containers.VerticalScroll):
 
     def _show_all(self) -> None:
         """Redraws every card from what is known."""
-        self._desk_card.show(self._desk, self._mode)
+        self._trader_card.show(self._trader, self._mode)
         self._show_model()
         self._context_card.show(None, None)
         self._funds_card.show(self._account, None)
-        self._profit_card.show(self._desk_name, self._account)
+        self._profit_card.show(self._trader_name, self._account)
         self._show_tools()
         self._show_events()
 
@@ -233,7 +233,7 @@ class SidePanel(containers.VerticalScroll):
         usage = None
         if self._context_document is not None:
             usage = self._context_document.get('usage')
-        self._model_card.show(self._desk, usage)
+        self._model_card.show(self._trader, usage)
 
     def _show_tools(self) -> None:
         """Redraws the Tools card."""
@@ -245,12 +245,12 @@ class SidePanel(containers.VerticalScroll):
     def _show_events(self) -> None:
         """Redraws the cards that count today's events."""
         open_orders = None
-        if self._desk_orders is not None:
-            open_orders = self._desk_orders.get(self._desk_name) or []
+        if self._trader_orders is not None:
+            open_orders = self._trader_orders.get(self._trader_name) or []
         self._orders_card.show(
-            self._desk_name, self._events, open_orders, self._account
+            self._trader_name, self._events, open_orders, self._account
         )
-        self._outputs_card.show(self._desk_name, self._events)
+        self._outputs_card.show(self._trader_name, self._events)
 
     def _remember(self, collapsible: widgets.Collapsible, folded: bool) -> None:
         """Saves whether a card is folded.

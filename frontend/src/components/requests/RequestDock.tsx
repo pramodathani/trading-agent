@@ -10,8 +10,8 @@ interface RequestDockProperties {
 }
 
 /**
- * The desk's waiting request, docked above the message box as Claude Code docks its prompts: permission requests first, because they lapse, then the oldest question or plan, with a count of the others.
- * @param properties The desk's pending requests, oldest first, and what to call after one is answered.
+ * The trader's waiting request, docked above the message box as Claude Code docks its prompts: permission requests first, because they lapse, then the oldest question or plan, with a count of the others.
+ * @param properties The trader's pending requests, oldest first, and what to call after one is answered.
  * @returns The dock, or nothing when no request waits.
  */
 export function RequestDock(properties: RequestDockProperties) {

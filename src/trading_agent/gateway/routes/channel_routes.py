@@ -91,7 +91,7 @@ class ChannelRoutes(route_group.RouteGroup):
                 'state': state,
                 'error': error,
                 'username': username,
-                'default_desk': self._configuration.default_desk,
+                'default_trader': self._configuration.default_trader,
                 'notifications': self._configuration.notifications,
                 'paired': paired,
                 'pending': pending,
@@ -115,7 +115,7 @@ class ChannelRoutes(route_group.RouteGroup):
                 chat = await self._channel.approve(code)
             else:
                 chat = self._store.approve(
-                    code, self._configuration.default_desk
+                    code, self._configuration.default_trader
                 )
         except pairing_store_module.PairingError as error:
             raise fastapi.HTTPException(

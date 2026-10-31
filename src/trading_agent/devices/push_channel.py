@@ -2,7 +2,7 @@
 
 It listens to the event bus like the Telegram channel does and words most notifications with the same NotificationFormatter, so a fill reads the same on Telegram and on the phone. The user chooses the kinds in trading_agent.toml's [push] notifications list. Requests that need the user (a permission, a question or a plan) are pushed too, so the user can answer them in the app before they lapse.
 
-Each notification carries the desk's name, so tapping it opens that desk's chat.
+Each notification carries the trader's name, so tapping it opens that trader's chat.
 
 Typical usage example:
 
@@ -112,12 +112,12 @@ class PushChannel:
         text = self._formatter.format(published_event, source, trigger_text)
         if text is None:
             return
-        desk = published_event.desk or ''
+        trader = published_event.trader or ''
         await self.push(
-            desk or _APP_TITLE,
-            self._without_desk_prefix(desk, text),
+            trader or _APP_TITLE,
+            self._without_trader_prefix(trader, text),
             {
-                'desk': desk,
+                'trader': trader,
                 'kind': str(kind),
             },
         )
@@ -177,15 +177,15 @@ class PushChannel:
             return
         content = request.content
         if request.kind == user_request_module.PERMISSION:
-            title = f'{request.desk} needs your permission'
+            title = f'{request.trader} needs your permission'
             body = f'It wants to run {content.get("tool_name", "a tool")}. Open the app to allow or deny it.'
         elif request.kind == user_request_module.PLAN:
-            title = f'{request.desk} presents a plan'
+            title = f'{request.trader} presents a plan'
             body = str(
                 content.get('title', 'A plan is waiting for your approval.')
             )
         else:
-            title = f'{request.desk} has a question'
+            title = f'{request.trader} has a question'
             questions = content.get('questions') or []
             body = 'Open the app to answer it.'
             if questions:
@@ -194,7 +194,7 @@ class PushChannel:
             title,
             body,
             {
-                'desk': request.desk,
+                'trader': request.trader,
                 'kind': 'user_request',
                 'request_id': request.request_id,
             },
@@ -215,17 +215,17 @@ class PushChannel:
         )
 
     @staticmethod
-    def _without_desk_prefix(desk: str, text: str) -> str:
-        """Drops the "desk: " the formatter starts with, because the desk is already the title.
+    def _without_trader_prefix(trader: str, text: str) -> str:
+        """Drops the "trader: " the formatter starts with, because the trader is already the title.
 
         Args:
-            desk (str): The desk.
+            trader (str): The trader.
             text (str): The formatted notification.
 
         Returns:
             str: The text without the prefix.
         """
-        prefix = f'{desk}: '
-        if desk and text.startswith(prefix):
+        prefix = f'{trader}: '
+        if trader and text.startswith(prefix):
             return text[len(prefix) :]
         return text

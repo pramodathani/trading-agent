@@ -1,6 +1,6 @@
-"""Starts, resumes and rolls over a desk's sessions.
+"""Starts, resumes and rolls over a trader's sessions.
 
-When the desk starts, the keeper asks the model router to pick up the session saved before a restart. Before each turn it checks the India date: on the first turn of a new day it asks the desk to summarise the old session and fold the day's notes into Memory.md, saves that summary, and starts a fresh session. The first message of every new session carries the most recent summary, so the desk knows what happened last.
+When the trader starts, the keeper asks the model router to pick up the session saved before a restart. Before each turn it checks the India date: on the first turn of a new day it asks the trader to summarise the old session and fold the day's notes into Memory.md, saves that summary, and starts a fresh session. The first message of every new session carries the most recent summary, so the trader knows what happened last.
 
 Typical usage example:
 
@@ -28,11 +28,11 @@ _FALLBACK_ANSWER_CHARACTERS = 600
 
 
 class SessionKeeper:
-    """Looks after one desk's sessions."""
+    """Looks after one trader's sessions."""
 
     def __init__(
         self,
-        desk_name: str,
+        trader_name: str,
         router: model_router_module.ModelRouter,
         store: session_store_module.SessionStore,
         event_bus: event_bus_module.EventBus,
@@ -41,20 +41,20 @@ class SessionKeeper:
         """Creates the keeper.
 
         Args:
-            desk_name (str): The desk.
-            router (model_router_module.ModelRouter): The desk's router, built with the same store.
-            store (session_store_module.SessionStore): The desk's sessions folder.
+            trader_name (str): The trader.
+            router (model_router_module.ModelRouter): The trader's router, built with the same store.
+            store (session_store_module.SessionStore): The trader's sessions folder.
             event_bus (event_bus_module.EventBus): Where new sessions are announced.
-            curator (skill_curator_module.SkillCurator | None): Reviews the desk's own skills after the day's summary, or None to skip the review.
+            curator (skill_curator_module.SkillCurator | None): Reviews the trader's own skills after the day's summary, or None to skip the review.
         """
-        self._desk_name = desk_name
+        self._trader_name = trader_name
         self._router = router
         self._store = store
         self._event_bus = event_bus
         self._curator = curator
 
     async def start(self) -> None:
-        """Picks up the saved session, or starts the first one, when the desk starts."""
+        """Picks up the saved session, or starts the first one, when the trader starts."""
         resumed = await self._router.restore_session()
         reason = 'first'
         if resumed:
@@ -113,7 +113,7 @@ class SessionKeeper:
         return self._router.session_id
 
     async def _summary(self, trading_date: datetime.date) -> str:
-        """Asks the desk to summarise its session, or lists the exchanges when no model can.
+        """Asks the trader to summarise its session, or lists the exchanges when no model can.
 
         Args:
             trading_date (datetime.date): The day the session belongs to.
@@ -123,7 +123,7 @@ class SessionKeeper:
         """
         request = trigger_module.Trigger.now(
             trigger_module.TriggerSource.ROLLOVER,
-            self._desk_name,
+            self._trader_name,
             '\n'.join(
                 [
                     f'[Your session for {trading_date.isoformat()} is ending, and a fresh session starts next. Two jobs before it does:]',
@@ -136,8 +136,8 @@ class SessionKeeper:
             result = await self._router.run_turn(request)
         except backend_module.BackendUnavailableError:
             _LOGGER.exception(
-                'No model could summarise the session of desk %s',
-                self._desk_name,
+                'No model could summarise the session of trader %s',
+                self._trader_name,
             )
             return self._fallback_summary()
         if not result.text.strip():
@@ -145,9 +145,9 @@ class SessionKeeper:
         return result.text
 
     async def _review_skills(self, trading_date: datetime.date) -> None:
-        """Archives unused skills and gives the desk its daily skill review turn.
+        """Archives unused skills and gives the trader its daily skill review turn.
 
-        The review runs in the old session, right after the summary, while the whole day is still in the desk's context. A review that fails is logged and the rollover carries on.
+        The review runs in the old session, right after the summary, while the whole day is still in the trader's context. A review that fails is logged and the rollover carries on.
 
         Args:
             trading_date (datetime.date): The day being closed.
@@ -157,14 +157,15 @@ class SessionKeeper:
         archived = self._curator.archive_unused(self._store.today())
         request = trigger_module.Trigger.now(
             trigger_module.TriggerSource.ROLLOVER,
-            self._desk_name,
+            self._trader_name,
             self._curator.review_request(trading_date, archived),
         )
         try:
             await self._router.run_turn(request)
         except backend_module.BackendUnavailableError:
             _LOGGER.exception(
-                'No model could review the skills of desk %s', self._desk_name
+                'No model could review the skills of trader %s',
+                self._trader_name,
             )
 
     def _fallback_summary(self) -> str:
@@ -189,7 +190,7 @@ class SessionKeeper:
         previous_session_id: str | None,
         summary_path: Path | None,
     ) -> None:
-        """Announces which session the desk is now in.
+        """Announces which session the trader is now in.
 
         Args:
             reason (str): "first", "resumed" or "daily_rollover".
@@ -208,7 +209,7 @@ class SessionKeeper:
         self._event_bus.publish(
             event_module.Event.now(
                 event_module.EventKind.SESSION_STARTED,
-                self._desk_name,
+                self._trader_name,
                 payload,
             )
         )

@@ -1,6 +1,6 @@
-"""Messages from the user that arrive while a desk is in the middle of a model turn.
+"""Messages from the user that arrive while a trader is in the middle of a model turn.
 
-Without steering, a message sent while the desk is busy waits until the turn ends, which can be minutes. With it, the message goes into this inbox instead, and the running turn picks it up at its next tool round: the agent loop adds it to the conversation before the next model call, and the Claude runner hands it over in a PostToolUse hook. A message the turn never picks up, because the turn ended without another tool round, is queued as its own turn afterwards, so nothing is lost.
+Without steering, a message sent while the trader is busy waits until the turn ends, which can be minutes. With it, the message goes into this inbox instead, and the running turn picks it up at its next tool round: the agent loop adds it to the conversation before the next model call, and the Claude runner hands it over in a PostToolUse hook. A message the turn never picks up, because the turn ended without another tool round, is queued as its own turn afterwards, so nothing is lost.
 
 Typical usage example:
 
@@ -19,17 +19,17 @@ _INDIA = zoneinfo.ZoneInfo('Asia/Kolkata')
 
 
 class SteeringInbox:
-    """One desk's messages waiting to be handed to the running turn."""
+    """One trader's messages waiting to be handed to the running turn."""
 
-    def __init__(self, event_bus: event_bus_module.EventBus, desk_name: str):
+    def __init__(self, event_bus: event_bus_module.EventBus, trader_name: str):
         """Creates an empty inbox.
 
         Args:
             event_bus (event_bus_module.EventBus): Where deliveries are announced.
-            desk_name (str): The desk.
+            trader_name (str): The trader.
         """
         self._event_bus = event_bus
-        self._desk_name = desk_name
+        self._trader_name = trader_name
         self._waiting: list[trigger_module.Trigger] = []
         self._running_trigger_id: str | None = None
 
@@ -64,7 +64,7 @@ class SteeringInbox:
             self._event_bus.publish(
                 event_module.Event.now(
                     event_module.EventKind.STEERING,
-                    self._desk_name,
+                    self._trader_name,
                     {
                         'trigger_id': trigger.trigger_id,
                         'into_trigger_id': self._running_trigger_id,
@@ -86,7 +86,7 @@ class SteeringInbox:
             self._event_bus.publish(
                 event_module.Event.now(
                     event_module.EventKind.STEERING,
-                    self._desk_name,
+                    self._trader_name,
                     {
                         'trigger_id': trigger.trigger_id,
                         'into_trigger_id': self._running_trigger_id,

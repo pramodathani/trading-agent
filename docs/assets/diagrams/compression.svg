@@ -1,6 +1,6 @@
 <svg class="ta-svg" viewBox="0 0 1000 670" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="compression-title compression-description">
   <title id="compression-title">Context compression</title>
-  <desc id="compression-description">Past 70% of the context window, the desk first saves what matters in a memory-flush turn, then the conversation is summarised and the turn runs on a fresh one.</desc>
+  <desc id="compression-description">Past 70% of the context window, the trader first saves what matters in a memory-flush turn, then the conversation is summarised and the turn runs on a fresh one.</desc>
   <rect class="container" x="220" y="60" width="380" height="390" rx="10"/>
   <text class="small" x="240" y="82">Before each turn of Qwen or Gemma</text>
 
@@ -51,7 +51,7 @@
   <text class="small" x="262" y="419">mid-turn, compress again without a flush</text>
 
   <rect class="store" x="660" y="170" width="310" height="70" rx="8"/>
-  <text class="title" x="815" y="197" text-anchor="middle">The desk's own files</text>
+  <text class="title" x="815" y="197" text-anchor="middle">The trader's own files</text>
   <text class="mono" x="815" y="219" text-anchor="middle">Memory.md · notes/</text>
 
   <rect class="box" x="660" y="260" width="310" height="80" rx="8"/>

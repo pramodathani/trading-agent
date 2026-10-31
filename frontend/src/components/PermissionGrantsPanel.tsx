@@ -7,7 +7,7 @@ import { formatter } from '../utilities/formatter';
 const REFRESH_MILLISECONDS = 30000;
 
 /**
- * The standing permissions given with "Always allow", each with a button to revoke it so the desk asks again.
+ * The standing permissions given with "Always allow", each with a button to revoke it so the trader asks again.
  * @returns The panel.
  */
 export function PermissionGrantsPanel() {
@@ -16,13 +16,13 @@ export function PermissionGrantsPanel() {
 
   /**
    * Revokes one grant.
-   * @param desk The desk.
+   * @param trader The trader.
    * @param toolName The tool.
    */
-  async function revoke(desk: string, toolName: string): Promise<void> {
+  async function revoke(trader: string, toolName: string): Promise<void> {
     setError(null);
     try {
-      await apiClient.revokePermission(desk, toolName);
+      await apiClient.revokePermission(trader, toolName);
       grants.refresh();
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
@@ -33,7 +33,7 @@ export function PermissionGrantsPanel() {
   return (
     <section className="panel">
       <h2>Standing permissions</h2>
-      <p className="muted small">The tools in [approvals] tools ask for your permission each time, unless you chose &quot;Always allow&quot; for a desk. Revoke one to make that desk ask again.</p>
+      <p className="muted small">The tools in [approvals] tools ask for your permission each time, unless you chose &quot;Always allow&quot; for a trader. Revoke one to make that trader ask again.</p>
       {grants.error !== null && <p className="error-text small">{grants.error}</p>}
       {error !== null && <p className="error-text small">{error}</p>}
       {grants.data !== null && list.length === 0 && <p className="muted small">None. Every covered action asks first.</p>}
@@ -41,7 +41,7 @@ export function PermissionGrantsPanel() {
         <table>
           <thead>
             <tr>
-              <th>Desk</th>
+              <th>Trader</th>
               <th>Tool</th>
               <th>Allowed since</th>
               <th />
@@ -49,12 +49,12 @@ export function PermissionGrantsPanel() {
           </thead>
           <tbody>
             {list.map((grant) => (
-              <tr key={`${grant.desk}/${grant.tool_name}`}>
-                <td>{grant.desk}</td>
+              <tr key={`${grant.trader}/${grant.tool_name}`}>
+                <td>{grant.trader}</td>
                 <td className="mono">{grant.tool_name}</td>
                 <td>{formatter.dayTime(grant.granted_at)}</td>
                 <td className="number">
-                  <button type="button" className="danger" onClick={() => void revoke(grant.desk, grant.tool_name)}>
+                  <button type="button" className="danger" onClick={() => void revoke(grant.trader, grant.tool_name)}>
                     Revoke
                   </button>
                 </td>

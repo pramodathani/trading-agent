@@ -1,4 +1,4 @@
-"""A picture in the chat: one a tool showed the model, one the desk sent, or one the user attached.
+"""A picture in the chat: one a tool showed the model, one the trader sent, or one the user attached.
 
 The picture is downloaded from the gateway and drawn with textual-image, which uses the terminal's own graphics (the Kitty protocol or Sixel) when it has them, and coloured half-blocks otherwise. Enter, or a click, opens the full picture with the desktop's default program.
 
@@ -35,19 +35,19 @@ class PictureView(containers.Vertical):
 
     def __init__(
         self,
-        desk_name: str,
+        trader_name: str,
         picture_path: str | None = None,
         attachment: dict[str, Any] | None = None,
     ):
         """Creates the view; the picture loads once it is on screen.
 
         Args:
-            desk_name (str): The desk the picture belongs to.
-            picture_path (str | None): A picture inside the desk's folder, from a tool result.
+            trader_name (str): The trader the picture belongs to.
+            picture_path (str | None): A picture inside the trader's folder, from a tool result.
             attachment (dict[str, Any] | None): An attachment, from a message.
         """
         super().__init__(classes='picture')
-        self._desk_name = desk_name
+        self._trader_name = trader_name
         self._picture_path = picture_path
         self._attachment = attachment
         self._saved: Path | None = None
@@ -96,11 +96,11 @@ class PictureView(containers.Vertical):
         try:
             if self._attachment is not None:
                 self._saved = await opener.save_attachment(
-                    self._desk_name, self._attachment
+                    self._trader_name, self._attachment
                 )
             else:
                 self._saved = await opener.save_picture(
-                    self._desk_name, self._picture_path or ''
+                    self._trader_name, self._picture_path or ''
                 )
             picture = PIL.Image.open(io.BytesIO(self._saved.read_bytes()))
             picture.load()

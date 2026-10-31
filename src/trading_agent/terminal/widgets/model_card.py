@@ -3,7 +3,7 @@
 Typical usage example:
 
   card = ModelCard()
-  card.show(desk_summary, context_usage)
+  card.show(trader_summary, context_usage)
 """
 
 import re
@@ -29,23 +29,25 @@ class ModelCard(side_card.SideCard):
 
     def show(
         self,
-        desk: dict[str, Any] | None,
+        trader: dict[str, Any] | None,
         usage: dict[str, Any] | None,
     ) -> None:
-        """Shows the desk's models.
+        """Shows the trader's models.
 
         Args:
-            desk (dict[str, Any] | None): The desk summary, or None while loading.
+            trader (dict[str, Any] | None): The trader summary, or None while loading.
             usage (dict[str, Any] | None): The context usage snapshot, which names the actual model, or None.
         """
-        if desk is None:
+        if trader is None:
             self.show_body(self.note('Loading…'))
             return
         rows = [
             (
                 'Answered last',
                 str(
-                    desk.get('last_model') or desk.get('preferred_model') or '—'
+                    trader.get('last_model')
+                    or trader.get('preferred_model')
+                    or '—'
                 ),
             ),
         ]
@@ -59,13 +61,13 @@ class ModelCard(side_card.SideCard):
         rows.append(
             (
                 'Preferred',
-                str(desk.get('preferred_model') or 'configured order'),
+                str(trader.get('preferred_model') or 'configured order'),
             )
         )
         parts = [
             self.rows(rows),
         ]
-        for number, line in enumerate(desk.get('models') or [], start=1):
+        for number, line in enumerate(trader.get('models') or [], start=1):
             parts.append(
                 Content.from_markup(
                     '[dim]$number.[/dim] $line',

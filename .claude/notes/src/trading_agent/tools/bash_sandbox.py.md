@@ -16,10 +16,10 @@ The network is shared on purpose, so the shell can use pip, curl and APIs. A sep
 
 Each hidden path is resolved first and nested ones are dropped. On this machine `/var/run` is a link to `/run`, so `/var/run/docker.sock` and `/run/docker.sock` are the same file, and bwrap refused to cover one file twice; the first probe failed for exactly that reason. A file is covered with `/dev/null` and a folder with an empty tmpfs.
 
-`--unshare-pid` gives the sandbox its own process list (four processes were visible in the probe), so the shell cannot see or signal the gateway. `--die-with-parent` ends the sandbox when the gateway ends. HOME is a folder inside the desk's scratch folder, so tools that write to HOME work.
+`--unshare-pid` gives the sandbox its own process list (four processes were visible in the probe), so the shell cannot see or signal the gateway. `--die-with-parent` ends the sandbox when the gateway ends. HOME is a folder inside the trader's scratch folder, so tools that write to HOME work.
 
-Hidden paths are expanded when the desk is built, so a `.env` created later is only hidden after the gateway restarts.
+Hidden paths are expanded when the trader is built, so a `.env` created later is only hidden after the gateway restarts.
 
 ## Passed environment variables (milestone 13)
 
-The sandbox still starts with an empty environment. `[sandbox] passed_environment` names the variables to copy in from the gateway, for skills whose scripts need an API key or similar; only names the user lists there are passed, and only when set. Naming a variable there is a deliberate decision to let the desk's shell, and so the model, read it. The values appear on bwrap's command line, which other processes of the same user can see; the gateway already holds them in its own environment, so this exposes nothing new to that user. The skill library checks skills' environment needs against this list.
+The sandbox still starts with an empty environment. `[sandbox] passed_environment` names the variables to copy in from the gateway, for skills whose scripts need an API key or similar; only names the user lists there are passed, and only when set. Naming a variable there is a deliberate decision to let the trader's shell, and so the model, read it. The values appear on bwrap's command line, which other processes of the same user can see; the gateway already holds them in its own environment, so this exposes nothing new to that user. The skill library checks skills' environment needs against this list.

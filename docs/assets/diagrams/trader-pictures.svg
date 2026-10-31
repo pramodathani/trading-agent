@@ -1,0 +1,64 @@
+<svg class="ta-svg" viewBox="0 0 1000 470" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="trader-pictures-title trader-pictures-description">
+  <title id="trader-pictures-title">Pictures a trader looks at and shows you</title>
+  <desc id="trader-pictures-description">view_image and browser_screenshot show a picture to the model and in the tool card; send_image copies a picture into uploads and shows it in the web chat and on Telegram.</desc>
+  <rect class="group" x="200" y="30" width="330" height="380" rx="10"/>
+  <text class="small" x="215" y="50">the trader's tools</text>
+
+  <path id="trader-pictures-trader-view" class="wire" d="M150 150 L250 100"/>
+  <path id="trader-pictures-view-model" class="wire" d="M250 100 C150 60 110 70 80 120"/>
+  <path id="trader-pictures-trader-send" class="wire" d="M150 170 L250 300"/>
+  <path id="trader-pictures-send-uploads" class="wire" d="M480 300 L600 300"/>
+  <path id="trader-pictures-uploads-web" class="wire" d="M760 290 L840 200"/>
+  <path id="trader-pictures-uploads-telegram" class="wire" d="M760 310 L840 380"/>
+  <path id="trader-pictures-view-card" class="wire" d="M480 100 L840 100"/>
+
+  <text class="small" x="160" y="68">picture shown to the model</text>
+  <text class="small" x="560" y="92">picture_path in the tool_result event</text>
+  <text class="small" x="490" y="290">copied</text>
+
+  <circle class="dot" r="6"><animateMotion dur="8s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.12;1" keyPoints="0;1;1"><mpath href="#trader-pictures-trader-view"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="8s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.14;0.3;1" keyPoints="0;0;1;1"><mpath href="#trader-pictures-view-model"/></animateMotion></circle>
+  <circle class="dot" r="6"><animateMotion dur="8s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.14;0.34;1" keyPoints="0;0;1;1"><mpath href="#trader-pictures-view-card"/></animateMotion></circle>
+
+  <circle class="dot alt" r="6"><animateMotion dur="8s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.45;0.58;1" keyPoints="0;0;1;1"><mpath href="#trader-pictures-trader-send"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="8s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.6;0.7;1" keyPoints="0;0;1;1"><mpath href="#trader-pictures-send-uploads"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="8s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.74;0.86;1" keyPoints="0;0;1;1"><mpath href="#trader-pictures-uploads-web"/></animateMotion></circle>
+  <circle class="dot alt" r="6"><animateMotion dur="8s" repeatCount="indefinite" calcMode="linear" keyTimes="0;0.74;0.86;1" keyPoints="0;0;1;1"><mpath href="#trader-pictures-uploads-telegram"/></animateMotion></circle>
+
+  <rect class="accent-box" x="20" y="120" width="130" height="80" rx="6"/>
+  <text class="title" x="85" y="150" text-anchor="middle">Model</text>
+  <text class="small" x="85" y="168" text-anchor="middle">Claude, Qwen, Gemma</text>
+  <text class="small" x="85" y="184" text-anchor="middle">all see tool pictures</text>
+
+  <rect class="box" x="250" y="70" width="230" height="60" rx="6"/>
+  <text class="title" x="365" y="96" text-anchor="middle">view_image</text>
+  <text class="small" x="365" y="114" text-anchor="middle">and browser_screenshot</text>
+
+  <rect class="box" x="250" y="270" width="230" height="60" rx="6"/>
+  <text class="title" x="365" y="296" text-anchor="middle">send_image</text>
+  <text class="small" x="365" y="314" text-anchor="middle">a picture plus a caption</text>
+  <text class="mono" x="250" y="360">scratch/out/stocks.png</text>
+  <text class="small" x="250" y="378">made with bash, Python or headless Chrome</text>
+
+  <rect class="store" x="600" y="260" width="160" height="80" rx="6"/>
+  <text class="title" x="680" y="290" text-anchor="middle">Uploads folder</text>
+  <text class="small" x="680" y="308" text-anchor="middle">kept after scratch/</text>
+  <text class="small" x="680" y="322" text-anchor="middle">is cleared</text>
+
+  <rect class="accent-box" x="840" y="70" width="140" height="60" rx="6"/>
+  <text class="title" x="910" y="96" text-anchor="middle">Tool card</text>
+  <text class="small" x="910" y="114" text-anchor="middle">picture below it</text>
+
+  <rect class="accent-box" x="840" y="170" width="140" height="60" rx="6"/>
+  <text class="title" x="910" y="196" text-anchor="middle">Web chat</text>
+  <text class="small" x="910" y="214" text-anchor="middle">trader bubble, large</text>
+
+  <rect class="accent-box" x="840" y="350" width="140" height="60" rx="6"/>
+  <text class="title" x="910" y="376" text-anchor="middle">Telegram</text>
+  <text class="small" x="910" y="394" text-anchor="middle">a photo to the chat</text>
+
+  <circle class="dot" r="6" cx="250" cy="445"/>
+  <text class="small" x="262" y="449">the trader looks at a picture</text>
+  <circle class="dot alt" r="6" cx="560" cy="445"/>
+  <text class="small" x="572" y="449">the trader shows you a picture</text>
+</svg>

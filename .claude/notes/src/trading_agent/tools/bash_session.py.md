@@ -1,6 +1,6 @@
 # bash_session.py
 
-One bash process per desk stays running, so `cd` and `export` carry over between commands as in a real terminal, which is how Claude Code's own Bash tool behaves.
+One bash process per trader stays running, so `cd` and `export` carry over between commands as in a real terminal, which is how Claude Code's own Bash tool behaves.
 
 Each command is wrapped as `{ command } < /dev/null` followed by a `printf` of a random marker and the exit status. The braces keep the command in the same shell (so its `cd` persists), the redirection stops a command that reads the keyboard (`cat`) from swallowing the marker line, and the random marker cannot be faked by a command's own output. Trailing newlines are removed from the output, as bash's own `$(...)` does.
 

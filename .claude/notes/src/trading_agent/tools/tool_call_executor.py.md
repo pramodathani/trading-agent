@@ -6,4 +6,4 @@ The loop guard is reset by `start_turn`, which both the agent loop and the Claud
 
 ## Pictures in tool cards
 
-When a result has `picture_desk_path`, the `tool_result` event gets a `picture_path` key. The key is left out otherwise rather than set to null, so the many existing journal lines and the tests that compare whole payloads are unchanged.
+When a result has `picture_trader_path`, the `tool_result` event gets a `picture_path` key. The key is left out otherwise rather than set to null, so the many existing journal lines and the tests that compare whole payloads are unchanged.

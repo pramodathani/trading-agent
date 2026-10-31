@@ -1,6 +1,6 @@
 <svg class="ta-svg" viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="telegram-title telegram-description">
   <title id="telegram-title">Telegram</title>
-  <desc id="telegram-description">Your phone talks to the desks through your bot; strangers get only a pairing code, and alerts come back to every paired chat.</desc>
+  <desc id="telegram-description">Your phone talks to the traders through your bot; strangers get only a pairing code, and alerts come back to every paired chat.</desc>
   <rect class="group" x="430" y="40" width="545" height="410" rx="10"/>
   <text class="small" x="702" y="60" text-anchor="middle">the gateway on this computer; no port is opened</text>
 
@@ -51,8 +51,8 @@
   <text class="small" x="820" y="220" text-anchor="middle">answered by code, no model; /kill CONFIRM</text>
 
   <rect class="box" x="690" y="285" width="260" height="60" rx="8"/>
-  <text class="title" x="820" y="310" text-anchor="middle">The chat's desk</text>
-  <text class="small" x="820" y="330" text-anchor="middle">main at first; /desk intraday to switch</text>
+  <text class="title" x="820" y="310" text-anchor="middle">The chat's trader</text>
+  <text class="small" x="820" y="330" text-anchor="middle">main at first; /trader intraday to switch</text>
 
   <rect class="box" x="690" y="385" width="260" height="50" rx="8"/>
   <text class="title" x="820" y="408" text-anchor="middle">Event bus</text>

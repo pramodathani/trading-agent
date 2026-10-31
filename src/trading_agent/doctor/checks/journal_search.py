@@ -1,4 +1,4 @@
-"""Searches the desks' journals for proof that something has already happened, for the going-live checks.
+"""Searches the traders' journals for proof that something has already happened, for the going-live checks.
 
 Typical usage example:
 
@@ -13,24 +13,24 @@ from trading_agent.workspace import workspace_layout
 
 
 class JournalSearch:
-    """Reads every desk's journal files, newest day first."""
+    """Reads every trader's journal files, newest day first."""
 
     def __init__(
         self,
         layout: workspace_layout.WorkspaceLayout,
-        desk_names: Sequence[str],
+        trader_names: Sequence[str],
     ):
         """Creates the search.
 
         Args:
-            layout (workspace_layout.WorkspaceLayout): Where the desks' folders are.
-            desk_names (Sequence[str]): The desks to search.
+            layout (workspace_layout.WorkspaceLayout): Where the traders' folders are.
+            trader_names (Sequence[str]): The traders to search.
         """
         self._layout = layout
-        self._desk_names = list(desk_names)
+        self._trader_names = list(trader_names)
 
     def events(self, kind: str) -> list[dict[str, Any]]:
-        """Every journaled event of one kind, from every desk, newest day first.
+        """Every journaled event of one kind, from every trader, newest day first.
 
         Args:
             kind (str): The event kind, such as "order".
@@ -39,8 +39,8 @@ class JournalSearch:
             list[dict[str, Any]]: The events as the journal stores them.
         """
         found = []
-        for desk_name in self._desk_names:
-            folder = self._layout.desk_directory(desk_name) / 'journal'
+        for trader_name in self._trader_names:
+            folder = self._layout.trader_directory(trader_name) / 'journal'
             if not folder.is_dir():
                 continue
             for path in sorted(folder.glob('*.jsonl'), reverse=True):

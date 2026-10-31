@@ -1,6 +1,6 @@
 <svg class="ta-svg" viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="market-watcher-title market-watcher-description">
   <title id="market-watcher-title">The market watcher</title>
-  <desc id="market-watcher-description">Without a model, the watcher reads fills, prices and the account, wakes the desk that needs to know, and fires the kill switch at the loss limit.</desc>
+  <desc id="market-watcher-description">Without a model, the watcher reads fills, prices and the account, wakes the trader that needs to know, and fires the kill switch at the loss limit.</desc>
 
   <path class="wire" d="M230,175 L300,175"/>
   <path class="wire" d="M230,225 L300,225"/>
@@ -9,7 +9,7 @@
   <path class="wire" d="M530,285 L575,285 L575,355 L620,355"/>
   <path class="wire" d="M830,175 L790,175"/>
   <path class="wire" d="M790,225 L810,225 L810,345 L830,345"/>
-  <text class="small" x="540" y="176">wakes the desk</text>
+  <text class="small" x="540" y="176">wakes the trader</text>
   <text class="small" x="814" y="290">usage</text>
 
   <path id="market-watcher-fill-in" class="hidden-path" d="M130,175 L230,175 L300,175 L415,175"/>
@@ -37,14 +37,14 @@
   <text class="title" x="415" y="156" text-anchor="middle">Market watcher</text>
   <text class="small" x="415" y="178" text-anchor="middle">no model; every 15 s while</text>
   <text class="small" x="415" y="193" text-anchor="middle">NSE equities or MCX trade</text>
-  <text class="small" x="415" y="218" text-anchor="middle">fills: matched to the desk's own</text>
+  <text class="small" x="415" y="218" text-anchor="middle">fills: matched to the trader's own</text>
   <text class="small" x="415" y="233" text-anchor="middle">orders, reported once</text>
   <text class="small" x="415" y="258" text-anchor="middle">alerts: fire once, then removed</text>
   <text class="small" x="415" y="283" text-anchor="middle">account: once a minute,</text>
   <text class="small" x="415" y="298" text-anchor="middle">even when nobody trades</text>
 
   <rect class="box" x="620" y="130" width="170" height="110" rx="8"/>
-  <text class="title" x="705" y="158" text-anchor="middle">The desk</text>
+  <text class="title" x="705" y="158" text-anchor="middle">The trader</text>
   <text class="small" x="705" y="180" text-anchor="middle">gets one message for its</text>
   <text class="small" x="705" y="195" text-anchor="middle">fills, alerts and webhook</text>
   <text class="small" x="705" y="210" text-anchor="middle">messages, in its queue</text>
@@ -62,12 +62,12 @@
 
   <rect class="store" x="830" y="300" width="150" height="90" rx="8"/>
   <text class="title" x="905" y="326" text-anchor="middle">Usage tracker</text>
-  <text class="small" x="905" y="346" text-anchor="middle">tokens per desk and</text>
+  <text class="small" x="905" y="346" text-anchor="middle">tokens per trader and</text>
   <text class="small" x="905" y="361" text-anchor="middle">model; Claude's limits</text>
   <text class="mono" x="905" y="379" text-anchor="middle">/usage</text>
 
   <circle cx="230" cy="450" r="6" class="dot"/>
   <text x="244" y="450" dominant-baseline="middle">market data read, the loss limit checked</text>
   <circle cx="590" cy="450" r="6" class="dot alt"/>
-  <text x="604" y="450" dominant-baseline="middle">a desk being woken</text>
+  <text x="604" y="450" dominant-baseline="middle">a trader being woken</text>
 </svg>

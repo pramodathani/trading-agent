@@ -1,6 +1,6 @@
 <svg class="ta-svg" viewBox="0 0 1000 520" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="service-title service-description">
   <title id="service-title">The service</title>
-  <desc id="service-description">systemd starts the gateway at boot and restarts it after a crash; every desk resumes its session.</desc>
+  <desc id="service-description">systemd starts the gateway at boot and restarts it after a crash; every trader resumes its session.</desc>
 
   <path class="wire" d="M230,95 L330,95"/>
   <path class="wire" d="M230,130 L330,130"/>
@@ -35,11 +35,11 @@
 
   <rect class="accent-box" x="330" y="60" width="240" height="120" rx="8"/>
   <text class="title" x="450" y="86" text-anchor="middle">The gateway</text>
-  <text class="small" x="450" y="150" text-anchor="middle">four desks, still in dry_run</text>
+  <text class="small" x="450" y="150" text-anchor="middle">four traders, still in dry_run</text>
   <text class="small" x="450" y="166" text-anchor="middle">PID 883818, then 891447</text>
 
   <rect class="store" x="330" y="250" width="240" height="95" rx="8"/>
-  <text class="title" x="450" y="276" text-anchor="middle">Each desk's session</text>
+  <text class="title" x="450" y="276" text-anchor="middle">Each trader's session</text>
   <text class="small" x="450" y="316" text-anchor="middle">the scalper still knew "PAPAYA"</text>
   <text class="small" x="450" y="332" text-anchor="middle">after the crash</text>
 
@@ -52,12 +52,12 @@
   <text class="done" x="645" y="163">DONE</text>
   <text x="705" y="163">Service enabled and running</text>
   <text class="done" x="645" y="198">DONE</text>
-  <text x="705" y="198">Desk limits: none, by your choice;</text>
+  <text x="705" y="198">Trader limits: none, by your choice;</text>
   <text class="small" x="705" y="213">the account stops at 15% a day, 35% a week</text>
   <text class="todo" x="645" y="253">MONDAY</text>
   <text x="705" y="253">A dry-run order through UBI</text>
   <text class="todo" x="645" y="288">MONDAY</text>
-  <text x="705" y="288">Two desks, one stock: refused</text>
+  <text x="705" y="288">Two traders, one stock: refused</text>
   <text class="later" x="645" y="323">LATER</text>
   <text x="705" y="323">Telegram pairing (optional)</text>
   <text class="todo" x="645" y="358">LAST</text>
@@ -67,5 +67,5 @@
   <circle cx="200" cy="475" r="6" class="dot"/>
   <text x="214" y="475" dominant-baseline="middle">start, crash, restart</text>
   <circle cx="420" cy="475" r="6" class="dot alt"/>
-  <text x="434" y="475" dominant-baseline="middle">the desks' sessions coming back</text>
+  <text x="434" y="475" dominant-baseline="middle">the traders' sessions coming back</text>
 </svg>

@@ -13,30 +13,37 @@ __pycache__/
 frontend/node_modules/
 frontend/dist/
 
-# Agent workspace: the desks' working files stay out of git, the user's files are tracked
-workspace/desks/*/scratch/
-workspace/desks/*/uploads/
-workspace/desks/*/proposals/
-workspace/desks/*/Memory.md
-workspace/desks/*/notes/
-workspace/desks/*/memory/
-workspace/desks/*/browser_profile/
-workspace/desks/*/journal/
+# Agent workspace: the four starter traders' own files are tracked, and traders created later are the user's own data
+workspace/traders/*/
+!workspace/traders/general/
+!workspace/traders/intraday/
+!workspace/traders/scalper/
+!workspace/traders/positional/
+workspace/traders/*/*.tmp
+workspace/traders/*/scratch/
+workspace/traders/*/uploads/
+workspace/traders/*/proposals/
+workspace/traders/*/Memory.md
+workspace/traders/*/notes/
+workspace/traders/*/memory/
+workspace/traders/*/browser_profile/
+workspace/traders/*/journal/
 workspace/journal/
 workspace/shared/risk_ledger.db
-workspace/shared/desk_orders.db
+workspace/shared/trader_orders.db
 workspace/shared/knowledge.db
-workspace/desks/*/sessions/
-workspace/desks/*/skills/
-workspace/desks/*/cron/
-workspace/desks/*/alerts.json
-workspace/desks/*/requests/
+workspace/traders/*/sessions/
+workspace/traders/*/skills/
+workspace/traders/*/cron/
+workspace/traders/*/alerts.json
+workspace/traders/*/requests/
 workspace/shared/market_watcher.json
 workspace/shared/telegram_pairing.json
 workspace/shared/phone_devices.json
 workspace/shared/permission_grants.json
 workspace/shared/packages/
 workspace/.checkpoints/
+workspace/.backups/
 
 # Documentation
 site/

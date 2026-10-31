@@ -1,8 +1,8 @@
-"""Commands a user types to a desk, such as /status, answered by code with no model.
+"""Commands a user types to a trader, such as /status, answered by code with no model.
 
 Typical usage example:
 
-  commands = SlashCommands(desk, 'dry_run')
+  commands = SlashCommands(trader, 'dry_run')
   reply = await commands.handle('/status')
 """
 
@@ -25,7 +25,7 @@ from trading_agent.subagents import subagent_runner as subagent_runner_module
 from trading_agent.tools import tool_registry as tool_registry_module
 
 if TYPE_CHECKING:
-    from trading_agent.runtime import desk_runtime
+    from trading_agent.runtime import trader_runtime
 
 _INSTANT_COMMANDS = (
     '/help',
@@ -79,7 +79,7 @@ class CommandHelp:
 _COMMAND_HELP = (
     CommandHelp(
         '/status',
-        'what the desk is doing and which models are ready',
+        'what the trader is doing and which models are ready',
     ),
     CommandHelp(
         '/think',
@@ -127,19 +127,19 @@ _COMMAND_HELP = (
     ),
     CommandHelp(
         '/tools [full]',
-        'the tools the desk can call',
+        'the tools the trader can call',
     ),
     CommandHelp(
         '/skills',
-        'the skills the desk can follow',
+        'the skills the trader can follow',
     ),
     CommandHelp(
         '/subagents',
-        "the desk's subagents and today's runs",
+        "the trader's subagents and today's runs",
     ),
     CommandHelp(
         '/btw <question>',
-        "ask a side question; it is not kept in the desk's conversation",
+        "ask a side question; it is not kept in the trader's conversation",
     ),
     CommandHelp(
         '/review [notes]',
@@ -159,7 +159,7 @@ _COMMAND_HELP = (
     ),
     CommandHelp(
         '/<skill-name> ...',
-        'ask the desk to follow one of its skills',
+        'ask the trader to follow one of its skills',
     ),
     CommandHelp(
         '/help',
@@ -170,12 +170,12 @@ _COMMAND_HELP = (
 
 @dataclasses.dataclass(frozen=True)
 class CommandParts:
-    """The parts of the gateway some commands read, beyond the desk itself.
+    """The parts of the gateway some commands read, beyond the trader itself.
 
     Attributes:
-        tool_registry: The desk's tools, listed by /tools, or None.
-        subagent_library: The subagents the desk can delegate to, listed by /subagents, or None.
-        journal_reader: The desk's journal, read by /subagents and /review, or None.
+        tool_registry: The trader's tools, listed by /tools, or None.
+        subagent_library: The subagents the trader can delegate to, listed by /subagents, or None.
+        journal_reader: The trader's journal, read by /subagents and /review, or None.
         subagent_runner: Runs the trade reviewer for /review, or None.
     """
 
@@ -186,24 +186,24 @@ class CommandParts:
 
 
 class SlashCommands:
-    """The commands of one desk."""
+    """The commands of one trader."""
 
     def __init__(
         self,
-        desk: desk_runtime.DeskRuntime,
+        trader: trader_runtime.TraderRuntime,
         mode: str,
         skill_library: skill_library_module.SkillLibrary | None = None,
         parts: CommandParts | None = None,
     ):
-        """Creates the commands for a desk.
+        """Creates the commands for a trader.
 
         Args:
-            desk (desk_runtime.DeskRuntime): The desk the commands act on.
+            trader (trader_runtime.TraderRuntime): The trader the commands act on.
             mode (str): "dry_run" or "live", reported by /status.
-            skill_library (skill_library_module.SkillLibrary | None): The desk's skills, each of which can be invoked as /<skill-name>, or None.
+            skill_library (skill_library_module.SkillLibrary | None): The trader's skills, each of which can be invoked as /<skill-name>, or None.
             parts (CommandParts | None): The tools, subagents and journal some commands read, or None when none are available.
         """
-        self._desk = desk
+        self._trader = trader
         self._mode = mode
         self._skill_library = skill_library
         self._parts = parts or CommandParts()
@@ -253,7 +253,7 @@ class SlashCommands:
         return words[0].split('@')[0].lower()
 
     def is_instant(self, text: str) -> bool:
-        """Says whether a command only reads the desk, so it can be answered at once instead of waiting for the running turn.
+        """Says whether a command only reads the trader, so it can be answered at once instead of waiting for the running turn.
 
         Args:
             text (str): The message.
@@ -264,7 +264,7 @@ class SlashCommands:
         return self.command_name(text) in _INSTANT_COMMANDS
 
     def is_background(self, text: str) -> bool:
-        """Says whether a command asks a model and runs beside the desk's turn, one at a time.
+        """Says whether a command asks a model and runs beside the trader's turn, one at a time.
 
         Args:
             text (str): The message.
@@ -387,14 +387,14 @@ class SlashCommands:
         lines.extend(
             [
                 '',
-                '/help, /status, /usage, /context, /tools, /skills and /subagents answer at once, even while the desk is working.',
-                '/btw and /review run beside the desk, without waiting for or interrupting its turn.',
+                '/help, /status, /usage, /context, /tools, /skills and /subagents answer at once, even while the trader is working.',
+                '/btw and /review run beside the trader, without waiting for or interrupting its turn.',
             ]
         )
         return '\n'.join(lines)
 
     async def _status(self, argument: str) -> str:
-        """Describes the desk's state and its models.
+        """Describes the trader's state and its models.
 
         Args:
             argument (str): Ignored.
@@ -404,9 +404,9 @@ class SlashCommands:
         """
         del argument
         lines = [
-            f'Desk: {self._desk.name}',
+            f'Trader: {self._trader.name}',
             f'Mode: {self._mode}',
-            f'State: {self._desk.state}, paused: {"yes" if self._desk.paused else "no"}, triggers waiting: {self._desk.queued_count}',
+            f'State: {self._trader.state}, paused: {"yes" if self._trader.paused else "no"}, triggers waiting: {self._trader.queued_count}',
         ]
         router = self._router()
         if router is None:
@@ -421,7 +421,7 @@ class SlashCommands:
         return '\n'.join(lines)
 
     async def _new(self, argument: str) -> str:
-        """Forgets the desk's conversation.
+        """Forgets the trader's conversation.
 
         Args:
             argument (str): Ignored.
@@ -430,7 +430,7 @@ class SlashCommands:
             str: A confirmation.
         """
         del argument
-        await self._desk.turn_runner.reset()
+        await self._trader.turn_runner.reset()
         router = self._router()
         if router is not None and router.session_id is not None:
             return f'Started a fresh conversation, session {router.session_id}. The workspace files and Memory.md still apply.'
@@ -448,10 +448,10 @@ class SlashCommands:
         del argument
         trigger = trigger_module.Trigger.now(
             trigger_module.TriggerSource.USER_MESSAGE,
-            self._desk.name,
+            self._trader.name,
             '/compact',
         )
-        return await self._desk.turn_runner.compact(trigger)
+        return await self._trader.turn_runner.compact(trigger)
 
     async def _usage(self, argument: str) -> str:
         """Shows today's model usage.
@@ -463,13 +463,13 @@ class SlashCommands:
             str: The usage, or a note that no tracker is running.
         """
         del argument
-        tracker = self._desk.usage_tracker
+        tracker = self._trader.usage_tracker
         if tracker is None:
             return 'Usage is not being tracked on this gateway.'
-        return tracker.summary_text(self._desk.name)
+        return tracker.summary_text(self._trader.name)
 
     async def _rollover(self, argument: str) -> str:
-        """Rolls the desk's session over now.
+        """Rolls the trader's session over now.
 
         Args:
             argument (str): Ignored.
@@ -478,7 +478,7 @@ class SlashCommands:
             str: What happened.
         """
         del argument
-        return await self._desk.roll_over()
+        return await self._trader.roll_over()
 
     async def _model(self, argument: str) -> str:
         """Shows or changes which model is tried first.
@@ -491,7 +491,7 @@ class SlashCommands:
         """
         router = self._router()
         if router is None:
-            return 'This desk has no models connected.'
+            return 'This trader has no models connected.'
         if argument:
             preferred = None if argument.lower() == 'auto' else argument
             try:
@@ -506,7 +506,7 @@ class SlashCommands:
         )
 
     async def _think(self, argument: str) -> str:
-        """Shows or changes how hard the desk's models think.
+        """Shows or changes how hard the trader's models think.
 
         Args:
             argument (str): Empty to show, a level from THINKING_LEVELS to set it, or "default" for trading_agent.toml's settings.
@@ -516,7 +516,7 @@ class SlashCommands:
         """
         router = self._router()
         if router is None:
-            return 'This desk has no models connected.'
+            return 'This trader has no models connected.'
         level = argument.lower()
         if level:
             levels = ', '.join(turn_runner_module.THINKING_LEVELS)
@@ -537,7 +537,7 @@ class SlashCommands:
         return '\n'.join(lines)
 
     async def _btw(self, argument: str) -> str:
-        """Answers a side question from the desk's conversation without adding it to the conversation.
+        """Answers a side question from the trader's conversation without adding it to the conversation.
 
         Args:
             argument (str): The question.
@@ -549,17 +549,15 @@ class SlashCommands:
             return 'Write the question after /btw, such as: /btw why did you sell INFY?'
         router = self._router()
         if router is None:
-            return 'This desk has no models connected.'
-        if self._desk.paused:
-            return (
-                'The desk is paused, so no model was asked. Send /resume first.'
-            )
+            return 'This trader has no models connected.'
+        if self._trader.paused:
+            return 'The trader is paused, so no model was asked. Send /resume first.'
         return await self._one_at_a_time(
             '/btw', self._ask_side_question, argument
         )
 
     async def _ask_side_question(self, question: str) -> str:
-        """Asks the desk's models the side question.
+        """Asks the trader's models the side question.
 
         Args:
             question (str): The question.
@@ -569,15 +567,15 @@ class SlashCommands:
         """
         router = self._router()
         if router is None:
-            return 'This desk has no models connected.'
+            return 'This trader has no models connected.'
         try:
             backend_name, answer = await router.side_question(question)
         except backend_module.BackendUnavailableError as error:
             return f'No model could answer: {error}'
-        return f"Side answer from {backend_name}, not kept in the desk's conversation:\n{answer}"
+        return f"Side answer from {backend_name}, not kept in the trader's conversation:\n{answer}"
 
     async def _review(self, argument: str) -> str:
-        """Has the trade reviewer subagent review the desk's orders and fills of today.
+        """Has the trade reviewer subagent review the trader's orders and fills of today.
 
         Args:
             argument (str): Extra instructions for the reviewer, or empty.
@@ -588,13 +586,11 @@ class SlashCommands:
         runner = self._parts.subagent_runner
         reader = self._parts.journal_reader
         if runner is None or reader is None:
-            return 'This desk cannot run the trade reviewer.'
-        if self._desk.paused:
-            return (
-                'The desk is paused, so no model was asked. Send /resume first.'
-            )
+            return 'This trader cannot run the trade reviewer.'
+        if self._trader.paused:
+            return 'The trader is paused, so no model was asked. Send /resume first.'
         if not self._trading_events():
-            return 'The desk has placed no orders today, so there is nothing to review.'
+            return 'The trader has placed no orders today, so there is nothing to review.'
         return await self._one_at_a_time('/review', self._run_review, argument)
 
     async def _run_review(self, argument: str) -> str:
@@ -627,7 +623,7 @@ class SlashCommands:
         """
         events = self._trading_events()
         lines = [
-            f"Review the {self._desk.name} desk's trading today, {self._parts.journal_reader.today()}.",
+            f"Review the {self._trader.name} trader's trading today, {self._parts.journal_reader.today()}.",
             'These are its order actions and fills from the journal, oldest first, with India times. An order with "dry_run": true was checked by UBI and never reached a broker.',
         ]
         if len(events) > _MOST_REVIEWED_EVENTS:
@@ -644,17 +640,17 @@ class SlashCommands:
                 f'- {created.astimezone(_INDIA):%H:%M} {event["kind"]}: {details}'
             )
         lines.append(
-            'Judge the day as a whole: which trades fit the rules, which did not, and what the desk should do differently tomorrow.'
+            'Judge the day as a whole: which trades fit the rules, which did not, and what the trader should do differently tomorrow.'
         )
         if argument:
             lines.append(f'The user adds: {argument}')
         return '\n'.join(lines)
 
     def _trading_events(self) -> list[dict]:
-        """Today's order and fill events from the desk's journal, oldest first.
+        """Today's order and fill events from the trader's journal, oldest first.
 
         Returns:
-            list[dict]: The events, or an empty list when the desk has no journal.
+            list[dict]: The events, or an empty list when the trader has no journal.
         """
         reader = self._parts.journal_reader
         if reader is None:
@@ -673,7 +669,7 @@ class SlashCommands:
         work: Callable[[str], Awaitable[str]],
         argument: str,
     ) -> str:
-        """Runs a background command unless another is still running on this desk.
+        """Runs a background command unless another is still running on this trader.
 
         Args:
             name (str): The command, such as "/btw", named in the reply to a second request.
@@ -692,7 +688,7 @@ class SlashCommands:
             self._background_command = None
 
     async def _pause(self, argument: str) -> str:
-        """Pauses the desk.
+        """Pauses the trader.
 
         Args:
             argument (str): Ignored.
@@ -701,11 +697,11 @@ class SlashCommands:
             str: A confirmation.
         """
         del argument
-        self._desk.paused = True
-        return 'Paused. The desk will not ask any model until /resume. Commands still work.'
+        self._trader.paused = True
+        return 'Paused. The trader will not ask any model until /resume. Commands still work.'
 
     async def _resume(self, argument: str) -> str:
-        """Resumes the desk.
+        """Resumes the trader.
 
         Args:
             argument (str): Ignored.
@@ -714,7 +710,7 @@ class SlashCommands:
             str: A confirmation.
         """
         del argument
-        self._desk.paused = False
+        self._trader.paused = False
         return 'Resumed.'
 
     async def _context(self, argument: str) -> str:
@@ -727,7 +723,7 @@ class SlashCommands:
             str: The window's size and what fills it, or a note that no turn has run yet.
         """
         del argument
-        usage = self._desk.turn_runner.context_usage()
+        usage = self._trader.turn_runner.context_usage()
         if usage is None:
             return 'No model has reported its context window since the gateway started. Each one reports it at the end of a turn.'
         how = 'measured by the model' if usage.measured else 'estimated'
@@ -748,17 +744,17 @@ class SlashCommands:
         return '\n'.join(lines)
 
     async def _tools(self, argument: str) -> str:
-        """Lists the tools the desk can call.
+        """Lists the tools the trader can call.
 
         Args:
             argument (str): "full" for whole descriptions; anything else gives the first sentence of each.
 
         Returns:
-            str: One tool per line, or a note that the desk has no tools.
+            str: One tool per line, or a note that the trader has no tools.
         """
         registry = self._parts.tool_registry
         if registry is None or not registry.tool_names:
-            return 'This desk has no tools.'
+            return 'This trader has no tools.'
         full = argument.lower() == _FULL
         lines = [
             f'{len(registry.tool_names)} tools:',
@@ -774,7 +770,7 @@ class SlashCommands:
         return '\n'.join(lines)
 
     async def _skills(self, argument: str) -> str:
-        """Lists the desk's skills, the user's and its own, and the skills that cannot be used here.
+        """Lists the trader's skills, the user's and its own, and the skills that cannot be used here.
 
         Args:
             argument (str): Ignored.
@@ -785,7 +781,7 @@ class SlashCommands:
         del argument
         library = self._skill_library
         if library is None:
-            return 'This desk has no skills.'
+            return 'This trader has no skills.'
         yours = []
         own = []
         for skill in library.available():
@@ -799,15 +795,15 @@ class SlashCommands:
             missing = ', '.join(hidden_skill.missing)
             hidden.append(f'- {hidden_skill.skill.name}: needs {missing}')
         if not yours and not own and not hidden:
-            return 'This desk has no skills yet.'
+            return 'This trader has no skills yet.'
         lines = []
         self._add_section(lines, 'Your skills:', yours)
-        self._add_section(lines, "The desk's own skills:", own)
+        self._add_section(lines, "The trader's own skills:", own)
         self._add_section(lines, 'Skills that cannot be used here:', hidden)
         return '\n'.join(lines)
 
     async def _subagents(self, argument: str) -> str:
-        """Lists the subagents the desk can delegate to, and today's subagent runs.
+        """Lists the subagents the trader can delegate to, and today's subagent runs.
 
         Args:
             argument (str): Ignored.
@@ -831,11 +827,11 @@ class SlashCommands:
         self._add_section(lines, 'Subagents:', definitions)
         self._add_section(lines, 'Runs today:', self._subagent_runs())
         if not lines:
-            return 'This desk has no subagents and ran none today.'
+            return 'This trader has no subagents and ran none today.'
         return '\n'.join(lines)
 
     def _subagent_runs(self) -> list[str]:
-        """Describes today's subagent runs from the desk's journal, oldest first.
+        """Describes today's subagent runs from the trader's journal, oldest first.
 
         Returns:
             list[str]: One line per run; a run with no finish event is shown as running.
@@ -908,12 +904,12 @@ class SlashCommands:
         return first_line[: end + 1]
 
     def _router(self) -> model_router.ModelRouter | None:
-        """The desk's model router, when it has one.
+        """The trader's model router, when it has one.
 
         Returns:
-            model_router.ModelRouter | None: The router, or None for a desk without models.
+            model_router.ModelRouter | None: The router, or None for a trader without models.
         """
-        runner = self._desk.turn_runner
+        runner = self._trader.turn_runner
         if isinstance(runner, model_router.ModelRouter):
             return runner
         return None

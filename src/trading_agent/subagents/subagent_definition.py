@@ -1,4 +1,4 @@
-"""One subagent: a helper a desk can hand a task to, defined in a Markdown file.
+"""One subagent: a helper a trader can hand a task to, defined in a Markdown file.
 
 The format is Claude Code's subagent format, so definitions can be shared with it. YAML frontmatter, then the subagent's instructions:
 
@@ -10,10 +10,10 @@ The format is Claude Code's subagent format, so definitions can be shared with i
   max_turns: 12
   timeout: 300
   ---
-  You read news for a trading desk...
+  You read news for a trader...
 
 - `tools` is a comma-separated list or a YAML list. Without it the subagent gets a safe, read-only set. Order tools are given only when listed by name.
-- `model` is a backend name from trading_agent.toml, a list of them in order of preference, or "inherit" for the desk's own order. Claude Code's aliases opus, sonnet and haiku mean the Claude backend with that model.
+- `model` is a backend name from trading_agent.toml, a list of them in order of preference, or "inherit" for the trader's own order. Claude Code's aliases opus, sonnet and haiku mean the Claude backend with that model.
 - `max_turns` and `timeout` (seconds) are trading-agent's additions; Claude Code ignores them.
 
 Typical usage example:
@@ -47,10 +47,10 @@ class SubagentDefinition:
 
     Attributes:
         name: The subagent's name, used by delegate_task.
-        description: When to use it, shown to the desk.
+        description: When to use it, shown to the trader.
         instructions: Its system prompt, the Markdown after the frontmatter.
         tool_names: The tools it asked for, or None for the default read-only set.
-        models: The backends or Claude aliases it asked for, in order, or None to inherit the desk's order.
+        models: The backends or Claude aliases it asked for, in order, or None to inherit the trader's order.
         maximum_turns: The most model calls one task may make.
         timeout_seconds: How long one task may run before it is stopped.
         path: The file it was read from.

@@ -1,6 +1,6 @@
 """Builds the bwrap command line that runs the agent's bash terminal in a sandbox.
 
-Inside the sandbox the whole filesystem is visible but read-only, except the desk's scratch folder and a private /tmp. Files that hold secrets are replaced by empty ones, the environment starts empty, and the sandbox has its own process list, so it cannot see or signal the gateway. The network is shared, so the agent can reach the internet; the local databases and UBI it can reach all require credentials that are hidden.
+Inside the sandbox the whole filesystem is visible but read-only, except the trader's scratch folder and a private /tmp. Files that hold secrets are replaced by empty ones, the environment starts empty, and the sandbox has its own process list, so it cannot see or signal the gateway. The network is shared, so the agent can reach the internet; the local databases and UBI it can reach all require credentials that are hidden.
 
 Typical usage example:
 
@@ -18,7 +18,7 @@ _SANDBOX_PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 
 
 class BashSandbox:
-    """The sandbox for one desk's terminal.
+    """The sandbox for one trader's terminal.
 
     Attributes:
         scratch_directory: The only folder of the real filesystem the sandbox can write to.
@@ -34,7 +34,7 @@ class BashSandbox:
         """Describes the sandbox without starting anything.
 
         Args:
-            scratch_directory (Path): The desk's scratch folder.
+            scratch_directory (Path): The trader's scratch folder.
             hidden_path_patterns (Sequence[str]): Files and folders to hide; "~" and "*" are expanded.
             passed_variable_names (Sequence[str]): Environment variables the user chose to pass from the gateway into the sandbox, such as an API key a skill's script needs.
         """

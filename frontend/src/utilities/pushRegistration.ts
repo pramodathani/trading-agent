@@ -5,17 +5,17 @@ import { platform } from './platform';
 
 const ANDROID_CHANNEL = 'trading';
 
-type OpenListener = (deskName: string) => void;
+type OpenListener = (traderName: string) => void;
 
 /**
- * Registers the Android app for push notifications and reports which desk a tapped notification belongs to.
+ * Registers the Android app for push notifications and reports which trader a tapped notification belongs to.
  *
- * The gateway sends notifications through Firebase Cloud Messaging; each one carries its desk, so a tap opens that desk's chat.
+ * The gateway sends notifications through Firebase Cloud Messaging; each one carries its trader, so a tap opens that trader's chat.
  */
 export class PushRegistration {
   private listenersAdded = false;
   private openListener: OpenListener | null = null;
-  private waitingDesk: string | null = null;
+  private waitingTrader: string | null = null;
 
   /**
    * Asks for permission to show notifications, then registers this phone with the gateway; does nothing in a browser.
@@ -37,7 +37,7 @@ export class PushRegistration {
       await PushNotifications.createChannel({
         id: ANDROID_CHANNEL,
         name: 'Trading',
-        description: 'Fills, halts, alerts and requests from the desks',
+        description: 'Fills, halts, alerts and requests from the traders',
         importance: 4,
         visibility: 1,
         vibration: true,
@@ -51,15 +51,15 @@ export class PushRegistration {
 
   /**
    * Sets what happens when a notification is tapped; a tap that arrived before this was set is passed on at once.
-   * @param listener Receives the desk's name.
+   * @param listener Receives the trader's name.
    * @returns A function that removes the listener.
    */
   onOpen(listener: OpenListener): () => void {
     this.openListener = listener;
-    if (this.waitingDesk !== null) {
-      const deskName = this.waitingDesk;
-      this.waitingDesk = null;
-      listener(deskName);
+    if (this.waitingTrader !== null) {
+      const traderName = this.waitingTrader;
+      this.waitingTrader = null;
+      listener(traderName);
     }
     return () => {
       if (this.openListener === listener) {
@@ -79,15 +79,15 @@ export class PushRegistration {
     });
     await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
       const data = action.notification.data as Record<string, string> | undefined;
-      const deskName = data?.desk ?? '';
-      if (!deskName) {
+      const traderName = data?.trader ?? '';
+      if (!traderName) {
         return;
       }
       if (this.openListener !== null) {
-        this.openListener(deskName);
+        this.openListener(traderName);
         return;
       }
-      this.waitingDesk = deskName;
+      this.waitingTrader = traderName;
     });
   }
 

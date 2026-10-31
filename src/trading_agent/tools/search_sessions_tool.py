@@ -1,8 +1,8 @@
-"""The search_sessions tool: finds what the desk said and did before.
+"""The search_sessions tool: finds what the trader said and did before.
 
 Typical usage example:
 
-  tool = SearchSessionsTool(SessionSearch(desk_directory))
+  tool = SearchSessionsTool(SessionSearch(trader_directory))
 """
 
 import asyncio
@@ -28,7 +28,7 @@ class SearchSessionsArguments(pydantic.BaseModel):
 
 
 class SearchSessionsTool(tool.Tool):
-    """Searches the desk's past sessions, summaries, notes and journal."""
+    """Searches the trader's past sessions, summaries, notes and journal."""
 
     name = 'search_sessions'
     description = 'Searches your past: earlier exchanges with the user and triggers, the daily summaries of your sessions, your notes, and the journal of your orders, risk decisions and tool calls. Give a few keywords, not a question, such as "NIFTY gap down" or "INFY bracket". A result contains every keyword, ignoring case; when none does, results with some of them are shown. Results are best and newest first, each with its date.'
@@ -38,7 +38,7 @@ class SearchSessionsTool(tool.Tool):
         """Creates the tool.
 
         Args:
-            search (session_search_module.SessionSearch): The desk's search.
+            search (session_search_module.SessionSearch): The trader's search.
         """
         self._search = search
 

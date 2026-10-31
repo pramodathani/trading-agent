@@ -6,7 +6,7 @@ Typical usage example:
 
   files = AttachableFiles()
   files.from_paste("'/home/me/chart one.png'")  # [Path('/home/me/chart one.png')]
-  files.problem(Path('notes.exe'))  # 'notes.exe is not a picture or document the desk can read'
+  files.problem(Path('notes.exe'))  # 'notes.exe is not a picture or document the trader can read'
 """
 
 import shlex
@@ -47,7 +47,9 @@ class AttachableFiles:
         if not path.is_file():
             return f'{path} is not a file'
         if path.suffix.lower() not in _ACCEPTED_SUFFIXES:
-            return f'{path.name} is not a picture or document the desk can read'
+            return (
+                f'{path.name} is not a picture or document the trader can read'
+            )
         if path.stat().st_size > _MOST_BYTES:
             return f'{path.name} is larger than 20 MB'
         return None

@@ -1,6 +1,6 @@
-"""The base class for whatever answers a desk's triggers.
+"""The base class for whatever answers a trader's triggers.
 
-A desk runtime hands each trigger to its turn runner. Milestone 1 uses a runner with no model; later milestones add runners that drive Gemma 4, Qwen, OpenAI and Claude.
+A trader runtime hands each trigger to its turn runner. Milestone 1 uses a runner with no model; later milestones add runners that drive Gemma 4, Qwen, OpenAI and Claude.
 
 Typical usage example:
 
@@ -29,7 +29,7 @@ class TurnResult:
     """What one turn produced.
 
     Attributes:
-        text: The final text the desk replied with.
+        text: The final text the trader replied with.
     """
 
     text: str
@@ -74,7 +74,7 @@ class TurnRunner:
         """
         del trigger
         return (
-            'This desk keeps no conversation, so there is nothing to compact.'
+            'This trader keeps no conversation, so there is nothing to compact.'
         )
 
     def saved_state(self) -> dict[str, Any] | None:
@@ -119,7 +119,7 @@ class TurnRunner:
             ValueError: Always, because this runner has no model to switch.
         """
         if model is not None:
-            raise ValueError('This desk runs without a model')
+            raise ValueError('This trader runs without a model')
 
     def thinking(self) -> str | None:
         """The thinking level the runner uses now, for /think.
@@ -157,7 +157,7 @@ class TurnRunner:
             str: The answer.
         """
         del question
-        return 'This desk has no model to ask.'
+        return 'This trader has no model to ask.'
 
     def context_usage(self) -> context_usage_module.ContextUsage | None:
         """How full the runner's context window is, as of its last turn.
@@ -169,8 +169,17 @@ class TurnRunner:
         """
         return None
 
+    async def release(self) -> None:
+        """Stops any process the runner keeps between turns, keeping the conversation so the next turn carries on.
+
+        The trader calls this when it falls asleep after sitting idle. Runners that keep no process keep this empty default.
+
+        Returns:
+            None.
+        """
+
     async def close(self) -> None:
         """Releases anything the runner started, such as a Claude Code process.
 
-        The desk calls this when it stops. Runners that start nothing keep this empty default.
+        The trader calls this when it stops. Runners that start nothing keep this empty default.
         """

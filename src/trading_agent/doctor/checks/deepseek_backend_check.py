@@ -43,7 +43,10 @@ class DeepSeekBackendCheck(doctor_check.DoctorCheck):
         Returns:
             doctor_check.CheckResult: OK when DeepSeek accepts the key, failed when the key is missing or refused or DeepSeek cannot be reached.
         """
-        variable = self._backend_configuration.api_key_variable or 'TRADING_AGENT_OPENAI_API_KEY'
+        variable = (
+            self._backend_configuration.api_key_variable
+            or 'TRADING_AGENT_OPENAI_API_KEY'
+        )
         if self._backend_configuration.api_key_variable is None:
             key = self._secrets.openai_api_key
         else:

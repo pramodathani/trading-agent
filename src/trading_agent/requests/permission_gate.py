@@ -1,12 +1,12 @@
-"""Holds a desk's call to a tool that needs the user's permission, and asks for it.
+"""Holds a trader's call to a tool that needs the user's permission, and asks for it.
 
-The tools listed in [approvals] tools are never run straight away when a desk or one of its subagents calls them. The call is saved as a permission request that lapses after [approvals] expiry_minutes, and the model is told to end its turn. If the user allows it, the harness runs exactly that call; the model never gets a way around it. A standing "Always allow" grant lets the call through at once.
+The tools listed in [approvals] tools are never run straight away when a trader or one of its subagents calls them. The call is saved as a permission request that lapses after [approvals] expiry_minutes, and the model is told to end its turn. If the user allows it, the harness runs exactly that call; the model never gets a way around it. A standing "Always allow" grant lets the call through at once.
 
-The user's own actions, such as the Flatten button on the Desks page, do not pass through this gate.
+The user's own actions, such as the Flatten button on the Traders page, do not pass through this gate.
 
 Typical usage example:
 
-  gate = PermissionGate(['flatten_desk'], 5, store, grants, event_bus)
+  gate = PermissionGate(['flatten_trader'], 5, store, grants, event_bus)
   if gate.needs_permission('main', call.name):
       result = gate.hold('main', call)
 """
@@ -17,7 +17,9 @@ from collections.abc import Collection
 from trading_agent.agent import messages
 from trading_agent.requests import permission_grants as permission_grants_module
 from trading_agent.requests import user_request as user_request_module
-from trading_agent.requests import user_request_store as user_request_store_module
+from trading_agent.requests import (
+    user_request_store as user_request_store_module,
+)
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.tools import tool as tool_module
@@ -51,25 +53,27 @@ class PermissionGate:
         self._grants = grants
         self._event_bus = event_bus
 
-    def needs_permission(self, desk_name: str, tool_name: str) -> bool:
+    def needs_permission(self, trader_name: str, tool_name: str) -> bool:
         """Says whether a call must wait for the user.
 
         Args:
-            desk_name (str): The desk calling.
+            trader_name (str): The trader calling.
             tool_name (str): The tool called.
 
         Returns:
-            bool: True when the tool is covered and the desk has no standing permission for it.
+            bool: True when the tool is covered and the trader has no standing permission for it.
         """
         if tool_name not in self._tool_names:
             return False
-        return not self._grants.allows(desk_name, tool_name)
+        return not self._grants.allows(trader_name, tool_name)
 
-    def hold(self, desk_name: str, call: messages.ToolCall) -> tool_module.ToolResult:
+    def hold(
+        self, trader_name: str, call: messages.ToolCall
+    ) -> tool_module.ToolResult:
         """Saves and publishes a permission request for a call, instead of running it.
 
         Args:
-            desk_name (str): The desk calling.
+            trader_name (str): The trader calling.
             call (messages.ToolCall): The call held.
 
         Returns:
@@ -79,7 +83,7 @@ class PermissionGate:
             minutes=self._expiry_minutes
         )
         request = user_request_module.UserRequest.new(
-            desk_name,
+            trader_name,
             user_request_module.PERMISSION,
             {
                 'tool_name': call.name,
@@ -92,11 +96,11 @@ class PermissionGate:
         self._event_bus.publish(
             event_module.Event.now(
                 event_module.EventKind.USER_REQUEST,
-                desk_name,
+                trader_name,
                 request.to_json_dictionary(),
             )
         )
         lapse = expires_at.astimezone(_INDIA).strftime('%H:%M')
         return tool_module.ToolResult.success(
-            f'{call.name} needs the user\'s permission, so it was not run. Request {request.request_id} was sent to them and lapses at {lapse} India time. End this turn now; do not retry {call.name} or reach the same result another way. If they allow it, the harness runs exactly this call and tells you the result in a new message.'
+            f"{call.name} needs the user's permission, so it was not run. Request {request.request_id} was sent to them and lapses at {lapse} India time. End this turn now; do not retry {call.name} or reach the same result another way. If they allow it, the harness runs exactly this call and tells you the result in a new message."
         )

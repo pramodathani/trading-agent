@@ -1,4 +1,4 @@
-"""The side panel's Outputs card: pictures and documents the desk sent today, newest first.
+"""The side panel's Outputs card: pictures and documents the trader sent today, newest first.
 
 Choosing one downloads it and opens it with the desktop's default program.
 
@@ -41,16 +41,16 @@ class OutputsCard(side_card.SideCard):
         self._opener = opener
         self._formatter = formatter.Formatter()
         self._outputs: list[dict[str, Any]] = []
-        self._desk_name = ''
+        self._trader_name = ''
 
-    def show(self, desk_name: str, events: Sequence[dict[str, Any]]) -> None:
-        """Lists the files in the desk's messages of today.
+    def show(self, trader_name: str, events: Sequence[dict[str, Any]]) -> None:
+        """Lists the files in the trader's messages of today.
 
         Args:
-            desk_name (str): The desk.
-            events (Sequence[dict[str, Any]]): The desk's events of today.
+            trader_name (str): The trader.
+            events (Sequence[dict[str, Any]]): The trader's events of today.
         """
-        self._desk_name = desk_name
+        self._trader_name = trader_name
         outputs = []
         for event in events:
             if event.get('kind') != 'message':
@@ -74,7 +74,9 @@ class OutputsCard(side_card.SideCard):
         self.show_aside(str(len(outputs)))
         if not outputs:
             self.show_body(
-                self.note('Pictures and documents the desk sends appear here.')
+                self.note(
+                    'Pictures and documents the trader sends appear here.'
+                )
             )
         else:
             self.show_body(self.note('Enter opens one in its own program.'))
@@ -116,7 +118,7 @@ class OutputsCard(side_card.SideCard):
         """
         try:
             path = await self._opener.save_attachment(
-                self._desk_name, attachment
+                self._trader_name, attachment
             )
         except (gateway_client.GatewayError, OSError) as error:
             self.notify(str(error), title='Could not open', severity='error')

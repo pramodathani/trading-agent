@@ -1,6 +1,6 @@
-"""The modify_order tool: changes the quantity, price or trigger price of one of the desk's own open orders.
+"""The modify_order tool: changes the quantity, price or trigger price of one of the trader's own open orders.
 
-A desk can change only an order it placed, as the desk order book records. Making an order bigger adds risk, so the extra quantity goes through the risk engine as if it were a new order; a smaller order or a new price does not. A dry-run order reached no broker, so changing it is only recorded.
+A trader can change only an order it placed, as the trader order book records. Making an order bigger adds risk, so the extra quantity goes through the risk engine as if it were a new order; a smaller order or a new price does not. A dry-run order reached no broker, so changing it is only recorded.
 
 Typical usage example:
 
@@ -16,7 +16,7 @@ from tradingmachine.assets import instruments
 from trading_agent.risk import order_request as order_request_module
 from trading_agent.tools import order_tool
 from trading_agent.tools import tool
-from trading_agent.trading import desk_order_book as desk_order_book_module
+from trading_agent.trading import trader_order_book as trader_order_book_module
 
 
 class ModifyOrderArguments(pydantic.BaseModel):
@@ -29,7 +29,7 @@ class ModifyOrderArguments(pydantic.BaseModel):
         quantity: The new total quantity in units, counting what has filled, or None to keep it.
         price: The new limit price in rupees, or None to keep it.
         trigger_price: The new trigger price in rupees, or None to keep it.
-        reason: Why the desk is changing the order, kept in the journal.
+        reason: Why the trader is changing the order, kept in the journal.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -66,10 +66,10 @@ class ModifyOrderArguments(pydantic.BaseModel):
 
 
 class ModifyOrderTool(order_tool.OrderTool):
-    """Changes one of the desk's own orders."""
+    """Changes one of the trader's own orders."""
 
     name = 'modify_order'
-    description = "Changes the quantity, price or trigger price of one of this desk's own open orders. Name it by the parent_id from place_order or place_bracket_order (an order UBI is still holding), or by the broker's order_id (an order already at a broker). To move one exit of a bracket before it is sent, give the bracket's parent_id and the part, as get_orders open_parents lists it. A bigger quantity is checked by the risk engine like a new order. Give a short reason; it goes in the journal."
+    description = "Changes the quantity, price or trigger price of one of this trader's own open orders. Name it by the parent_id from place_order or place_bracket_order (an order UBI is still holding), or by the broker's order_id (an order already at a broker). To move one exit of a bracket before it is sent, give the bracket's parent_id and the part, as get_orders open_parents lists it. A bigger quantity is checked by the risk engine like a new order. Give a short reason; it goes in the journal."
     arguments_model = ModifyOrderArguments
 
     async def _act(self, arguments: ModifyOrderArguments) -> tool.ToolResult:
@@ -82,15 +82,15 @@ class ModifyOrderTool(order_tool.OrderTool):
             tool.ToolResult: UBI's answer, or why the change was not made.
         """
         record = self._services.order_book.find(
-            self._desk,
+            self._trader,
             arguments.parent_id,
             arguments.order_id,
         )
         if record is None:
             return tool.ToolResult.error(
-                'This desk placed no order with that id, so it cannot change it. Use the parent_id or order_id from place_order or place_bracket_order, and see get_orders for the open orders.'
+                'This trader placed no order with that id, so it cannot change it. Use the parent_id or order_id from place_order or place_bracket_order, and see get_orders for the open orders.'
             )
-        if record.state == desk_order_book_module.CANCELLED:
+        if record.state == trader_order_book_module.CANCELLED:
             return tool.ToolResult.error(
                 f'Order {record.record_id} was cancelled, so it cannot be changed.'
             )
@@ -102,7 +102,7 @@ class ModifyOrderTool(order_tool.OrderTool):
             new_price = arguments.price
         if new_quantity > record.quantity:
             extra = order_request_module.OrderRequest(
-                desk=self._desk,
+                trader=self._trader,
                 instrument_id=record.instrument_id,
                 exchange=record.exchange,
                 segment=record.segment,

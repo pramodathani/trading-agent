@@ -45,13 +45,13 @@ class ContextCard(side_card.SideCard):
         """Shows the context window's use.
 
         Args:
-            usage (dict[str, Any] | None): The usage snapshot, or None before the desk's first turn.
+            usage (dict[str, Any] | None): The usage snapshot, or None before the trader's first turn.
             error (str | None): Why it could not be read, or None.
         """
         if usage is None:
             self.show_aside('')
             self.show_body(
-                self.note(error or "Shown after the desk's next turn.")
+                self.note(error or "Shown after the trader's next turn.")
             )
             return
         window = max(int(usage.get('context_window') or 0), 1)
