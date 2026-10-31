@@ -7,3 +7,7 @@ The chat transcript scrolls in one box that runs the full width of the content a
 The panel opens by default on screens at least 1100 px wide; after that the header button's choice, and each card's folded state, are remembered in localStorage by `sidePanelStore`.
 
 Each card is its own component in its own file. The panel polls the context route every 20 s and the account every 15 s, and asks again at once when the trader's events show a finished turn, a compaction, an order or a fill. Orders placed, cancelled and trades are counted from today's journal events for the trader (`order` events with action `placed` or `cancelled`, `fill` events with a filled quantity); open orders come from the trader order book and stocks held from the risk ledger's owners.
+
+## Trader card states
+
+`TraderCard.tsx` puts the trader's state into words with `traderStateWords`, and only busy and waiting are shown as working, so a sleeping trader is not shown as busy.
