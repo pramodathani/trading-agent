@@ -46,6 +46,16 @@ DEEPSEEK_API_KEY=sk-...
 
 Without the key, the traders skip DeepSeek and fall back from Claude straight to Qwen.
 
+## The Jev key
+
+Jev is a decision model from TypeSafe AI that the jev-scalper uses to choose the direction of its trades. Create a key in [TypeSafe's console](https://console.typesafe.ai/) and keep it in `.env`:
+
+```text
+TRADING_AGENT_TYPESAFE_API_KEY=...
+```
+
+Without the key, no trader can ask Jev, and `bin/trading-agent doctor` fails if a trader sets `jev_signals`.
+
 ## Web search
 
 The `web_search` tool asks a local SearXNG server, which `docker-compose.yml` starts on port 4001:

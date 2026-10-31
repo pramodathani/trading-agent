@@ -30,6 +30,8 @@ The scalper's strategy, which the trader proposed and you approved on 18 October
 
 Both setups risk 1% of the balance per trade, hold at most two positions at once, stop after three losses in a row or at the trader's 3% daily loss limit, and are flat by 15:05. After ten dry-run trading days the trader reviews the numbers and proposes changes. TradingRules.md holds the full rules, including the liquidity filter and the order types each trader may use.
 
+The jev-scalper, created on 1 November 2026, trades the same NIFTY weekly options, but takes its direction from [Jev](../agent/models.md#jev-a-decision-model), a decision model, instead of from chart setups. Jev's buy means buying a call, its sell means buying a put, and its hold means doing nothing. The trader chooses the contract, the size, the stop and the target itself, and confirms with Jev just before every entry. It uses the scalper's contract, liquidity and sizing rules, a bracket with its stop 12% below the entry premium and its target 18% above, at most one position at once, and its own 2% daily loss limit.
+
 ## Where each trader's settings live
 
 Each trader is described by its own record, `workspace/traders/<name>/trader.toml`, which holds its mandate (what it trades and how), its models, its heartbeat, its scheduled checks and whether it is retired. `trading_agent.toml` no longer lists the traders; its `[traders]` table only holds the defaults that a new trader gets, as [Configuration](../get-started/configuration.md#traders) shows. Of the traders' folders, only the four starters' `trader.toml` and `Persona.md` are tracked by git, because the traders you create are your own data.

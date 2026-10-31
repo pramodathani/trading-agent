@@ -60,3 +60,18 @@ DeepSeek speaks the same protocol as OpenAI, with three differences that the `de
 | V4 Pro cannot read pictures | `vision = false` leaves pictures out, and the model is told so |
 
 The key is `DEEPSEEK_API_KEY` in `.env`. Until it is there, DeepSeek is skipped, and `bin/trading-agent doctor` checks the key without showing it.
+
+## Jev, a decision model
+
+Jev, from TypeSafe AI, is not one of the models a trader thinks with, and it never appears in a `backend_order`. It writes no text and calls no tools: it is given a question and a fixed list of answers, and returns one of them with a probability for each, usually in under a second. The jev-scalper uses it for a single decision, whether the NIFTY index is a buy, a sell or a hold for the next 5 to 15 minutes, and leaves everything else to its usual models.
+
+Jev is used in two places, and both build what Jev sees in code: NIFTY's live quote and its latest 5-minute candles, read from UBI. No model writes the question or the state.
+
+| Where | What happens |
+|---|---|
+| The `jev_decision` tool | The trader asks Jev whenever it wants, and always once more just before an entry |
+| The Jev signal watcher | A loop with no model asks Jev every 30 seconds from 09:30 to 14:45 on trading days, and wakes the Jev traders only when Jev says buy or sell with a confidence of at least 0.6 |
+
+The watcher is what keeps frequent checks cheap. A hold, a weak answer or a failed request wakes nobody, so Claude is only asked when there is something to act on. The same signal wakes a trader at most once every five minutes, and a trader that is busy, paused or stopped is not woken.
+
+Only traders whose `trader.toml` sets `jev_signals = true` get the tool and the wake-ups. The key is `TRADING_AGENT_TYPESAFE_API_KEY` in `.env`, and the `[jev]` section of trading_agent.toml holds the settings. Jev is a new model, and TypeSafe's speed and accuracy claims have not been checked independently, so its answers are judged by the jev-scalper's own ten-day review.

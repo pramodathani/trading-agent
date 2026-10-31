@@ -1,6 +1,6 @@
 # Tools
 
-A trader acts through tools. Each tool is a class with a JSON schema, and the same tools are offered to every model. The table below lists all 49, grouped by what they are for.
+A trader acts through tools. Each tool is a class with a JSON schema, and the same tools are offered to every model. The table below lists all 49, grouped by what they are for. A trader whose trader.toml sets `jev_signals` also gets a 50th, `jev_decision`, which asks [Jev](models.md#jev-a-decision-model) whether NIFTY is a buy, a sell or a hold.
 
 | Group | Tools |
 |---|---|

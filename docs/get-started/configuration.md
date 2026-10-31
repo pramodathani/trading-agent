@@ -15,6 +15,7 @@ Each secret can also be given as an environment variable of the same name, which
 | `TRADING_AGENT_WEBHOOK_TOKEN` | The token incoming webhooks must show; empty switches webhooks off | No |
 | `TRADING_AGENT_TELEGRAM_BOT_TOKEN` | The bot token from BotFather | For Telegram |
 | `TRADING_AGENT_FIREBASE_SERVICE_ACCOUNT_FILE` | The path of the Firebase service-account key that lets the gateway send notifications to the Android app; keep the file outside the repository | For app notifications |
+| `TRADING_AGENT_TYPESAFE_API_KEY` | The TypeSafe AI key for the Jev decision model; without it, no trader has the `jev_decision` tool and the Jev signal watcher does not run | For Jev |
 | `TRADING_AGENT_SEARXNG_SECRET` | SearXNG's own secret, read by docker-compose | For web search |
 
 ## trading_agent.toml
@@ -65,6 +66,7 @@ Each trader's own settings live in `workspace/traders/<name>/trader.toml`. The g
 | `heartbeat_minutes` | Minutes between heartbeats while NSE equities trade, from 1 to 240, or left out for none |
 | `rollover_time` | The time on trading days when the session is summarised and a new one starts |
 | `scheduled_checks` | Times on trading days when the trader is woken to do what its Persona.md says for that time |
+| `jev_signals` | Whether the trader gets the `jev_decision` tool and is woken by the Jev signal watcher; `false` when left out, and `true` only for the jev-scalper on this machine |
 
 The record of the intraday trader on this machine is shown below.
 
@@ -160,5 +162,20 @@ These settings choose which of the traders' actions wait for your permission, as
 |---|---|---|
 | `tools` | `[]` | The tools whose every call by a trader or a subagent waits for your permission; `["flatten_trader"]` on this machine |
 | `expiry_minutes` | `5` | How long a permission request stays open before it lapses and the action is not run, from 1 to 1440 |
+
+### [jev]
+
+These settings say how the Jev decision model is asked about NIFTY's direction, as [Models](../agent/models.md#jev-a-decision-model) explains. Every one has a default, so the section can be left out, and it is left out on this machine.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `base_url` | `"https://api.typesafe.ai/v1"` | TypeSafe's API, without the `/systemone` path |
+| `model` | `"jev-latest"` | The Jev model to ask |
+| `timeout_seconds` | `10.0` | How long one request may take |
+| `candle_count` | `24` | How many of the latest 5-minute NIFTY candles Jev is shown, which is two hours |
+| `interval_seconds` | `30.0` | How often the signal watcher asks Jev, at least 10 |
+| `minimum_confidence` | `0.6` | The confidence a buy or sell must reach before the watcher wakes a trader |
+| `repeat_after_minutes` | `5` | How long the watcher waits before waking a trader again with the same signal |
+| `signal_window` | `"09:30-14:45"` | The India times during which the watcher may wake traders |
 
 The trading limits are not here. They live in `workspace/shared/TradingRules.md`, described in [The risk engine](../traders/risk-engine.md), so the traders read them as part of their instructions.
