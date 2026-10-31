@@ -42,5 +42,5 @@ class OwnershipConflictCheck(doctor_check.DoctorCheck):
                 )
         return doctor_check.CheckResult(
             doctor_check.CheckStatus.WARNING,
-            'Not yet seen with UBI (the tests cover it). On a trading day, have one trader buy a stock in dry run, then ask another trader to buy the same stock; the second must be refused.',
+            'Not yet seen with UBI (the tests cover it). Have one trader buy a stock in dry run, as an after-market order while the exchange is closed, then ask another trader to buy the same stock; the second must be refused.',
         )

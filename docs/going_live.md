@@ -63,6 +63,20 @@ Change any of these on the Files page or in `workspace/shared/TradingRules.md` b
 
    It should now end with "Ready to go live", with warnings only for Telegram (if you have not paired a phone) and the trading mode.
 
+### The same checks while the exchange is closed
+
+The checks above can also be done in the evening or at a weekend with after-market orders, which the risk engine accepts only while the exchange is closed. Use the same messages with "as an after-market order" added, for example to the **general** trader:
+
+> Place a dry-run after-market limit order to buy 1 share of KWIL at the last price, product cnc, then tell me what UBI answered.
+
+and then to the **intraday** trader:
+
+> Try to buy 1 share of KWIL as an after-market limit order at the last price, product mis, as a dry run, and tell me exactly what the risk engine said.
+
+UBI's answer to the first shows the exact request it would have sent and which broker it chose. The flatten step works the same way.
+
+A first live order can also be an after-market order: after switching to live, ask general for a 1-share after-market limit order. It is queued at the broker and fills at the next open, and its fill report then arrives like any other.
+
 ## 3. Switch to live
 
 1. In `trading_agent.toml`, change the first line to:
