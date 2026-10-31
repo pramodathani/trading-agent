@@ -35,6 +35,8 @@ A plain limit order is held by UBI's engine until it is placed at the broker, so
 
 A trader can only change or cancel its own orders, and `flatten_trader` closes only its own positions, never another trader's or yours.
 
+When a trader cancels an order, or flattens itself, and has no other order and no position left in that instrument, it gives up its claim on the instrument at once, so other traders may trade it. Otherwise a claim on an instrument the trader does not hold lapses 30 minutes after the order, or after the next open for an after-market order.
+
 ## Flattening waits for you
 
 On this machine `flatten_trader` is listed in `[approvals]`, so when a trader calls it, the call is held and you are asked for permission in Chat and on Telegram. If nobody answers within five minutes, nothing is closed. Your own Flatten button on the Traders page is not held. [Questions, plans and permissions](../using/questions-and-permissions.md#permission-prompts) explains the rules, including what this means for the scalper's 15:05 exit.

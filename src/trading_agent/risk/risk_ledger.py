@@ -112,6 +112,23 @@ class RiskLedger:
                 released.append(instrument_id)
         return released
 
+    def release(self, instrument_id: str, trader: str) -> bool:
+        """Releases a trader's claim on an instrument, leaving another trader's claim alone.
+
+        Args:
+            instrument_id (str): The instrument.
+            trader (str): The trader giving the claim up.
+
+        Returns:
+            bool: True when the trader had the claim and it was released.
+        """
+        with self._lock, self._connection:
+            cursor = self._connection.execute(
+                'DELETE FROM ownership WHERE instrument_id = ? AND trader = ?',
+                (instrument_id, trader),
+            )
+        return cursor.rowcount > 0
+
     def day_owners(self, trading_date: datetime.date) -> dict[str, str]:
         """Which trader owned each instrument on a day, released or not.
 

@@ -57,10 +57,12 @@ class FlattenTraderTool(order_tool.OrderTool):
         lines = [
             self._heading(),
         ]
+        symbols = self._open_order_symbols()
         lines.extend(await self._cancel_open_orders())
         lines.extend(await self._close_positions())
         if len(lines) == 1:
             lines.append('The trader had no open orders and no positions.')
+        lines.extend(await self._release_claims(symbols))
         self._publish(
             {
                 'action': 'flattened',
@@ -70,6 +72,38 @@ class FlattenTraderTool(order_tool.OrderTool):
             }
         )
         return tool.ToolResult.success('\n'.join(lines))
+
+    def _open_order_symbols(self) -> dict[str, str]:
+        """The symbols of the instruments the trader has open orders in, before anything is cancelled.
+
+        Returns:
+            dict[str, str]: Each instrument id with its symbol.
+        """
+        symbols = {}
+        for record in self._services.order_book.open_orders(self._trader):
+            symbols[record.instrument_id] = record.symbol
+        return symbols
+
+    async def _release_claims(self, symbols: dict[str, str]) -> list[str]:
+        """Gives up the trader's claims on instruments it no longer has an order or a position in.
+
+        Args:
+            symbols (dict[str, str]): The symbols of the instruments that had open orders, by instrument id, for the report.
+
+        Returns:
+            list[str]: One line per claim released.
+        """
+        lines = []
+        owned = sorted(self._services.ledger.owned_by(self._trader))
+        for instrument_id in owned:
+            released = await self._release_unused_claim(instrument_id)
+            if not released:
+                continue
+            symbol = symbols.get(instrument_id, instrument_id)
+            lines.append(
+                f'Released the claim on {symbol}, so other traders may now trade it.'
+            )
+        return lines
 
     def _heading(self) -> str:
         """The first line of the report, saying whether anything is real.
