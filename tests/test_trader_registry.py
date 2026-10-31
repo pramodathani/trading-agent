@@ -9,7 +9,12 @@ import fastapi
 import fastapi.testclient
 import pytest
 
+from tests import test_telegram
 from trading_agent import trader_builder
+from trading_agent.channels import notification_formatter
+from trading_agent.channels import pairing_store
+from trading_agent.channels import telegram_channel
+from trading_agent.channels import telegram_commands
 from trading_agent.configuration import agent_configuration
 from trading_agent.configuration import secrets as secrets_module
 from trading_agent.gateway import access_guard
@@ -20,6 +25,8 @@ from trading_agent.runtime import trader_runtime
 from trading_agent.traders import trader_registry
 from trading_agent.traders import trader_store
 from trading_agent.workspace import workspace_layout
+
+_OWNER_CHAT = 111
 
 
 class _Workspace:
@@ -495,3 +502,131 @@ class TestRosterRoutes:
         assert restored.status_code == 200
         assert 'momentum' in workspace.registry.traders
         assert unauthorised.status_code == 401
+
+
+class TestTelegramTraderCommands:
+    """From Telegram, /create makes a trader that introduces itself in that chat, and /traders and /retire work."""
+
+    def test_create_introduces_itself_in_the_chat_that_asked(
+        self, tmp_path: Path
+    ) -> None:
+        """/create switches the chat to the new trader and its introduction comes back there; /traders lists it and /retire stops it.
+
+        Args:
+            tmp_path (Path): A scratch folder.
+
+        Returns:
+            None.
+        """
+        workspace = _Workspace(tmp_path)
+        workspace.start_with_general()
+        pairing = pairing_store.PairingStore(tmp_path / 'pairing.json')
+        code = pairing.request(_OWNER_CHAT, 'Owner')
+        pairing.approve(code, 'general')
+        api = test_telegram._StandInApi()
+        traders = workspace.registry.traders
+        channel = telegram_channel.TelegramChannel(
+            api,
+            pairing,
+            telegram_commands.TelegramCommands(
+                traders,
+                workspace.builder.shared_parts(),
+                pairing,
+                'dry_run',
+                registry=workspace.registry,
+            ),
+            notification_formatter.NotificationFormatter([]),
+            traders,
+            {},
+            workspace.event_bus,
+            'general',
+        )
+
+        async def scenario() -> None:
+            """Runs the registry and the channel through /create, /traders and /retire.
+
+            Returns:
+                None.
+            """
+            await workspace.registry.start()
+            channel_task = asyncio.create_task(channel.run())
+            api.receive(_OWNER_CHAT, '/create momentum Momentum in NSE shares.')
+            await self._wait_for(api, 2)
+            api.receive(_OWNER_CHAT, '/traders')
+            await self._wait_for(api, 3)
+            api.receive(_OWNER_CHAT, '/retire momentum')
+            await self._wait_for(api, 4)
+            channel_task.cancel()
+            await asyncio.gather(channel_task, return_exceptions=True)
+            await workspace.registry.stop()
+
+        asyncio.run(scenario())
+        replies = api.sent_to(_OWNER_CHAT)
+
+        assert replies[0].startswith('Created momentum')
+        assert replies[1].startswith('No model')
+        assert trader_registry.INTRODUCTION in replies[1]
+        assert pairing.paired_chat(_OWNER_CHAT).trader == 'momentum'
+        assert 'momentum (' in replies[2]
+        assert 'Momentum in NSE shares.' in replies[2]
+        assert replies[3].startswith('Retired momentum.')
+        assert 'momentum' not in workspace.registry.traders
+
+    async def _wait_for(
+        self, api: test_telegram._StandInApi, count: int
+    ) -> None:
+        """Waits until the owner's chat has received a number of messages.
+
+        Args:
+            api (test_telegram._StandInApi): The stand-in for Telegram.
+            count (int): How many messages to wait for.
+
+        Returns:
+            None.
+
+        Raises:
+            AssertionError: They did not arrive within three seconds.
+        """
+        for _ in range(300):
+            if len(api.sent_to(_OWNER_CHAT)) >= count:
+                return
+            await asyncio.sleep(0.01)
+        raise AssertionError(f'The chat got {api.sent_to(_OWNER_CHAT)}')
+
+
+class TestSleepSetting:
+    """sleep_after_minutes = 0 keeps traders awake."""
+
+    def test_zero_means_never_sleep(self, tmp_path: Path) -> None:
+        """A builder with a sleep time of 0 gives no sleep timer, and the default gives 30 minutes.
+
+        Args:
+            tmp_path (Path): A scratch folder.
+
+        Returns:
+            None.
+        """
+        never = agent_configuration.AgentConfiguration(
+            workspace_directory=tmp_path / 'workspace',
+            tradingmachine_environment_file=tmp_path / 'tradingmachine.env',
+            traders=agent_configuration.TradersConfiguration(
+                sleep_after_minutes=0
+            ),
+        )
+        usual = agent_configuration.AgentConfiguration(
+            workspace_directory=tmp_path / 'workspace',
+            tradingmachine_environment_file=tmp_path / 'tradingmachine.env',
+        )
+        never_builder = trader_builder.TraderBuilder(
+            never,
+            secrets_module.Secrets(_env_file=None),
+            event_bus_module.EventBus(),
+        )
+        usual_builder = trader_builder.TraderBuilder(
+            usual,
+            secrets_module.Secrets(_env_file=None),
+            event_bus_module.EventBus(),
+        )
+
+        assert never_builder._sleep_after_seconds() is None
+        assert usual_builder._sleep_after_seconds() == 1800.0

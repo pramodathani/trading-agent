@@ -37,3 +37,7 @@ The picture is read from the absolute `path` in the attachment dictionary rather
 ## Command menu, since 2026-10-18
 
 After each successful connect, `_register_menu` sends `TelegramCommands.menu()` to Telegram with `setMyCommands`. A refusal is logged and ignored, because the bot works without a menu and a failed menu must not keep the channel from starting.
+
+## Introducing traders made by /create
+
+After answering a code-only command, the channel takes the introductions `/create` queued and submits each as a user message from the asking chat, so the new trader's first reply comes back to that chat.

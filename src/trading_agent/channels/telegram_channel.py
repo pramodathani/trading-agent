@@ -37,6 +37,7 @@ from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import trader_runtime
 from trading_agent.runtime import trigger as trigger_module
+from trading_agent.traders import trader_registry
 
 _LOGGER = logging.getLogger(__name__)
 _FIRST_RETRY_SECONDS = 5.0
@@ -221,6 +222,7 @@ class TelegramChannel:
         if not message.files and self._commands.handles(message.text):
             reply = await self._commands.answer(chat, message.text)
             await self._send(chat.chat_id, reply)
+            self._introduce_new_traders()
             return
         trader = self._traders.get(chat.trader)
         if trader is None:
@@ -242,6 +244,24 @@ class TelegramChannel:
             chat.chat_id
         )
         trader.submit(trigger)
+
+    def _introduce_new_traders(self) -> None:
+        """Sends each trader /create made its introduction, as the asking chat's message so the answer comes back to that chat.
+
+        Returns:
+            None.
+        """
+        for chat_id, trader_name in self._commands.take_introductions():
+            trader = self._traders.get(trader_name)
+            if trader is None:
+                continue
+            trigger = trigger_module.Trigger.now(
+                trigger_module.TriggerSource.USER_MESSAGE,
+                trader_name,
+                trader_registry.INTRODUCTION,
+            )
+            self._reply_chats.setdefault(trigger.trigger_id, set()).add(chat_id)
+            trader.submit(trigger)
 
     async def _download(
         self,

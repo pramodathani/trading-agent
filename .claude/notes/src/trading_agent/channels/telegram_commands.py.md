@@ -37,3 +37,13 @@ A first word that is not a waiting id is read as the reason for `/deny` (or "alw
 A request past its expiry but not yet marked expired is refused by the responder, and the error is passed on in the reply.
 
 Known limit: when a trader's question is waiting for a typed "Other" answer, the channel takes the next text as that answer before it checks for commands (`telegram_channel.py`), so `/approve` typed then is taken as the answer. That order was chosen with the question feature and is unchanged.
+
+## /traders, /create, /retire and /restore (ported from research-agent's `6d3a7b8` and `8becb1a`)
+
+`/create <name> <mandate>` makes a trader with the default models and schedule from `[traders]`, because a Telegram message is a poor place to fill in a form; the web page and `trading-agent traders new` set them. It is `/create` rather than `/new` because `/new` is already the traders' own command for a fresh conversation, the same reason research-agent renamed it.
+
+The registry is asked to create the trader without its own introduction. The command remembers which chat asked, and the channel sends the introduction as that chat's message, because the channel only sends an answer to the chat whose message started the turn; otherwise the new trader's first reply would reach the web page but not the phone that asked for it. The chat is switched to the new trader at once.
+
+The reply says the new trader may trade within the account-wide limits from now on, because the user chose not to hold new traders back, and a reminder in the chat is the moment the user is most likely to read it.
+
+`/retire` passes on the registry's refusal when the trader still owns instruments or has open orders, so the user sees "flatten it first" in the chat.

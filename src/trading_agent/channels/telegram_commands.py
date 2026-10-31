@@ -1,6 +1,8 @@
 """The Telegram commands answered by code, with no model.
 
-These work even when every model is unavailable or a trader is paused, which is exactly when the user most needs them: what is happening, what is open, how much is made or lost, stop a trader, or stop everything. Any other message, including the traders' own slash commands such as /usage or /stop, goes to the chat's trader.
+These work even when every model is unavailable or a trader is paused, which is exactly when the user most needs them: what is happening, what is open, how much is made or lost, which trader to talk to, create, retire or restore a trader, stop a trader, or stop everything.
+
+/create makes the trader without the registry's own introduction and remembers which chat asked. The channel takes those with take_introductions() and sends each introduction as that chat's own message, because the channel sends an answer only to the chat whose message started the turn. Any other message, including the traders' own slash commands such as /usage, /stop or /new, goes to the chat's trader.
 
 Typical usage example:
 
@@ -21,6 +23,8 @@ from trading_agent.requests import user_request as user_request_module
 from trading_agent.requests import user_request_responder
 from trading_agent.requests import user_request_store
 from trading_agent.runtime import trader_runtime
+from trading_agent.traders import trader_registry as trader_registry_module
+from trading_agent.traders import trader_store
 
 _INDIA = zoneinfo.ZoneInfo('Asia/Kolkata')
 _KILL_CONFIRMATION = 'CONFIRM'
@@ -29,6 +33,10 @@ _COMMANDS = (
     '/start',
     '/help',
     '/trader',
+    '/traders',
+    '/create',
+    '/retire',
+    '/restore',
     '/status',
     '/positions',
     '/pnl',
@@ -55,6 +63,22 @@ _MENU = (
     (
         'trader',
         'Talk to another trader: /trader <name>',
+    ),
+    (
+        'traders',
+        'Every trader with its mandate, retired ones too',
+    ),
+    (
+        'create',
+        'Create a trader: /create <name> <mandate>',
+    ),
+    (
+        'retire',
+        'Retire a trader; its files stay: /retire <name>',
+    ),
+    (
+        'restore',
+        'Bring a retired trader back: /restore <name>',
     ),
     (
         'stop',
@@ -143,6 +167,7 @@ class TelegramCommands:
         clock: Callable[[], datetime.datetime] | None = None,
         request_store: user_request_store.UserRequestStore | None = None,
         responder: user_request_responder.UserRequestResponder | None = None,
+        registry: trader_registry_module.TraderRegistry | None = None,
     ):
         """Creates the commands.
 
@@ -154,6 +179,7 @@ class TelegramCommands:
             clock (Callable[[], datetime.datetime] | None): Returns the current India time; None uses the system clock.
             request_store (user_request_store.UserRequestStore | None): The traders' requests, searched by /approve and /deny, or None.
             responder (user_request_responder.UserRequestResponder | None): Decides permission requests for /approve and /deny, or None.
+            registry (trader_registry_module.TraderRegistry | None): Creates, retires and restores traders for /create, /retire and /restore, and lists them for /traders, or None when those are not offered.
         """
         self._traders = traders
         self._shared = shared
@@ -162,6 +188,8 @@ class TelegramCommands:
         self._clock = clock
         self._request_store = request_store
         self._responder = responder
+        self._registry = registry
+        self._introductions: list[tuple[int, str]] = []
 
     def handles(self, text: str) -> bool:
         """Says whether a message is one of these commands.
@@ -170,7 +198,7 @@ class TelegramCommands:
             text (str): The message.
 
         Returns:
-            bool: True for /start, /help, /trader, /status, /positions, /pnl, /pause, /resume, /kill, /approve and /deny.
+            bool: True for /start, /help, /trader, /traders, /create, /retire, /restore, /status, /positions, /pnl, /pause, /resume, /kill, /approve and /deny.
         """
         return self._command_name(text) in _COMMANDS
 
@@ -198,6 +226,14 @@ class TelegramCommands:
         argument = text.strip()[len(text.strip().split()[0]) :].strip()
         if name == '/trader':
             return self._trader(chat, argument)
+        if name == '/traders':
+            return self._list_traders()
+        if name == '/create':
+            return await self._create(chat, argument)
+        if name == '/retire':
+            return await self._retire(argument)
+        if name == '/restore':
+            return await self._restore(chat, argument)
         if name == '/status':
             return await self._status(chat)
         if name == '/positions':
@@ -215,6 +251,113 @@ class TelegramCommands:
         if name == '/deny':
             return await self._decide(argument, False)
         return self._help(chat)
+
+    def take_introductions(self) -> list[tuple[int, str]]:
+        """Hands over the traders /create made that still need their introduction sent.
+
+        Returns:
+            list[tuple[int, str]]: Each as (the chat that asked, the trader's name), oldest first; the list is emptied.
+        """
+        introductions = self._introductions
+        self._introductions = []
+        return introductions
+
+    def _list_traders(self) -> str:
+        """Lists every trader with its state and mandate.
+
+        Returns:
+            str: The reply.
+        """
+        if self._registry is None:
+            return 'Traders cannot be listed here.'
+        try:
+            records = self._registry.records()
+        except trader_store.TraderStoreError as error:
+            return f'The traders cannot be read: {error}.'
+        lines = []
+        for record in records:
+            state = 'retired'
+            trader = self._traders.get(record.name)
+            if trader is not None:
+                state = str(trader.state)
+            lines.append(f'{record.name} ({state}): {record.mandate}')
+        return '\n'.join(lines)
+
+    async def _create(
+        self, chat: pairing_store_module.PairedChat, argument: str
+    ) -> str:
+        """Creates a trader with the default models and schedule, switches the chat to it, and queues its introduction for the chat.
+
+        Args:
+            chat (pairing_store_module.PairedChat): The chat.
+            argument (str): The name, then the mandate.
+
+        Returns:
+            str: The reply.
+        """
+        if self._registry is None:
+            return 'Traders cannot be created here.'
+        words = argument.split(maxsplit=1)
+        if len(words) < 2:
+            return 'Send /create <name> <mandate>, for example: /create banknifty-momentum Intraday momentum in Bank Nifty options, buying only, flat by 15:15.'
+        name, mandate = words
+        try:
+            await self._registry.create(
+                trader_store.NewTrader(name=name, mandate=mandate),
+                introduce=False,
+            )
+        except trader_store.TraderStoreError as error:
+            return f'Not created: {error}.'
+        self._pairing.choose_trader(chat.chat_id, name)
+        self._introductions.append(
+            (
+                chat.chat_id,
+                name,
+            )
+        )
+        return f'Created {name} with the default models and schedule. You are now talking to it; it will restate its mandate and propose its Persona.md and limits for you to accept. It may trade within the account-wide limits from now on.'
+
+    async def _retire(self, argument: str) -> str:
+        """Retires a trader.
+
+        Args:
+            argument (str): The trader's name.
+
+        Returns:
+            str: The reply.
+        """
+        if self._registry is None:
+            return 'Traders cannot be retired here.'
+        if not argument:
+            return 'Send /retire <name>.'
+        try:
+            await self._registry.retire(argument)
+        except trader_store.TraderStoreError as error:
+            return f'Not retired: {error}.'
+        return f'Retired {argument}. Its files stay; bring it back with /restore {argument}.'
+
+    async def _restore(
+        self, chat: pairing_store_module.PairedChat, argument: str
+    ) -> str:
+        """Brings a retired trader back and switches the chat to it.
+
+        Args:
+            chat (pairing_store_module.PairedChat): The chat.
+            argument (str): The trader's name.
+
+        Returns:
+            str: The reply.
+        """
+        if self._registry is None:
+            return 'Traders cannot be restored here.'
+        if not argument:
+            return 'Send /restore <name>.'
+        try:
+            await self._registry.restore(argument)
+        except trader_store.TraderStoreError as error:
+            return f'Not restored: {error}.'
+        self._pairing.choose_trader(chat.chat_id, argument)
+        return f'{argument} is running again, with its memory, and you are talking to it.'
 
     async def _decide(self, argument: str, allow: bool) -> str:
         """Allows or refuses an action a trader is holding for permission.
@@ -340,6 +483,10 @@ class TelegramCommands:
                 '/positions - open positions and which trader owns each',
                 "/pnl - today's and this week's profit or loss, by trader",
                 '/trader <name> - talk to another trader',
+                '/traders - every trader with its mandate, retired ones too',
+                '/create <name> <mandate> - create a trader and talk to it',
+                '/retire <name> - retire a trader; its files stay',
+                '/restore <name> - bring a retired trader back',
                 '/pause [trader|all] - stop a trader asking its models',
                 '/resume [trader|all] - start it again',
                 '/kill CONFIRM <reason> - halt every trader until tomorrow and flatten the account',

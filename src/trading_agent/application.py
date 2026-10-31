@@ -441,6 +441,7 @@ class Application:
             event_bus,
             pairing,
             responder,
+            registry,
         )
         workers = [
             journal,
@@ -651,6 +652,7 @@ class Application:
         event_bus: event_bus_module.EventBus,
         pairing: pairing_store.PairingStore,
         responder: user_request_responder.UserRequestResponder,
+        registry: trader_registry.TraderRegistry,
     ) -> telegram_channel.TelegramChannel | None:
         """Builds the Telegram channel, when it is switched on and has a token.
 
@@ -662,6 +664,7 @@ class Application:
             event_bus (event_bus_module.EventBus): The event bus.
             pairing (pairing_store.PairingStore): The pairing file.
             responder (user_request_responder.UserRequestResponder): Records answers given with Telegram's buttons.
+            registry (trader_registry.TraderRegistry): Creates, retires and restores traders for /create, /retire and /restore.
 
         Returns:
             telegram_channel.TelegramChannel | None: The channel, or None when Telegram is off or has no token.
@@ -687,6 +690,7 @@ class Application:
                 configuration.mode,
                 request_store=builder.user_request_store,
                 responder=responder,
+                registry=registry,
             ),
             notification_formatter.NotificationFormatter(
                 settings.notifications
