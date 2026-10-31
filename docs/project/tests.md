@@ -14,7 +14,7 @@ The tests use stand-ins for models, UBI, Telegram and systemd, so they need no G
 |---|---|
 | Risk and orders | `test_risk_engine.py`, `test_kill_switch.py`, `test_order_tools.py`, `test_trading_tools.py`, `test_traders.py` |
 | The agent | `test_agent_loop.py`, `test_context_compression.py`, `test_context_usage.py`, `test_steering.py`, `test_trader_runtime.py`, `test_slash_commands.py`, `test_side_questions.py` |
-| Models | `test_model_router.py`, `test_fallback_order.py`, `test_model_choice_route.py`, `test_claude_code_backend.py`, `test_deepseek_backend.py`, `test_ollama_backend.py`, `test_openai_compatible_backend.py` |
+| Models | `test_model_router.py`, `test_fallback_order.py`, `test_model_choice_route.py`, `test_claude_code_backend.py`, `test_deepseek_backend.py`, `test_ollama_backend.py`, `test_openai_compatible_backend.py`, `test_jev.py` |
 | Questions and permissions | `test_user_requests.py`, `test_permissions.py`, `test_telegram_requests.py`, `test_telegram_approvals.py` |
 | Pictures and documents | `test_attachments.py`, `test_pictures.py` |
 | Memory and skills | `test_memory.py`, `test_skills.py`, `test_subagents.py` |

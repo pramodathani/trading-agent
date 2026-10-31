@@ -48,6 +48,7 @@ class TraderConfiguration(pydantic.BaseModel):
         heartbeat_minutes: Minutes between heartbeats while NSE equities trade, or None for no heartbeat; each heartbeat is a model turn.
         rollover_time: The India time on trading days, as HH:MM, when the trader's session rolls over with a summary.
         scheduled_checks: India times on trading days, as HH:MM, when the trader is woken to do what its Persona.md says for that time of day.
+        jev_signals: Whether the trader gets the jev_decision tool and is woken by the Jev signal watcher when Jev calls NIFTY a buy or a sell.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -68,6 +69,7 @@ class TraderConfiguration(pydantic.BaseModel):
             pydantic.StringConstraints(pattern=_CLOCK_PATTERN),
         ]
     ] = []
+    jev_signals: bool = False
 
 
 class TradersConfiguration(pydantic.BaseModel):
@@ -445,6 +447,35 @@ class PushConfiguration(pydantic.BaseModel):
         return notifications
 
 
+class JevConfiguration(pydantic.BaseModel):
+    """How the Jev decision model of TypeSafe AI is asked about NIFTY's direction.
+
+    Attributes:
+        base_url: The TypeSafe API's address, without the /systemone path.
+        model: The Jev model to ask, such as jev-latest.
+        timeout_seconds: How long one request to Jev may take.
+        candle_count: How many of the latest 5-minute NIFTY candles Jev is shown.
+        interval_seconds: How often the signal watcher asks Jev while it may wake traders.
+        minimum_confidence: The confidence, from 0 to 1, that a buy or sell must reach before the watcher wakes a trader.
+        repeat_after_minutes: How long the watcher waits before waking a trader again with the same signal.
+        signal_window: The India times, as HH:MM-HH:MM, during which the watcher may wake traders.
+    """
+
+    model_config = pydantic.ConfigDict(extra='forbid')
+
+    base_url: str = 'https://api.typesafe.ai/v1'
+    model: str = 'jev-latest'
+    timeout_seconds: float = pydantic.Field(default=10.0, gt=0)
+    candle_count: int = pydantic.Field(default=24, ge=1, le=75)
+    interval_seconds: float = pydantic.Field(default=30.0, ge=10)
+    minimum_confidence: float = pydantic.Field(default=0.6, ge=0, le=1)
+    repeat_after_minutes: int = pydantic.Field(default=5, ge=1)
+    signal_window: str = pydantic.Field(
+        default='09:30-14:45',
+        pattern=r'^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$',
+    )
+
+
 class AgentConfiguration(pydantic.BaseModel):
     """Everything in trading_agent.toml.
 
@@ -466,6 +497,7 @@ class AgentConfiguration(pydantic.BaseModel):
         telegram: The Telegram channel.
         push: Push notifications to the Android app.
         approvals: Which actions wait for the user's permission.
+        jev: How the Jev decision model is asked about NIFTY's direction.
     """
 
     model_config = pydantic.ConfigDict(extra='forbid')
@@ -487,6 +519,7 @@ class AgentConfiguration(pydantic.BaseModel):
     telegram: TelegramConfiguration = TelegramConfiguration()
     push: PushConfiguration = PushConfiguration()
     approvals: ApprovalConfiguration = ApprovalConfiguration()
+    jev: JevConfiguration = JevConfiguration()
 
     @pydantic.model_validator(mode='after')
     def _require_known_backends(self) -> AgentConfiguration:

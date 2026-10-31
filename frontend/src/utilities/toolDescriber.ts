@@ -184,6 +184,10 @@ const TOOLS: Record<string, ToolDescription> = {
     activity: 'Checking the time',
     kind: 'market',
   },
+  jev_decision: {
+    activity: 'Asking Jev for a decision',
+    kind: 'market',
+  },
   get_portfolio: {
     activity: 'Checking the portfolio',
     kind: 'account',

@@ -61,6 +61,7 @@ from trading_agent.scheduling import command_job_runner
 from trading_agent.scheduling import cron_job
 from trading_agent.scheduling import cron_job_store
 from trading_agent.scheduling import cron_scheduler
+from trading_agent.scheduling import jev_signal_watcher
 from trading_agent.scheduling import market_calendar
 from trading_agent.scheduling import market_status
 from trading_agent.scheduling import market_watcher
@@ -103,6 +104,7 @@ from trading_agent.tools import get_orders_tool
 from trading_agent.tools import get_portfolio_tool
 from trading_agent.tools import get_quote_tool
 from trading_agent.tools import get_time_tool
+from trading_agent.tools import jev_decision_tool
 from trading_agent.tools import load_skill_tool
 from trading_agent.tools import modify_order_tool
 from trading_agent.tools import order_tool
@@ -130,6 +132,9 @@ from trading_agent.tools import web_fetch_tool
 from trading_agent.tools import web_search_tool
 from trading_agent.tools import write_file_tool
 from trading_agent.trading import broker_reader
+from trading_agent.trading import jev_adviser
+from trading_agent.trading import jev_client
+from trading_agent.trading import nifty_market_state
 from trading_agent.trading import result_formatter
 from trading_agent.trading import trader_order_book
 from trading_agent.workspace import proposal_store
@@ -211,6 +216,57 @@ class TraderBuilder:
         self._knowledge_base = knowledge_base.KnowledgeBase(
             self._layout.knowledge_directory,
             self._layout.knowledge_index_file,
+        )
+        self._jev_trader_names: set[str] = set()
+        self._jev_adviser = self._build_jev_adviser()
+
+    def _build_jev_adviser(self) -> jev_adviser.JevAdviser | None:
+        """Builds the shared Jev adviser when the TypeSafe API key is set.
+
+        Returns:
+            jev_adviser.JevAdviser | None: The adviser, or None when TRADING_AGENT_TYPESAFE_API_KEY is empty.
+        """
+        if not self._secrets.typesafe_api_key:
+            return None
+        jev_settings = self._configuration.jev
+        market_state = nifty_market_state.NiftyMarketState(
+            self._broker_reader,
+            jev_settings.candle_count,
+        )
+        client = jev_client.JevClient(
+            jev_settings,
+            self._secrets.typesafe_api_key,
+        )
+        return jev_adviser.JevAdviser(market_state, client)
+
+    def jev_trader_names(self) -> set[str]:
+        """The traders built with jev_signals set.
+
+        Returns:
+            set[str]: A copy of their names.
+        """
+        return set(self._jev_trader_names)
+
+    def jev_signal_watcher(
+        self,
+        traders: Mapping[str, trader_runtime.TraderRuntime],
+    ) -> jev_signal_watcher.JevSignalWatcher | None:
+        """The Jev signal watcher over the traders build() made.
+
+        Args:
+            traders (Mapping[str, trader_runtime.TraderRuntime]): The traders, keyed by name.
+
+        Returns:
+            jev_signal_watcher.JevSignalWatcher | None: The watcher, or None when the TypeSafe API key is not set.
+        """
+        if self._jev_adviser is None:
+            return None
+        return jev_signal_watcher.JevSignalWatcher(
+            traders,
+            self.jev_trader_names,
+            self._jev_adviser,
+            self.hours,
+            self._configuration.jev,
         )
 
     def _build_order_services(self) -> order_tool.OrderServices:
@@ -420,6 +476,7 @@ class TraderBuilder:
         self._skill_libraries.pop(trader_name, None)
         self._schedule_parts.pop(trader_name, None)
         self._alert_stores.pop(trader_name, None)
+        self._jev_trader_names.discard(trader_name)
 
     def shared_parts(self) -> gateway_parts.SharedParts:
         """The parts every trader shares, for the gateway's API.
@@ -759,6 +816,17 @@ class TraderBuilder:
                 self._configuration.mode,
             ),
         ]
+        if trader_configuration.jev_signals:
+            self._jev_trader_names.add(trader_configuration.name)
+            if self._jev_adviser is None:
+                _LOGGER.warning(
+                    'Trader %s has jev_signals set, but TRADING_AGENT_TYPESAFE_API_KEY is empty, so it has no jev_decision tool',
+                    trader_configuration.name,
+                )
+            else:
+                tools.append(
+                    jev_decision_tool.JevDecisionTool(self._jev_adviser)
+                )
         if self._mcp_manager is not None and self._mcp_manager.connections:
             tools.append(tool_search_tool.ToolSearchTool(self._mcp_manager))
             tools.append(call_mcp_tool_tool.CallMcpToolTool(self._mcp_manager))

@@ -11,3 +11,7 @@ Secrets are read with pydantic-settings, the same way sridhara reads `SRIDHARA_*
 `TRADING_AGENT_WEBHOOK_TOKEN` in .env, for incoming webhooks; empty switches them off.
 
 `telegram_bot_token` (milestone 19) comes from TRADING_AGENT_TELEGRAM_BOT_TOKEN. Like every secret, an environment variable of the same name takes precedence over .env.
+
+## typesafe_api_key
+
+The Jev key is read as `TRADING_AGENT_TYPESAFE_API_KEY`, through the class's prefix like the other secrets, rather than TypeSafe's own `TYPESAFE_API_KEY`. The bash sandbox replaces `.env` with an empty file and starts with an empty environment, so traders cannot read it.

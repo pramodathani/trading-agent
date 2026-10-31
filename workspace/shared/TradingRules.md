@@ -39,6 +39,10 @@ daily_loss_limit_percent = 3
 
 [traders.positional]
 allowed_products = ["cnc", "nrml"]
+
+[traders.jev-scalper]
+allowed_products = ["mis"]
+daily_loss_limit_percent = 2
 ```
 
 ## Order types each trader may use
@@ -91,5 +95,22 @@ Both setups read signals on the NIFTY index and trade NIFTY options, bought only
 5. At most two trades of this setup per day.
 
 **Review:** after 10 trading days in dry_run, the trader reports win rate, average win and loss, and slippage per setup, and proposes changes to these numbers. When trailing stops, time stops and index-triggered exits become available as tools, the manual exits above move into the order itself.
+
+### Jev scalper trader
+
+The jev-scalper takes its direction from Jev, TypeSafe AI's decision model, and does everything else itself. Jev reads the NIFTY index's live quote and latest 5-minute candles and answers buy, sell or hold. The market watcher asks Jev every 30 seconds from 09:30 to 14:45 and wakes the trader only when Jev says buy or sell with a confidence of at least 0.6; the trader can also ask with the `jev_decision` tool.
+
+**Rules**
+- Direction comes only from Jev: buy means buy a NIFTY call, sell means buy a NIFTY put, and hold means open nothing. The trader never opens a trade against Jev's latest answer, and never trades on its own reading of the chart.
+- Before every entry, call `jev_decision` once more. Enter only if it still gives the same answer with a confidence of at least 0.6; otherwise treat it as hold.
+- Contract, liquidity filter, entry order and sizing: as in the scalper's common rules above (nearest weekly expiry, at-the-money strike, the 1% spread and 5-lot filter, a limit at the best offer plus 2 ticks cancelled after 30 seconds, 1% of the balance at risk per trade, skipped above 1.5%).
+- Bracket on the option: stop 12% below the entry premium, target 18% above it.
+- Manual exits (at the next check): close the trade when Jev gives the opposite answer with a confidence of at least 0.6, or when the target has not been hit 15 minutes after entry.
+- At most one position open at once.
+- New entries only 09:30–14:45. Be flat by 15:05 (flatten_trader).
+- Stop for the day after three losing trades in a row, or when the trader's daily loss limit (2%) is reached.
+- Skip the first 30 minutes after a scheduled market-moving event, as for the scalper.
+
+**Review:** after 10 trading days, the trader reports how often Jev's buy and sell answers were right over the following 15 minutes, its win rate, average win and loss, and slippage, and compares them with the scalper's.
 
 Other traders: no strategy written yet; they must not open positions.
