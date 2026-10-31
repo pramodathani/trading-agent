@@ -8,6 +8,7 @@ Typical usage example:
 import functools
 from typing import Any
 
+import pydantic
 from tradingmachine.assets import instruments
 
 from trading_agent.tools import order_tool
@@ -15,21 +16,47 @@ from trading_agent.tools import tool
 from trading_agent.trading import order_arguments
 
 
+class PlaceOrderArguments(order_arguments.OrderArguments):
+    """One plain order, which may be an after-market order.
+
+    Attributes:
+        after_market: True to queue the order at the broker while the exchange is closed, so it goes to the exchange when the exchange next opens.
+    """
+
+    after_market: bool = False
+
+    @pydantic.model_validator(mode='after')
+    def _keep_after_market_orders_for_the_day(self) -> PlaceOrderArguments:
+        """Checks that an after-market order is a day order.
+
+        Returns:
+            PlaceOrderArguments: These arguments, unchanged.
+
+        Raises:
+            ValueError: An after-market order asks for ioc validity.
+        """
+        if self.after_market and self.validity == 'ioc':
+            raise ValueError(
+                'An after-market order waits for the open, so it cannot be ioc; leave validity out'
+            )
+        return self
+
+
 class PlaceOrderTool(order_tool.OrderTool):
     """Places one plain order."""
 
     name = 'place_order'
-    description = 'Places one order in one instrument. The risk engine checks it first and refuses it, with every reason, if it breaks a limit in TradingRules.md, the exchange is closed, or the instrument belongs to another trader or to the user. Name the instrument as for get_quote. quantity is in units, so for futures and options it is lots times lot size. A plain limit order is held inside UBI until the market reaches its price; a market order follows the book for up to 30 seconds. The answer gives a parent_id, the handle for modify_order and cancel_order. Give a short reason; it goes in the journal.'
-    arguments_model = order_arguments.OrderArguments
+    description = 'Places one order in one instrument. The risk engine checks it first and refuses it, with every reason, if it breaks a limit in TradingRules.md, the exchange is closed, or the instrument belongs to another trader or to the user. Name the instrument as for get_quote. quantity is in units, so for futures and options it is lots times lot size. A plain limit order is held inside UBI until the market reaches its price; a market order follows the book for up to 30 seconds. While the exchange is closed, set after_market to true to queue the order at the broker for the next open, preferably as a limit order; the broker sends it to the exchange when the exchange opens, and an after-market order is refused while the exchange is open. The answer gives a parent_id, the handle for modify_order and cancel_order. Give a short reason; it goes in the journal.'
+    arguments_model = PlaceOrderArguments
 
     async def _act(
         self,
-        arguments: order_arguments.OrderArguments,
+        arguments: PlaceOrderArguments,
     ) -> tool.ToolResult:
         """Checks the order with the risk engine and, when approved, sends it.
 
         Args:
-            arguments (order_arguments.OrderArguments): The order.
+            arguments (PlaceOrderArguments): The order.
 
         Returns:
             tool.ToolResult: UBI's answer with the order's handles, or why it was refused.
@@ -53,6 +80,7 @@ class PlaceOrderTool(order_tool.OrderTool):
             arguments.quantity,
             arguments.product,
             price,
+            arguments.after_market,
         )
         decision = await self._services.risk_engine.evaluate(request)
         if not decision.approved:
@@ -89,13 +117,13 @@ class PlaceOrderTool(order_tool.OrderTool):
     def _send(
         self,
         instrument: instruments.TradeableInstrument,
-        arguments: order_arguments.OrderArguments,
+        arguments: PlaceOrderArguments,
     ) -> Any:
         """Sends the order to UBI. It runs in a worker thread, under the UBI lock.
 
         Args:
             instrument (instruments.TradeableInstrument): The instrument.
-            arguments (order_arguments.OrderArguments): The order.
+            arguments (PlaceOrderArguments): The order.
 
         Returns:
             Any: UBI's answer.
@@ -108,6 +136,7 @@ class PlaceOrderTool(order_tool.OrderTool):
             price=arguments.price,
             trigger_price=arguments.trigger_price,
             validity=arguments.validity,
+            after_market=arguments.after_market,
             tag=self._tag,
             dry_run=self._dry_run,
         )

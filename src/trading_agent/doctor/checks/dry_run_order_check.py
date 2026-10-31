@@ -1,6 +1,6 @@
 """Checks that at least one trader order has gone all the way through UBI's dry run.
 
-UBI refuses even dry-run orders when the market's instrument list is not loaded, such as at weekends, so this can only pass after a trading day.
+UBI refuses even dry-run orders when the market's instrument list is not loaded. While the exchange is closed, a dry-run after-market order goes through UBI too.
 
 Typical usage example:
 
@@ -42,5 +42,5 @@ class DryRunOrderCheck(doctor_check.DoctorCheck):
                 )
         return doctor_check.CheckResult(
             doctor_check.CheckStatus.FAILED,
-            'No order has gone through UBI yet. On a trading day, ask a trader in the chat to place one small dry-run order, such as buying 1 share of a cheap stock.',
+            'No order has gone through UBI yet. Ask a trader in the chat to place one small dry-run order, such as buying 1 share of a cheap stock, as an after-market order while the exchange is closed.',
         )

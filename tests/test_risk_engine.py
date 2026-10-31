@@ -278,6 +278,60 @@ class TestApprovalAndHours:
 
         assert 'weekend' in setup.reasons(_order())
 
+    def test_after_market_order_passes_on_a_weekend(
+        self, tmp_path: Path
+    ) -> None:
+        """An after-market order passes on a Saturday, and its claim lasts until after Monday's open.
+
+        Args:
+            tmp_path (Path): A temporary folder from pytest.
+        """
+        setup = _Setup(tmp_path)
+        setup.now = _SATURDAY_MORNING
+
+        decision = setup.evaluate(_order(after_market=True))
+        setup.now = _SATURDAY_MORNING + datetime.timedelta(hours=6)
+        second = setup.evaluate(_order(trader='other', after_market=True))
+
+        assert decision.approved
+        assert setup.ledger.owner('infy') == 'main'
+        assert 'belongs to the main trader' in ' '.join(second.reasons)
+
+    def test_after_market_order_is_refused_while_open(
+        self, tmp_path: Path
+    ) -> None:
+        """An after-market order is refused while the exchange is open.
+
+        Args:
+            tmp_path (Path): A temporary folder from pytest.
+        """
+        setup = _Setup(tmp_path)
+
+        reasons = setup.reasons(_order(after_market=True))
+
+        assert 'place an ordinary order' in reasons
+
+    def test_next_open_skips_the_weekend(self) -> None:
+        """From Saturday morning, NSE equities next open at 09:15 on Monday."""
+        hours = exchange_hours.ExchangeHours()
+
+        opening = hours.next_open(
+            'nse', 'nse_equities', _SATURDAY_MORNING, 'exchange_hours'
+        )
+
+        assert opening == datetime.datetime(2026, 10, 19, 9, 15, tzinfo=_INDIA)
+
+    def test_next_open_after_the_close_is_the_next_morning(self) -> None:
+        """From 15:40 on a Monday, NSE equities next open at 09:15 on Tuesday."""
+        hours = exchange_hours.ExchangeHours()
+        after_close = datetime.datetime(2026, 10, 19, 15, 40, tzinfo=_INDIA)
+
+        opening = hours.next_open(
+            'nse', 'nse_equities', after_close, 'exchange_hours'
+        )
+
+        assert opening == datetime.datetime(2026, 10, 20, 9, 15, tzinfo=_INDIA)
+
     def test_mcx_evening_follows_us_daylight_saving(self) -> None:
         """At 23:40 India time MCX is closed in July (US daylight saving) and open in January."""
         hours = exchange_hours.ExchangeHours()

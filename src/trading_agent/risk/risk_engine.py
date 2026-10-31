@@ -150,9 +150,51 @@ class RiskEngine:
                 self._opening_reasons(order, limits, snapshot, margin, now)
             )
         if not reasons:
-            ledger.claim(order.instrument_id, order.trader, now)
+            claimed_at = self._claim_time(order, limits, now)
+            ledger.claim(order.instrument_id, order.trader, claimed_at)
             ledger.record_approval(order.trader, now)
         return self._finish(order, reasons, margin)
+
+    def _claim_time(
+        self,
+        order: order_request_module.OrderRequest,
+        limits: trading_limits_module.TradingLimits | None,
+        now: datetime.datetime,
+    ) -> datetime.datetime:
+        """The time an approved order's claim on its instrument is dated from.
+
+        Args:
+            order (order_request_module.OrderRequest): The approved order.
+            limits (trading_limits_module.TradingLimits | None): The limits, or None when they cannot be read.
+            now (datetime.datetime): The current time.
+
+        Returns:
+            datetime.datetime: The current time, or for an after-market order the time the exchange next opens, when the order can first fill.
+        """
+        if not order.after_market:
+            return now
+        return self._services.exchange_hours.next_open(
+            order.exchange,
+            order.segment,
+            now,
+            self._trading_window(limits),
+        )
+
+    def _trading_window(
+        self,
+        limits: trading_limits_module.TradingLimits | None,
+    ) -> str:
+        """The trading window the limits set.
+
+        Args:
+            limits (trading_limits_module.TradingLimits | None): The limits, or None when they cannot be read.
+
+        Returns:
+            str: "exchange_hours", or a fixed "HH:MM-HH:MM" window from TradingRules.md.
+        """
+        if limits is None:
+            return 'exchange_hours'
+        return limits.account.trading_window
 
     async def check_account(
         self,
@@ -318,7 +360,7 @@ class RiskEngine:
         limits: trading_limits_module.TradingLimits | None,
         now: datetime.datetime,
     ) -> list[str]:
-        """Checks that the exchange is open, for every order.
+        """Checks that the exchange is open for an ordinary order, and closed for an after-market order.
 
         Args:
             order (order_request_module.OrderRequest): The order.
@@ -326,17 +368,20 @@ class RiskEngine:
             now (datetime.datetime): The current time.
 
         Returns:
-            list[str]: A reason when the exchange is closed, otherwise nothing.
+            list[str]: A reason when the order does not suit the exchange's state, otherwise nothing.
         """
-        trading_window = 'exchange_hours'
-        if limits is not None:
-            trading_window = limits.account.trading_window
         is_open, description = self._services.exchange_hours.is_open(
             order.exchange,
             order.segment,
             now,
-            trading_window,
+            self._trading_window(limits),
         )
+        if order.after_market and is_open:
+            return [
+                f'The exchange is open ({description}), so place an ordinary order instead of an after-market order.',
+            ]
+        if order.after_market:
+            return []
         if is_open:
             return []
         return [

@@ -19,7 +19,15 @@ The traders trade through seven tools. Every one that opens or changes a positio
 
 ## Dry runs
 
-In `dry_run` mode, every order goes to UBI with `dry_run` set: UBI checks it fully and sends nothing to a broker. UBI refuses even dry-run orders when its instrument list is not loaded, as at weekends, so dry runs can only be tried on a trading day.
+In `dry_run` mode, every order goes to UBI with `dry_run` set: UBI checks it fully and sends nothing to a broker. UBI refuses even dry-run orders when its instrument list is not loaded.
+
+## After-market orders
+
+While the exchange is closed, a trader can place an after-market order with `place_order` by setting `after_market` to true. The order is queued at the broker and sent to the exchange when the exchange next opens. The risk engine checks it as it checks any order, except that it must be placed while the exchange is closed: an after-market order during the session is refused, with a note to place an ordinary order instead. Each broker has its own hours for taking after-market orders, and an order sent outside them is refused by the broker; the trader sees the broker's answer.
+
+A trader's claim on the instrument is dated from the next open, so it does not lapse over a weekend before the order can fill. Bracket orders cannot be after-market orders.
+
+After-market orders also make it possible to test the order path while the exchange is closed: a dry-run after-market limit order shows the exact request UBI would send to the broker, and which broker UBI chose.
 
 ## Fills
 

@@ -22,6 +22,7 @@ class OrderRequest:
         quantity: How many units, which is lots times lot size for derivatives; always positive.
         product: "cnc", "mis" or "nrml".
         price: The price the order is valued at: its limit or trigger price, or the last price for a market order.
+        after_market: Whether it is an after-market order, queued at the broker while the exchange is closed and sent to the exchange when it opens.
     """
 
     trader: str
@@ -33,6 +34,7 @@ class OrderRequest:
     quantity: int
     product: str
     price: float
+    after_market: bool = False
 
     @property
     def signed_quantity(self) -> int:
@@ -55,6 +57,9 @@ class OrderRequest:
         """A one-line description for messages and the journal.
 
         Returns:
-            str: For example "buy 10 INFY (nse_equities, cnc) at 1500.0".
+            str: For example "buy 10 INFY (nse_equities, cnc) at 1500.0", with ", after market" added for an after-market order.
         """
-        return f'{self.transaction_type} {self.quantity} {self.symbol} ({self.segment}, {self.product}) at {self.price:g}'
+        description = f'{self.transaction_type} {self.quantity} {self.symbol} ({self.segment}, {self.product}) at {self.price:g}'
+        if self.after_market:
+            return f'{description}, after market'
+        return description

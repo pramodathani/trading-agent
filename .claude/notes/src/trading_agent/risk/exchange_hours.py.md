@@ -5,3 +5,7 @@ The user chose each exchange's own opening and closing times. Regular sessions: 
 ## Holidays and special sessions (milestone 15)
 
 With a `MarketCalendar`, a full holiday closes the exchange ("it is an exchange holiday (Dussehra)"), a commodity holiday closed only in the morning or evening moves the opening to, or the close back to, 17:00, and a special session replaces the day's hours, even on a weekend. Checked against UBI's 2026 file: NSE closed and MCX open only from 17:00 on 2026-10-20, and both open for Muhurat on Sunday 2026-11-08.
+
+## The next open
+
+`next_open` steps forward a quarter hour at a time from the moment and returns the first quarter hour at which `is_open` says yes, for at most fifteen days. Stepping through `is_open` rather than computing the next session's start keeps weekends, holidays, half-day commodity closures and special sessions in one place; every regular session starts on a quarter hour, so nothing is missed. The risk engine uses it to date an after-market order's claim from when the order can first fill. Fifteen days covers the longest run of closed days the calendar can produce; past that the moment itself is returned.

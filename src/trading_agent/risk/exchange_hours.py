@@ -28,6 +28,8 @@ _MCX_CLOSE_DURING_US_DAYLIGHT_SAVING = datetime.time(23, 30)
 _MCX_CLOSE_OTHERWISE = datetime.time(23, 55)
 _SATURDAY = 5
 _COMMODITY_SPLIT = datetime.time(17, 0)
+_QUARTER_HOUR = datetime.timedelta(minutes=15)
+_SEARCH_LENGTH = datetime.timedelta(days=15)
 
 
 class ExchangeHours:
@@ -94,6 +96,43 @@ class ExchangeHours:
                 f'it is {local:%H:%M} India time; the session is {session_text}',
             )
         return True, session_text
+
+    def next_open(
+        self,
+        exchange: str,
+        segment: str,
+        moment: datetime.datetime,
+        trading_window: str,
+    ) -> datetime.datetime:
+        """Finds when the exchange next opens after a moment, to the quarter hour.
+
+        Args:
+            exchange (str): The exchange, such as nse or mcx.
+            segment (str): UBI's segment, such as nse_equities.
+            moment (datetime.datetime): The moment to start from, with a time zone.
+            trading_window (str): "exchange_hours", or "HH:MM-HH:MM" in India time.
+
+        Returns:
+            datetime.datetime: The first quarter hour after the moment, in India time, at which the exchange is open, or the moment itself when the exchange does not open within the next fifteen days.
+        """
+        local = moment.astimezone(_INDIA)
+        candidate = local.replace(second=0, microsecond=0)
+        candidate = candidate + _QUARTER_HOUR
+        candidate = candidate - datetime.timedelta(
+            minutes=candidate.minute % 15
+        )
+        last_candidate = local + _SEARCH_LENGTH
+        while candidate <= last_candidate:
+            is_open, _ = self.is_open(
+                exchange,
+                segment,
+                candidate,
+                trading_window,
+            )
+            if is_open:
+                return candidate
+            candidate = candidate + _QUARTER_HOUR
+        return local
 
     def _special_session(
         self,
