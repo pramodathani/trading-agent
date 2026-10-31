@@ -50,7 +50,7 @@ The site is split into tabs along the top. If you are about to trade live, read 
 
     ---
 
-    The four traders, the files that instruct them, the risk engine's limits, and how an order travels.
+    The four starter traders, creating and retiring your own, the files that instruct them, the risk engine's limits, and how an order travels.
 
     [:octicons-arrow-right-24: The traders](traders/index.md)
 

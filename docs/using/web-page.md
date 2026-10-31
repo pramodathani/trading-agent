@@ -2,7 +2,7 @@
 
 The gateway serves the web page at <http://127.0.0.1:8120>. It asks once for the access token, the value of `TRADING_AGENT_GATEWAY_ACCESS_TOKEN` in `.env`, and keeps it in that browser. Its look is copied from Claude Code on the web: the colours, sizes and spacing were measured from Claude Code in both themes, and the page is shown 10% larger, as Chrome shows claude.ai, so the two look the same size side by side.
 
-The header shows the trader that the trader-specific pages follow, chosen from a menu that also shows each trader's state. It also says whether orders are a **DRY RUN** or **LIVE ORDERS**, and whether the live connection is up. On the Chat page it has a button that shows or hides the side panel.
+The header shows the trader that the trader-specific pages follow, chosen from a menu that also shows each trader's state. A sleeping trader is shown as "sleeping — wakes on the next message, alert, fill or heartbeat", and one held back by `[traders] maximum_running` as "waiting for a turn slot"; [The traders](../traders/index.md#what-a-trader-is-doing) explains every state. It also says whether orders are a **DRY RUN** or **LIVE ORDERS**, and whether the live connection is up. On the Chat page it has a button that shows or hides the side panel.
 
 <figure class="diagram">
 --8<-- "docs/assets/diagrams/web-page.svg"
@@ -15,7 +15,7 @@ The left sidebar groups the pages, and its foot has the theme switch and **Forge
 
 | Group | Page | What you can do there |
 |---|---|---|
-| Trade | **Traders** | One card per trader: state, today's profit or loss, halts, models in the order tried, the last thing it did; Chat, Pause or Resume, and Flatten |
+| Trade | **Traders** | One card per trader: state, mandate and schedule, today's profit or loss, halts, models in the order tried, the last thing it did; Chat, Pause or Resume, Flatten, and Retire. **New trader** creates a trader, and **Retired traders** lists the retired ones with **Restore**; [the section below](#creating-and-retiring-traders) describes them |
 | | **Chat** | Talk to the chosen trader, answer its questions and permission requests, and follow its work; [the next section](#the-chat-page) describes it |
 | | **Activity** | Every trader's events today, newest first, with a trader filter and search |
 | | **Trading** | Balance, margin, today and this week, each trader's share and stocks, positions, halts, open orders, UBI's order book, and the kill switch |
@@ -29,6 +29,16 @@ The left sidebar groups the pages, and its foot has the theme switch and **Forge
 | | **Channels** | Telegram's state, codes waiting for approval, paired chats |
 | | **Settings** | The configuration as the gateway read it, with secrets masked, and the standing "Always allow" permissions, each of which can be revoked |
 | Apps | one entry per app | An installed package's web app, such as sridhara, with its state and Start, Restart and Stop |
+
+## Creating and retiring traders
+
+The **Traders** page is where you create, retire and restore traders while the gateway runs. The list below describes each control.
+
+- **New trader** opens a form with the name, the mandate (what the trader trades and how), the models with the `[traders]` defaults ticked and tried in the order shown, the heartbeat in minutes (empty for the default, 0 for none) and the scheduled check times. The page checks the name and the times as you type, and shows the gateway's own reason if it refuses. **Create trader** creates and starts the trader, chooses it in the header and opens its chat, where its introduction arrives. The form says that the new trader may trade within the account-wide limits until it has limits of its own.
+- **Retire** on a trader's card first asks for confirmation, explaining that the trader stops answering messages, running its schedule and receiving heartbeats, alerts and fills, while its files, memory and journal stay in its folder. A trader that still owns positions or has open orders is refused with "flatten it first". The button is hidden when only one trader is running, because the last one cannot be retired. If the retired trader was the one chosen in the header, the page switches to the first running trader.
+- **Retired traders**, below the cards, lists every retired trader with **Restore**, which starts it again with its memory and sessions.
+
+The list of traders refreshes at once when the gateway reports a `trader_created`, `trader_retired` or `trader_sleeping` event, so a change made from Telegram or the terminal shows up without reloading the page. [Creating a trader](../traders/index.md#creating-a-trader) describes the other ways to do the same.
 
 ## The chat page
 
@@ -84,7 +94,7 @@ At up to 760 pixels wide the page switches to a layout modelled on the Claude An
 
 ## Safety on the page
 
-Risky buttons ask before acting. Flatten asks for a reason, which goes to the journal. The kill switch asks for a reason and the typed word FLATTEN, and its button stays disabled until both are given. Saving a TradingRules.md that the risk engine cannot read is refused with the reason, so a typing mistake can never leave the traders without limits. Saving a Memory.md takes a checkpoint first, so the edit can be undone.
+Risky buttons ask before acting. Flatten asks for a reason, which goes to the journal. Retire asks for confirmation and explains what stays. The kill switch asks for a reason and the typed word FLATTEN, and its button stays disabled until both are given. Saving a TradingRules.md that the risk engine cannot read is refused with the reason, so a typing mistake can never leave the traders without limits. Saving a Memory.md takes a checkpoint first, so the edit can be undone.
 
 ## Building it
 

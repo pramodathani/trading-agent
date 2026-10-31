@@ -78,7 +78,7 @@ The app is built on this computer and installed over USB. It needs Java 21 at `~
     source ~/.nvm/nvm.sh && cd frontend && npm run android
     ```
 
-    `npm run android` builds the web page, copies it into the Android project (`cap sync`), builds the debug app with Gradle and installs it with `adb install -r`. The same work is also available in three parts: `android:sync` (build and copy the page), `android:build` (the app) and `android:install`.
+    `npm run android` builds the web page, copies it into the Android project (`cap sync`), builds the debug app with Gradle and installs it with `adb install -r`. The app carries its own copy of the page, so a change to the page, such as the **New trader** form and the **Retire** buttons added on 31 October 2026, reaches the phone only after this command is run again. The same work is also available in three parts: `android:sync` (build and copy the page), `android:build` (the app) and `android:install`.
 
 Run it again after any change to the web page, because the app carries its own copy of the page.
 

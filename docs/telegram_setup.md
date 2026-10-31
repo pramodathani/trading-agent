@@ -98,6 +98,10 @@ Send these to the bot:
 | `/positions` | Open positions and which trader owns each |
 | `What is your plan for Monday?` | The message goes to your trader (general at first), and its answer comes back |
 | `/trader intraday` | Later messages go to the intraday trader |
+| `/traders` | Every trader with its state and mandate, retired ones included |
+| `/create banknifty-momentum Intraday momentum in Bank Nifty options, buying only` | Creates a trader named `banknifty-momentum` with that mandate and the default models and schedule, and switches the chat to it. The new trader introduces itself in the chat and proposes its Persona.md and limits. It may trade within the account-wide limits from then on |
+| `/retire banknifty-momentum` | Stops that trader and marks it retired; its files stay. A trader that owns positions or has open orders must be flattened first, and the last running trader cannot be retired |
+| `/restore banknifty-momentum` | Brings a retired trader back with its memory, and switches the chat to it |
 | `/pause all` | Every trader stops asking its models; `/resume all` starts them again |
 | `/stop` | The trader's running turn stops at once |
 | `/btw why did you sell INFY?` | A side answer from the trader, which is not kept in its conversation |
@@ -105,7 +109,7 @@ Send these to the bot:
 | `/approve` or `/deny <reason>` | Allows or refuses an action a trader is holding for your permission, the same as its buttons. With several waiting, the bot lists them and you add the six-character id, as in `/approve a1b2c3`; `/approve a1b2c3 always` allows it from now on |
 | `/kill CONFIRM <reason>` | Every trader is halted until tomorrow and the whole account is flattened. Without the word CONFIRM, nothing happens |
 
-Typing `/` shows a menu of every command, and `/help` lists them. The trader's own commands, such as `/usage`, `/model`, `/think`, `/review` and `/tools`, are passed to your trader; [Talking to a trader](using/chat.md#slash-commands) describes them all.
+Typing `/` shows a menu of every command, and `/help` lists them. The trader's own commands, such as `/usage`, `/model`, `/think`, `/review` and `/tools`, are passed to your trader; [Talking to a trader](using/chat.md#slash-commands) describes them all. The trader's own `/new`, which starts a fresh conversation, is passed on too; creating a trader is `/create`.
 
 A message you send while the trader is working is handed to the running turn at its next tool call, as on the web page; the bot tells you so.
 

@@ -1,6 +1,6 @@
 # trading-agent
 
-An always-on, multi-trader AI trading agent on the `tradingmachine` library and UBI. Four traders (general, intraday, scalper and positional) each run their own agent with their own persona, models, schedule and memory, and every order from every trader goes through one risk engine that enforces the hard limits in `workspace/shared/TradingRules.md`. Models are Claude through the Max subscription, and Gemma and Qwen on Ollama, with automatic fallback.
+An always-on, multi-trader AI trading agent on the `tradingmachine` library and UBI. Four starter traders (general, intraday, scalper and positional), and any you create from the web page, the phone, Telegram or the terminal, each run their own agent with their own mandate, persona, models, schedule and memory, and every order from every trader goes through one risk engine that enforces the hard limits in `workspace/shared/TradingRules.md`. Models are Claude through the Max subscription, and Gemma and Qwen on Ollama, with automatic fallback.
 
 ## Using it
 
@@ -10,6 +10,7 @@ An always-on, multi-trader AI trading agent on the `tradingmachine` library and 
 | Telegram | See `docs/telegram_setup.md` |
 | Going live | See `docs/going_live.md` |
 | The documentation site | `.venv/bin/mkdocs serve -a 127.0.0.1:8130`, then <http://127.0.0.1:8130/trading-agent/> |
+| Create, retire or restore a trader | **New trader** on the Traders page, `bin/trading-agent traders new NAME --mandate TEXT`, or `/create NAME MANDATE` in Telegram |
 | Your instructions to the traders | `workspace/shared/Agents.md`, `User.md`, `TradingRules.md`, and each trader's `Persona.md`, editable on the Files page |
 
 ## Commands

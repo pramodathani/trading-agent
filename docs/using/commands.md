@@ -16,6 +16,7 @@
 | `mcp list` | Each MCP server's state and tools |
 | `packages install SOURCE`, `list`, `remove NAME` | Packages of skills, subagents, MCP servers, hooks and apps |
 | `apps list`, `enable NAME`, `disable NAME` | The packages' web apps and their systemd units |
+| `traders list`, `new NAME --mandate TEXT [--models A,B] [--heartbeat MINUTES] [--checks HH:MM,HH:MM]`, `retire NAME`, `restore NAME` | List every trader with its state, schedule and mandate, create one and start it, retire one, or bring a retired one back, through the running gateway; [Creating a trader](../traders/index.md#creating-a-trader) explains them |
 | `subagents list` | The subagent definitions |
 | `pairing list`, `approve CODE`, `revoke CHAT_ID` | Telegram chats allowed to command the traders |
 

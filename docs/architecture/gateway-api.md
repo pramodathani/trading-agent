@@ -30,6 +30,36 @@ curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8120/api/traders
 | <span class="method post">POST</span> | `/api/traders/{trader}/resume` | Start it again | yes |
 | <span class="method post">POST</span> | `/api/traders/{trader}/flatten` | Cancel the trader's orders and close its positions, with a reason | yes |
 
+## Creating, retiring and restoring traders
+
+These routes change which traders exist, while the gateway runs. A refused request, such as a name that is invalid or already taken, an unknown backend, a check time that is not HH:MM, retiring the last running trader, or retiring one that still owns instruments or has open orders, gets status 400 with the reason in `detail`.
+
+| Method | Route | What it does | Token |
+|---|---|---|---|
+| <span class="method get">GET</span> | `/api/trader-records` | Every trader's record, retired ones included, oldest first, each with `running` saying whether it runs now | yes |
+| <span class="method post">POST</span> | `/api/traders` | Create a trader and start it; answers its record with status 201 | yes |
+| <span class="method post">POST</span> | `/api/traders/{trader}/retire` | Stop a trader and mark it retired; its files stay | yes |
+| <span class="method post">POST</span> | `/api/traders/{trader}/restore` | Bring a retired trader back, with its memory and sessions | yes |
+
+The body of `POST /api/traders` holds the fields in the table below. The records have their own address, `/api/trader-records`, because `/api/traders/records` would be read as a trader named "records".
+
+| Field | Needed | Meaning |
+|---|---|---|
+| `name` | yes | Lower-case letters, digits, hyphens and underscores, starting with a letter, at most 200 characters |
+| `mandate` | yes | What the trader will trade and how, up to 4,000 characters |
+| `backend_order` | no | The backends to use, most preferred first; empty or left out means `[traders] backend_order` |
+| `heartbeat_minutes` | no | Minutes between heartbeats, from 1 to 240; `0` for none; left out or `null` for `[traders] heartbeat_minutes` |
+| `scheduled_checks` | no | Times on trading days, as `"HH:MM"`, when the trader is woken |
+| `introduce` | no | Whether to ask the trader at once to restate its mandate and propose how it will trade it; `true` unless given |
+
+The example below creates a trader from a script.
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "banknifty-momentum", "mandate": "Intraday momentum in Bank Nifty options, buying only, flat by 15:15", "heartbeat_minutes": 5, "scheduled_checks": ["09:20", "15:05"]}' \
+  http://127.0.0.1:8120/api/traders
+```
+
 ## Questions, plans and permissions
 
 | Method | Route | What it does | Token |
@@ -127,7 +157,7 @@ Each answer is handed to the trader as a new message; the trader never waited fo
 
 ## The event stream
 
-`/ws/events?token=<token>` is a WebSocket that sends every event as JSON as it happens: its `kind`, its `trader`, its `payload` and its `created_at`. Add `&trader=intraday` to receive one trader's events and the events that belong to no trader, such as the kill switch. A wrong token closes the connection with code 1008.
+`/ws/events?token=<token>` is a WebSocket that sends every event as JSON as it happens: its `kind`, its `trader`, its `payload` and its `created_at`. Add `&trader=intraday` to receive one trader's events and the events that belong to no trader, such as the kill switch. A wrong token closes the connection with code 1008. Changes to the roster arrive as events too: `trader_created` when a trader is created or restored, `trader_retired` when one is retired, and `trader_sleeping` when one falls asleep.
 
 ```json
 {"kind": "tool_call", "trader": "general", "payload": {"trigger_id": "c38a67fb...", "call_id": "f60067d3...", "name": "get_portfolio", "arguments": {"kind": "funds"}}, "created_at": "2026-10-16T19:35:41.662832+00:00"}
