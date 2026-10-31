@@ -5,11 +5,15 @@ import datetime
 import tomllib
 from pathlib import Path
 
+import fastapi
+import fastapi.testclient
 import pytest
 
 from trading_agent import trader_builder
 from trading_agent.configuration import agent_configuration
 from trading_agent.configuration import secrets as secrets_module
+from trading_agent.gateway import access_guard
+from trading_agent.gateway.routes import roster_routes
 from trading_agent.runtime import event as event_module
 from trading_agent.runtime import event_bus as event_bus_module
 from trading_agent.runtime import trader_runtime
@@ -387,3 +391,107 @@ class TestTraderRegistry:
             await workspace.registry.stop()
 
         asyncio.run(scenario())
+
+
+class TestRosterRoutes:
+    """The API creates, lists, retires and restores traders through the registry."""
+
+    def _client(self, workspace: _Workspace) -> fastapi.testclient.TestClient:
+        """Builds a client for the roster routes.
+
+        Args:
+            workspace (_Workspace): The workspace.
+
+        Returns:
+            fastapi.testclient.TestClient: The client.
+        """
+        application = fastapi.FastAPI()
+        application.include_router(
+            roster_routes.RosterRoutes(
+                access_guard.AccessGuard('test-token'), workspace.registry
+            ).router()
+        )
+        return fastapi.testclient.TestClient(application)
+
+    def test_create_list_retire_and_restore(self, tmp_path: Path) -> None:
+        """A trader made through the API is listed as running, then as retired, then running again; bad requests get 400.
+
+        Args:
+            tmp_path (Path): A scratch folder.
+
+        Returns:
+            None.
+        """
+        workspace = _Workspace(tmp_path)
+        workspace.start_with_general()
+        client = self._client(workspace)
+        headers = {
+            'Authorization': 'Bearer test-token',
+        }
+
+        created = client.post(
+            '/api/traders',
+            headers=headers,
+            json={
+                'name': 'momentum',
+                'mandate': 'Momentum in NSE shares.',
+                'heartbeat_minutes': 15,
+                'scheduled_checks': [
+                    '09:20',
+                ],
+                'introduce': False,
+            },
+        )
+        duplicate = client.post(
+            '/api/traders',
+            headers=headers,
+            json={
+                'name': 'momentum',
+                'mandate': 'Again.',
+            },
+        )
+        bad_time = client.post(
+            '/api/traders',
+            headers=headers,
+            json={
+                'name': 'late',
+                'mandate': 'Late.',
+                'scheduled_checks': [
+                    '9am',
+                ],
+            },
+        )
+        listing = client.get('/api/trader-records', headers=headers)
+        retired = client.post('/api/traders/momentum/retire', headers=headers)
+        after_retiring = client.get('/api/trader-records', headers=headers)
+        restored = client.post('/api/traders/momentum/restore', headers=headers)
+        unauthorised = client.get('/api/trader-records')
+
+        assert created.status_code == 201
+        assert created.json()['mandate'] == 'Momentum in NSE shares.'
+        assert created.json()['heartbeat_minutes'] == 15
+        assert created.json()['scheduled_checks'] == [
+            '09:20',
+        ]
+        assert duplicate.status_code == 400
+        assert 'already exists' in duplicate.json()['detail']
+        assert bad_time.status_code == 400
+        assert 'scheduled_checks' in bad_time.json()['detail']
+        names_and_states = []
+        for record in listing.json()['records']:
+            names_and_states.append((record['name'], record['running']))
+        assert names_and_states == [
+            (
+                'general',
+                True,
+            ),
+            (
+                'momentum',
+                True,
+            ),
+        ]
+        assert retired.json()['retired'] is True
+        assert after_retiring.json()['records'][1]['running'] is False
+        assert restored.status_code == 200
+        assert 'momentum' in workspace.registry.traders
+        assert unauthorised.status_code == 401

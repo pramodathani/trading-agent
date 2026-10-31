@@ -5,6 +5,7 @@ Typical usage example:
   Application().run()
 """
 
+import argparse
 import asyncio
 import datetime
 import logging
@@ -32,6 +33,7 @@ from trading_agent.client import pairing_commands
 from trading_agent.client import proposal_commands
 from trading_agent.client import skill_commands
 from trading_agent.client import subagent_commands
+from trading_agent.client import trader_commands
 from trading_agent.configuration import agent_configuration
 from trading_agent.configuration import configuration_loader
 from trading_agent.configuration import secrets as secrets_module
@@ -57,6 +59,7 @@ from trading_agent.gateway.routes import extension_routes
 from trading_agent.gateway.routes import file_routes
 from trading_agent.gateway.routes import memory_routes
 from trading_agent.gateway.routes import request_routes
+from trading_agent.gateway.routes import roster_routes
 from trading_agent.gateway.routes import route_group
 from trading_agent.gateway.routes import schedule_routes
 from trading_agent.gateway.routes import system_routes
@@ -157,6 +160,12 @@ class Application:
                 secrets.gateway_access_token,
             )
             sys.exit(asyncio.run(client.send(arguments.trader, arguments.text)))
+        if arguments.command == 'traders':
+            sys.exit(
+                asyncio.run(
+                    self._trader_command(configuration, secrets, arguments)
+                )
+            )
         if arguments.command == 'print':
             client = message_client.MessageClient(
                 f'http://{configuration.gateway.host}:{configuration.gateway.port}',
@@ -280,6 +289,40 @@ class Application:
         if arguments.command == 'mcp':
             sys.exit(asyncio.run(mcp_commands.McpCommands(manager).list()))
         self._serve(configuration, secrets, manager, packages)
+
+    async def _trader_command(
+        self,
+        configuration: agent_configuration.AgentConfiguration,
+        secrets: secrets_module.Secrets,
+        arguments: argparse.Namespace,
+    ) -> int:
+        """Runs one `trading-agent traders` command against the running gateway.
+
+        Args:
+            configuration (agent_configuration.AgentConfiguration): The agent's configuration, for the gateway's address.
+            secrets (secrets_module.Secrets): The secrets, for the gateway's access token.
+            arguments (argparse.Namespace): The parsed command line.
+
+        Returns:
+            int: The command's exit status.
+        """
+        commands = trader_commands.TraderCommands(
+            f'http://{configuration.gateway.host}:{configuration.gateway.port}',
+            secrets.gateway_access_token,
+        )
+        if arguments.trader_action == 'new':
+            return await commands.create(
+                arguments.name,
+                arguments.mandate,
+                arguments.models,
+                arguments.heartbeat,
+                arguments.checks,
+            )
+        if arguments.trader_action == 'retire':
+            return await commands.retire(arguments.name)
+        if arguments.trader_action == 'restore':
+            return await commands.restore(arguments.name)
+        return await commands.list()
 
     def _terminal(
         self,
@@ -437,6 +480,7 @@ class Application:
         route_groups.append(
             device_routes.DeviceRoutes(guard, phones, push, push_problem)
         )
+        route_groups.append(roster_routes.RosterRoutes(guard, registry))
         gateway = gateway_application.GatewayApplication(
             event_bus,
             traders,

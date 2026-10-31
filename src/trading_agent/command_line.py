@@ -80,6 +80,63 @@ class CommandLine:
             default='general',
             help='The trader to send it to (default: general).',
         )
+        traders_parser = subparsers.add_parser(
+            'traders',
+            help='List, create, retire and restore traders of the running gateway.',
+        )
+        trader_actions = traders_parser.add_subparsers(
+            dest='trader_action',
+            required=True,
+        )
+        trader_actions.add_parser(
+            'list',
+            help='List every trader with its state and mandate.',
+        )
+        new_parser = trader_actions.add_parser(
+            'new',
+            help='Create a trader with a mandate and start it.',
+        )
+        new_parser.add_argument(
+            'name',
+            help="The trader's name: lower-case letters, digits, hyphens and underscores, at most 200 characters.",
+        )
+        new_parser.add_argument(
+            '--mandate',
+            required=True,
+            help='What the trader will trade and how.',
+        )
+        new_parser.add_argument(
+            '--models',
+            default='',
+            help='The backends to use, most preferred first, separated by commas (default: the [traders] backend_order).',
+        )
+        new_parser.add_argument(
+            '--heartbeat',
+            type=int,
+            default=None,
+            help='Minutes between heartbeats while the market is open, or 0 for none (default: the [traders] heartbeat_minutes).',
+        )
+        new_parser.add_argument(
+            '--checks',
+            default='',
+            help='India times on trading days when the trader is woken, as HH:MM separated by commas, such as 09:10,15:05.',
+        )
+        retire_trader_parser = trader_actions.add_parser(
+            'retire',
+            help='Stop a trader and mark it retired; its files stay. A trader with positions or open orders must be flattened first.',
+        )
+        retire_trader_parser.add_argument(
+            'name',
+            help='The trader.',
+        )
+        restore_trader_parser = trader_actions.add_parser(
+            'restore',
+            help='Bring a retired trader back.',
+        )
+        restore_trader_parser.add_argument(
+            'name',
+            help='The trader.',
+        )
         proposals_parser = subparsers.add_parser(
             'proposals',
             help='Review the changes traders propose to your files.',

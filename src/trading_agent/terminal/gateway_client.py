@@ -286,6 +286,51 @@ class GatewayClient:
             'POST', f'/api/traders/{self._part(trader_name)}/pause'
         )
 
+    async def trader_records(self) -> dict[str, Any]:
+        """Every trader's record, retired ones included.
+
+        Returns:
+            dict[str, Any]: The records, oldest first, each saying whether the trader is running.
+        """
+        return await self._json('GET', '/api/trader-records')
+
+    async def create_trader(self, trader: dict[str, Any]) -> dict[str, Any]:
+        """Creates a trader and starts it.
+
+        Args:
+            trader (dict[str, Any]): The new trader: name, mandate, and optionally backend_order, heartbeat_minutes, scheduled_checks and introduce.
+
+        Returns:
+            dict[str, Any]: Its record.
+        """
+        return await self._json('POST', '/api/traders', body=trader)
+
+    async def retire_trader(self, trader_name: str) -> dict[str, Any]:
+        """Stops a trader and marks it retired; its files stay.
+
+        Args:
+            trader_name (str): The trader.
+
+        Returns:
+            dict[str, Any]: Its record, now retired.
+        """
+        return await self._json(
+            'POST', f'/api/traders/{self._part(trader_name)}/retire'
+        )
+
+    async def restore_trader(self, trader_name: str) -> dict[str, Any]:
+        """Brings a retired trader back.
+
+        Args:
+            trader_name (str): The trader.
+
+        Returns:
+            dict[str, Any]: Its record.
+        """
+        return await self._json(
+            'POST', f'/api/traders/{self._part(trader_name)}/restore'
+        )
+
     async def resume(self, trader_name: str) -> dict[str, Any]:
         """Makes a paused trader answer again.
 
