@@ -37,6 +37,7 @@ workspace/shared/phone_devices.json
 workspace/shared/permission_grants.json
 workspace/shared/packages/
 workspace/.checkpoints/
+workspace/.backups/
 
 # Documentation
 site/

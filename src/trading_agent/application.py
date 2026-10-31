@@ -6,8 +6,10 @@ Typical usage example:
 """
 
 import asyncio
+import datetime
 import logging
 import sys
+import zoneinfo
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
@@ -76,6 +78,7 @@ from trading_agent.terminal import terminal_application
 from trading_agent.terminal import terminal_settings
 from trading_agent.tools import bash_sandbox
 from trading_agent.workspace import proposal_store
+from trading_agent.workspace import trader_migration
 from trading_agent.workspace import workspace_layout
 
 _LOG_FORMAT = '%(asctime)s %(levelname)s %(name)s: %(message)s'
@@ -114,6 +117,12 @@ class Application:
         layout = workspace_layout.WorkspaceLayout(
             configuration.workspace_directory
         )
+        trader_migration.TraderMigration(
+            layout,
+            terminal_settings.TerminalSettings.state_directory()
+            / 'terminal.json',
+            datetime.datetime.now(zoneinfo.ZoneInfo('Asia/Kolkata')),
+        ).run()
         trader_names = [trader.name for trader in configuration.traders]
         for created in layout.create_missing(trader_names):
             logging.getLogger(__name__).info(
