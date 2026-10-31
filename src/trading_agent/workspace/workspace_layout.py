@@ -83,7 +83,23 @@ class WorkspaceLayout:
         Returns:
             Path: The trader's folder.
         """
-        return self.root / 'traders' / trader_name
+        return self.traders_directory / trader_name
+
+    @property
+    def traders_directory(self) -> Path:
+        """The folder holding one folder per trader."""
+        return self.root / 'traders'
+
+    def trader_file(self, trader_name: str) -> Path:
+        """The trader's record: its mandate, models, schedule and whether it is retired.
+
+        Args:
+            trader_name (str): The trader's name.
+
+        Returns:
+            Path: The trader's trader.toml.
+        """
+        return self.trader_directory(trader_name) / 'trader.toml'
 
     def persona_file(self, trader_name: str) -> Path:
         """The trader's persona, which belongs to the user.

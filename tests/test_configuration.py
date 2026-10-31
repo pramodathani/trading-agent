@@ -10,8 +10,8 @@ _VALID_CONFIGURATION = '\n'.join(
     [
         'tradingmachine_environment_file = "/tmp/tradingmachine.env"',
         '',
-        '[[traders]]',
-        'name = "main"',
+        '[traders]',
+        'heartbeat_minutes = 5',
         '',
         '[backends.gemma]',
         'kind = "ollama"',
@@ -51,7 +51,9 @@ class TestConfigurationLoader:
 
         assert configuration.mode == 'dry_run'
         assert configuration.gateway.host == '127.0.0.1'
-        assert configuration.traders[0].name == 'main'
+        assert configuration.traders.heartbeat_minutes == 5
+        assert configuration.traders.first_trader == 'general'
+        assert configuration.telegram.default_trader == 'general'
         assert configuration.backends['gemma'].context_window == 32768
 
     def test_load_missing_file_raises(self, tmp_path: Path) -> None:
@@ -82,19 +84,19 @@ class TestConfigurationLoader:
         ):
             configuration_loader.ConfigurationLoader(path).load()
 
-    def test_load_duplicate_trader_names_raises(self, tmp_path: Path) -> None:
-        """Two traders with the same name are rejected.
+    def test_load_old_list_of_traders_raises(self, tmp_path: Path) -> None:
+        """The old [[traders]] list is rejected, because each trader now has its own trader.toml.
 
         Args:
             tmp_path (Path): A temporary directory from pytest.
         """
-        text = _VALID_CONFIGURATION + '\n\n[[traders]]\nname = "main"\n'
+        text = _VALID_CONFIGURATION.replace(
+            '[traders]\nheartbeat_minutes = 5',
+            '[[traders]]\nname = "main"',
+        )
         path = self._write(tmp_path, text)
 
-        with pytest.raises(
-            configuration_loader.ConfigurationError,
-            match='Duplicate trader name',
-        ):
+        with pytest.raises(configuration_loader.ConfigurationError):
             configuration_loader.ConfigurationLoader(path).load()
 
     def test_load_server_backend_without_base_url_raises(
@@ -135,14 +137,14 @@ class TestConfigurationLoader:
     def test_load_trader_with_unknown_backend_raises(
         self, tmp_path: Path
     ) -> None:
-        """A trader that names a backend missing from [backends] is rejected.
+        """A [traders] backend order that names a backend missing from [backends] is rejected.
 
         Args:
             tmp_path (Path): A temporary directory from pytest.
         """
         text = _VALID_CONFIGURATION.replace(
-            'name = "main"',
-            'name = "main"\nbackend_order = ["missing"]',
+            'heartbeat_minutes = 5',
+            'heartbeat_minutes = 5\nbackend_order = ["missing"]',
         )
         path = self._write(tmp_path, text)
 

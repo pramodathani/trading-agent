@@ -13,7 +13,13 @@ __pycache__/
 frontend/node_modules/
 frontend/dist/
 
-# Agent workspace: the traders' working files stay out of git, the user's files are tracked
+# Agent workspace: the four starter traders' own files are tracked, and traders created later are the user's own data
+workspace/traders/*/
+!workspace/traders/general/
+!workspace/traders/intraday/
+!workspace/traders/scalper/
+!workspace/traders/positional/
+workspace/traders/*/*.tmp
 workspace/traders/*/scratch/
 workspace/traders/*/uploads/
 workspace/traders/*/proposals/

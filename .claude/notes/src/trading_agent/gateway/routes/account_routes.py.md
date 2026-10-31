@@ -9,3 +9,7 @@ The kill switch needs the word FLATTEN in the body. A button press alone could b
 ## Symbols and per-position profit (milestone 18)
 
 The ledger stores only UBI's instrument ids, which are long UUIDs that mean nothing on a web page. The account answer therefore gives each owner a symbol, taken from the open positions or else from the trader's open orders, and falls back to the id only when neither knows it. Each position also carries its own day profit or loss from the snapshot, so the Trading page can show it per row.
+
+## Live trader names
+
+The names are kept as given, not copied, and the gateway passes its live dictionary of traders, so a trader created after start-up appears here at once.

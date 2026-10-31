@@ -9,7 +9,7 @@ Typical usage example:
 """
 
 import dataclasses
-from collections.abc import Sequence
+from collections.abc import Collection
 from typing import Any
 
 import fastapi
@@ -30,7 +30,7 @@ class SystemRoutes(route_group.RouteGroup):
         configuration: agent_configuration.AgentConfiguration,
         usage: usage_tracker.UsageTracker,
         redactor: secret_redactor.SecretRedactor,
-        trader_names: Sequence[str],
+        trader_names: Collection[str],
     ):
         """Creates the routes.
 
@@ -39,13 +39,13 @@ class SystemRoutes(route_group.RouteGroup):
             configuration (agent_configuration.AgentConfiguration): The configuration the gateway runs with.
             usage (usage_tracker.UsageTracker): Today's model usage.
             redactor (secret_redactor.SecretRedactor): Masks secrets in the configuration.
-            trader_names (Sequence[str]): The running traders.
+            trader_names (Collection[str]): The running traders. Read afresh on every request, so the gateway passes its live dictionary of traders and a trader created later is included.
         """
         super().__init__(guard)
         self._configuration = configuration
         self._usage = usage
         self._redactor = redactor
-        self._trader_names = list(trader_names)
+        self._trader_names = trader_names
 
     def _add_routes(self, router: fastapi.APIRouter) -> None:
         """Adds the system routes.

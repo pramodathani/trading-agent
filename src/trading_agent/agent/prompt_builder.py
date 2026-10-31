@@ -11,7 +11,7 @@ Typical usage example:
 
 import dataclasses
 import hashlib
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from trading_agent.extensions import mcp_client_manager
@@ -47,7 +47,7 @@ class PromptBuilder:
         skill_library: skill_library_module.SkillLibrary | None = None,
         mcp_manager: mcp_client_manager.McpClientManager | None = None,
         subagent_library: subagent_library_module.SubagentLibrary | None = None,
-        other_traders: Sequence[str] = (),
+        other_traders: Callable[[], Sequence[str]] | None = None,
     ):
         """Creates the builder.
 
@@ -58,7 +58,7 @@ class PromptBuilder:
             skill_library (skill_library_module.SkillLibrary | None): The trader's skills, listed as an index at the end, or None for no index.
             mcp_manager (mcp_client_manager.McpClientManager | None): The MCP connections, whose tool names are listed last, or None.
             subagent_library (subagent_library_module.SubagentLibrary | None): The subagents the trader can delegate to, listed after the skills, or None.
-            other_traders (Sequence[str]): The other traders sharing the account, named in the header.
+            other_traders (Callable[[], Sequence[str]] | None): Returns the other traders sharing the account, asked afresh for every prompt so a new trader is named at once; None names none.
         """
         self._layout = layout
         self._trader_name = trader_name
@@ -66,7 +66,7 @@ class PromptBuilder:
         self._skill_library = skill_library
         self._mcp_manager = mcp_manager
         self._subagent_library = subagent_library
-        self._other_traders = list(other_traders)
+        self._other_traders = other_traders
 
     def build(self) -> SystemPrompt:
         """Reads the files and assembles the prompt.
@@ -124,9 +124,12 @@ class PromptBuilder:
             f'You are the "{self._trader_name}" trader of trading-agent.',
             mode_line,
         ]
-        if self._other_traders:
+        other_names = []
+        if self._other_traders is not None:
+            other_names = list(self._other_traders())
+        if other_names:
             lines.append(
-                f'Other traders share the same broker account: {", ".join(self._other_traders)}. The risk engine gives each instrument to one trader at a time, so an instrument another trader holds or is trading is not yours to trade, and positions you do not own are not yours to close.'
+                f'Other traders share the same broker account: {", ".join(other_names)}. The risk engine gives each instrument to one trader at a time, so an instrument another trader holds or is trading is not yours to trade, and positions you do not own are not yours to close.'
             )
         return '\n'.join(
             [

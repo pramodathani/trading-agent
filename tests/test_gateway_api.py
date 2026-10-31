@@ -665,9 +665,6 @@ class TestSystemRoutes:
         """
         configuration = agent_configuration.AgentConfiguration(
             tradingmachine_environment_file=tmp_path / 'tm.env',
-            traders=[
-                agent_configuration.TraderConfiguration(name='main'),
-            ],
             backends={
                 'remote': agent_configuration.BackendConfiguration(
                     kind='openai_compatible',

@@ -140,7 +140,7 @@ class TestTraders:
                 layout,
                 'scalper',
                 'dry_run',
-                other_traders=[
+                other_traders=lambda: [
                     'intraday',
                     'positional',
                 ],

@@ -8,6 +8,8 @@ Typical usage example:
   exit_code = Doctor(configuration, secrets, going_live=True).run()
 """
 
+from collections.abc import Sequence
+
 from trading_agent.channels import pairing_store
 from trading_agent.configuration import agent_configuration
 from trading_agent.configuration import secrets as secrets_module
@@ -50,6 +52,7 @@ class Doctor:
         self,
         configuration: agent_configuration.AgentConfiguration,
         secrets: secrets_module.Secrets,
+        trader_names: Sequence[str] = (),
         going_live: bool = False,
     ):
         """Creates the doctor.
@@ -57,10 +60,12 @@ class Doctor:
         Args:
             configuration (agent_configuration.AgentConfiguration): The agent's configuration.
             secrets (secrets_module.Secrets): The secrets read from the environment and .env.
+            trader_names (Sequence[str]): The traders that are not retired, whose files and limits are checked.
             going_live (bool): Whether to add the going-live checks, for `trading-agent preflight`.
         """
         self._configuration = configuration
         self._secrets = secrets
+        self._trader_names = list(trader_names)
         self._going_live = going_live
 
     def run(self) -> int:
@@ -165,9 +170,7 @@ class Doctor:
                 ).trading_rules_file
             )
         )
-        trader_names = []
-        for trader in self._configuration.traders:
-            trader_names.append(trader.name)
+        trader_names = self._trader_names
         checks.append(
             injection_check.InjectionCheck(
                 workspace_layout.WorkspaceLayout(

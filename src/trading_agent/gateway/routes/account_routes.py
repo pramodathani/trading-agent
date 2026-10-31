@@ -14,7 +14,7 @@ import dataclasses
 import datetime
 import functools
 import zoneinfo
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Collection
 from typing import Any, Literal
 
 import fastapi
@@ -53,7 +53,7 @@ class AccountRoutes(route_group.RouteGroup):
         self,
         guard: access_guard.AccessGuard,
         shared: gateway_parts.SharedParts,
-        trader_names: Sequence[str],
+        trader_names: Collection[str],
         clock: Callable[[], datetime.datetime] | None = None,
     ):
         """Creates the routes.
@@ -61,12 +61,12 @@ class AccountRoutes(route_group.RouteGroup):
         Args:
             guard (access_guard.AccessGuard): Checks the access token.
             shared (gateway_parts.SharedParts): The shared parts.
-            trader_names (Sequence[str]): The traders, for their order lists.
+            trader_names (Collection[str]): The traders, for their order lists. Read afresh on every request, so the gateway passes its live dictionary of traders and a trader created later is included.
             clock (Callable[[], datetime.datetime] | None): Returns the current time; None uses the system clock.
         """
         super().__init__(guard)
         self._shared = shared
-        self._trader_names = list(trader_names)
+        self._trader_names = trader_names
         self._clock = clock
 
     def _add_routes(self, router: fastapi.APIRouter) -> None:

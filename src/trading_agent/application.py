@@ -77,6 +77,8 @@ from trading_agent.terminal import prompt_history
 from trading_agent.terminal import terminal_application
 from trading_agent.terminal import terminal_settings
 from trading_agent.tools import bash_sandbox
+from trading_agent.traders import trader_registry
+from trading_agent.traders import trader_store
 from trading_agent.workspace import proposal_store
 from trading_agent.workspace import trader_migration
 from trading_agent.workspace import workspace_layout
@@ -123,16 +125,31 @@ class Application:
             / 'terminal.json',
             datetime.datetime.now(zoneinfo.ZoneInfo('Asia/Kolkata')),
         ).run()
-        trader_names = [trader.name for trader in configuration.traders]
+        store = trader_store.TraderStore(
+            layout,
+            configuration.traders,
+            tuple(configuration.backends),
+        )
+        try:
+            store.ensure_first()
+            trader_names = [record.name for record in store.active()]
+        except trader_store.TraderStoreError as error:
+            print(error, file=sys.stderr)
+            sys.exit(2)
         for created in layout.create_missing(trader_names):
             logging.getLogger(__name__).info(
                 'Created %s from its template', created
             )
         if arguments.command == 'doctor':
-            sys.exit(doctor.Doctor(configuration, secrets).run())
+            sys.exit(doctor.Doctor(configuration, secrets, trader_names).run())
         if arguments.command == 'preflight':
             sys.exit(
-                doctor.Doctor(configuration, secrets, going_live=True).run()
+                doctor.Doctor(
+                    configuration,
+                    secrets,
+                    trader_names,
+                    going_live=True,
+                ).run()
             )
         if arguments.command == 'send':
             client = message_client.MessageClient(
@@ -311,14 +328,19 @@ class Application:
             packages (installed_packages.InstalledPackages): The installed packages, whose hooks run beside the user's.
         """
         event_bus = event_bus_module.EventBus()
-        enabled_trader_names = []
-        for trader_configuration in configuration.traders:
-            if trader_configuration.enabled:
-                enabled_trader_names.append(trader_configuration.name)
+        layout = workspace_layout.WorkspaceLayout(
+            configuration.workspace_directory
+        )
+        store = trader_store.TraderStore(
+            layout,
+            configuration.traders,
+            tuple(configuration.backends),
+        )
+        active_names = [record.name for record in store.active()]
         model_usage = usage_tracker_module.UsageTracker(
             event_bus,
-            workspace_layout.WorkspaceLayout(configuration.workspace_directory),
-            enabled_trader_names,
+            layout,
+            active_names,
             configuration.backends,
         )
         builder = trader_builder.TraderBuilder(
@@ -328,22 +350,17 @@ class Application:
             manager,
             model_usage,
         )
-        traders = {}
-        for trader_configuration in configuration.traders:
-            if not trader_configuration.enabled:
-                continue
-            traders[trader_configuration.name] = builder.build(
-                trader_configuration
-            )
+        registry = trader_registry.TraderRegistry(
+            store, builder, layout, event_bus
+        )
+        registry.load()
+        traders = registry.traders
         guard = access_guard.AccessGuard(secrets.gateway_access_token)
-        tool_registries = {}
-        for trader_name, trader_parts in builder.trader_parts().items():
-            tool_registries[trader_name] = trader_parts.tools
         responder = user_request_responder.UserRequestResponder(
             builder.user_request_store,
             event_bus,
             traders,
-            tool_registries,
+            registry.tool_registries,
             builder.permission_grants,
         )
         redactor = secret_redactor.SecretRedactor.from_files(
@@ -352,17 +369,11 @@ class Application:
         )
         journal = trade_journal.TradeJournal(
             event_bus,
-            workspace_layout.WorkspaceLayout(configuration.workspace_directory),
+            layout,
             redactor,
         )
-        layout = workspace_layout.WorkspaceLayout(
-            configuration.workspace_directory
-        )
-        schedules = {}
-        for name, trader in traders.items():
-            schedules[name] = builder.trader_schedule(trader)
         scheduler = cron_scheduler.CronScheduler(
-            schedules,
+            registry.schedules,
             builder.calendar,
             builder.hours,
             event_bus,
@@ -376,7 +387,7 @@ class Application:
         )
         skill_uses = skill_usage.SkillUsageTracker(
             event_bus,
-            workspace_layout.WorkspaceLayout(configuration.workspace_directory),
+            layout,
         )
         pairing = pairing_store.PairingStore(layout.telegram_pairing_file)
         telegram = self._telegram_channel(
@@ -436,6 +447,7 @@ class Application:
             route_groups,
             configuration.gateway.frontend_directory,
             configuration.gateway.allowed_origins,
+            registry,
         )
         server_configuration = uvicorn.Config(
             gateway.build(),
@@ -484,7 +496,6 @@ class Application:
         """
         parts = builder.trader_parts()
         shared = builder.shared_parts()
-        trader_names = list(traders)
         return [
             trader_routes.TraderRoutes(
                 traders,
@@ -501,7 +512,7 @@ class Application:
                 shared.layout,
                 guard,
             ),
-            account_routes.AccountRoutes(guard, shared, trader_names),
+            account_routes.AccountRoutes(guard, shared, traders),
             memory_routes.MemoryRoutes(guard, parts, shared.layout),
             file_routes.FileRoutes(
                 guard,
@@ -516,7 +527,7 @@ class Application:
                 configuration,
                 model_usage,
                 redactor,
-                trader_names,
+                traders,
             ),
             channel_routes.ChannelRoutes(
                 guard,

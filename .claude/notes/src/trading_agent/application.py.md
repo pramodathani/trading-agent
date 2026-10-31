@@ -47,3 +47,7 @@ From milestone 8 the application builds the secret redactor and the trade journa
 ## Attachments, since 2026-10-17
 
 `_route_groups` adds `AttachmentRoutes` and gives `TraderRoutes` the attachment store; `_telegram_channel` gives the channel the same store.
+
+## Traders from the store
+
+Every command reads the traders from the trader store after the desk-to-trader migration, and gives an empty workspace its general trader. `serve` builds them through the trader registry, which owns the dictionaries handed to the rest of the gateway; see the registry's note.

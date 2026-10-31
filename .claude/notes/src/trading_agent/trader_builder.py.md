@@ -77,3 +77,7 @@ The builder creates the one `AttachmentStore` and hands it out in the shared par
 ## Command parts, since 2026-10-18
 
 Each trader's `TraderRuntime` gets a `slash_commands.CommandParts` with the shared subagent library, a `JournalReader` over the trader's journal folder, and the trader's own subagent runner, taken from `_schedule_parts` where `_executor` stored it. The commands `/subagents` and `/review` read these.
+
+## Built while the gateway runs
+
+`trader_parts()` returns the builder's own dictionary, so route groups holding it see traders built later. `set_roster` gives the builder the registry's list of running traders for the prompt header, asked afresh for every prompt. `forget` drops everything kept for a retired trader, including its price alert store, which the market watcher reads.

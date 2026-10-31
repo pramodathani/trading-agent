@@ -32,12 +32,18 @@ class GatewayConfiguration(pydantic.BaseModel):
     allowed_origins: list[str] = []
 
 
+_CLOCK_PATTERN = r'^([01][0-9]|2[0-3]):[0-5][0-9]$'
+TRADER_NAME_PATTERN = r'^[a-z][a-z0-9_-]{0,199}$'
+
+
 class TraderConfiguration(pydantic.BaseModel):
-    """One trader, which is one independent agent.
+    """One trader, which is one independent agent, as kept in its trader.toml.
 
     Attributes:
-        name: The trader's name, used in folder names, order tags and the web interface.
-        enabled: Whether the trader starts with the gateway.
+        name: The trader's name, used in folder names, order tags and the web interface: lower-case letters, digits, hyphens and underscores, starting with a letter, at most 200 characters.
+        mandate: What the trader trades and how, in a sentence or two, or an empty string for a trader made before records kept it.
+        created_at: When the trader was created, as an ISO 8601 string, or an empty string for a trader made before records kept it.
+        retired: Whether the trader has been retired; a retired trader keeps its files but does not run.
         backend_order: The backends the trader may use, most preferred first, by their names in [backends].
         heartbeat_minutes: Minutes between heartbeats while NSE equities trade, or None for no heartbeat; each heartbeat is a model turn.
         rollover_time: The India time on trading days, as HH:MM, when the trader's session rolls over with a summary.
@@ -46,22 +52,46 @@ class TraderConfiguration(pydantic.BaseModel):
 
     model_config = pydantic.ConfigDict(extra='forbid')
 
-    name: str = pydantic.Field(pattern=r'^[a-z][a-z0-9_]*$')
-    enabled: bool = True
+    name: str = pydantic.Field(pattern=TRADER_NAME_PATTERN)
+    mandate: str = ''
+    created_at: str = ''
+    retired: bool = False
     backend_order: list[str] = []
     heartbeat_minutes: int | None = pydantic.Field(default=None, ge=1, le=240)
     rollover_time: str = pydantic.Field(
         default='15:45',
-        pattern=r'^([01][0-9]|2[0-3]):[0-5][0-9]$',
+        pattern=_CLOCK_PATTERN,
     )
     scheduled_checks: list[
         Annotated[
             str,
-            pydantic.StringConstraints(
-                pattern=r'^([01][0-9]|2[0-3]):[0-5][0-9]$'
-            ),
+            pydantic.StringConstraints(pattern=_CLOCK_PATTERN),
         ]
     ] = []
+
+
+class TradersConfiguration(pydantic.BaseModel):
+    """How traders are made; the traders themselves are kept in workspace/traders/<name>/trader.toml.
+
+    Attributes:
+        backend_order: The backends a new trader may use, most preferred first.
+        heartbeat_minutes: A new trader's minutes between heartbeats, or None for no heartbeat.
+        rollover_time: A new trader's daily rollover time in India time, as HH:MM.
+        first_trader: The trader created when the workspace has none.
+    """
+
+    model_config = pydantic.ConfigDict(extra='forbid')
+
+    backend_order: list[str] = []
+    heartbeat_minutes: int | None = pydantic.Field(default=None, ge=1, le=240)
+    rollover_time: str = pydantic.Field(
+        default='15:45',
+        pattern=_CLOCK_PATTERN,
+    )
+    first_trader: str = pydantic.Field(
+        default='general',
+        pattern=TRADER_NAME_PATTERN,
+    )
 
 
 class AgentLoopConfiguration(pydantic.BaseModel):
@@ -335,7 +365,7 @@ class TelegramConfiguration(pydantic.BaseModel):
 
     Attributes:
         enabled: Whether the gateway talks to Telegram; it also needs TRADING_AGENT_TELEGRAM_BOT_TOKEN in .env.
-        default_trader: The trader a paired chat talks to until it chooses another with /trader; when left out, the first trader in the configuration.
+        default_trader: The trader a paired chat talks to until it chooses another with /trader.
         notifications: What is pushed to every paired chat without being asked: fills, rejections, model_switches, job_results, trader_reports, messages, alerts, halts, errors and daily_summaries.
         poll_seconds: How long one long-poll request to Telegram waits for new messages before asking again.
     """
@@ -343,7 +373,10 @@ class TelegramConfiguration(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(extra='forbid')
 
     enabled: bool = False
-    default_trader: str | None = None
+    default_trader: str = pydantic.Field(
+        default='general',
+        pattern=TRADER_NAME_PATTERN,
+    )
     notifications: list[str] = list(TELEGRAM_NOTIFICATIONS)
     poll_seconds: int = pydantic.Field(default=30, ge=1, le=50)
 
@@ -418,7 +451,7 @@ class AgentConfiguration(pydantic.BaseModel):
         mcp_servers_file: The JSON file listing the MCP servers every trader can use.
         market_calendar_directory: UBI's folder of yearly exchange calendars, or None to know weekends only.
         gateway: Where the web server listens.
-        traders: The traders to run.
+        traders: How traders are made; each trader's own settings are in its trader.toml.
         backends: The model backends, keyed by the name traders refer to them by.
         agent: The limits of the agent loop.
         sandbox: How the bash terminal's sandbox is built.
@@ -439,7 +472,7 @@ class AgentConfiguration(pydantic.BaseModel):
     mcp_servers_file: Path = Path('mcp_servers.json')
     market_calendar_directory: Path | None = None
     gateway: GatewayConfiguration = GatewayConfiguration()
-    traders: list[TraderConfiguration] = pydantic.Field(min_length=1)
+    traders: TradersConfiguration = TradersConfiguration()
     backends: dict[str, BackendConfiguration] = {}
     agent: AgentLoopConfiguration = AgentLoopConfiguration()
     sandbox: SandboxConfiguration = SandboxConfiguration()
@@ -452,55 +485,18 @@ class AgentConfiguration(pydantic.BaseModel):
     approvals: ApprovalConfiguration = ApprovalConfiguration()
 
     @pydantic.model_validator(mode='after')
-    def _require_known_telegram_trader(self) -> AgentConfiguration:
-        """Fills in Telegram's default trader with the first trader when it is left out, and checks that it is one of the traders.
-
-        Returns:
-            AgentConfiguration: This configuration, with the default trader filled in.
-
-        Raises:
-            ValueError: The default trader does not exist.
-        """
-        if self.telegram.default_trader is None and self.traders:
-            self.telegram.default_trader = self.traders[0].name
-        for trader in self.traders:
-            if trader.name == self.telegram.default_trader:
-                return self
-        raise ValueError(
-            f'[telegram] default_trader {self.telegram.default_trader!r} is not a trader'
-        )
-
-    @pydantic.model_validator(mode='after')
     def _require_known_backends(self) -> AgentConfiguration:
-        """Checks that every backend a trader names is defined in [backends].
+        """Checks that every backend in [traders] backend_order is defined in [backends].
 
         Returns:
             AgentConfiguration: This configuration, unchanged.
 
         Raises:
-            ValueError: A trader names a backend that does not exist.
+            ValueError: The order names a backend that does not exist.
         """
-        for trader in self.traders:
-            for backend_name in trader.backend_order:
-                if backend_name not in self.backends:
-                    raise ValueError(
-                        f'Trader {trader.name!r} names unknown backend {backend_name!r}'
-                    )
-        return self
-
-    @pydantic.model_validator(mode='after')
-    def _require_unique_trader_names(self) -> AgentConfiguration:
-        """Checks that no two traders share a name.
-
-        Returns:
-            AgentConfiguration: This configuration, unchanged.
-
-        Raises:
-            ValueError: Two traders have the same name.
-        """
-        seen_names = set()
-        for trader in self.traders:
-            if trader.name in seen_names:
-                raise ValueError(f'Duplicate trader name: {trader.name!r}')
-            seen_names.add(trader.name)
+        for backend_name in self.traders.backend_order:
+            if backend_name not in self.backends:
+                raise ValueError(
+                    f'[traders] backend_order names unknown backend {backend_name!r}'
+                )
         return self

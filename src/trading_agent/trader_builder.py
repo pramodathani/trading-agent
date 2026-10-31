@@ -11,7 +11,7 @@ import datetime
 import functools
 import logging
 import os
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
 from trading_agent.agent import agent_loop
@@ -196,6 +196,7 @@ class TraderBuilder:
         self._schedule_parts: dict[str, tuple] = {}
         self._order_services = self._build_order_services()
         self._skill_libraries: dict[str, skill_library.SkillLibrary] = {}
+        self._roster: Callable[[], Sequence[str]] | None = None
         self._packages = installed_packages.InstalledPackages(
             self._layout.packages_directory
         )
@@ -370,10 +371,38 @@ class TraderBuilder:
     def trader_parts(self) -> dict[str, gateway_parts.TraderParts]:
         """The stores and tools of every trader build() made, for the gateway's API.
 
+        The dictionary is the builder's own, so a trader built later appears in it for everyone holding it.
+
         Returns:
             dict[str, gateway_parts.TraderParts]: The parts, keyed by trader name.
         """
-        return dict(self._trader_parts)
+        return self._trader_parts
+
+    def set_roster(self, names: Callable[[], Sequence[str]]) -> None:
+        """Tells the builder where to find the running traders' names, which each prompt lists.
+
+        Args:
+            names (Callable[[], Sequence[str]]): Returns the names of the traders now running.
+
+        Returns:
+            None.
+        """
+        self._roster = names
+
+    def forget(self, trader_name: str) -> None:
+        """Drops what build() kept for a trader that has been retired.
+
+        Args:
+            trader_name (str): The trader.
+
+        Returns:
+            None.
+        """
+        self._trader_parts.pop(trader_name, None)
+        self._steering_inboxes.pop(trader_name, None)
+        self._skill_libraries.pop(trader_name, None)
+        self._schedule_parts.pop(trader_name, None)
+        self._alert_stores.pop(trader_name, None)
 
     def shared_parts(self) -> gateway_parts.SharedParts:
         """The parts every trader shares, for the gateway's API.
@@ -914,20 +943,24 @@ class TraderBuilder:
             self._skill_libraries.get(trader_configuration.name),
             self._mcp_manager,
             self._subagent_library,
-            self._other_trader_names(trader_configuration.name),
+            functools.partial(
+                self._other_trader_names, trader_configuration.name
+            ),
         )
 
     def _other_trader_names(self, trader_name: str) -> list[str]:
-        """The enabled traders other than one.
+        """The running traders other than one.
 
         Args:
             trader_name (str): The trader to leave out.
 
         Returns:
-            list[str]: The other enabled traders' names, in configuration order.
+            list[str]: The other running traders' names, oldest first, or none before set_roster() is called.
         """
         names = []
-        for trader in self._configuration.traders:
-            if trader.enabled and trader.name != trader_name:
-                names.append(trader.name)
+        if self._roster is None:
+            return names
+        for name in self._roster():
+            if name != trader_name:
+                names.append(name)
         return names

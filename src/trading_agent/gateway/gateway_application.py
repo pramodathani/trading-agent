@@ -1,6 +1,6 @@
 """Builds the gateway's FastAPI application and runs the traders inside it.
 
-The traders' loops are started when the web server starts and cancelled when it stops, so the gateway is one process that owns every trader.
+The traders' loops are started when the web server starts and cancelled when it stops, so the gateway is one process that owns every trader. Given a trader runner, such as the trader registry, the gateway leaves starting and stopping the traders to it, so traders created later run too.
 
 Typical usage example:
 
@@ -36,6 +36,24 @@ class BackgroundWorker(Protocol):
         """Runs until cancelled."""
 
 
+class TraderRunner(Protocol):
+    """Anything that starts and stops the traders' loops, such as the trader registry."""
+
+    async def start(self) -> None:
+        """Starts every trader's loop.
+
+        Returns:
+            None.
+        """
+
+    async def stop(self) -> None:
+        """Cancels every trader's loop and waits for each to close.
+
+        Returns:
+            None.
+        """
+
+
 class GatewayApplication:
     """The gateway: its web routes and the traders it runs."""
 
@@ -50,6 +68,7 @@ class GatewayApplication:
         route_groups: Sequence[route_group.RouteGroup] = (),
         frontend_directory: Path | None = None,
         allowed_origins: Sequence[str] = (),
+        trader_runner: TraderRunner | None = None,
     ):
         """Creates the gateway without starting anything.
 
@@ -63,6 +82,7 @@ class GatewayApplication:
             route_groups (Sequence[route_group.RouteGroup]): The API's route groups; when empty, only the basic trader routes are offered.
             frontend_directory (Path | None): The built web page to serve at every other address, or None to serve no page.
             allowed_origins (Sequence[str]): The other web origins whose pages may call the API, such as the Android app's "https://localhost"; empty allows none.
+            trader_runner (TraderRunner | None): Starts and stops the traders, or None to run each trader in the mapping as its own task.
         """
         self._event_bus = event_bus
         self._traders = traders
@@ -73,6 +93,7 @@ class GatewayApplication:
         self._route_groups = list(route_groups)
         self._frontend_directory = frontend_directory
         self._allowed_origins = list(allowed_origins)
+        self._trader_runner = trader_runner
 
     def build(self) -> fastapi.FastAPI:
         """Builds the FastAPI application with every route.
@@ -149,13 +170,20 @@ class GatewayApplication:
         trader_tasks = []
         for worker in self._background_workers:
             trader_tasks.append(asyncio.create_task(worker.run()))
-        for trader in self._traders.values():
-            trader_tasks.append(
-                asyncio.create_task(trader.run(), name=f'trader-{trader.name}')
-            )
+        if self._trader_runner is not None:
+            await self._trader_runner.start()
+        else:
+            for trader in self._traders.values():
+                trader_tasks.append(
+                    asyncio.create_task(
+                        trader.run(), name=f'trader-{trader.name}'
+                    )
+                )
         try:
             yield
         finally:
+            if self._trader_runner is not None:
+                await self._trader_runner.stop()
             for task in trader_tasks:
                 task.cancel()
             await asyncio.gather(*trader_tasks, return_exceptions=True)

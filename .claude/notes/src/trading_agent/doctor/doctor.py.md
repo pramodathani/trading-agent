@@ -9,3 +9,7 @@ The exit status is 1 when any check failed, so the doctor can be used in scripts
 ## preflight (milestone 21)
 
 `trading-agent preflight` is the doctor with `going_live=True`: every ordinary check, then the service, trader limits, dry-run order, stock-sharing, Telegram pairing and trading mode checks, and a verdict line. It is the same code path as doctor, so the two never disagree about the basics.
+
+## Trader names
+
+The traders are no longer in the configuration, so the application passes the names of the traders that are not retired, read from the trader store.

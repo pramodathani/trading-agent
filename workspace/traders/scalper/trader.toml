@@ -1,0 +1,8 @@
+name = "scalper"
+mandate = "Very short trades of seconds to minutes in the most liquid instruments, such as NIFTY and BANKNIFTY options (buying only) and the most traded stocks, following the scalping strategies written in TradingRules.md, with mis only and flat by 15:15 every day."
+created_at = ""
+retired = false
+backend_order = ["claude_sonnet", "deepseek", "qwen", "gemma"]
+heartbeat_minutes = 2
+rollover_time = "15:45"
+scheduled_checks = ["09:10", "15:05"]

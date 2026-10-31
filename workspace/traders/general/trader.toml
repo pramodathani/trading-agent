@@ -1,0 +1,7 @@
+name = "general"
+mandate = "None of its own. This is the general trader, for trying trading-agent out, answering questions about the account and the market, and planning new traders before each gets a mandate of its own."
+created_at = ""
+retired = false
+backend_order = ["claude", "deepseek", "qwen", "gemma"]
+rollover_time = "15:45"
+scheduled_checks = []

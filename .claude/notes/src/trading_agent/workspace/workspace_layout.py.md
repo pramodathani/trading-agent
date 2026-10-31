@@ -39,3 +39,7 @@ The `Agents.md` template's line "Notes and memory tools arrive in later mileston
 ## `uploads/`, since 2026-10-17
 
 `uploads_directory` is the trader's folder of files the user sent. It is not created up front; the store creates each upload's folder when one arrives.
+
+## Trader records
+
+`traders_directory` and `trader_file` locate each trader's `trader.toml`, which the trader store reads and writes.

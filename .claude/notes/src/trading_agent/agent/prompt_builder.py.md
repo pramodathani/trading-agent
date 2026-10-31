@@ -25,3 +25,7 @@ With a subagent library, the Subagents section (names, descriptions and how dele
 ## Other traders (milestone 16)
 
 The header names the other enabled traders and says the risk engine gives each instrument to one trader at a time, so a trader does not plan trades in a stock another trader holds.
+
+## Other traders
+
+`other_traders` is a function asked on every build, so a trader created or retired while the gateway runs is named or dropped in the other traders' next prompt.
