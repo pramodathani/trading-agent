@@ -456,6 +456,9 @@ class Application:
                 responder,
             ),
         ]
+        jev_watcher = builder.jev_signal_watcher(traders)
+        if jev_watcher is not None:
+            workers.append(jev_watcher)
         if telegram is not None:
             workers.append(telegram)
         phones = device_store.DeviceStore(layout.phone_devices_file)

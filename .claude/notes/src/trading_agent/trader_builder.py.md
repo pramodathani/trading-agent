@@ -81,3 +81,7 @@ Each trader's `TraderRuntime` gets a `slash_commands.CommandParts` with the shar
 ## Built while the gateway runs
 
 `trader_parts()` returns the builder's own dictionary, so route groups holding it see traders built later. `set_roster` gives the builder the registry's list of running traders for the prompt header, asked afresh for every prompt. `forget` drops everything kept for a retired trader, including its price alert store, which the market watcher reads.
+
+## Jev
+
+The builder makes one shared `JevAdviser` when `TRADING_AGENT_TYPESAFE_API_KEY` is set, and none otherwise. A trader whose trader.toml sets `jev_signals` is added to the builder's set of Jev traders and, when the adviser exists, gets the `jev_decision` tool. Without the key the trader still starts, with a warning in the log, so a missing key cannot stop the gateway; the doctor fails instead. `jev_signal_watcher()` returns None without the key, and the application only starts the watcher when there is one. `forget()` drops a retired trader from the Jev set, so the watcher stops asking Jev for it.

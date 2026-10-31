@@ -183,6 +183,10 @@ _TOOLS = {
         'Checking the time',
         'market',
     ),
+    'jev_decision': (
+        'Asking Jev for a decision',
+        'market',
+    ),
     'get_portfolio': (
         'Checking the portfolio',
         'account',

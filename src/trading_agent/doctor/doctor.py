@@ -21,6 +21,7 @@ from trading_agent.doctor.checks import deepseek_backend_check
 from trading_agent.doctor.checks import dry_run_order_check
 from trading_agent.doctor.checks import gateway_token_check
 from trading_agent.doctor.checks import injection_check
+from trading_agent.doctor.checks import jev_check
 from trading_agent.doctor.checks import journal_search
 from trading_agent.doctor.checks import market_calendar_check
 from trading_agent.doctor.checks import mcp_servers_check
@@ -187,6 +188,16 @@ class Doctor:
         checks.append(
             mcp_servers_check.McpServersCheck(
                 self._configuration.mcp_servers_file
+            )
+        )
+        checks.append(
+            jev_check.JevCheck(
+                self._configuration.jev,
+                self._secrets,
+                workspace_layout.WorkspaceLayout(
+                    self._configuration.workspace_directory
+                ),
+                trader_names,
             )
         )
         checks.append(bubblewrap_check.BubblewrapCheck())
