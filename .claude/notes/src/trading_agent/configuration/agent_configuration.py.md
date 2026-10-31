@@ -41,3 +41,9 @@ Off by default, because it needs a bot token the user creates. `notifications` i
 ## Traders as records
 
 `TraderConfiguration` now describes one `trader.toml`: `enabled` became `retired`, and `mandate` and `created_at` were added. `TradersConfiguration` is the `[traders]` table of defaults. The checks that the default Telegram trader exists and that names are unique moved out of the configuration, because the traders are no longer in it: unique names come from unique folder names, and `default_trader` is now a plain name defaulting to general. `TRADER_NAME_PATTERN` allows hyphens and up to 200 characters, as the user asked.
+
+## [jev] and jev_signals
+
+`JevConfiguration` holds the Jev decision model's settings, all with defaults so trading_agent.toml needs no `[jev]` section. `interval_seconds` may not go below 10, to stop a typo from hammering TypeSafe's API. `signal_window` is a single India-time range rather than a list, because the jev-scalper has one entry window.
+
+`TraderConfiguration.jev_signals` defaults to false, so the four starter traders' records are unchanged. Because trader records forbid unknown keys, a trader.toml that sets `jev_signals` cannot be read by a gateway older than this change; the jev-scalper's folder is only created after the upgrade.
