@@ -97,8 +97,10 @@ class CancelOrderTool(order_tool.OrderTool):
                 )
             )
         whole_order = arguments.part is None
+        released = False
         if whole_order and (record.dry_run or not self._dry_run):
             self._services.order_book.mark_cancelled(record.record_id)
+            released = await self._release_unused_claim(record.instrument_id)
         self._publish(
             {
                 'action': 'cancelled',
@@ -106,17 +108,19 @@ class CancelOrderTool(order_tool.OrderTool):
                 'record_id': record.record_id,
                 'part': arguments.part,
                 'reason': arguments.reason,
+                'released_claim': released,
             }
         )
-        return tool.ToolResult.success(
-            '\n'.join(
-                [
-                    f'Cancelled order {record.record_id} ({record.transaction_type} {record.quantity} {record.symbol}). {note}',
-                    'UBI answered:',
-                    self._answer_text(answer),
-                ]
+        lines = [
+            f'Cancelled order {record.record_id} ({record.transaction_type} {record.quantity} {record.symbol}). {note}',
+        ]
+        if released:
+            lines.append(
+                f'This trader has no other order and no position in {record.symbol}, so its claim on {record.symbol} was released and other traders may now trade it.'
             )
-        )
+        lines.append('UBI answered:')
+        lines.append(self._answer_text(answer))
+        return tool.ToolResult.success('\n'.join(lines))
 
     def _send(
         self,

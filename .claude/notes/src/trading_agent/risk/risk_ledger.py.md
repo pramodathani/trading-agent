@@ -11,3 +11,5 @@ A halt lasts until `until_date`: the next day for the daily limit, the next Mond
 ## Owners and halts for the API (milestone 17)
 
 `owners` lists every stock a trader owns now, and `halts_in_force` lists the halts that still apply today, for the Trading page.
+
+`release` deletes a claim only when it belongs to the named trader, so a trader can never give away another trader's instrument. `day_owners` is left alone, because it records who owned the instrument that day for each trader's day profit and loss.

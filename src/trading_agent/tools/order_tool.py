@@ -153,6 +153,28 @@ class OrderTool(tool.Tool):
             )
         )
 
+    async def _release_unused_claim(self, instrument_id: str) -> bool:
+        """Gives up the trader's claim on an instrument when it has no open order and no position there.
+
+        Args:
+            instrument_id (str): The instrument.
+
+        Returns:
+            bool: True when the claim was released; False when the trader did not own the instrument, still has an open order or a position in it, or the account could not be read.
+        """
+        if self._services.ledger.owner(instrument_id) != self._trader:
+            return False
+        for record in self._services.order_book.open_orders(self._trader):
+            if record.instrument_id == instrument_id:
+                return False
+        try:
+            snapshot = await self._services.snapshot_reader.read()
+        except ubi_exceptions.UnifiedBrokerInterfaceError:
+            return False
+        if instrument_id in snapshot.held_instrument_ids():
+            return False
+        return self._services.ledger.release(instrument_id, self._trader)
+
     def _lot_problem(
         self,
         instrument: instruments.TradeableInstrument,

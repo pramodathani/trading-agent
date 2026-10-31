@@ -966,6 +966,118 @@ class TestCancelOrderTool:
         assert sent['dry_run'] is False
         assert setup.order_book.open_orders('main') == []
 
+    def test_cancel_releases_an_unused_claim(self, tmp_path: Path) -> None:
+        """Cancelling the trader's only order in an instrument it does not hold releases its claim.
+
+        Args:
+            tmp_path (Path): A temporary folder from pytest.
+        """
+        setup = _Setup(tmp_path)
+        parent_id = _place_dry_run(setup)
+        setup.ledger.claim(
+            _INFY_ID, 'main', datetime.datetime.now(datetime.UTC)
+        )
+        tool = cancel_order_tool.CancelOrderTool(
+            setup.services, 'main', 'dry_run'
+        )
+
+        result = asyncio.run(
+            tool.run(
+                cancel_order_tool.CancelOrderArguments(
+                    parent_id=parent_id,
+                    reason='test',
+                )
+            )
+        )
+
+        assert setup.ledger.owner(_INFY_ID) is None
+        assert 'claim on INFY was released' in result.text
+
+    def test_cancel_keeps_the_claim_while_another_order_is_open(
+        self, tmp_path: Path
+    ) -> None:
+        """The claim stays while the trader has another open order in the instrument.
+
+        Args:
+            tmp_path (Path): A temporary folder from pytest.
+        """
+        setup = _Setup(tmp_path)
+        parent_id = _place_dry_run(setup)
+        _place_dry_run(setup)
+        setup.ledger.claim(
+            _INFY_ID, 'main', datetime.datetime.now(datetime.UTC)
+        )
+        tool = cancel_order_tool.CancelOrderTool(
+            setup.services, 'main', 'dry_run'
+        )
+
+        asyncio.run(
+            tool.run(
+                cancel_order_tool.CancelOrderArguments(
+                    parent_id=parent_id,
+                    reason='test',
+                )
+            )
+        )
+
+        assert setup.ledger.owner(_INFY_ID) == 'main'
+
+    def test_cancel_keeps_the_claim_on_a_held_position(
+        self, tmp_path: Path
+    ) -> None:
+        """The claim stays while the account holds the instrument.
+
+        Args:
+            tmp_path (Path): A temporary folder from pytest.
+        """
+        positions = (
+            account_snapshot.PositionRow(
+                instrument_id=_INFY_ID,
+                symbol='INFY',
+                segment='nse_equities',
+                product='intraday',
+                quantity=10,
+                last_price=1500.0,
+            ),
+        )
+        setup = _Setup(tmp_path, positions=positions)
+        parent_id = _place_dry_run(setup)
+        setup.ledger.claim(
+            _INFY_ID, 'main', datetime.datetime.now(datetime.UTC)
+        )
+        tool = cancel_order_tool.CancelOrderTool(
+            setup.services, 'main', 'dry_run'
+        )
+
+        asyncio.run(
+            tool.run(
+                cancel_order_tool.CancelOrderArguments(
+                    parent_id=parent_id,
+                    reason='test',
+                )
+            )
+        )
+
+        assert setup.ledger.owner(_INFY_ID) == 'main'
+
+    def test_another_traders_claim_is_never_released(
+        self, tmp_path: Path
+    ) -> None:
+        """Releasing a claim the trader does not have leaves the owner's claim in place.
+
+        Args:
+            tmp_path (Path): A temporary folder from pytest.
+        """
+        setup = _Setup(tmp_path)
+        setup.ledger.claim(
+            _INFY_ID, 'other', datetime.datetime.now(datetime.UTC)
+        )
+
+        released = setup.ledger.release(_INFY_ID, 'main')
+
+        assert not released
+        assert setup.ledger.owner(_INFY_ID) == 'other'
+
 
 class TestFlattenTraderTool:
     """Tests for flatten_trader."""
@@ -1023,6 +1135,30 @@ class TestFlattenTraderTool:
         assert sent['dry_run'] is True
         assert setup.future.requests == []
         assert setup.engine.requests[-1].transaction_type == 'sell'
+
+    def test_flatten_releases_claims_it_no_longer_needs(
+        self, tmp_path: Path
+    ) -> None:
+        """After cancelling its only order in an instrument it does not hold, the trader gives up its claim.
+
+        Args:
+            tmp_path (Path): A temporary folder from pytest.
+        """
+        setup = _Setup(tmp_path)
+        _place_dry_run(setup)
+        setup.ledger.claim(
+            _INFY_ID, 'main', datetime.datetime.now(datetime.UTC)
+        )
+        tool = flatten_trader_tool.FlattenTraderTool(
+            setup.services, 'main', 'dry_run'
+        )
+
+        result = asyncio.run(
+            tool.run(flatten_trader_tool.FlattenTraderArguments(reason='test'))
+        )
+
+        assert setup.ledger.owner(_INFY_ID) is None
+        assert 'Released the claim on INFY' in result.text
 
     def test_flatten_with_nothing_to_do_says_so(self, tmp_path: Path) -> None:
         """A trader with no orders and no positions is told it was already flat.
