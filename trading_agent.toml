@@ -1,4 +1,4 @@
-mode = "dry_run"
+mode = "live"
 tradingmachine_environment_file = "/home/pramod/Projects/tradingmachine/.env"
 market_calendar_directory = "/home/pramod/Projects/unified_broker_interface/stock_brokers/instruments/ticks/utilities/calendars"
 
